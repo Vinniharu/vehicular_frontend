@@ -397,7 +397,6 @@ export default function ApplyPage() {
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("");
   const [nationality, setNationality] = useState("Nigerian");
-  const [visaStatus, setVisaStatus] = useState("Citizen");
   const [maritalStatus, setMaritalStatus] = useState("");
   const [mothersMaidenName, setMothersMaidenName] = useState("");
   const [residentialAddress, setResidentialAddress] = useState("");
@@ -405,7 +404,6 @@ export default function ApplyPage() {
   const [country, setCountry] = useState("Nigeria");
   const [nin, setNin] = useState("");
   const [bloodGroup, setBloodGroup] = useState("");
-  const [genotype, setGenotype] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [hasFacialMark, setHasFacialMark] = useState(false);
   const [facialMarkDesc, setFacialMarkDesc] = useState("");
@@ -474,7 +472,6 @@ export default function ApplyPage() {
           setDob(pick(latestApp.date_of_birth, bd.date_of_birth, ""));
           setGender(pick(latestApp.gender, bd.gender, ""));
           setNationality(pick(latestApp.nationality, bd.nationality, "Nigerian"));
-          setVisaStatus(pick(latestApp.visa_status, bd.visa_status, "Citizen"));
           setMaritalStatus(pick(latestApp.marital_status, bd.marital_status, ""));
           setMothersMaidenName(pick(latestApp.mothers_maiden_name, bd.mothers_maiden_name, ""));
           setResidentialAddress(pick(latestApp.residential_address, bd.residential_address, ""));
@@ -482,7 +479,6 @@ export default function ApplyPage() {
           setCountry(latestApp.country || "Nigeria");
           setNin(bd.nin || "");
           setBloodGroup(pick(latestApp.blood_group, bd.blood_group, ""));
-          setGenotype(pick(latestApp.genotype, bd.genotype, ""));
           setHeightCm(latestApp.height_cm != null ? String(latestApp.height_cm) : "");
           if (latestApp.has_facial_mark) {
             setHasFacialMark(true);
@@ -649,7 +645,6 @@ export default function ApplyPage() {
       date_of_birth: dob,
       gender,
       nationality,
-      visa_status: visaStatus,
       marital_status: maritalStatus,
       mothers_maiden_name: mothersMaidenName.trim() || undefined,
       state_of_origin: originStateObj?.name || undefined,
@@ -661,7 +656,6 @@ export default function ApplyPage() {
       country,
       nin: nin.trim(),
       blood_group: bloodGroup,
-      genotype,
       height_cm: heightCm ? parseInt(heightCm, 10) : undefined,
       has_facial_mark: hasFacialMark,
       facial_mark_description: hasFacialMark && facialMarkDesc.trim() ? facialMarkDesc.trim() : undefined,
@@ -702,9 +696,9 @@ export default function ApplyPage() {
     setApplicationType("fresh");
     setLicenceClass(""); setValidityPeriod("");
     setDob(""); setMiddleName(""); setGender(""); setNationality("Nigerian");
-    setVisaStatus("Citizen"); setMaritalStatus(""); setMothersMaidenName("");
+    setMaritalStatus(""); setMothersMaidenName("");
     setResidentialAddress(""); setCity(""); setCountry("Nigeria");
-    setNin(""); setBloodGroup(""); setGenotype(""); setHeightCm("");
+    setNin(""); setBloodGroup(""); setHeightCm("");
     setHasFacialMark(false); setFacialMarkDesc("");
     setHasDisability(false); setDisabilityDesc(""); setPassportPhoto("");
     setNokName(""); setNokRelationship(""); setNokPhone("+234");
@@ -1340,6 +1334,37 @@ export default function ApplyPage() {
         </div>
       </div>
 
+      <div className="overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm p-6 space-y-4">
+        <div>
+          <h2 className="text-[13px] font-medium text-[#111111]">State &amp; LGA of residence</h2>
+          <p className="text-[12px] text-[#7A7A7A]">This determines which capturing center processes your application.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className={label}>State of residence <span className="text-red-400">*</span></label>
+            <div className="relative">
+              <select value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }} className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.selectedState)}`}>
+                <option value="" disabled>Select state</option>
+                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            </div>
+            <FieldError message={fieldErrors.selectedState} />
+          </div>
+          <div>
+            <label className={label}>LGA <span className="text-red-400">*</span></label>
+            <div className="relative">
+              <select value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} disabled={!selectedState || lgas.length === 0} className={`${inputBase} appearance-none pr-8 disabled:opacity-50 ${errInputClass(!!fieldErrors.selectedLga)}`}>
+                <option value="" disabled>Select LGA</option>
+                {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            </div>
+            <FieldError message={fieldErrors.selectedLga} />
+          </div>
+        </div>
+      </div>
+
       <StepProgress steps={STEP_LABELS} current={step} />
 
       <div className="overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm">
@@ -1480,8 +1505,8 @@ export default function ApplyPage() {
               </div>
             </div>
 
-            {/* Nationality + Marital + Visa */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* Nationality + Marital */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Nationality</label>
                 <input type="text" value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="Nigerian" className={inputBase} />
@@ -1492,15 +1517,6 @@ export default function ApplyPage() {
                   <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} className={`${inputBase} appearance-none pr-8`}>
                     <option value="">Select...</option>
                     <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                </div>
-              </div>
-              <div>
-                <label className={label}>Visa status</label>
-                <div className="relative">
-                  <select value={visaStatus} onChange={(e) => setVisaStatus(e.target.value)} className={`${inputBase} appearance-none pr-8`}>
-                    <option>Citizen</option><option>Resident</option><option>Visitor</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 </div>
@@ -1520,7 +1536,7 @@ export default function ApplyPage() {
               </div>
             </div>
 
-            {/* Blood group + Genotype */}
+            {/* Blood group */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Blood group</label>
@@ -1531,42 +1547,6 @@ export default function ApplyPage() {
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 </div>
-              </div>
-              <div>
-                <label className={label}>Genotype</label>
-                <div className="relative">
-                  <select value={genotype} onChange={(e) => setGenotype(e.target.value)} className={`${inputBase} appearance-none pr-8`}>
-                    <option value="">Select...</option>
-                    {["AA","AS","SS","AC"].map(g => <option key={g}>{g}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                </div>
-              </div>
-            </div>
-
-            {/* State + LGA of residence (for VIO routing) */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className={label}>State of residence <span className="text-red-400">*</span></label>
-                <div className="relative">
-                  <select value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }} className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.selectedState)}`}>
-                    <option value="" disabled>Select state</option>
-                    {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                </div>
-                <FieldError message={fieldErrors.selectedState} />
-              </div>
-              <div>
-                <label className={label}>LGA <span className="text-red-400">*</span></label>
-                <div className="relative">
-                  <select value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} disabled={!selectedState || lgas.length === 0} className={`${inputBase} appearance-none pr-8 disabled:opacity-50 ${errInputClass(!!fieldErrors.selectedLga)}`}>
-                    <option value="" disabled>Select LGA</option>
-                    {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                </div>
-                <FieldError message={fieldErrors.selectedLga} />
               </div>
             </div>
 
@@ -1659,7 +1639,7 @@ export default function ApplyPage() {
 
             <div className="flex items-start gap-2 text-[11.5px] text-slate-400">
               <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>Your state and LGA determine which local VIO office processes your application.</span>
+              <span>Your state and LGA determine which capturing center processes your application.</span>
             </div>
           </div>
         )}
@@ -1862,7 +1842,7 @@ export default function ApplyPage() {
                     ["NIN", nin || "—"],
                     ["Nationality", nationality || "—"],
                     ["Marital status", maritalStatus || "—"],
-                    ["Blood group / Genotype", [bloodGroup, genotype].filter(Boolean).join(" / ") || "—"],
+                    ["Blood group", bloodGroup || "—"],
                     ["Residential address", residentialAddress || "—"],
                     ["State / LGA", stateObj?.name && lgaObj?.name ? `${stateObj.name} / ${lgaObj.name}` : "—"],
                   ],

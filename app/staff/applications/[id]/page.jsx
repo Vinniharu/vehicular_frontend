@@ -547,7 +547,7 @@ export default function StaffApplicationDetailsPage() {
               </div>
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Nationality</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.nationality || "—"} ({application.visa_status || "—"})</span>
+                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.nationality || "—"}</span>
               </div>
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Marital Status</span>
@@ -575,10 +575,6 @@ export default function StaffApplicationDetailsPage() {
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Blood Group</span>
                 <span className="mt-1 block text-[13.5px] font-bold text-red-600">{application.blood_group || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Genotype</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.genotype || "—"}</span>
               </div>
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Height</span>
