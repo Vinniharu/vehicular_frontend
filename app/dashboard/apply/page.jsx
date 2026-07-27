@@ -13,7 +13,6 @@ import {
   Info,
   ExternalLink,
   Upload,
-  Trash2,
   Image as ImageIcon,
   Wallet,
   Clock,
@@ -34,6 +33,7 @@ import {
   getReferenceStates,
   getReferenceLgas,
   submitDriverLicenceApplication,
+  uploadApplicationFile,
   getMyApplications,
   payFromWalletEndpoint,
   getWallet,
@@ -129,21 +129,6 @@ function estimateFeeKobo(appType, period) {
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
-
-// Exact doc_type strings the backend requires before a renewal/reissue
-// application can auto-route to a field agent (app/routers/applications.py
-// check_missing_docs) — must match exactly, not just "some ID document".
-const REQUIRED_DOCS_BY_TYPE = {
-  renewal: [
-    { key: "old_driver_licence", title: "Old driver's licence" },
-    { key: "nin_slip", title: "NIN slip" },
-  ],
-  reissue: [
-    { key: "police_extract", title: "Police extract" },
-    { key: "affidavit_of_loss", title: "Affidavit of loss" },
-    { key: "nin_slip", title: "NIN slip" },
-  ],
-};
 
 // Ordered stages for the fresh-application journey — used to compute how
 // far along an application is, independent of its current status label.
@@ -306,12 +291,22 @@ function StepProgress({ steps, current }) {
 
 function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleFile = (file) => {
+  const handleFile = async (file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange({ fileName: file.name, url: reader.result, preview: reader.result });
-    reader.readAsDataURL(file);
+    setError(null);
+    setUploading(true);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setUploading(false);
+    if (uploadError || !data?.file_url) {
+      setError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    // file_url is the short server-side storage path (e.g. "/uploads/...")
+    // returned by the real upload — never the raw file contents.
+    onChange({ fileName: file.name, url: data.file_url });
   };
 
   return (
@@ -325,7 +320,7 @@ function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
         )}
       </label>
       {hint && <p className="mb-2 -mt-1 text-[12px] text-slate-500">{hint}</p>}
-      {!value?.preview ? (
+      {!value?.url ? (
         <label
           onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
           onDragLeave={() => setDragActive(false)}
@@ -337,9 +332,9 @@ function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
           }}
         >
           <Upload className="h-5 w-5" style={{ color: BRAND }} />
-          <p className="text-[12.5px] font-semibold text-slate-700">Click or drop a file here</p>
+          <p className="text-[12.5px] font-semibold text-slate-700">{uploading ? "Uploading…" : "Click or drop a file here"}</p>
           <p className="text-[11px] text-slate-400">PNG, JPG, or WEBP — up to 10MB</p>
-          <input type="file" accept="image/*" onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
+          <input type="file" accept="image/*" disabled={uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
         </label>
       ) : (
         <div className="space-y-2 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
@@ -355,6 +350,7 @@ function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
           </div>
         </div>
       )}
+      {error && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{error}</p>}
     </div>
   );
 }
@@ -418,28 +414,10 @@ export default function ApplyPage() {
   const [nokName, setNokName] = useState("");
   const [nokRelationship, setNokRelationship] = useState("");
   const [nokPhone, setNokPhone] = useState("+234");
-  const [docType, setDocType] = useState("proof_of_identity");
-  const [docUrl, setDocUrl] = useState("");
-  const [docFileName, setDocFileName] = useState("");
-  const [docFilePreview, setDocFilePreview] = useState("");
-  // Optional: customer already has a driving school certificate — skips
-  // the staff-driven enroll-and-wait flow if attached.
-  const [dsCert, setDsCert] = useState(null); // { fileName, url, preview } | null
   // Renewal/reissue required documents, keyed by exact backend doc_type
-  // string (e.g. { old_driver_licence: { fileName, url, preview } }).
+  // string (e.g. { old_driver_licence: { fileName, url } }).
   const [renewalDocs, setRenewalDocs] = useState({});
-  const [dragActive, setDragActive] = useState(false);
-
-  const readFile = (file) => {
-    if (!file) return;
-    setDocFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDocUrl(reader.result);
-      setDocFilePreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
+  const [oldLicenceNumber, setOldLicenceNumber] = useState("");
 
   useEffect(() => {
     Promise.all([authGetMe(), getReferenceStates(), getMyApplications(), getWallet()]).then(
@@ -559,7 +537,7 @@ export default function ApplyPage() {
       if (!validityPeriod) errors.validityPeriod = "Select a validity period.";
       if (applicationType === "fresh" && !licenceClass) errors.licenceClass = "Select a licence class.";
     }
-    if (n === 2) {
+    if (n === 2 && applicationType === "fresh") {
       const trimmedFirst = firstName.trim();
       const trimmedLast = lastName.trim();
       const trimmedMaiden = mothersMaidenName.trim();
@@ -581,13 +559,21 @@ export default function ApplyPage() {
       if (hasFacialMark && !facialMarkDesc.trim()) errors.facialMarkDesc = "Describe the facial mark, or uncheck this box.";
       if (hasDisability && !disabilityDesc.trim()) errors.disabilityDesc = "Describe the disability, or uncheck this box.";
     }
-    if (n === 3) {
+    if (n === 3 && applicationType === "fresh") {
       if (!nokName.trim()) errors.nokName = "Next of kin's full name is required.";
       if (!nokPhone.trim() || nokPhone.trim() === "+234") errors.nokPhone = "Next of kin's phone number is required.";
     }
+    if (n === 4 && applicationType === "fresh") {
+      if (!passportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
+    }
     if (n === 4 && applicationType !== "fresh") {
-      const missing = REQUIRED_DOCS_BY_TYPE[applicationType].filter((d) => !renewalDocs[d.key]?.url);
-      if (missing.length > 0) errors.documents = `Attach: ${missing.map((d) => d.title).join(", ")}.`;
+      if (!renewalDocs.old_driver_licence?.url) errors.documents = "Attach a photo of the front of your old licence.";
+      const trimmedOldNum = oldLicenceNumber.trim();
+      if (!trimmedOldNum) errors.oldLicenceNumber = "Your old licence number is required.";
+      const trimmedNin = nin.trim();
+      if (!trimmedNin) errors.nin = "NIN is required.";
+      else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+      if (!passportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
     }
     return errors;
   };
@@ -635,52 +621,56 @@ export default function ApplyPage() {
     setSubmitting(true);
     setSubmitError(null);
 
-    const res = await submitDriverLicenceApplication({
-      application_type: applicationType,
-      licence_class: applicationType === "fresh" ? licenceClass : undefined,
-      validity_period: validityPeriod,
-      first_name: firstName.trim(),
-      middle_name: middleName.trim(),
-      last_name: lastName.trim(),
-      date_of_birth: dob,
-      gender,
-      nationality,
-      marital_status: maritalStatus,
-      mothers_maiden_name: mothersMaidenName.trim() || undefined,
-      state_of_origin: originStateObj?.name || undefined,
-      lga_of_origin: originLgaObj?.name || undefined,
-      origin_state_id: selectedOriginState ? parseInt(selectedOriginState, 10) : undefined,
-      origin_lga_id: selectedOriginLga ? parseInt(selectedOriginLga, 10) : undefined,
-      residential_address: residentialAddress.trim(),
-      city: city.trim() || undefined,
-      country,
-      nin: nin.trim(),
-      blood_group: bloodGroup,
-      height_cm: heightCm ? parseInt(heightCm, 10) : undefined,
-      has_facial_mark: hasFacialMark,
-      facial_mark_description: hasFacialMark && facialMarkDesc.trim() ? facialMarkDesc.trim() : undefined,
-      has_disability: hasDisability,
-      disability_description: hasDisability && disabilityDesc.trim() ? disabilityDesc.trim() : undefined,
-      passport_photo: passportPhoto.trim() || undefined,
-      state_of_residence: stateObj?.name || "",
-      lga: lgaObj?.name || "",
-      state_id: parseInt(selectedState, 10),
-      lga_id: parseInt(selectedLga, 10),
-      next_of_kin_name: nokName.trim(),
-      next_of_kin_relationship: nokRelationship,
-      next_of_kin_phone: nokPhone.trim(),
-      id_document: applicationType === "fresh" && docUrl.trim()
-        ? { doc_type: docType, file_url: docUrl.trim(), screenshot_url: docUrl.trim() }
-        : null,
-      driving_school_certificate: applicationType === "fresh" && dsCert?.url
-        ? { doc_type: "driving_school_certificate", file_url: dsCert.url }
-        : null,
-      documents: applicationType !== "fresh"
-        ? REQUIRED_DOCS_BY_TYPE[applicationType]
-            .filter((d) => renewalDocs[d.key]?.url)
-            .map((d) => ({ doc_type: d.key, file_url: renewalDocs[d.key].url }))
-        : [],
-    });
+    // Renewal/reissue is a simplified submission — only the 4 fields below
+    // are sent; the backend inherits everything else (name, DOB, next of
+    // kin, address, etc.) from the customer's most recent prior application.
+    const res = applicationType === "fresh"
+      ? await submitDriverLicenceApplication({
+          application_type: applicationType,
+          licence_class: licenceClass,
+          validity_period: validityPeriod,
+          first_name: firstName.trim(),
+          middle_name: middleName.trim(),
+          last_name: lastName.trim(),
+          date_of_birth: dob,
+          gender,
+          nationality,
+          marital_status: maritalStatus,
+          mothers_maiden_name: mothersMaidenName.trim() || undefined,
+          state_of_origin: originStateObj?.name || undefined,
+          lga_of_origin: originLgaObj?.name || undefined,
+          origin_state_id: selectedOriginState ? parseInt(selectedOriginState, 10) : undefined,
+          origin_lga_id: selectedOriginLga ? parseInt(selectedOriginLga, 10) : undefined,
+          residential_address: residentialAddress.trim(),
+          city: city.trim() || undefined,
+          country,
+          nin: nin.trim(),
+          blood_group: bloodGroup,
+          height_cm: heightCm ? parseInt(heightCm, 10) : undefined,
+          has_facial_mark: hasFacialMark,
+          facial_mark_description: hasFacialMark && facialMarkDesc.trim() ? facialMarkDesc.trim() : undefined,
+          has_disability: hasDisability,
+          disability_description: hasDisability && disabilityDesc.trim() ? disabilityDesc.trim() : undefined,
+          passport_photo: passportPhoto,
+          state_of_residence: stateObj?.name || "",
+          lga: lgaObj?.name || "",
+          state_id: parseInt(selectedState, 10),
+          lga_id: parseInt(selectedLga, 10),
+          next_of_kin_name: nokName.trim(),
+          next_of_kin_relationship: nokRelationship,
+          next_of_kin_phone: nokPhone.trim(),
+          documents: [],
+        })
+      : await submitDriverLicenceApplication({
+          application_type: applicationType,
+          validity_period: validityPeriod,
+          old_licence_number: oldLicenceNumber.trim(),
+          nin: nin.trim(),
+          passport_photo: passportPhoto,
+          documents: renewalDocs.old_driver_licence?.url
+            ? [{ doc_type: "old_driver_licence", file_url: renewalDocs.old_driver_licence.url }]
+            : [],
+        });
 
     setSubmitting(false);
     if (res.error) {
@@ -702,7 +692,7 @@ export default function ApplyPage() {
     setHasFacialMark(false); setFacialMarkDesc("");
     setHasDisability(false); setDisabilityDesc(""); setPassportPhoto("");
     setNokName(""); setNokRelationship(""); setNokPhone("+234");
-    setDocUrl(""); setDocFileName(""); setDocFilePreview("");
+    setOldLicenceNumber("");
     setRenewalDocs({});
     setSubmitError(null);
   };
@@ -1310,8 +1300,18 @@ export default function ApplyPage() {
     );
   }
 
-  /* ── Application form ── */
-  const STEP_LABELS = ["Application type", "Personal details", "Next of kin", "Document", "Review & submit"];
+  /* ── Application form ──
+     Renewal/reissue skip Steps 2-3 (personal details, next of kin) — those
+     are inherited server-side from the customer's most recent prior
+     application — so the wizard only ever visits steps 1, 4, and 5 for
+     those types. `step` itself still uses the same 1-5 values throughout
+     the component; `activeSteps`/`activeLabels` just control which values
+     are reachable and how the progress bar displays them. */
+  const activeSteps = applicationType === "fresh" ? [1, 2, 3, 4, 5] : [1, 4, 5];
+  const activeLabels = applicationType === "fresh"
+    ? ["Application type", "Personal details", "Next of kin", "Document", "Review & submit"]
+    : ["Application type", "Renewal details", "Review & submit"];
+  const stepDisplayIndex = Math.max(1, activeSteps.indexOf(step) + 1);
 
   return (
     <div className="mx-auto max-w-xl space-y-6 py-4 pb-16">
@@ -1330,42 +1330,13 @@ export default function ApplyPage() {
           >
             New application
           </h1>
-          <p className="text-[12.5px] text-[#7A7A7A]">Fresh, renewal, or reissue — five short steps.</p>
+          <p className="text-[12.5px] text-[#7A7A7A]">
+            {applicationType === "fresh" ? "Fresh application — five short steps." : "Renewal or reissue — just a few details."}
+          </p>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm p-6 space-y-4">
-        <div>
-          <h2 className="text-[13px] font-medium text-[#111111]">State &amp; LGA of residence</h2>
-          <p className="text-[12px] text-[#7A7A7A]">This determines which capturing center processes your application.</p>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className={label}>State of residence <span className="text-red-400">*</span></label>
-            <div className="relative">
-              <select value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }} className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.selectedState)}`}>
-                <option value="" disabled>Select state</option>
-                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            </div>
-            <FieldError message={fieldErrors.selectedState} />
-          </div>
-          <div>
-            <label className={label}>LGA <span className="text-red-400">*</span></label>
-            <div className="relative">
-              <select value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} disabled={!selectedState || lgas.length === 0} className={`${inputBase} appearance-none pr-8 disabled:opacity-50 ${errInputClass(!!fieldErrors.selectedLga)}`}>
-                <option value="" disabled>Select LGA</option>
-                {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-            </div>
-            <FieldError message={fieldErrors.selectedLga} />
-          </div>
-        </div>
-      </div>
-
-      <StepProgress steps={STEP_LABELS} current={step} />
+      <StepProgress steps={activeLabels} current={stepDisplayIndex} />
 
       <div className="overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm">
         {/* Step 1 */}
@@ -1452,6 +1423,38 @@ export default function ApplyPage() {
         {/* Step 2 */}
         {step === 2 && (
           <div className="space-y-5 p-6">
+            {/* State + LGA of residence (for capturing-center routing) */}
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+              <div>
+                <h2 className="text-[13px] font-medium text-[#111111]">State &amp; LGA of residence</h2>
+                <p className="text-[12px] text-[#7A7A7A]">This determines which capturing center processes your application.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={label}>State of residence <span className="text-red-400">*</span></label>
+                  <div className="relative">
+                    <select value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }} className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.selectedState)}`}>
+                      <option value="" disabled>Select state</option>
+                      {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <FieldError message={fieldErrors.selectedState} />
+                </div>
+                <div>
+                  <label className={label}>LGA <span className="text-red-400">*</span></label>
+                  <div className="relative">
+                    <select value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} disabled={!selectedState || lgas.length === 0} className={`${inputBase} appearance-none pr-8 disabled:opacity-50 ${errInputClass(!!fieldErrors.selectedLga)}`}>
+                      <option value="" disabled>Select LGA</option>
+                      {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <FieldError message={fieldErrors.selectedLga} />
+                </div>
+              </div>
+            </div>
+
             <p className="text-[13px] text-slate-500">Pre-filled from your profile — check everything's correct.</p>
 
             {user && (
@@ -1683,126 +1686,59 @@ export default function ApplyPage() {
         {step === 4 && applicationType !== "fresh" && (
           <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">
-              These documents are required to route your {applicationType} application to a field
-              agent in your LGA — all of them must be attached before you can continue.
+              Your other details are carried over from your most recent application — we just need
+              these four things to process your {applicationType}.
             </p>
-            {REQUIRED_DOCS_BY_TYPE[applicationType].map((d) => (
-              <DocUploadSlot
-                key={d.key}
-                title={d.title}
-                value={renewalDocs[d.key]}
-                onChange={(v) => setRenewalDocs((p) => ({ ...p, [d.key]: v }))}
-              />
-            ))}
+            <DocUploadSlot
+              title="Front of your old licence"
+              value={renewalDocs.old_driver_licence}
+              onChange={(v) => setRenewalDocs((p) => ({ ...p, old_driver_licence: v }))}
+            />
             <FieldError message={fieldErrors.documents} />
+            <div>
+              <label className={label}>Old licence number <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                value={oldLicenceNumber}
+                onChange={(e) => setOldLicenceNumber(e.target.value)}
+                placeholder="e.g. LAG-01-23456789"
+                className={`${inputBase} ${errInputClass(!!fieldErrors.oldLicenceNumber)}`}
+              />
+              <FieldError message={fieldErrors.oldLicenceNumber} />
+            </div>
+            <div>
+              <label className={label}>NIN <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={nin}
+                onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
+                placeholder="12345678901"
+                maxLength={11}
+                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
+              />
+              <FieldError message={fieldErrors.nin} />
+            </div>
+            <DocUploadSlot
+              title="Passport photo"
+              value={passportPhoto ? { fileName: "Passport photo", url: passportPhoto } : null}
+              onChange={(v) => setPassportPhoto(v?.url || "")}
+            />
+            <FieldError message={fieldErrors.passportPhoto} />
           </div>
         )}
 
         {step === 4 && applicationType === "fresh" && (
           <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">
-              Upload a photo or scan of an identity document — NIN slip, passport, or voter's card.
+              Upload a clear passport photograph — this is required to submit your application.
             </p>
-
-            <div>
-              <label className={label}>Document type</label>
-              <div className="relative">
-                <select
-                  value={docType}
-                  onChange={(e) => setDocType(e.target.value)}
-                  className={`${inputBase} appearance-none pr-8`}
-                >
-                  <option value="proof_of_identity">Proof of identity (NIN, passport, voter's card)</option>
-                  <option value="proof_of_residence">Proof of residence</option>
-                  <option value="passport_photo">Passport photograph</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              </div>
-            </div>
-
-            <div>
-              <label className={label}>
-                Upload <span className="font-normal text-slate-400">(optional for now)</span>
-              </label>
-
-              {!docFilePreview ? (
-                <label
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragActive(true);
-                  }}
-                  onDragLeave={() => setDragActive(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragActive(false);
-                    readFile(e.dataTransfer.files?.[0]);
-                  }}
-                  className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-all"
-                  style={{
-                    borderColor: dragActive ? BRAND : "#cbd5e1",
-                    background: dragActive ? BRAND_TINT : "#f8fafc",
-                  }}
-                >
-                  <div
-                    className="flex h-11 w-11 items-center justify-center rounded-full"
-                    style={{ background: BRAND_TINT, color: BRAND }}
-                  >
-                    <Upload className="h-5 w-5" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[13px] font-semibold text-slate-800">Click or drop a file here</p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">PNG, JPG, or WEBP — up to 10MB</p>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => readFile(e.target.files?.[0])}
-                    className="hidden"
-                  />
-                </label>
-              ) : (
-                <div className="space-y-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                        <ImageIcon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-semibold text-[#111111]">
-                          {docFileName || "Uploaded document"}
-                        </p>
-                        <p className="text-[11px] text-slate-400">Ready to submit</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDocUrl("");
-                        setDocFileName("");
-                        setDocFilePreview("");
-                      }}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-[12px] font-medium text-red-600 transition-colors hover:bg-red-50"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Remove
-                    </button>
-                  </div>
-                  <div className="flex max-h-48 items-center justify-center overflow-hidden rounded-lg border border-[#E5E5E5] bg-white">
-                    <img src={docFilePreview} alt="Document preview" className="max-h-48 w-auto object-contain" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-[#E5E5E5] pt-5">
-              <DocUploadSlot
-                title="Driving school certificate"
-                optional
-                hint="Already have your driving school certificate? Upload it now to skip the driving-school wait during staff review."
-                value={dsCert}
-                onChange={setDsCert}
-              />
-            </div>
+            <DocUploadSlot
+              title="Passport photo"
+              value={passportPhoto ? { fileName: "Passport photo", url: passportPhoto } : null}
+              onChange={(v) => setPassportPhoto(v?.url || "")}
+            />
+            <FieldError message={fieldErrors.passportPhoto} />
           </div>
         )}
 
@@ -1819,59 +1755,64 @@ export default function ApplyPage() {
             )}
 
             <div className="space-y-3">
-              {[
-                {
-                  section: "Application",
-                  rows: applicationType === "fresh"
-                    ? [
+              {(applicationType === "fresh"
+                ? [
+                    {
+                      section: "Application",
+                      rows: [
                         ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
                         ["Licence class", LICENCE_CLASSES.find((c) => c.value === licenceClass)?.label || "—"],
                         ["Validity period", validityPeriod || "—"],
-                      ]
-                    : [
+                      ],
+                    },
+                    {
+                      section: "Personal details",
+                      rows: [
+                        ["Full name", [firstName, middleName, lastName].filter(Boolean).join(" ")],
+                        ["Date of birth", dob],
+                        ["Gender", gender || "—"],
+                        ["NIN", nin || "—"],
+                        ["Nationality", nationality || "—"],
+                        ["Marital status", maritalStatus || "—"],
+                        ["Blood group", bloodGroup || "—"],
+                        ["Residential address", residentialAddress || "—"],
+                        ["State / LGA", stateObj?.name && lgaObj?.name ? `${stateObj.name} / ${lgaObj.name}` : "—"],
+                      ],
+                    },
+                    {
+                      section: "Next of kin",
+                      rows: [
+                        ["Name", nokName || "—"],
+                        ["Relationship", nokRelationship || "—"],
+                        ["Phone", nokPhone || "—"],
+                      ],
+                    },
+                    {
+                      section: "Document",
+                      rows: [
+                        ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                      ],
+                    },
+                  ]
+                : [
+                    {
+                      section: "Application",
+                      rows: [
                         ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
                         ["Validity period", validityPeriod || "—"],
                       ],
-                },
-                {
-                  section: "Personal details",
-                  rows: [
-                    ["Full name", [firstName, middleName, lastName].filter(Boolean).join(" ")],
-                    ["Date of birth", dob],
-                    ["Gender", gender || "—"],
-                    ["NIN", nin || "—"],
-                    ["Nationality", nationality || "—"],
-                    ["Marital status", maritalStatus || "—"],
-                    ["Blood group", bloodGroup || "—"],
-                    ["Residential address", residentialAddress || "—"],
-                    ["State / LGA", stateObj?.name && lgaObj?.name ? `${stateObj.name} / ${lgaObj.name}` : "—"],
-                  ],
-                },
-                {
-                  section: "Next of kin",
-                  rows: [
-                    ["Name", nokName || "—"],
-                    ["Relationship", nokRelationship || "—"],
-                    ["Phone", nokPhone || "—"],
-                  ],
-                },
-                applicationType === "fresh"
-                  ? {
-                      section: "Document",
-                      rows: [
-                        ["Type", docType.replace(/_/g, " ")],
-                        ["File", docFileName || (docUrl ? "Uploaded" : "Not provided")],
-                        ["Driving school certificate", dsCert?.fileName || "Not provided (optional)"],
-                      ],
-                    }
-                  : {
-                      section: "Required documents",
-                      rows: REQUIRED_DOCS_BY_TYPE[applicationType].map((d) => [
-                        d.title,
-                        renewalDocs[d.key]?.fileName || "Not provided",
-                      ]),
                     },
-              ].map(({ section, rows }) => (
+                    {
+                      section: `${applicationType === "reissue" ? "Reissue" : "Renewal"} details`,
+                      rows: [
+                        ["Old licence number", oldLicenceNumber || "—"],
+                        ["NIN", nin || "—"],
+                        ["Old licence photo", renewalDocs.old_driver_licence?.fileName || "Not provided"],
+                        ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                      ],
+                    },
+                  ]
+              ).map(({ section, rows }) => (
                 <div key={section} className="overflow-hidden rounded-xl border border-slate-100">
                   <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{section}</p>
@@ -1905,15 +1846,19 @@ export default function ApplyPage() {
 
         {/* Footer nav */}
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/40 px-6 py-4">
-          {step > 1 ? (
-            <button type="button" onClick={() => setStep(step - 1)} className={btnSecondary}>
+          {activeSteps.indexOf(step) > 0 ? (
+            <button
+              type="button"
+              onClick={() => setStep(activeSteps[activeSteps.indexOf(step) - 1])}
+              className={btnSecondary}
+            >
               Back
             </button>
           ) : (
             <div />
           )}
 
-          {step < 5 ? (
+          {activeSteps.indexOf(step) < activeSteps.length - 1 ? (
             <button
               type="button"
               onClick={() => {
@@ -1923,7 +1868,7 @@ export default function ApplyPage() {
                   return;
                 }
                 setFieldErrors({});
-                setStep(step + 1);
+                setStep(activeSteps[activeSteps.indexOf(step) + 1]);
               }}
               className={btnPrimary}
               style={{ background: BRAND }}
