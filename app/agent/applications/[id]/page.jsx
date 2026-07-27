@@ -542,7 +542,6 @@ export default function AgentApplicationDetailPage() {
           <Field label="Date of birth" value={applicant.date_of_birth || application.date_of_birth} mono />
           <Field label="Gender" value={applicant.gender} capitalize />
           <Field label="Nationality" value={applicant.nationality} />
-          <Field label="Visa status" value={applicant.visa_status} />
           <Field label="Marital status" value={applicant.marital_status} capitalize />
           <Field label="Mother's maiden name" value={applicant.mothers_maiden_name} />
           <Field label="NIN" value={applicant.nin} mono />
@@ -558,7 +557,6 @@ export default function AgentApplicationDetailPage() {
       <Section title="Medical" icon={HeartPulse} iconColor="#ef4444">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="Blood group" value={applicant.blood_group} valueClassName="text-red-600" />
-          <Field label="Genotype" value={applicant.genotype} />
           <Field label="Height" value={applicant.height_cm ? `${applicant.height_cm} cm` : null} />
           <Field label="Vision acuity" value={application.vision_acuity_test} fallback="Not recorded" />
           <Field label="Facial mark" value={applicant.has_facial_mark ? (applicant.facial_mark_description || "Yes") : "None"} />

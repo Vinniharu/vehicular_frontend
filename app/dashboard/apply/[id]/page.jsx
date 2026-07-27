@@ -243,13 +243,11 @@ function ReapplyModal({ application, onClose, onSuccess }) {
     date_of_birth: application.date_of_birth || "",
     gender: application.gender || "",
     nationality: application.nationality || "",
-    visa_status: application.visa_status || "Citizen",
     marital_status: application.marital_status || "",
     mothers_maiden_name: application.mothers_maiden_name || "",
     residential_address: application.residential_address || "",
     nin: application.nin || "",
     blood_group: application.blood_group || "",
-    genotype: application.genotype || "",
     height_cm: application.height_cm || "",
     has_facial_mark: application.has_facial_mark || false,
     facial_mark_description: application.facial_mark_description || "",
@@ -442,20 +440,9 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={fieldLabel}>NIN</label>
-                  <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Visa status</label>
-                  <div className="relative">
-                    <select name="visa_status" value={form.visa_status} onChange={handleChange} className={`${inputBase} appearance-none pr-8`}>
-                      <option>Citizen</option><option>Resident</option><option>Visitor</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                  </div>
-                </div>
+              <div>
+                <label className={fieldLabel}>NIN</label>
+                <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
               </div>
               <div>
                 <label className={fieldLabel}>Residential address</label>
@@ -471,26 +458,14 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   <input type="number" name="height_cm" value={form.height_cm} onChange={handleChange} placeholder="e.g. 170" min={100} max={250} className={`${inputBase} font-mono`} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={fieldLabel}>Blood group</label>
-                  <div className="relative">
-                    <select name="blood_group" value={form.blood_group} onChange={handleChange} className={`${inputBase} appearance-none pr-8`}>
-                      <option value="">Select...</option>
-                      {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((bg) => <option key={bg}>{bg}</option>)}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                  </div>
-                </div>
-                <div>
-                  <label className={fieldLabel}>Genotype</label>
-                  <div className="relative">
-                    <select name="genotype" value={form.genotype} onChange={handleChange} className={`${inputBase} appearance-none pr-8`}>
-                      <option value="">Select...</option>
-                      {["AA","AS","SS","AC"].map((g) => <option key={g}>{g}</option>)}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                  </div>
+              <div>
+                <label className={fieldLabel}>Blood group</label>
+                <div className="relative">
+                  <select name="blood_group" value={form.blood_group} onChange={handleChange} className={`${inputBase} appearance-none pr-8`}>
+                    <option value="">Select...</option>
+                    {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((bg) => <option key={bg}>{bg}</option>)}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 </div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
