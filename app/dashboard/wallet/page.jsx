@@ -40,6 +40,12 @@ function formatDate(iso) {
   });
 }
 
+function txStatusMeta(status) {
+  if (status === "failed") return { label: "Failed", className: "bg-red-50 text-red-600" };
+  if (status === "pending") return { label: "Pending", className: "bg-amber-50 text-amber-700" };
+  return { label: "Paid", className: "bg-[#28A745]/10 text-[#28A745]" };
+}
+
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50";
 const btnSecondary =
@@ -63,6 +69,9 @@ export default function WalletPage() {
   const [depositAmountNaira, setDepositAmountNaira] = useState("30000");
   const [depositing, setDepositing] = useState(false);
   const [depositError, setDepositError] = useState(null);
+
+  const [notice, setNotice] = useState(null); // { type: "error"|"success", message }
+  const [checkingRef, setCheckingRef] = useState(null);
 
   const [isBvnModalOpen, setIsBvnModalOpen] = useState(false);
   const [idType, setIdType] = useState("bvn");
@@ -89,14 +98,28 @@ export default function WalletPage() {
     if (reference) {
       setRefreshing(true);
       verifyWalletDeposit({ reference }).then((res) => {
-        if (!res.error) {
+        if (res.error) {
+          // Don't strip the reference from the URL on failure — a page
+          // refresh should be able to retry rather than permanently losing
+          // the only copy of it.
+          setNotice({ type: "error", message: res.error || "Couldn't confirm this deposit yet. Refresh this page to retry." });
+        } else {
+          const outcome = res.data?.status;
+          if (outcome === "success") {
+            setNotice({ type: "success", message: "Deposit confirmed — your wallet has been credited." });
+          } else if (outcome === "failed") {
+            setNotice({ type: "error", message: "This deposit didn't go through. No funds were added." });
+          } else {
+            setNotice({ type: "error", message: "Still waiting on confirmation from Monnify — use \"Check status\" on this transaction shortly." });
+          }
           loadData();
+          router.replace(pathname, { scroll: false });
         }
-        router.replace(pathname, { scroll: false });
         setRefreshing(false);
       });
     }
-  }, [searchParams, pathname, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -109,6 +132,25 @@ export default function WalletPage() {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const handleCheckDepositStatus = async (reference) => {
+    setCheckingRef(reference);
+    const res = await verifyWalletDeposit({ reference });
+    setCheckingRef(null);
+    if (res.error) {
+      setNotice({ type: "error", message: res.error });
+      return;
+    }
+    const outcome = res.data?.status;
+    if (outcome === "success") {
+      setNotice({ type: "success", message: "Deposit confirmed — your wallet has been credited." });
+    } else if (outcome === "failed") {
+      setNotice({ type: "error", message: "This deposit didn't go through. No funds were added." });
+    } else {
+      setNotice({ type: "error", message: "Still pending — Monnify hasn't confirmed this one yet. Try again shortly." });
+    }
+    await loadData();
   };
 
   const handleCopyAccount = (accountNumber) => {
@@ -171,6 +213,20 @@ export default function WalletPage() {
         <span>Transactions</span>
       </div>
 
+      {notice && (
+        <div
+          className={`flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-medium ring-1 ring-inset ${
+            notice.type === "error" ? "bg-red-50 text-red-700 ring-red-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200"
+          }`}
+        >
+          {notice.type === "error" ? <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> : <Check className="h-4 w-4 shrink-0 mt-0.5" />}
+          <span className="flex-1">{notice.message}</span>
+          <button type="button" onClick={() => setNotice(null)} className="shrink-0 text-current opacity-60 hover:opacity-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-4">
           <div className="h-44 animate-pulse rounded-2xl bg-slate-100" />
@@ -215,14 +271,14 @@ export default function WalletPage() {
           {/* Reserved account details — send transfers here to fund the wallet */}
           {dva && (
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#F5F5F5] bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-              <div className="flex items-center gap-3.5">
+              <div className="flex min-w-0 items-center gap-3.5">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#28A745]">
                   <Building2 className="h-5 w-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your dedicated account</p>
                   <p className="mt-0.5 font-mono text-[16px] font-bold text-[#111111]">{dva.account_number}</p>
-                  <p className="text-[12.5px] text-slate-500">{dva.bank_name} · {dva.account_name}</p>
+                  <p className="text-[12.5px] text-slate-500 break-words">{dva.bank_name} · {dva.account_name}</p>
                 </div>
               </div>
               <button
@@ -255,75 +311,129 @@ export default function WalletPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-[#F5F5F5] text-[11.5px] font-semibold text-slate-500">
-                    <th className="pb-4 pt-2 pl-2 w-1/3">Type</th>
-                    <th className="pb-4 pt-2">Amount <span className="ml-1 opacity-50">↕</span></th>
-                    <th className="pb-4 pt-2">Date <span className="ml-1 opacity-50">↕</span></th>
-                    <th className="pb-4 pt-2">Status</th>
-                    <th className="pb-4 pt-2 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50/80">
-                  {transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="py-16 text-center">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400 mb-3">
-                          <History className="h-6 w-6" />
-                        </div>
-                        <p className="text-[13.5px] font-semibold text-slate-700">No transactions yet</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    transactions.map((tx) => {
-                      const isCredit = tx.type === "credit";
-                      return (
-                        <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="py-4 pl-2">
-                            <div className="flex items-center gap-4">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 group-hover:bg-white group-hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all border border-transparent group-hover:border-[#F5F5F5]">
-                                {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
-                              </div>
-                              <span className="font-bold text-[13.5px] text-slate-800">
-                                {isCredit ? "Wallet Deposit" : "Service Payment"}
-                              </span>
+            {transactions.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400 mb-3">
+                  <History className="h-6 w-6" />
+                </div>
+                <p className="text-[13.5px] font-semibold text-slate-700">No transactions yet</p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile: stacked cards */}
+                <div className="space-y-3 sm:hidden">
+                  {transactions.map((tx) => {
+                    const isCredit = tx.type === "credit";
+                    const meta = txStatusMeta(tx.status);
+                    return (
+                      <div key={tx.id} className="rounded-2xl border border-[#F5F5F5] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+                              {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
                             </div>
-                          </td>
-                          <td className="py-4 font-bold text-[14px]">
-                            <span className={isCredit ? "text-[#28A745]" : "text-red-500"}>
-                              {isCredit ? "↑ +" : "↓ −"} {koboToNaira(tx.amount_kobo)}
-                            </span>
-                          </td>
-                          <td className="py-4 text-[13px] text-slate-400 font-medium">
-                            {formatDate(tx.created_at)}
-                          </td>
-                          <td className="py-4">
-                            <span className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-[11px] font-extrabold tracking-wide uppercase ${
-                               isCredit 
-                                 ? "bg-[#28A745]/10 text-[#28A745]" 
-                                 : "bg-[#28A745]/10 text-[#28A745]"
-                            }`}>
-                              Paid
-                            </span>
-                          </td>
-                          <td className="py-4 text-right pr-4 text-slate-400">
-                            <button className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
-                              <span className="flex flex-col gap-[3px] items-center justify-center h-5 w-5">
-                                <span className="w-1 h-1 bg-current rounded-full" />
-                                <span className="w-1 h-1 bg-current rounded-full" />
-                                <span className="w-1 h-1 bg-current rounded-full" />
-                              </span>
+                            <div className="min-w-0">
+                              <p className="font-bold text-[13.5px] text-slate-800">
+                                {isCredit ? "Wallet Deposit" : "Service Payment"}
+                              </p>
+                              <p className="text-[12px] text-slate-400">{formatDate(tx.created_at)}</p>
+                            </div>
+                          </div>
+                          <span className={`inline-flex shrink-0 items-center justify-center px-2.5 py-1 rounded-full text-[10.5px] font-extrabold tracking-wide uppercase ${meta.className}`}>
+                            {meta.label}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <span className={`font-bold text-[14px] ${isCredit ? "text-[#28A745]" : "text-red-500"}`}>
+                            {isCredit ? "↑ +" : "↓ −"} {koboToNaira(tx.amount_kobo)}
+                          </span>
+                          {tx.status === "pending" && (
+                            <button
+                              type="button"
+                              onClick={() => handleCheckDepositStatus(tx.reference)}
+                              disabled={checkingRef === tx.reference}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E5E5] px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              {checkingRef === tx.reference && <Loader2 className="h-3 w-3 animate-spin" />}
+                              Check status
                             </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* sm and up: table */}
+                <div className="hidden overflow-x-auto sm:block">
+                  <table className="w-full text-left min-w-[600px]">
+                    <thead>
+                      <tr className="border-b border-[#F5F5F5] text-[11.5px] font-semibold text-slate-500">
+                        <th className="pb-4 pt-2 pl-2 w-1/3">Type</th>
+                        <th className="pb-4 pt-2">Amount <span className="ml-1 opacity-50">↕</span></th>
+                        <th className="pb-4 pt-2">Date <span className="ml-1 opacity-50">↕</span></th>
+                        <th className="pb-4 pt-2">Status</th>
+                        <th className="pb-4 pt-2 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50/80">
+                      {transactions.map((tx) => {
+                        const isCredit = tx.type === "credit";
+                        const meta = txStatusMeta(tx.status);
+                        return (
+                          <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="py-4 pl-2">
+                              <div className="flex items-center gap-4">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 group-hover:bg-white group-hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all border border-transparent group-hover:border-[#F5F5F5]">
+                                  {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
+                                </div>
+                                <span className="font-bold text-[13.5px] text-slate-800">
+                                  {isCredit ? "Wallet Deposit" : "Service Payment"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 font-bold text-[14px]">
+                              <span className={isCredit ? "text-[#28A745]" : "text-red-500"}>
+                                {isCredit ? "↑ +" : "↓ −"} {koboToNaira(tx.amount_kobo)}
+                              </span>
+                            </td>
+                            <td className="py-4 text-[13px] text-slate-400 font-medium">
+                              {formatDate(tx.created_at)}
+                            </td>
+                            <td className="py-4">
+                              <span className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-[11px] font-extrabold tracking-wide uppercase ${meta.className}`}>
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td className="py-4 text-right pr-4 text-slate-400">
+                              {tx.status === "pending" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCheckDepositStatus(tx.reference)}
+                                  disabled={checkingRef === tx.reference}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E5E5] px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                  {checkingRef === tx.reference && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  Check status
+                                </button>
+                              ) : (
+                                <button className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                                  <span className="flex flex-col gap-[3px] items-center justify-center h-5 w-5">
+                                    <span className="w-1 h-1 bg-current rounded-full" />
+                                    <span className="w-1 h-1 bg-current rounded-full" />
+                                    <span className="w-1 h-1 bg-current rounded-full" />
+                                  </span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
@@ -331,7 +441,7 @@ export default function WalletPage() {
       {/* Deposit modal */}
       {isDepositModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
+          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-[#F5F5F5] px-5 py-4">
               <h3 className="text-[15px] font-bold text-[#111111]">Deposit into Wallet</h3>
               <button onClick={() => setIsDepositModalOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
@@ -364,11 +474,11 @@ export default function WalletPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-1">
-                <button type="button" onClick={() => setIsDepositModalOpen(false)} className={btnSecondary}>
+              <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => setIsDepositModalOpen(false)} className={`${btnSecondary} w-full sm:w-auto`}>
                   Cancel
                 </button>
-                <button type="submit" disabled={depositing} className={btnPrimary} style={{ background: BRAND }}>
+                <button type="submit" disabled={depositing} className={`${btnPrimary} w-full sm:w-auto`} style={{ background: BRAND }}>
                   {depositing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {depositing ? "Redirecting…" : "Proceed to checkout"}
                 </button>
@@ -381,7 +491,7 @@ export default function WalletPage() {
       {/* BVN / dedicated account modal */}
       {isBvnModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
+          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-[#F5F5F5] px-5 py-4">
               <h3 className="text-[15px] font-bold text-[#111111]">Set up dedicated account</h3>
               <button onClick={() => setIsBvnModalOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
@@ -437,11 +547,11 @@ export default function WalletPage() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-1">
-                <button type="button" onClick={() => setIsBvnModalOpen(false)} className={btnSecondary}>
+              <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => setIsBvnModalOpen(false)} className={`${btnSecondary} w-full sm:w-auto`}>
                   Cancel
                 </button>
-                <button type="submit" disabled={provisioning} className={btnPrimary} style={{ background: BRAND }}>
+                <button type="submit" disabled={provisioning} className={`${btnPrimary} w-full sm:w-auto`} style={{ background: BRAND }}>
                   {provisioning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {provisioning ? "Setting up…" : "Set up account"}
                 </button>
