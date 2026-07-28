@@ -789,7 +789,7 @@ export default function StaffApplicationDetailsPage() {
                     </div>
                     {application.driving_school?.certificate_url ? (
                       <a
-                        href={application.driving_school.certificate_url}
+                        href={resolveMediaUrl(application.driving_school.certificate_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={btnSecondary}
@@ -828,7 +828,7 @@ export default function StaffApplicationDetailsPage() {
                         </div>
                         {verifSlipUrl ? (
                           <a
-                            href={verifSlipUrl}
+                            href={resolveMediaUrl(verifSlipUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={btnSecondary}
@@ -1254,7 +1254,7 @@ function LicenceSummary({ licence }) {
         </div>
       </div>
       {licence.document_url && (
-        <a href={licence.document_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           <Eye className="h-3.5 w-3.5" /> View submitted card
         </a>
       )}
@@ -1294,7 +1294,7 @@ function StaffLicenceCard({ title, licence }) {
       </p>
       {licence.is_expired && <p className="mt-1 text-[11.5px] font-semibold text-red-600">Expired</p>}
       {licence.document_url && (
-        <a href={licence.document_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           <Eye className="h-3.5 w-3.5" /> View document
         </a>
       )}

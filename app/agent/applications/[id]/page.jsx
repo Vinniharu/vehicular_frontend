@@ -117,7 +117,7 @@ function LicenceCard({ title, licence }) {
         <p className="mt-1 text-[11.5px] font-semibold text-red-600">Expired</p>
       )}
       {licence.document_url && (
-        <a href={licence.document_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           View document <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )}
@@ -619,7 +619,7 @@ export default function AgentApplicationDetailPage() {
                   <p className="text-[13.5px] font-semibold capitalize text-slate-900">{doc.doc_type?.replace(/_/g, " ")}</p>
                 </div>
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+                  <a href={resolveMediaUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
                     View <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
