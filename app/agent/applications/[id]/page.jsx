@@ -387,7 +387,7 @@ export default function AgentApplicationDetailPage() {
   }
 
   const applicant = application.applicant_details || {};
-  const isRenewalOrReissue = ["renewal", "reissue"].includes(application.application_type);
+  const isRenewalOrReissue = ["renewal", "reissue", "international_permit"].includes(application.application_type);
   // Biometric capture is a fresh-only concept — renewal/reissue's state
   // machine has no capture_scheduled/captured leg at all (confirmed against
   // RENEWAL_REISSUE_TRANSITIONS: agent_accepted has no legal transition to
@@ -435,7 +435,7 @@ export default function AgentApplicationDetailPage() {
             </h1>
             <StatusBadge status={application.status} />
             <span className="rounded-md border border-slate-200 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
-              {application.application_type || "fresh"}
+              {(application.application_type || "fresh").replace(/_/g, " ")}
             </span>
           </div>
           <button onClick={() => loadDetail(true)} className={btnSecondary} style={{ padding: "0.55rem 0.9rem" }}>

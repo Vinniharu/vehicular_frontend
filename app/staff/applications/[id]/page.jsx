@@ -512,7 +512,7 @@ export default function StaffApplicationDetailsPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 bg-slate-50 rounded-xl p-5 border border-slate-100">
               <div>
                 <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Application Type</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{application.application_type || "fresh"}</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{(application.application_type || "fresh").replace(/_/g, " ")}</span>
               </div>
               <div>
                 <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Service Fee</span>

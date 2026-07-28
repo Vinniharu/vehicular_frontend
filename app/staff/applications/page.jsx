@@ -289,7 +289,7 @@ function StaffApplicationsQueueInner() {
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-mono font-bold text-sm text-slate-900">#{app.id}</span>
                     <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                      {app.application_type || "FRESH"}
+                      {(app.application_type || "FRESH").replace(/_/g, " ")}
                     </span>
                     <StatusBadge status={app.status} />
                     {isPaid ? (

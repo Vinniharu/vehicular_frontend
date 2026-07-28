@@ -241,7 +241,7 @@ export default function AgentOffersPage() {
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span className="font-mono font-bold text-sm text-slate-900">App #{offer.application_id}</span>
                   <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                    {offer.application_type || "FRESH"}
+                    {(offer.application_type || "FRESH").replace(/_/g, " ")}
                   </span>
                 </div>
                 <p className="flex items-center gap-1.5 text-[13px] text-slate-500">
