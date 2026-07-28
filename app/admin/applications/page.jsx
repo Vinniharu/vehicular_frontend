@@ -241,7 +241,7 @@ export default function AdminApplicationsPage() {
                     <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-800">{app.applicant_name}</td>
                     <td className="px-4 py-3.5">
                       <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                        {app.application_type || "fresh"}
+                        {(app.application_type || "fresh").replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="px-4 py-3.5"><StatusBadge status={app.status} /></td>
@@ -303,7 +303,7 @@ export default function AdminApplicationsPage() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  {selected.application_type || "fresh"}
+                  {(selected.application_type || "fresh").replace(/_/g, " ")}
                 </span>
                 <StatusBadge status={selected.status} />
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
