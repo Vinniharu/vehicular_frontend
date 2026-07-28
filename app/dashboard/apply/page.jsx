@@ -581,12 +581,13 @@ export default function ApplyPage() {
     const errors = {};
     if (n === 1) {
       if (applicationType !== "international_permit" && !validityPeriod) errors.validityPeriod = "Select a validity period.";
-      if (!licenceClass) errors.licenceClass = "Select a licence class.";
+      if (applicationType === "fresh" && !licenceClass) errors.licenceClass = "Select a licence class.";
     }
     if (n === 2) {
       if (!selectedState) errors.selectedState = "Select your state of residence.";
       if (!selectedLga) errors.selectedLga = "Select your LGA.";
-
+      
+      if (applicationType === "fresh") {
       const trimmedFirst = firstName.trim();
       const trimmedLast = lastName.trim();
       const trimmedMaiden = mothersMaidenName.trim();
@@ -602,28 +603,30 @@ export default function ApplyPage() {
       }
 
       const trimmedNin = nin.trim();
-      if (applicationType === "fresh" && trimmedNin && !NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+      if (trimmedNin && !NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
       if (heightCm && (Number(heightCm) < 100 || Number(heightCm) > 250)) errors.heightCm = "Height must be between 100 and 250 cm.";
       if (hasFacialMark && !facialMarkDesc.trim()) errors.facialMarkDesc = "Describe the facial mark, or uncheck this box.";
       if (hasDisability && !disabilityDesc.trim()) errors.disabilityDesc = "Describe the disability, or uncheck this box.";
+      }
     }
-    if (n === 3) {
+    if (n === 3 && applicationType === "fresh") {
       if (!nokName.trim()) errors.nokName = "Next of kin's full name is required.";
       if (!nokPhone.trim() || nokPhone.trim() === "+234") errors.nokPhone = "Next of kin's phone number is required.";
     }
-    if (n === 4) {
+    if (n === 4 && applicationType === "fresh") {
       if (!passportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
-      if (applicationType !== "fresh") {
-        if (applicationType === "international_permit") {
-          if (!renewalDocs.id_document?.url) errors.documents = "Attach a photo of your International Passport or Nigeria Driver's Licence.";
-        } else {
-          if (!renewalDocs.old_driver_licence?.url) errors.documents = "Attach a photo of the front of your old licence.";
-          if (!oldLicenceNumber.trim()) errors.oldLicenceNumber = "Enter your old licence number.";
-        }
-        const trimmedNin = nin.trim();
-        if (!trimmedNin) errors.nin = "NIN is required.";
-        else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+    }
+    if (n === 4 && applicationType !== "fresh") {
+      if (applicationType === "international_permit") {
+        if (!renewalDocs.id_document?.url) errors.documents = "Attach a photo of your International Passport or Nigeria Driver's Licence.";
+      } else {
+        if (!renewalDocs.old_driver_licence?.url) errors.documents = "Attach a photo of the front of your old licence.";
+        if (!oldLicenceNumber.trim()) errors.oldLicenceNumber = "Enter your old licence number.";
       }
+      const trimmedNin = nin.trim();
+      if (!trimmedNin) errors.nin = "NIN is required.";
+      else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+      if (!passportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
     }
     return errors;
   };
@@ -666,51 +669,60 @@ export default function ApplyPage() {
     setSubmitting(true);
     setSubmitError(null);
 
-    // Every application type now collects and sends the same full applicant
-    // record — only the renewal/reissue/international_permit-specific extras
-    // (old licence number/photo, id_document) are added on top.
-    const res = await submitDriverLicenceApplication({
-      application_type: applicationType,
-      licence_class: licenceClass,
-      validity_period: validityPeriod,
-      first_name: firstName.trim(),
-      middle_name: middleName.trim(),
-      last_name: lastName.trim(),
-      date_of_birth: dob,
-      gender,
-      nationality,
-      marital_status: maritalStatus,
-      mothers_maiden_name: mothersMaidenName.trim() || undefined,
-      state_of_origin: originStateObj?.name || undefined,
-      lga_of_origin: originLgaObj?.name || undefined,
-      origin_state_id: selectedOriginState ? parseInt(selectedOriginState, 10) : undefined,
-      origin_lga_id: selectedOriginLga ? parseInt(selectedOriginLga, 10) : undefined,
-      residential_address: residentialAddress.trim(),
-      city: city.trim() || undefined,
-      country,
-      nin: nin.trim(),
-      blood_group: bloodGroup,
-      height_cm: heightCm ? parseInt(heightCm, 10) : undefined,
-      has_facial_mark: hasFacialMark,
-      facial_mark_description: hasFacialMark && facialMarkDesc.trim() ? facialMarkDesc.trim() : undefined,
-      has_disability: hasDisability,
-      disability_description: hasDisability && disabilityDesc.trim() ? disabilityDesc.trim() : undefined,
-      passport_photo: passportPhoto,
-      state_of_residence: stateObj?.name || "",
-      lga: lgaObj?.name || "",
-      state_id: parseInt(selectedState, 10),
-      lga_id: parseInt(selectedLga, 10),
-      next_of_kin_name: nokName.trim(),
-      next_of_kin_relationship: nokRelationship,
-      next_of_kin_phone: nokPhone.trim(),
-      old_licence_number: applicationType === "renewal" || applicationType === "reissue" ? oldLicenceNumber.trim() : undefined,
-      id_document: applicationType === "international_permit" && renewalDocs.id_document?.url
-        ? { doc_type: "international_passport", file_url: renewalDocs.id_document.url }
-        : undefined,
-      documents: (applicationType === "renewal" || applicationType === "reissue") && renewalDocs.old_driver_licence?.url
-        ? [{ doc_type: "old_driver_licence", file_url: renewalDocs.old_driver_licence.url }]
-        : [],
-    });
+    const res = applicationType === "fresh"
+      ? await submitDriverLicenceApplication({
+          application_type: applicationType,
+          licence_class: licenceClass,
+          validity_period: validityPeriod,
+          first_name: firstName.trim(),
+          middle_name: middleName.trim(),
+          last_name: lastName.trim(),
+          date_of_birth: dob,
+          gender,
+          nationality,
+          marital_status: maritalStatus,
+          mothers_maiden_name: mothersMaidenName.trim() || undefined,
+          state_of_origin: originStateObj?.name || undefined,
+          lga_of_origin: originLgaObj?.name || undefined,
+          origin_state_id: selectedOriginState ? parseInt(selectedOriginState, 10) : undefined,
+          origin_lga_id: selectedOriginLga ? parseInt(selectedOriginLga, 10) : undefined,
+          residential_address: residentialAddress.trim(),
+          city: city.trim() || undefined,
+          country,
+          nin: nin.trim(),
+          blood_group: bloodGroup,
+          height_cm: heightCm ? parseInt(heightCm, 10) : undefined,
+          has_facial_mark: hasFacialMark,
+          facial_mark_description: hasFacialMark && facialMarkDesc.trim() ? facialMarkDesc.trim() : undefined,
+          has_disability: hasDisability,
+          disability_description: hasDisability && disabilityDesc.trim() ? disabilityDesc.trim() : undefined,
+          passport_photo: passportPhoto,
+          state_of_residence: stateObj?.name || "",
+          lga: lgaObj?.name || "",
+          state_id: parseInt(selectedState, 10),
+          lga_id: parseInt(selectedLga, 10),
+          next_of_kin_name: nokName.trim(),
+          next_of_kin_relationship: nokRelationship,
+          next_of_kin_phone: nokPhone.trim(),
+          documents: [],
+        })
+      : await submitDriverLicenceApplication({
+          application_type: applicationType,
+          validity_period: validityPeriod,
+          state_id: parseInt(selectedState, 10),
+          lga_id: parseInt(selectedLga, 10),
+          state_of_residence: states.find(s => s.id === parseInt(selectedState, 10))?.name || "",
+          lga: lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || "",
+          old_licence_number: applicationType !== "international_permit" ? oldLicenceNumber.trim() : undefined,
+          nin: nin.trim(),
+          passport_photo: passportPhoto,
+          id_document: applicationType === "international_permit" && renewalDocs.id_document?.url
+            ? { doc_type: "international_passport", file_url: renewalDocs.id_document.url }
+            : undefined,
+          documents: applicationType !== "international_permit" && renewalDocs.old_driver_licence?.url
+            ? [{ doc_type: "old_driver_licence", file_url: renewalDocs.old_driver_licence.url }]
+            : [],
+        });
 
     setSubmitting(false);
     if (res.error) {
@@ -1336,8 +1348,10 @@ export default function ApplyPage() {
   }
 
   /* ── Application form ── */
-  const activeSteps = [1, 2, 3, 4, 5];
-  const activeLabels = ["Application type", "Personal details", "Next of kin", "Document", "Review & submit"];
+  const activeSteps = applicationType === "fresh" ? [1, 2, 3, 4, 5] : [1, 2, 4, 5];
+  const activeLabels = applicationType === "fresh"
+    ? ["Application type", "Personal details", "Next of kin", "Document", "Review & submit"]
+    : ["Application type", "Residence", "Details", "Review & submit"];
   const stepDisplayIndex = Math.max(1, activeSteps.indexOf(step) + 1);
 
   return (
@@ -1357,7 +1371,9 @@ export default function ApplyPage() {
           >
             New application
           </h1>
-          <p className="text-[12.5px] text-[#7A7A7A]">Five short steps to submit your application.</p>
+          <p className="text-[12.5px] text-[#7A7A7A]">
+            {applicationType === "fresh" ? "Fresh application — five short steps." : "Renewal, reissue, or international permit — just a few details."}
+          </p>
         </div>
       </div>
 
@@ -1404,24 +1420,26 @@ export default function ApplyPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className={label}>Licence class <span className="text-red-400">*</span></label>
-                <div className="relative">
-                  <select
-                    value={licenceClass}
-                    onChange={(e) => setLicenceClass(e.target.value)}
-                    className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.licenceClass)}`}
-                  >
-                    <option value="" disabled>Select licence class</option>
-                    {LICENCE_CLASSES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <div className={`grid grid-cols-1 gap-4 ${applicationType === "fresh" ? "sm:grid-cols-2" : ""}`}>
+              {applicationType === "fresh" && (
+                <div>
+                  <label className={label}>Licence class <span className="text-red-400">*</span></label>
+                  <div className="relative">
+                    <select
+                      value={licenceClass}
+                      onChange={(e) => setLicenceClass(e.target.value)}
+                      className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.licenceClass)}`}
+                    >
+                      <option value="" disabled>Select licence class</option>
+                      {LICENCE_CLASSES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <FieldError message={fieldErrors.licenceClass} />
                 </div>
-                <FieldError message={fieldErrors.licenceClass} />
-              </div>
+              )}
               {applicationType !== "international_permit" && (
                 <div>
                   <label className={label}>Validity period <span className="text-red-400">*</span></label>
@@ -1479,7 +1497,8 @@ export default function ApplyPage() {
               </div>
             </div>
 
-            <>
+            {applicationType === "fresh" && (
+              <>
                 <p className="text-[13px] text-slate-500 mt-4">Pre-filled from your profile — check everything's correct.</p>
             {user && (
               <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
@@ -1545,7 +1564,7 @@ export default function ApplyPage() {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className={label}>NIN {applicationType !== "fresh" && <span className="text-red-400">*</span>}</label>
+                <label className={label}>NIN <span className="text-red-400">*</span></label>
                 <input type="text" inputMode="numeric" value={nin} onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`} />
                 <FieldError message={fieldErrors.nin} />
               </div>
@@ -1634,6 +1653,7 @@ export default function ApplyPage() {
               )}
             </div>
             </>
+            )}
           </div>
         )}
 
@@ -1668,38 +1688,52 @@ export default function ApplyPage() {
         )}
 
         {/* Step 4 */}
-        {step === 4 && (
+        {step === 4 && applicationType !== "fresh" && (
           <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">
-              {applicationType === "fresh"
-                ? "Upload a clear passport photograph — this is required to submit your application."
-                : `A couple more things to process your ${applicationType.replace("_", " ")}.`}
+              Your other details are carried over from your most recent application — we just need
+              these things to process your {applicationType.replace("_", " ")}.
             </p>
-            {applicationType !== "fresh" && (
-              <>
-                {applicationType === "international_permit" ? (
-                  <DocUploadSlot
-                    title="International Passport or Nigeria Driver's Licence"
-                    value={renewalDocs.id_document}
-                    onChange={(v) => setRenewalDocs((p) => ({ ...p, id_document: v }))}
-                  />
-                ) : (
-                  <DocUploadSlot
-                    title="Front of your old licence"
-                    value={renewalDocs.old_driver_licence}
-                    onChange={(v) => setRenewalDocs((p) => ({ ...p, old_driver_licence: v }))}
-                  />
-                )}
-                <FieldError message={fieldErrors.documents} />
-                {applicationType !== "international_permit" && (
-                  <div>
-                    <label className={label}>Old licence number <span className="text-red-400">*</span></label>
-                    <input type="text" value={oldLicenceNumber} onChange={(e) => setOldLicenceNumber(e.target.value)} placeholder="e.g. LAG-01-23456789" className={`${inputBase} ${errInputClass(!!fieldErrors.oldLicenceNumber)}`} />
-                    <FieldError message={fieldErrors.oldLicenceNumber} />
-                  </div>
-                )}
-              </>
+            {applicationType === "international_permit" ? (
+              <DocUploadSlot
+                title="International Passport or Nigeria Driver's Licence"
+                value={renewalDocs.id_document}
+                onChange={(v) => setRenewalDocs((p) => ({ ...p, id_document: v }))}
+              />
+            ) : (
+              <DocUploadSlot
+                title="Front of your old licence"
+                value={renewalDocs.old_driver_licence}
+                onChange={(v) => setRenewalDocs((p) => ({ ...p, old_driver_licence: v }))}
+              />
             )}
+            <FieldError message={fieldErrors.documents} />
+            {applicationType !== "international_permit" && (
+              <div>
+                <label className={label}>Old licence number <span className="text-red-400">*</span></label>
+                <input type="text" value={oldLicenceNumber} onChange={(e) => setOldLicenceNumber(e.target.value)} placeholder="e.g. LAG-01-23456789" className={`${inputBase} ${errInputClass(!!fieldErrors.oldLicenceNumber)}`} />
+                <FieldError message={fieldErrors.oldLicenceNumber} />
+              </div>
+            )}
+            <div>
+              <label className={label}>NIN <span className="text-red-400">*</span></label>
+              <input type="text" inputMode="numeric" value={nin} onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`} />
+              <FieldError message={fieldErrors.nin} />
+            </div>
+            <DocUploadSlot
+              title="Passport photo"
+              value={passportPhoto ? { fileName: "Passport photo", url: passportPhoto } : null}
+              onChange={(v) => setPassportPhoto(v?.url || "")}
+            />
+            <FieldError message={fieldErrors.passportPhoto} />
+          </div>
+        )}
+
+        {step === 4 && applicationType === "fresh" && (
+          <div className="space-y-5 p-6">
+            <p className="text-[13px] text-slate-500">
+              Upload a clear passport photograph — this is required to submit your application.
+            </p>
             <DocUploadSlot
               title="Passport photo"
               value={passportPhoto ? { fileName: "Passport photo", url: passportPhoto } : null}
@@ -1720,52 +1754,82 @@ export default function ApplyPage() {
               </div>
             )}
             <div className="space-y-3">
-              {[
-                {
-                  section: "Application",
-                  rows: [
-                    ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
-                    ["Licence class", LICENCE_CLASSES.find((c) => c.value === licenceClass)?.label || "—"],
-                    ...(applicationType !== "international_permit" ? [["Validity period", validityPeriod || "—"]] : []),
-                  ],
-                },
-                {
-                  section: "Personal details",
-                  rows: [
-                    ["Full name", [firstName, middleName, lastName].filter(Boolean).join(" ")],
-                    ["Date of birth", dob],
-                    ["Gender", gender || "—"],
-                    ["NIN", nin || "—"],
-                    ["Nationality", nationality || "—"],
-                    ["Marital status", maritalStatus || "—"],
-                    ["Blood group", bloodGroup || "—"],
-                    ["Residential address", residentialAddress || "—"],
-                    ["State / LGA", stateObj?.name && lgaObj?.name ? `${stateObj.name} / ${lgaObj.name}` : "—"],
-                  ],
-                },
-                {
-                  section: "Next of kin",
-                  rows: [
-                    ["Name", nokName || "—"],
-                    ["Relationship", nokRelationship || "—"],
-                    ["Phone", nokPhone || "—"],
-                  ],
-                },
-                {
-                  section: "Document",
-                  rows: [
-                    ...(applicationType === "international_permit"
-                      ? [["ID Document", renewalDocs.id_document?.fileName || "Not provided"]]
-                      : applicationType !== "fresh"
-                        ? [
-                            ["Old licence number", oldLicenceNumber || "—"],
-                            ["Old licence photo", renewalDocs.old_driver_licence?.fileName || "Not provided"],
-                          ]
-                        : []),
-                    ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
-                  ],
-                },
-              ].map(({ section, rows }) => (
+              {(applicationType === "fresh"
+                ? [
+                    {
+                      section: "Application",
+                      rows: [
+                        ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                        ["Licence class", LICENCE_CLASSES.find((c) => c.value === licenceClass)?.label || "—"],
+                        ["Validity period", validityPeriod || "—"],
+                      ],
+                    },
+                    {
+                      section: "Personal details",
+                      rows: [
+                        ["Full name", [firstName, middleName, lastName].filter(Boolean).join(" ")],
+                        ["Date of birth", dob],
+                        ["Gender", gender || "—"],
+                        ["NIN", nin || "—"],
+                        ["Nationality", nationality || "—"],
+                        ["Marital status", maritalStatus || "—"],
+                        ["Blood group", bloodGroup || "—"],
+                        ["Residential address", residentialAddress || "—"],
+                        ["State / LGA", stateObj?.name && lgaObj?.name ? `${stateObj.name} / ${lgaObj.name}` : "—"],
+                      ],
+                    },
+                    {
+                      section: "Next of kin",
+                      rows: [
+                        ["Name", nokName || "—"],
+                        ["Relationship", nokRelationship || "—"],
+                        ["Phone", nokPhone || "—"],
+                      ],
+                    },
+                    {
+                      section: "Document",
+                      rows: [
+                        ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                      ],
+                    },
+                  ]
+                : applicationType === "international_permit"
+                  ? [
+                      {
+                        section: "Application",
+                        rows: [
+                          ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                          ["State / LGA", (selectedState && selectedLga) ? `${states.find(s => s.id === parseInt(selectedState, 10))?.name || ""} / ${lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || ""}` : "—"],
+                        ],
+                      },
+                      {
+                        section: "Permit details",
+                        rows: [
+                          ["NIN", nin || "—"],
+                          ["ID Document", renewalDocs.id_document?.fileName || "Not provided"],
+                          ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                        ],
+                      },
+                    ]
+                  : [
+                      {
+                        section: "Application",
+                        rows: [
+                          ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                          ["Validity period", validityPeriod || "—"],
+                        ],
+                      },
+                      {
+                        section: `${applicationType === "reissue" ? "Reissue" : "Renewal"} details`,
+                        rows: [
+                          ["Old licence number", oldLicenceNumber || "—"],
+                          ["NIN", nin || "—"],
+                          ["Old licence photo", renewalDocs.old_driver_licence?.fileName || "Not provided"],
+                          ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                        ],
+                      },
+                    ]
+              ).map(({ section, rows }) => (
                 <div key={section} className="overflow-hidden rounded-xl border border-slate-100">
                   <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{section}</p>
