@@ -43,8 +43,15 @@ export const TONE_DOT = {
   neutral: "bg-slate-400",
 };
 
-export function statusMeta(status) {
-  return AGENT_STATUS[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" };
+export function statusMeta(status, appType = "") {
+  const isBypass = ["renewal", "reissue", "international_permit"].includes((appType || "").toLowerCase());
+  const meta = { ...(AGENT_STATUS[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" }) };
+  
+  if (isBypass && status === "agent_accepted") {
+    meta.label = appType === "international_permit" ? "Accepted — upload document" : "Accepted — upload proof";
+  }
+  
+  return meta;
 }
 
 const SIZE_CLASSES = {
@@ -52,8 +59,8 @@ const SIZE_CLASSES = {
   md: "px-3 py-1 text-[12px]",
 };
 
-export function StatusBadge({ status, size = "md" }) {
-  const meta = statusMeta(status);
+export function StatusBadge({ status, appType = "", size = "md" }) {
+  const meta = statusMeta(status, appType);
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full font-semibold ring-1 ring-inset ${SIZE_CLASSES[size]} ${TONE_CLASSES[meta.tone]}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />

@@ -433,7 +433,7 @@ export default function AgentApplicationDetailPage() {
             <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
               {application.first_name} {application.last_name} <span className="font-mono text-slate-400">#{application.id}</span>
             </h1>
-            <StatusBadge status={application.status} />
+            <StatusBadge status={application.status} appType={application.application_type} />
             <span className="rounded-md border border-slate-200 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
               {(application.application_type || "fresh").replace(/_/g, " ")}
             </span>
@@ -496,7 +496,7 @@ export default function AgentApplicationDetailPage() {
           )}
           {canUploadProof && (
             <ActionButton variant="accent" icon={Upload} onClick={() => openModal("upload-proof")}>
-              {isFreshApp ? "Upload permanent licence" : "Upload proof"}
+              {isFreshApp ? "Upload permanent licence" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof")}
             </ActionButton>
           )}
           {canFlagIssue && (
@@ -605,12 +605,25 @@ export default function AgentApplicationDetailPage() {
       </Section>
 
       {/* Documents */}
-      <Section title={`Documents (${application.documents?.length || 0})`} icon={FileText}>
-        {!application.documents || application.documents.length === 0 ? (
+      <Section title={`Documents (${(application.documents?.length || 0) + (application.passport_photo ? 1 : 0)})`} icon={FileText}>
+        {(!application.documents || application.documents.length === 0) && !application.passport_photo ? (
           <p className="text-[13px] text-slate-400">Nothing uploaded yet.</p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {application.documents.map((doc, idx) => (
+            {application.passport_photo && (
+              <div className="flex items-center justify-between gap-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <ImageIcon className="h-4 w-4" />
+                  </div>
+                  <p className="text-[13.5px] font-semibold capitalize text-slate-900">Passport Photograph</p>
+                </div>
+                <a href={resolveMediaUrl(application.passport_photo)} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+                  View <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            )}
+            {application.documents?.map((doc, idx) => (
               <div key={idx} className="flex items-center justify-between gap-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
@@ -629,20 +642,7 @@ export default function AgentApplicationDetailPage() {
         )}
       </Section>
 
-      {/* Timeline */}
-      {application.events && application.events.length > 0 && (
-        <Section title="Timeline" icon={Clock}>
-          <div className="space-y-4 border-l-2 border-slate-100 pl-4">
-            {[...application.events].reverse().map((ev, idx) => (
-              <div key={idx} className="relative">
-                <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ring-4 ring-white" style={{ background: BRAND }} />
-                <p className="text-[13px] font-semibold text-slate-800">{ev.note || `Status updated to ${(ev.new_status || "").replace(/_/g, " ")}`}</p>
-                <p className="mt-0.5 text-[11px] text-slate-400">{new Date(ev.created_at).toLocaleString("en-NG")}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
+
 
       {/* Action modal */}
       {modalType && (
@@ -653,7 +653,7 @@ export default function AgentApplicationDetailPage() {
                 {modalType === "schedule" && "Schedule biometric capture"}
                 {modalType === "reassign" && "Reassign capture centre"}
                 {modalType === "issue-temp-licence" && "Issue temporary licence"}
-                {modalType === "upload-proof" && (isFreshApp ? "Upload permanent licence" : "Upload proof of finished card")}
+                {modalType === "upload-proof" && (isFreshApp ? "Upload permanent licence" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof of finished card"))}
                 {modalType === "flag-issue" && "Flag document issue"}
               </h3>
               <button onClick={() => setModalType(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -741,7 +741,7 @@ export default function AgentApplicationDetailPage() {
             {modalType === "upload-proof" && (
               <div className="space-y-3.5">
                 <div>
-                  <label className={fieldLabel}>{isFreshApp ? "Permanent licence card" : "Finished card proof"}</label>
+                  <label className={fieldLabel}>{isFreshApp ? "Permanent licence card" : (application.application_type === "international_permit" ? "International Permit Document" : "Finished card proof")}</label>
                   <UploadField
                     fileName={proofFileName}
                     hasValue={!!proofUrlInput}
