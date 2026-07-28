@@ -35,6 +35,7 @@ import {
   confirmReceipt,
   getReferenceStates,
   getReferenceLgas,
+  resolveMediaUrl,
 } from "@/lib/api";
 import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
 
@@ -1228,6 +1229,13 @@ export default function CustomerApplicationDetailsPage() {
           <h3 className="border-b border-slate-100 pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
             Applicant details
           </h3>
+          {application.passport_photo && (
+            <img
+              src={resolveMediaUrl(application.passport_photo)}
+              alt="Passport photo"
+              className="h-20 w-20 rounded-lg border border-[#E5E5E5] object-cover"
+            />
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>

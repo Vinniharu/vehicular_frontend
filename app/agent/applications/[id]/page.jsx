@@ -40,6 +40,7 @@ import {
   uploadProof,
   uploadTemporaryLicence,
   flagDocumentIssue,
+  resolveMediaUrl,
 } from "@/lib/api";
 import { statusMeta, StatusBadge } from "../../_status";
 
@@ -418,6 +419,17 @@ export default function AgentApplicationDetailPage() {
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
+            {application.passport_photo ? (
+              <img
+                src={resolveMediaUrl(application.passport_photo)}
+                alt="Passport photo"
+                className="h-11 w-11 shrink-0 rounded-lg border border-slate-200 object-cover"
+              />
+            ) : (
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300">
+                <ImageIcon className="h-4.5 w-4.5" />
+              </div>
+            )}
             <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
               {application.first_name} {application.last_name} <span className="font-mono text-slate-400">#{application.id}</span>
             </h1>
