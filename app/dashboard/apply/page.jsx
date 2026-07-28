@@ -37,6 +37,7 @@ import {
   getMyApplications,
   payFromWalletEndpoint,
   getWallet,
+  resolveMediaUrl,
 } from "@/lib/api";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
@@ -1247,7 +1248,7 @@ export default function ApplyPage() {
                           </div>
                           {doc.file_url && (
                             <a
-                              href={doc.file_url}
+                              href={resolveMediaUrl(doc.file_url)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-[12px] font-semibold hover:underline"
