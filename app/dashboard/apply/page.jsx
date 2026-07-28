@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
+  XCircle,
   AlertCircle,
   ChevronDown,
   ChevronRight,
@@ -225,6 +226,36 @@ function stageProgress(status) {
   const idx = STAGE_ORDER.indexOf(status);
   if (idx === -1) return status === "completed" ? 1 : 0.05;
   return (idx + 1) / STAGE_ORDER.length;
+}
+
+function MiniProgressRing({ status, size = 36 }) {
+  const progress = stageProgress(status);
+  const isRejected = status === "staff_rejected" || status === "failed";
+  const isDone = status === "completed";
+  const meta = statusMeta(status);
+  const stroke = 3;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} stroke="#f1f5f9" fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} fill="none" strokeLinecap="round"
+          stroke={isRejected ? "#ef4444" : meta.color}
+          strokeDasharray={c} strokeDashoffset={c * (1 - progress)}
+          style={{ transition: "stroke-dashoffset 0.7s ease-out" }} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        {isDone ? (
+          <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "#28A745" }} />
+        ) : isRejected ? (
+          <XCircle className="h-3.5 w-3.5 text-red-400" />
+        ) : (
+          <div className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+        )}
+      </div>
+    </div>
+  );
 }
 
 function isApplicationPaid(app) {
@@ -905,7 +936,7 @@ export default function ApplyPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 min-w-0">
-                      <DocumentRing size="small" documents={app.documents || []} overrideStatus={app.status} />
+                      <MiniProgressRing status={app.status} size={40} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[15px] font-bold capitalize text-[#111111] group-hover:text-[#28A745] transition-colors">
@@ -1017,7 +1048,7 @@ export default function ApplyPage() {
 
               <div className="space-y-6 p-6">
                 <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                  <DocumentRing size="small" documents={selectedAppDetail.documents || []} overrideStatus={selectedAppDetail.status} />
+                  <MiniProgressRing status={selectedAppDetail.status} size={40} />
                   <div>
                     <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                       Current status

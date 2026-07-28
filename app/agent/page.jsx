@@ -18,7 +18,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { getAgentOffers, acceptOffer, declineOffer, getAgentWallet, getAgentApplications } from "@/lib/api";
+import { getAgentOffers, acceptOffer, declineOffer, getAgentWallet, getAgentApplications, authGetMe } from "@/lib/api";
 
 const NEEDS_ACTION_STATUSES = ["agent_accepted", "captured", "capturing_completed", "temp_licence_pending_review"];
 const DONE_STATUSES = ["completed", "expired"];
@@ -47,6 +47,7 @@ export default function AgentOffersPage() {
   const [offers, setOffers] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [applications, setApplications] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -56,11 +57,17 @@ export default function AgentOffersPage() {
   const loadOffers = async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
-    const [offersRes, walletRes, appsRes] = await Promise.all([getAgentOffers(), getAgentWallet(), getAgentApplications()]);
+    const [offersRes, walletRes, appsRes, meRes] = await Promise.all([
+      getAgentOffers(), 
+      getAgentWallet(), 
+      getAgentApplications(),
+      authGetMe()
+    ]);
     if (offersRes.error) setError(offersRes.error);
     else if (Array.isArray(offersRes.data)) setOffers(offersRes.data);
     if (walletRes.data) setWallet(walletRes.data);
     if (Array.isArray(appsRes.data)) setApplications(appsRes.data);
+    if (meRes.data) setUserProfile(meRes.data);
     setLoading(false);
     setRefreshing(false);
   };
@@ -121,6 +128,21 @@ export default function AgentOffersPage() {
             View wallet
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
+        </div>
+      )}
+
+      {/* Relocation Pending Banner */}
+      {userProfile?.agent_profile?.relocation_status === "pending" && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm mb-6 flex items-start gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100/50 shrink-0 mt-0.5">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-[14px] font-bold text-amber-900">Relocation Request Pending</h3>
+            <p className="mt-1 text-[13px] text-amber-800 leading-relaxed max-w-2xl">
+              Your request to relocate to <strong>{userProfile.agent_profile.pending_vio_office}</strong> in <strong>{userProfile.agent_profile.pending_lga}, {userProfile.agent_profile.pending_state}</strong> is currently pending admin approval. New job offers will continue to route to your current LGA until approved.
+            </p>
+          </div>
         </div>
       )}
 
