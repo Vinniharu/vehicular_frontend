@@ -29,6 +29,7 @@ import {
   getApplication,
   koboToNaira,
   payFromWalletEndpoint,
+  initializeCardPayment,
   getWallet,
   uploadApplicationDocument,
   reapplyApplication,
@@ -695,6 +696,7 @@ export default function CustomerApplicationDetailsPage() {
   const [walletBalance, setWalletBalance] = useState(0);
 
   const [payingWallet, setPayingWallet] = useState(false);
+  const [payingCard, setPayingCard] = useState(false);
   const [confirmingReceipt, setConfirmingReceipt] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -774,6 +776,20 @@ export default function CustomerApplicationDetailsPage() {
         : `Paid ${koboToNaira(amountKobo)} from your wallet. ${koboToNaira(res.data?.remaining_kobo || 0)} still remaining.`;
       setNotice({ type: "success", message });
       await loadData(true);
+    }
+  };
+
+  const handlePayPartialByCard = async (amountKobo) => {
+    if (!application || !amountKobo) return;
+    setPayingCard(true);
+    setNotice(null);
+    const res = await initializeCardPayment(application.id, { amount_kobo: amountKobo });
+    setPayingCard(false);
+    if (res.error) {
+      setNotice({ type: "error", message: res.error });
+    } else if (res.data?.authorization_url) {
+      window.open(res.data.authorization_url, "_blank", "noopener,noreferrer");
+      setNotice({ type: "success", message: `Complete your ${koboToNaira(amountKobo)} payment in the new tab.` });
     }
   };
 
@@ -1106,6 +1122,8 @@ export default function CustomerApplicationDetailsPage() {
               walletBalanceKobo={walletBalance}
               payingWallet={payingWallet}
               onPay={handlePayFromWallet}
+              payingCard={payingCard}
+              onPayCard={handlePayPartialByCard}
             />
             {checkoutUrl ? (
               <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-fit`}>
@@ -1145,6 +1163,8 @@ export default function CustomerApplicationDetailsPage() {
               walletBalanceKobo={walletBalance}
               payingWallet={payingWallet}
               onPay={handlePayFromWallet}
+              payingCard={payingCard}
+              onPayCard={handlePayPartialByCard}
             />
             {checkoutUrl ? (
               <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-fit`}>
