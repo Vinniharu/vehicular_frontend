@@ -32,6 +32,7 @@ import {
   initializeCardPayment,
   getWallet,
   uploadApplicationDocument,
+  uploadApplicationFile,
   reapplyApplication,
   confirmReceipt,
   getReferenceStates,
@@ -54,20 +55,6 @@ function estimateFeeKobo(appType, period) {
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
-
-// Mirrors app/dashboard/apply/page.jsx's LICENCE_CLASSES — reapply must be
-// able to correct this field too, since it's required for every
-// application type now, not just fresh.
-const LICENCE_CLASSES = [
-  { value: "A", label: "Class A — Motorcycle" },
-  { value: "B", label: "Class B — Private car (up to 8 seats)" },
-  { value: "C", label: "Class C — Commercial / taxi" },
-  { value: "D", label: "Class D — Articulated / heavy truck" },
-  { value: "E", label: "Class E — Bus (8+ passengers)" },
-  { value: "F", label: "Class F — Agricultural / tractor" },
-  { value: "G", label: "Class G — Earth-moving equipment" },
-  { value: "H", label: "Class H — Motorised wheelchair" },
-];
 
 // Exact doc_type strings the backend requires before a renewal/reissue
 // application can auto-route to a field agent (app/routers/applications.py
@@ -244,6 +231,11 @@ function PaymentProgressBar({ paidKobo, totalKobo }) {
    Reapply Modal
    ────────────────────────────────────────────── */
 function ReapplyModal({ application, onClose, onSuccess }) {
+  // Renewal/reissue/international_permit reapply mirrors their own
+  // simplified apply-form fields, not the full fresh biodata form.
+  const isFresh = application.application_type === "fresh";
+  const isIdp = application.application_type === "international_permit";
+
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
   const [selectedStateId, setSelectedStateId] = useState("");
@@ -264,7 +256,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
     residential_address: application.residential_address || "",
     nin: application.nin || "",
     old_licence_number: application.old_licence_number || "",
-    licence_class: application.licence_class || "",
+    validity_period: application.validity_period || "",
     blood_group: application.blood_group || "",
     height_cm: application.height_cm || "",
     has_facial_mark: application.has_facial_mark || false,
@@ -282,6 +274,48 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   const [docPreview, setDocPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Simplified (non-fresh) reapply: passport photo and the type-specific
+  // document (old licence photo, or IDP identity document) upload through
+  // the real /applications/upload-file endpoint — same as the initial apply
+  // form's DocUploadSlot — rather than the legacy base64-inline pattern the
+  // full fresh reapply form below still uses for its own document uploader.
+  const [passportPhotoUrl, setPassportPhotoUrl] = useState(application.passport_photo || "");
+  const [passportPhotoUploading, setPassportPhotoUploading] = useState(false);
+  const [passportPhotoError, setPassportPhotoError] = useState(null);
+
+  const simpleDocType = isIdp ? "international_passport" : "old_driver_licence";
+  const [simpleDocUrl, setSimpleDocUrl] = useState("");
+  const [simpleDocFileName, setSimpleDocFileName] = useState("");
+  const [simpleDocUploading, setSimpleDocUploading] = useState(false);
+  const [simpleDocError, setSimpleDocError] = useState(null);
+
+  const handlePassportPhotoFile = async (file) => {
+    if (!file) return;
+    setPassportPhotoError(null);
+    setPassportPhotoUploading(true);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setPassportPhotoUploading(false);
+    if (uploadError || !data?.file_url) {
+      setPassportPhotoError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    setPassportPhotoUrl(data.file_url);
+  };
+
+  const handleSimpleDocFile = async (file) => {
+    if (!file) return;
+    setSimpleDocError(null);
+    setSimpleDocUploading(true);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setSimpleDocUploading(false);
+    if (uploadError || !data?.file_url) {
+      setSimpleDocError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    setSimpleDocUrl(data.file_url);
+    setSimpleDocFileName(file.name);
+  };
 
   // Load states on mount
   useEffect(() => {
@@ -348,25 +382,44 @@ function ReapplyModal({ application, onClose, onSuccess }) {
 
     const stateObj = states.find((s) => String(s.id) === selectedStateId);
     const lgaObj = lgas.find((l) => String(l.id) === selectedLgaId);
-    const originStateObj = states.find((s) => String(s.id) === selectedOriginStateId);
-    const originLgaObj = originLgas.find((l) => String(l.id) === selectedOriginLgaId);
 
-    const payload = {
-      ...form,
-      height_cm: form.height_cm ? parseInt(form.height_cm, 10) : undefined,
-      facial_mark_description: form.has_facial_mark && form.facial_mark_description.trim() ? form.facial_mark_description.trim() : undefined,
-      disability_description: form.has_disability && form.disability_description.trim() ? form.disability_description.trim() : undefined,
-      state_of_residence: stateObj?.name || application.state_of_residence || "",
-      lga: lgaObj?.name || application.lga || "",
-      state_id: selectedStateId ? parseInt(selectedStateId, 10) : undefined,
-      lga_id: selectedLgaId ? parseInt(selectedLgaId, 10) : undefined,
-      state_of_origin: originStateObj?.name || application.state_of_origin || undefined,
-      lga_of_origin: originLgaObj?.name || application.lga_of_origin || undefined,
-      origin_state_id: selectedOriginStateId ? parseInt(selectedOriginStateId, 10) : undefined,
-      origin_lga_id: selectedOriginLgaId ? parseInt(selectedOriginLgaId, 10) : undefined,
-    };
-    if (docUrl) {
-      payload.documents = [{ doc_type: docType, file_url: docUrl }];
+    let payload;
+    if (isFresh) {
+      const originStateObj = states.find((s) => String(s.id) === selectedOriginStateId);
+      const originLgaObj = originLgas.find((l) => String(l.id) === selectedOriginLgaId);
+      payload = {
+        ...form,
+        height_cm: form.height_cm ? parseInt(form.height_cm, 10) : undefined,
+        facial_mark_description: form.has_facial_mark && form.facial_mark_description.trim() ? form.facial_mark_description.trim() : undefined,
+        disability_description: form.has_disability && form.disability_description.trim() ? form.disability_description.trim() : undefined,
+        state_of_residence: stateObj?.name || application.state_of_residence || "",
+        lga: lgaObj?.name || application.lga || "",
+        state_id: selectedStateId ? parseInt(selectedStateId, 10) : undefined,
+        lga_id: selectedLgaId ? parseInt(selectedLgaId, 10) : undefined,
+        state_of_origin: originStateObj?.name || application.state_of_origin || undefined,
+        lga_of_origin: originLgaObj?.name || application.lga_of_origin || undefined,
+        origin_state_id: selectedOriginStateId ? parseInt(selectedOriginStateId, 10) : undefined,
+        origin_lga_id: selectedOriginLgaId ? parseInt(selectedOriginLgaId, 10) : undefined,
+      };
+      if (docUrl) {
+        payload.documents = [{ doc_type: docType, file_url: docUrl }];
+      }
+    } else {
+      // Simplified reapply — only the same fields the renewal/reissue/
+      // international_permit apply form itself asks for.
+      payload = {
+        nin: form.nin.trim() || undefined,
+        old_licence_number: !isIdp ? (form.old_licence_number.trim() || undefined) : undefined,
+        validity_period: !isIdp ? (form.validity_period || undefined) : undefined,
+        passport_photo: passportPhotoUrl || undefined,
+        state_of_residence: stateObj?.name || application.state_of_residence || "",
+        lga: lgaObj?.name || application.lga || "",
+        state_id: selectedStateId ? parseInt(selectedStateId, 10) : undefined,
+        lga_id: selectedLgaId ? parseInt(selectedLgaId, 10) : undefined,
+      };
+      if (simpleDocUrl) {
+        payload.documents = [{ doc_type: simpleDocType, file_url: simpleDocUrl }];
+      }
     }
 
     const res = await reapplyApplication(application.id, payload);
@@ -406,7 +459,10 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Personal details */}
+          {/* Personal details — fresh applications only; renewal/reissue/
+              international_permit never collected these on their own
+              simplified apply form, so reapply doesn't ask for them either. */}
+          {isFresh && (
           <section>
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Personal Details
@@ -458,28 +514,10 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={fieldLabel}>Licence class *</label>
-                  <div className="relative">
-                    <select name="licence_class" value={form.licence_class} onChange={handleChange} required className={`${inputBase} appearance-none pr-8`}>
-                      <option value="" disabled>Select licence class</option>
-                      {LICENCE_CLASSES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                  </div>
-                </div>
-                <div>
-                  <label className={fieldLabel}>NIN</label>
-                  <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
-                </div>
+              <div>
+                <label className={fieldLabel}>NIN</label>
+                <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
               </div>
-              {(application.application_type === "renewal" || application.application_type === "reissue") && (
-                <div>
-                  <label className={fieldLabel}>Old licence number</label>
-                  <input name="old_licence_number" value={form.old_licence_number} onChange={handleChange} placeholder="e.g. LAG-01-23456789" className={inputBase} />
-                </div>
-              )}
               <div>
                 <label className={fieldLabel}>Residential address</label>
                 <input name="residential_address" value={form.residential_address} onChange={handleChange} placeholder="123 Example St, Lagos" className={inputBase} />
@@ -535,8 +573,11 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               </div>
             </div>
           </section>
+          )}
 
-          {/* State / LGA of Origin */}
+          {/* State / LGA of Origin — fresh only, was never part of the
+              simplified form either */}
+          {isFresh && (
           <section>
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               State & LGA of Origin
@@ -564,6 +605,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               </div>
             </div>
           </section>
+          )}
 
           {/* State / LGA of Residence */}
           <section>
@@ -594,7 +636,8 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             </div>
           </section>
 
-          {/* Next of Kin */}
+          {/* Next of Kin — fresh only */}
+          {isFresh && (
           <section>
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Next of Kin
@@ -634,8 +677,89 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               </div>
             </div>
           </section>
+          )}
 
-          {/* New document upload */}
+          {/* Simplified renewal/reissue/international_permit fields — mirrors
+              exactly what their own apply form asks for. */}
+          {!isFresh && (
+          <section>
+            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              {application.application_type === "international_permit" ? "Permit Details" : "Renewal Details"}
+            </h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={fieldLabel}>NIN</label>
+                  <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
+                </div>
+                {!isIdp && (
+                  <div>
+                    <label className={fieldLabel}>Validity period</label>
+                    <div className="relative">
+                      <select name="validity_period" value={form.validity_period} onChange={handleChange} className={`${inputBase} appearance-none pr-8`}>
+                        <option value="">Select...</option>
+                        <option value="3 years">3 years</option>
+                        <option value="5 years">5 years</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {!isIdp && (
+                <div>
+                  <label className={fieldLabel}>Old licence number</label>
+                  <input name="old_licence_number" value={form.old_licence_number} onChange={handleChange} placeholder="e.g. LAG-01-23456789" className={inputBase} />
+                </div>
+              )}
+
+              <div>
+                <label className={fieldLabel}>Passport photo</label>
+                {!passportPhotoUrl ? (
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 transition-all hover:border-[#28A745]">
+                    <Upload className="h-5 w-5" style={{ color: BRAND }} />
+                    <p className="text-[12.5px] font-semibold text-slate-700">{passportPhotoUploading ? "Uploading…" : "Click to upload"}</p>
+                    <input type="file" accept="image/*" disabled={passportPhotoUploading} onChange={(e) => handlePassportPhotoFile(e.target.files?.[0])} className="hidden" />
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <p className="truncate text-[12.5px] font-semibold text-[#111111]">Passport photo ready</p>
+                    </div>
+                    <button type="button" onClick={() => setPassportPhotoUrl("")} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">Remove</button>
+                  </div>
+                )}
+                {passportPhotoError && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{passportPhotoError}</p>}
+              </div>
+
+              <div>
+                <label className={fieldLabel}>
+                  {isIdp ? "International Passport or Nigeria Driver's Licence" : "Front of your old licence"}
+                </label>
+                {!simpleDocUrl ? (
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 transition-all hover:border-[#28A745]">
+                    <Upload className="h-5 w-5" style={{ color: BRAND }} />
+                    <p className="text-[12.5px] font-semibold text-slate-700">{simpleDocUploading ? "Uploading…" : "Click to upload"}</p>
+                    <input type="file" accept="image/*" disabled={simpleDocUploading} onChange={(e) => handleSimpleDocFile(e.target.files?.[0])} className="hidden" />
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <p className="truncate text-[12.5px] font-semibold text-[#111111]">{simpleDocFileName}</p>
+                    </div>
+                    <button type="button" onClick={() => { setSimpleDocUrl(""); setSimpleDocFileName(""); }} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">Remove</button>
+                  </div>
+                )}
+                {simpleDocError && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{simpleDocError}</p>}
+              </div>
+            </div>
+          </section>
+          )}
+
+          {/* New document upload — fresh only */}
+          {isFresh && (
           <section>
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Replace / Add Document <span className="font-normal normal-case text-slate-400">(optional)</span>
@@ -694,6 +818,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               )}
             </div>
           </section>
+          )}
         </form>
 
         {/* Footer */}
