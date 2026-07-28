@@ -22,6 +22,7 @@ import {
   Calendar,
   Clock,
   Pencil,
+  ArrowRight,
 } from "lucide-react";
 import {
   adminGetStaff,
@@ -35,6 +36,7 @@ import {
   approveAgentRelocation,
   rejectAgentRelocation,
   updateAgentCommission,
+  bulkUpdateAgentCommission,
   getReferenceStates,
   getReferenceLgas,
 } from "@/lib/api";
@@ -110,6 +112,10 @@ export default function AdminPage() {
   const [editingCommission, setEditingCommission] = useState(false);
   const [updatingCommission, setUpdatingCommission] = useState(false);
   const [customCommissionVal, setCustomCommissionVal] = useState("");
+
+  const [bulkCommissionOpen, setBulkCommissionOpen] = useState(false);
+  const [bulkCommissionVal, setBulkCommissionVal] = useState("");
+  const [applyingBulkCommission, setApplyingBulkCommission] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState("staff");
@@ -257,8 +263,34 @@ export default function AdminPage() {
           custom_commission_kobo: val
         }
       });
+      setAgentsList((list) => list.map((a) => a.id === selectedAgentDetail.id
+        ? { ...a, agent_profile: { ...a.agent_profile, custom_commission_kobo: val } }
+        : a));
       setEditingCommission(false);
       showToast("success", "Agent commission updated.");
+    }
+  };
+
+  const handleApplyBulkCommission = async () => {
+    let val = null;
+    if (bulkCommissionVal !== "") {
+      val = Math.round(parseFloat(bulkCommissionVal) * 100);
+    }
+    const label = val === null ? "reset every agent's commission to the system default" : `set every agent's commission to ${koboToNaira(val)}`;
+    if (!window.confirm(`This will ${label}, overwriting any individual overrides already in place. Continue?`)) return;
+    setApplyingBulkCommission(true);
+    const res = await bulkUpdateAgentCommission(val);
+    setApplyingBulkCommission(false);
+    if (res.error) {
+      showToast("error", "Could not update commission for all agents.");
+    } else {
+      setAgentsList((list) => list.map((a) => ({
+        ...a,
+        agent_profile: { ...a.agent_profile, custom_commission_kobo: val },
+      })));
+      setBulkCommissionOpen(false);
+      setBulkCommissionVal("");
+      showToast("success", `Commission updated for ${res.data?.updated_count ?? "all"} agents.`);
     }
   };
 
@@ -383,15 +415,27 @@ export default function AdminPage() {
               </button>
             ))}
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by name, email, phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 w-full sm:w-64 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-            />
+          <div className="flex items-center gap-2.5">
+            {activeTab === "agents" && (
+              <button
+                type="button"
+                onClick={() => { setBulkCommissionVal(""); setBulkCommissionOpen(true); }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#28A745] bg-[#28A745]/5 border border-[#28A745]/20 hover:bg-[#28A745]/10 transition-colors whitespace-nowrap"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                Set Commission for All Agents
+              </button>
+            )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by name, email, phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 w-full sm:w-64 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
+              />
+            </div>
           </div>
         </div>
 
@@ -484,6 +528,7 @@ export default function AdminPage() {
                     <th className="py-3 px-5 font-semibold">Assigned Office</th>
                     <th className="py-3 px-5 font-semibold">Settlement &amp; Wallet</th>
                     <th className="py-3 px-5 font-semibold">Capabilities</th>
+                    <th className="py-3 px-5 font-semibold">Commission</th>
                     <th className="py-3 px-5 font-semibold">Status</th>
                     <th className="py-3 px-5 text-right font-semibold">Action</th>
                   </tr>
@@ -550,6 +595,13 @@ export default function AdminPage() {
                           </div>
                         </td>
                         <td className="py-3.5 px-5">
+                          {profile.custom_commission_kobo !== null && profile.custom_commission_kobo !== undefined ? (
+                            <span className="text-[12.5px] font-semibold text-slate-900">{koboToNaira(profile.custom_commission_kobo)}</span>
+                          ) : (
+                            <span className="text-[12px] text-slate-400 italic">Default</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-5">
                           <StatusBadge active={agent.is_active} />
                         </td>
                         <td className="py-3.5 px-5 text-right">
@@ -583,60 +635,58 @@ export default function AdminPage() {
             </div>
           )
         ) : activeTab === "relocations" ? (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-[12px] font-semibold uppercase tracking-wider text-slate-500">
-                  <th className="p-4 pl-5">Agent</th>
-                  <th className="p-4">Current Location</th>
-                  <th className="p-4">Requested Relocation</th>
-                  <th className="p-4 pr-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-[13.5px]">
-                {relocationRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-8 text-center text-slate-400">
-                      No pending relocation requests.
-                    </td>
-                  </tr>
-                ) : (
-                  relocationRequests.map((req) => (
-                    <tr key={req.agent_id} className="hover:bg-slate-50">
-                      <td className="p-4 pl-5">
-                        <div className="font-semibold text-slate-900">{req.name}</div>
-                        <div className="text-slate-500 text-[12px]">{req.phone}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium">{req.current_vio_office || "—"}</div>
-                        <div className="text-slate-500 text-[12px]">{req.current_lga}, {req.current_state}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium text-amber-700">{req.pending_vio_office || "—"}</div>
-                        <div className="text-amber-600 text-[12px]">{req.pending_lga}, {req.pending_state}</div>
-                      </td>
-                      <td className="p-4 pr-5 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleApproveRelocation(req.agent_id)}
-                            className="rounded-lg bg-green-50 text-green-600 px-3 py-1.5 text-[12px] font-semibold hover:bg-green-100 transition-colors"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectRelocation(req.agent_id)}
-                            className="rounded-lg bg-red-50 text-red-600 px-3 py-1.5 text-[12px] font-semibold hover:bg-red-100 transition-colors"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          relocationRequests.length === 0 ? (
+            <EmptyState message="No pending relocation requests." />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 p-5">
+              {relocationRequests.map((req) => (
+                <div key={req.agent_id} className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Avatar name={req.name} color="green" />
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold text-slate-900 truncate">{req.name}</p>
+                      <p className="text-[11.5px] text-slate-500 font-mono">{req.phone}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2.5 rounded-xl bg-white border border-slate-100 p-3.5">
+                    <div className="flex items-start gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-[12.5px] font-medium text-slate-700 truncate">{req.current_vio_office || "—"}</p>
+                        <p className="text-[11px] text-slate-400">{req.current_lga}, {req.current_state}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <ArrowRight className="h-3.5 w-3.5 text-amber-500 rotate-90" />
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Building2 className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-[12.5px] font-semibold text-amber-800 truncate">{req.pending_vio_office || "—"}</p>
+                        <p className="text-[11px] text-amber-600">{req.pending_lga}, {req.pending_state}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => handleApproveRelocation(req.agent_id)}
+                      className="flex-1 rounded-xl bg-[#28A745] text-white px-3 py-2 text-[12.5px] font-semibold hover:bg-[#218838] transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleRejectRelocation(req.agent_id)}
+                      className="flex-1 rounded-xl bg-white border border-red-200 text-red-600 px-3 py-2 text-[12.5px] font-semibold hover:bg-red-50 transition-colors"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : null}
       </div>
 
@@ -1021,6 +1071,58 @@ export default function AdminPage() {
                 className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-[13.5px] font-semibold text-white transition-all hover:bg-red-700 active:scale-[0.98]"
               >
                 Deactivate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Bulk Commission Modal ─── */}
+      {bulkCommissionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#28A745]/10 text-[#28A745]">
+                <Wallet className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-bold text-slate-900">Set Commission for All Agents</h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
+                  Applies one flat commission to every VIO field agent's next completed job,
+                  overwriting any individual overrides already set on the Agents tab.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5">
+              <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Commission Amount (₦)</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[14px]">₦</span>
+                <input
+                  type="number"
+                  value={bulkCommissionVal}
+                  onChange={(e) => setBulkCommissionVal(e.target.value)}
+                  placeholder="e.g. 2000 (leave empty to reset to system default)"
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[14px] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+                />
+              </div>
+            </div>
+            <div className="pt-5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setBulkCommissionOpen(false)}
+                disabled={applyingBulkCommission}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:scale-[0.98] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyBulkCommission}
+                disabled={applyingBulkCommission}
+                className="flex-1 rounded-xl px-4 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-70"
+                style={{ background: "#28A745" }}
+              >
+                {applyingBulkCommission ? "Applying..." : "Apply to All Agents"}
               </button>
             </div>
           </div>

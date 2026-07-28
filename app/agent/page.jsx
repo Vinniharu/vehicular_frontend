@@ -134,8 +134,8 @@ export default function AgentOffersPage() {
       {/* Relocation Pending Banner */}
       {userProfile?.agent_profile?.relocation_status === "pending" && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm mb-6 flex items-start gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100/50 shrink-0 mt-0.5">
-            <AlertCircle className="h-5 w-5 text-amber-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 shrink-0 mt-0.5">
+            <Hourglass className="h-5 w-5 text-amber-600" />
           </div>
           <div>
             <h3 className="text-[14px] font-bold text-amber-900">Relocation Request Pending</h3>

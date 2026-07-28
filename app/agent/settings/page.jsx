@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import {
   User, Mail, Phone, CheckCircle2, AlertCircle, Pencil, X, Save,
-  KeyRound, Eye, EyeOff, Loader2, MapPin, ChevronDown, Building2,
+  KeyRound, Eye, EyeOff, Loader2, MapPin, ChevronDown, Building2, Clock, Wallet,
 } from "lucide-react";
 import {
-  authGetMe, authUpdateProfile, authChangePassword, getCachedUser,
+  authGetMe, authUpdateProfile, authChangePassword, getCachedUser, setCachedUser,
   getAgentWallet, updateAgentLocation, getReferenceStates, getReferenceLgas,
 } from "@/lib/api";
 
@@ -189,9 +189,12 @@ export default function AgentSettingsPage() {
       setLocationError(res.error);
     } else if (res.data) {
       setEditingLocation(false);
+      setUser((prev) => {
+        const next = prev ? { ...prev, agent_profile: res.data } : prev;
+        if (next) setCachedUser(next);
+        return next;
+      });
       showToast("success", "Your relocation request has been submitted for admin approval.");
-      // Force a reload to get the updated profile state with pending fields
-      window.location.reload();
     }
   };
 
@@ -301,25 +304,25 @@ export default function AgentSettingsPage() {
         )}
 
         {user?.agent_profile?.relocation_status === "pending" && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm mb-4">
-            <div className="flex gap-3">
-              <div className="mt-0.5"><AlertCircle className="h-4 w-4 text-amber-600" /></div>
-              <div>
-                <h3 className="text-[13px] font-bold text-amber-900">Relocation Request Pending</h3>
-                <p className="mt-1 text-[13px] text-amber-800">Your request to relocate to <strong>{user.agent_profile.pending_vio_office}</strong> ({user.agent_profile.pending_lga}, {user.agent_profile.pending_state}) is pending admin approval.</p>
-              </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm mb-4 flex items-start gap-3.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <Clock className="h-4.5 w-4.5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-[13px] font-bold text-amber-900">Relocation Request Pending</h3>
+              <p className="mt-1 text-[13px] leading-relaxed text-amber-800">Your request to relocate to <strong>{user.agent_profile.pending_vio_office}</strong> ({user.agent_profile.pending_lga}, {user.agent_profile.pending_state}) is pending admin approval. New job offers will keep routing to your current area until it's approved.</p>
             </div>
           </div>
         )}
 
         {user?.agent_profile?.relocation_status === "rejected" && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm mb-4">
-            <div className="flex gap-3">
-              <div className="mt-0.5"><AlertCircle className="h-4 w-4 text-red-600" /></div>
-              <div>
-                <h3 className="text-[13px] font-bold text-red-900">Relocation Request Rejected</h3>
-                <p className="mt-1 text-[13px] text-red-800">Your recent relocation request was rejected by an admin. You can submit a new request if needed.</p>
-              </div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm mb-4 flex items-start gap-3.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100">
+              <AlertCircle className="h-4.5 w-4.5 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-[13px] font-bold text-red-900">Relocation Request Rejected</h3>
+              <p className="mt-1 text-[13px] leading-relaxed text-red-800">Your recent relocation request was rejected by an admin. You can submit a new request if needed.</p>
             </div>
           </div>
         )}
@@ -370,6 +373,22 @@ export default function AgentSettingsPage() {
             </div>
           </form>
         )}
+      </div>
+
+      {/* Earnings */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+        <h2 className="text-[15px] font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+          <Wallet className="h-4 w-4" style={{ color: BRAND }} /> Earnings
+        </h2>
+        <InfoRow
+          icon={Wallet}
+          label="Your Commission"
+          value={
+            user?.agent_profile?.custom_commission_kobo !== null && user?.agent_profile?.custom_commission_kobo !== undefined
+              ? `₦${(user.agent_profile.custom_commission_kobo / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per completed job`
+              : "Standard platform rate"
+          }
+        />
       </div>
 
       {/* Password */}
