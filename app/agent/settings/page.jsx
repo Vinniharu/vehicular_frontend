@@ -37,16 +37,17 @@ export default function AgentSettingsPage() {
   const [passwordError, setPasswordError] = useState(null);
 
   // Work location
-  const [vioOffice, setVioOffice] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedLga, setSelectedLga] = useState("");
+  const [selectedVioOffice, setSelectedVioOffice] = useState("");
   const [currentStateName, setCurrentStateName] = useState("");
   const [currentLgaName, setCurrentLgaName] = useState("");
+  const [vioOffice, setVioOffice] = useState("");
   const [editingLocation, setEditingLocation] = useState(false);
   const [updatingLocation, setUpdatingLocation] = useState(false);
   const [locationError, setLocationError] = useState(null);
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedLga, setSelectedLga] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -60,6 +61,15 @@ export default function AgentSettingsPage() {
         setUser(meRes.data);
         setProfileName(meRes.data.name || "");
         setProfilePhone(meRes.data.phone || "");
+        
+        if (meRes.data.agent_profile) {
+          setSelectedState(meRes.data.agent_profile.state_id ? String(meRes.data.agent_profile.state_id) : "");
+          setSelectedLga(meRes.data.agent_profile.lga_id ? String(meRes.data.agent_profile.lga_id) : "");
+          setCurrentStateName(meRes.data.agent_profile.state || "");
+          setCurrentLgaName(meRes.data.agent_profile.lga || "");
+          setVioOffice(meRes.data.agent_profile.vio_office || "");
+          setSelectedVioOffice(meRes.data.agent_profile.vio_office || "");
+        }
       }
       if (statesRes.data) setStates(statesRes.data);
 
@@ -164,23 +174,24 @@ export default function AgentSettingsPage() {
   const handleSaveLocation = async (e) => {
     e.preventDefault();
     setLocationError(null);
-    if (!selectedState || !selectedLga) {
-      setLocationError("Select both a state and an LGA.");
+    if (!selectedState || !selectedLga || !selectedVioOffice.trim()) {
+      setLocationError("Select a state, LGA, and provide a VIO office.");
       return;
     }
     setUpdatingLocation(true);
     const res = await updateAgentLocation({
       state_id: parseInt(selectedState, 10),
       lga_id: parseInt(selectedLga, 10),
+      vio_office: selectedVioOffice.trim(),
     });
     setUpdatingLocation(false);
     if (res.error) {
       setLocationError(res.error);
     } else if (res.data) {
-      setCurrentStateName(res.data.state);
-      setCurrentLgaName(res.data.lga);
       setEditingLocation(false);
-      showToast("success", "Your work location has been updated. New job offers will now route to your new LGA.");
+      showToast("success", "Your relocation request has been submitted for admin approval.");
+      // Force a reload to get the updated profile state with pending fields
+      window.location.reload();
     }
   };
 
@@ -276,7 +287,7 @@ export default function AgentSettingsPage() {
               Relocating? Update your state and LGA so new job offers route to your current area.
             </p>
           </div>
-          {!editingLocation && (
+          {!editingLocation && user?.agent_profile?.relocation_status !== "pending" && (
             <button type="button" onClick={() => setEditingLocation(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-[12.5px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors shrink-0">
               <Pencil className="h-3.5 w-3.5" /> Relocate
             </button>
@@ -286,6 +297,30 @@ export default function AgentSettingsPage() {
         {locationError && !editingLocation && (
           <div className="flex items-center gap-2.5 rounded-xl bg-red-50 p-3 text-[13px] text-red-700 ring-1 ring-inset ring-red-200">
             <AlertCircle className="h-4 w-4 shrink-0" /> {locationError}
+          </div>
+        )}
+
+        {user?.agent_profile?.relocation_status === "pending" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm mb-4">
+            <div className="flex gap-3">
+              <div className="mt-0.5"><AlertCircle className="h-4 w-4 text-amber-600" /></div>
+              <div>
+                <h3 className="text-[13px] font-bold text-amber-900">Relocation Request Pending</h3>
+                <p className="mt-1 text-[13px] text-amber-800">Your request to relocate to <strong>{user.agent_profile.pending_vio_office}</strong> ({user.agent_profile.pending_lga}, {user.agent_profile.pending_state}) is pending admin approval.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {user?.agent_profile?.relocation_status === "rejected" && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm mb-4">
+            <div className="flex gap-3">
+              <div className="mt-0.5"><AlertCircle className="h-4 w-4 text-red-600" /></div>
+              <div>
+                <h3 className="text-[13px] font-bold text-red-900">Relocation Request Rejected</h3>
+                <p className="mt-1 text-[13px] text-red-800">Your recent relocation request was rejected by an admin. You can submit a new request if needed.</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -321,6 +356,10 @@ export default function AgentSettingsPage() {
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               </div>
+            </div>
+            <div>
+              <label className={fieldLabel}>VIO Office</label>
+              <input type="text" value={selectedVioOffice} onChange={(e) => setSelectedVioOffice(e.target.value)} className={inputBase} placeholder="e.g. VIO Office Ikeja" />
             </div>
             <div className="flex items-center gap-3 pt-1">
               <button type="submit" disabled={updatingLocation} className={btnPrimary} style={{ background: BRAND }}>
