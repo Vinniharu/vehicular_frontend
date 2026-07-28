@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
   staff_review: { label: "Under Review", color: "#f59e0b", bg: "#fffbeb", ring: "#fde68a" },
   driving_school_enrolled: { label: "Driving School", color: "#8b5cf6", bg: "#f5f3ff", ring: "#ddd6fe" },
   driving_school_certificate_ready: { label: "School Complete", color: "#14b8a6", bg: "#f0fdfa", ring: "#99f6e4" },
-  routed: { label: "Agent Assigned", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
+  routed: { label: "Sent to Agent", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
   agent_assigned: { label: "Agent Assigned", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
   agent_accepted: { label: "Agent En Route", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
   capture_scheduled: { label: "Capture Scheduled", color: "#6366f1", bg: "#eef2ff", ring: "#c7d2fe" },

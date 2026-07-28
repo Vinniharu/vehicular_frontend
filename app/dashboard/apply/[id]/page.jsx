@@ -76,7 +76,7 @@ const STATUS_CONFIG = {
   staff_review: { label: "Under review", tone: "warning" },
   driving_school_enrolled: { label: "Driving school", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete", tone: "teal" },
-  routed: { label: "Agent assigned", tone: "success" },
+  routed: { label: "Sent to agent", tone: "success" },
   agent_assigned: { label: "Agent assigned", tone: "success" },
   agent_accepted: { label: "Agent en route", tone: "success" },
   capture_scheduled: { label: "Capture scheduled", tone: "indigo" },
