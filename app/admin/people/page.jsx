@@ -33,6 +33,7 @@ import {
   getAdminRelocationRequests,
   approveAgentRelocation,
   rejectAgentRelocation,
+  updateAgentCommission,
   getReferenceStates,
   getReferenceLgas,
 } from "@/lib/api";
@@ -104,6 +105,10 @@ export default function AdminPage() {
 
   const [selectedAgentDetail, setSelectedAgentDetail] = useState(null);
   const [loadingAgentDetail, setLoadingAgentDetail] = useState(false);
+  
+  const [editingCommission, setEditingCommission] = useState(false);
+  const [updatingCommission, setUpdatingCommission] = useState(false);
+  const [customCommissionVal, setCustomCommissionVal] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState("staff");
@@ -220,11 +225,40 @@ export default function AdminPage() {
   const handleViewAgent = async (agent) => {
     setSelectedAgentDetail(agent);
     setLoadingAgentDetail(true);
+    setEditingCommission(false);
     const res = await adminGetAgent(agent.id);
     if (res.data) {
       setSelectedAgentDetail(res.data);
+      if (res.data.agent_profile?.custom_commission_kobo !== null && res.data.agent_profile?.custom_commission_kobo !== undefined) {
+        setCustomCommissionVal((res.data.agent_profile.custom_commission_kobo / 100).toString());
+      } else {
+        setCustomCommissionVal("");
+      }
     }
     setLoadingAgentDetail(false);
+  };
+
+  const handleSaveCommission = async () => {
+    setUpdatingCommission(true);
+    let val = null;
+    if (customCommissionVal !== "") {
+      val = Math.round(parseFloat(customCommissionVal) * 100);
+    }
+    const res = await updateAgentCommission(selectedAgentDetail.id, val);
+    setUpdatingCommission(false);
+    if (res.error) {
+      showToast("error", "Could not update agent commission.");
+    } else {
+      setSelectedAgentDetail({
+        ...selectedAgentDetail,
+        agent_profile: {
+          ...selectedAgentDetail.agent_profile,
+          custom_commission_kobo: val
+        }
+      });
+      setEditingCommission(false);
+      showToast("success", "Agent commission updated.");
+    }
   };
 
   const handleApproveRelocation = async (agentId) => {
@@ -867,6 +901,50 @@ export default function AdminPage() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100 flex items-center justify-between">
+                    <span>Commission Override</span>
+                    {!editingCommission ? (
+                      <button onClick={() => setEditingCommission(true)} className="text-[#28A745] hover:text-[#218838] flex items-center gap-1 text-[11px] bg-[#28A745]/5 px-2 py-0.5 rounded">
+                        <Pencil className="w-3 h-3" /> Edit
+                      </button>
+                    ) : null}
+                  </h4>
+                  <div className="space-y-2.5 text-[13px]">
+                    {!editingCommission ? (
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Custom Commission:</span>
+                        <span className="font-semibold text-slate-900">
+                          {selectedAgentDetail.agent_profile?.custom_commission_kobo !== null && selectedAgentDetail.agent_profile?.custom_commission_kobo !== undefined
+                            ? `₦${(selectedAgentDetail.agent_profile.custom_commission_kobo / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : "System Default"}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₦</span>
+                          <input
+                            type="number"
+                            value={customCommissionVal}
+                            onChange={(e) => setCustomCommissionVal(e.target.value)}
+                            className="w-full pl-7 pr-3 py-1.5 rounded bg-slate-50 border border-slate-200 text-sm focus:border-[#28A745] focus:outline-none"
+                            placeholder="e.g. 2000 (Empty for default)"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button onClick={handleSaveCommission} disabled={updatingCommission} className="px-3 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
+                            {updatingCommission ? "Saving..." : "Save"}
+                          </button>
+                          <button onClick={() => setEditingCommission(false)} disabled={updatingCommission} className="px-3 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
