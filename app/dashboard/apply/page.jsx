@@ -233,6 +233,19 @@ function MiniProgressRing({ status, size = 36 }) {
   const isRejected = status === "staff_rejected" || status === "failed";
   const isDone = status === "completed";
   const meta = statusMeta(status);
+  
+  const toneColors = {
+    info: "#0ea5e9", // sky-500
+    warning: "#f59e0b", // amber-500
+    danger: "#ef4444", // red-500
+    success: "#10b981", // emerald-500
+    purple: "#8b5cf6", // violet-500
+    indigo: "#6366f1", // indigo-500
+    teal: "#14b8a6", // teal-500
+    neutral: "#94a3b8", // slate-400
+  };
+  const strokeColor = toneColors[meta.tone] || toneColors.neutral;
+
   const stroke = 3;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -241,7 +254,7 @@ function MiniProgressRing({ status, size = 36 }) {
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} stroke="#f1f5f9" fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} fill="none" strokeLinecap="round"
-          stroke={isRejected ? "#ef4444" : meta.color}
+          stroke={isRejected ? "#ef4444" : strokeColor}
           strokeDasharray={c} strokeDashoffset={c * (1 - progress)}
           style={{ transition: "stroke-dashoffset 0.7s ease-out" }} />
       </svg>
@@ -251,7 +264,7 @@ function MiniProgressRing({ status, size = 36 }) {
         ) : isRejected ? (
           <XCircle className="h-3.5 w-3.5 text-red-400" />
         ) : (
-          <div className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+          <div className="h-1.5 w-1.5 rounded-full" style={{ background: strokeColor }} />
         )}
       </div>
     </div>
