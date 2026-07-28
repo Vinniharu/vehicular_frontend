@@ -39,6 +39,8 @@ import {
   staffClaimApplication,
   getCachedUser,
   koboToNaira,
+  resolveMediaUrl,
+  downloadStaffBiodataPdf,
 } from "@/lib/api";
 
 const BRAND = "#28A745";
@@ -127,6 +129,7 @@ export default function StaffApplicationDetailsPage() {
   const [error, setError] = useState(null);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const currentUser = getCachedUser();
 
   const [modalType, setModalType] = useState(null); // approve | reject | enroll | upload-cert | route | final-review | push-to-customer | notice
@@ -303,6 +306,19 @@ export default function StaffApplicationDetailsPage() {
     else await loadDetail(true);
   };
 
+  const handleDownloadBiodataPdf = async () => {
+    if (!application) return;
+    setDownloadingPdf(true);
+    setClaimError(null);
+    try {
+      await downloadStaffBiodataPdf(application.id);
+    } catch (err) {
+      setClaimError(err?.message || "Could not generate the biodata PDF. Please try again.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
@@ -339,39 +355,56 @@ export default function StaffApplicationDetailsPage() {
     <div className="mx-auto max-w-6xl space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <Link
-            href="/staff/applications"
-            className="mb-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:text-slate-800"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Review Queue
-          </Link>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900">
-              {application.first_name} {application.last_name}
-            </h1>
-            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
-              #{application.id}
-            </span>
-            <StatusBadge status={application.status} />
-            {application.assigned_staff ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#28A745]/30 bg-[#E9F7EC] px-2.5 py-1 text-[11.5px] font-semibold text-[#166B2C]">
-                <UserCheck className="h-3 w-3" />
-                {application.assigned_staff.user_id === currentUser?.id ? "Claimed by you" : application.assigned_staff.name}
+        <div className="flex items-start gap-4">
+          {application.passport_photo ? (
+            <img
+              src={resolveMediaUrl(application.passport_photo)}
+              alt="Passport photo"
+              className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300">
+              <ImageIcon className="h-6 w-6" />
+            </div>
+          )}
+          <div>
+            <Link
+              href="/staff/applications"
+              className="mb-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:text-slate-800"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Review Queue
+            </Link>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900">
+                {application.first_name} {application.last_name}
+              </h1>
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
+                #{application.id}
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11.5px] font-semibold text-amber-700">
-                Unclaimed
-              </span>
+              <StatusBadge status={application.status} />
+              {application.assigned_staff ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#28A745]/30 bg-[#E9F7EC] px-2.5 py-1 text-[11.5px] font-semibold text-[#166B2C]">
+                  <UserCheck className="h-3 w-3" />
+                  {application.assigned_staff.user_id === currentUser?.id ? "Claimed by you" : application.assigned_staff.name}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11.5px] font-semibold text-amber-700">
+                  Unclaimed
+                </span>
+              )}
+            </div>
+            {claimError && (
+              <p className="mt-2 max-w-lg text-[12.5px] font-medium text-red-600">{claimError}</p>
             )}
           </div>
-          {claimError && (
-            <p className="mt-2 max-w-lg text-[12.5px] font-medium text-red-600">{claimError}</p>
-          )}
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3">
+          <button onClick={handleDownloadBiodataPdf} disabled={downloadingPdf} className={btnSecondary}>
+            {downloadingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+            {downloadingPdf ? "Preparing PDF…" : "Download Biodata PDF"}
+          </button>
           <button onClick={() => loadDetail(true)} className={btnSecondary}>
             {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Refresh
@@ -682,7 +715,7 @@ export default function StaffApplicationDetailsPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {doc.file_url && (
-                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className={btnGhostLink}>
+                        <a href={resolveMediaUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" className={btnGhostLink}>
                           Preview <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       )}
