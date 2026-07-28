@@ -30,6 +30,9 @@ import {
   adminCreateAgent,
   adminDeactivateStaff,
   adminDeactivateAgent,
+  getAdminRelocationRequests,
+  approveAgentRelocation,
+  rejectAgentRelocation,
   getReferenceStates,
   getReferenceLgas,
 } from "@/lib/api";
@@ -92,6 +95,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("staff");
   const [staffList, setStaffList] = useState([]);
   const [agentsList, setAgentsList] = useState([]);
+  const [relocationRequests, setRelocationRequests] = useState([]);
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,14 +127,16 @@ export default function AdminPage() {
   };
 
   const loadData = async () => {
-    const [staffRes, agentsRes, statesRes] = await Promise.all([
+    const [staffRes, agentsRes, statesRes, relocRes] = await Promise.all([
       adminGetStaff(),
       adminGetAgents(),
       getReferenceStates(),
+      getAdminRelocationRequests()
     ]);
     if (staffRes.data && Array.isArray(staffRes.data)) setStaffList(staffRes.data);
     if (agentsRes.data && Array.isArray(agentsRes.data)) setAgentsList(agentsRes.data);
     if (statesRes.data && Array.isArray(statesRes.data)) setStates(statesRes.data);
+    if (relocRes.data && Array.isArray(relocRes.data)) setRelocationRequests(relocRes.data);
   };
 
   useEffect(() => {
@@ -212,13 +218,32 @@ export default function AdminPage() {
   };
 
   const handleViewAgent = async (agent) => {
-    setSelectedAgentDetail(agent); // optimistic show from list
+    setSelectedAgentDetail(agent);
     setLoadingAgentDetail(true);
     const res = await adminGetAgent(agent.id);
     if (res.data) {
       setSelectedAgentDetail(res.data);
     }
     setLoadingAgentDetail(false);
+  };
+
+  const handleApproveRelocation = async (agentId) => {
+    const res = await approveAgentRelocation(agentId);
+    if (res.error) showToast("error", res.error);
+    else {
+      showToast("success", "Relocation request approved.");
+      loadData();
+    }
+  };
+
+  const handleRejectRelocation = async (agentId) => {
+    if (!window.confirm("Are you sure you want to reject this relocation request?")) return;
+    const res = await rejectAgentRelocation(agentId);
+    if (res.error) showToast("error", res.error);
+    else {
+      showToast("success", "Relocation request rejected.");
+      loadData();
+    }
   };
 
   const q = searchQuery.toLowerCase();
@@ -299,10 +324,11 @@ export default function AdminPage() {
       {/* ─── Tab Bar & Search ─── */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 self-start">
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 self-start overflow-x-auto">
             {[
-              { key: "staff", label: "Verification Staff", count: staffList.length },
-              { key: "agents", label: "VIO Field Agents", count: agentsList.length },
+              { key: "staff", label: "Internal Staff", count: staffList.length },
+              { key: "agents", label: "Field Agents", count: agentsList.length },
+              { key: "relocations", label: "Relocations", count: relocationRequests.length },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -411,7 +437,7 @@ export default function AdminPage() {
               </table>
             </div>
           )
-        ) : (
+        ) : activeTab === "agents" ? (
           filteredAgents.length === 0 ? (
             <EmptyState message={searchQuery ? "No agents match your search." : "No field agents have been provisioned yet."} />
           ) : (
@@ -521,7 +547,62 @@ export default function AdminPage() {
               </table>
             </div>
           )
-        )}
+        ) : activeTab === "relocations" ? (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-[12px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="p-4 pl-5">Agent</th>
+                  <th className="p-4">Current Location</th>
+                  <th className="p-4">Requested Relocation</th>
+                  <th className="p-4 pr-5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-[13.5px]">
+                {relocationRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">
+                      No pending relocation requests.
+                    </td>
+                  </tr>
+                ) : (
+                  relocationRequests.map((req) => (
+                    <tr key={req.agent_id} className="hover:bg-slate-50">
+                      <td className="p-4 pl-5">
+                        <div className="font-semibold text-slate-900">{req.name}</div>
+                        <div className="text-slate-500 text-[12px]">{req.phone}</div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-medium">{req.current_vio_office || "—"}</div>
+                        <div className="text-slate-500 text-[12px]">{req.current_lga}, {req.current_state}</div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-medium text-amber-700">{req.pending_vio_office || "—"}</div>
+                        <div className="text-amber-600 text-[12px]">{req.pending_lga}, {req.pending_state}</div>
+                      </td>
+                      <td className="p-4 pr-5 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleApproveRelocation(req.agent_id)}
+                            className="rounded-lg bg-green-50 text-green-600 px-3 py-1.5 text-[12px] font-semibold hover:bg-green-100 transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectRelocation(req.agent_id)}
+                            className="rounded-lg bg-red-50 text-red-600 px-3 py-1.5 text-[12px] font-semibold hover:bg-red-100 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </div>
 
       {/* ─── Provisioning Modal ─── */}
