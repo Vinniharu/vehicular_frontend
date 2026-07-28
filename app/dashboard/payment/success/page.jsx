@@ -39,11 +39,14 @@ function PaymentSuccessContent() {
   // "success") whenever the outcome is uncertain, so an incomplete or
   // abandoned checkout never shows a false success screen.
   const [outcome, setOutcome] = useState("pending");
+  const [verifiedAmount, setVerifiedAmount] = useState(null);
 
   const runVerifyAndLoad = async () => {
     if (reference || appIdParam) {
       try {
         const verifyRes = await verifyPaymentTransaction({ reference, application_id: appIdParam });
+        if (verifyRes.data?.amount_paid_kobo) setVerifiedAmount(verifyRes.data.amount_paid_kobo);
+        
         if (verifyRes.data?.status === "success") setOutcome("success");
         else if (verifyRes.data?.status === "failed") setOutcome("failed");
         else setOutcome("pending");
@@ -83,7 +86,7 @@ function PaymentSuccessContent() {
     setRefreshing(false);
   };
 
-  const amountPaid = amountParam ? koboToNaira(amountParam) : application?.payment_options ? koboToNaira(application.payment_options.amount_kobo) : "₦30,000.00";
+  const amountPaid = verifiedAmount ? koboToNaira(verifiedAmount) : amountParam ? koboToNaira(amountParam) : application?.payment_options ? koboToNaira(application.payment_options.amount_kobo) : "₦30,000.00";
   const applicationHref = `/dashboard/apply/${application?.id || appIdParam || ""}`;
 
   if (loading) {
