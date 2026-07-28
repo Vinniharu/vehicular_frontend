@@ -55,6 +55,20 @@ function estimateFeeKobo(appType, period) {
   return bucket[period] || bucket["5 years"];
 }
 
+// Mirrors app/dashboard/apply/page.jsx's LICENCE_CLASSES — reapply must be
+// able to correct this field too, since it's required for every
+// application type now, not just fresh.
+const LICENCE_CLASSES = [
+  { value: "A", label: "Class A — Motorcycle" },
+  { value: "B", label: "Class B — Private car (up to 8 seats)" },
+  { value: "C", label: "Class C — Commercial / taxi" },
+  { value: "D", label: "Class D — Articulated / heavy truck" },
+  { value: "E", label: "Class E — Bus (8+ passengers)" },
+  { value: "F", label: "Class F — Agricultural / tractor" },
+  { value: "G", label: "Class G — Earth-moving equipment" },
+  { value: "H", label: "Class H — Motorised wheelchair" },
+];
+
 // Exact doc_type strings the backend requires before a renewal/reissue
 // application can auto-route to a field agent (app/routers/applications.py
 // check_missing_docs) — offered here so a customer can complete/fix these
@@ -249,6 +263,8 @@ function ReapplyModal({ application, onClose, onSuccess }) {
     mothers_maiden_name: application.mothers_maiden_name || "",
     residential_address: application.residential_address || "",
     nin: application.nin || "",
+    old_licence_number: application.old_licence_number || "",
+    licence_class: application.licence_class || "",
     blood_group: application.blood_group || "",
     height_cm: application.height_cm || "",
     has_facial_mark: application.has_facial_mark || false,
@@ -442,10 +458,28 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   </div>
                 </div>
               </div>
-              <div>
-                <label className={fieldLabel}>NIN</label>
-                <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={fieldLabel}>Licence class *</label>
+                  <div className="relative">
+                    <select name="licence_class" value={form.licence_class} onChange={handleChange} required className={`${inputBase} appearance-none pr-8`}>
+                      <option value="" disabled>Select licence class</option>
+                      {LICENCE_CLASSES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
+                <div>
+                  <label className={fieldLabel}>NIN</label>
+                  <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
+                </div>
               </div>
+              {(application.application_type === "renewal" || application.application_type === "reissue") && (
+                <div>
+                  <label className={fieldLabel}>Old licence number</label>
+                  <input name="old_licence_number" value={form.old_licence_number} onChange={handleChange} placeholder="e.g. LAG-01-23456789" className={inputBase} />
+                </div>
+              )}
               <div>
                 <label className={fieldLabel}>Residential address</label>
                 <input name="residential_address" value={form.residential_address} onChange={handleChange} placeholder="123 Example St, Lagos" className={inputBase} />
