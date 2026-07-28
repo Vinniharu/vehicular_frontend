@@ -538,10 +538,12 @@ export default function ApplyPage() {
     if (n === 1) {
       if (applicationType !== "international_permit" && !validityPeriod) errors.validityPeriod = "Select a validity period.";
       if (applicationType === "fresh" && !licenceClass) errors.licenceClass = "Select a licence class.";
+    }
+    if (n === 2) {
       if (!selectedState) errors.selectedState = "Select your state of residence.";
       if (!selectedLga) errors.selectedLga = "Select your LGA.";
-    }
-    if (n === 2 && applicationType === "fresh") {
+      
+      if (applicationType === "fresh") {
       const trimmedFirst = firstName.trim();
       const trimmedLast = lastName.trim();
       const trimmedMaiden = mothersMaidenName.trim();
@@ -561,6 +563,7 @@ export default function ApplyPage() {
       if (heightCm && (Number(heightCm) < 100 || Number(heightCm) > 250)) errors.heightCm = "Height must be between 100 and 250 cm.";
       if (hasFacialMark && !facialMarkDesc.trim()) errors.facialMarkDesc = "Describe the facial mark, or uncheck this box.";
       if (hasDisability && !disabilityDesc.trim()) errors.disabilityDesc = "Describe the disability, or uncheck this box.";
+      }
     }
     if (n === 3 && applicationType === "fresh") {
       if (!nokName.trim()) errors.nokName = "Next of kin's full name is required.";
@@ -662,10 +665,10 @@ export default function ApplyPage() {
       : await submitDriverLicenceApplication({
           application_type: applicationType,
           validity_period: validityPeriod,
-          state_id: applicationType === "international_permit" ? parseInt(selectedState, 10) : undefined,
-          lga_id: applicationType === "international_permit" ? parseInt(selectedLga, 10) : undefined,
-          state_of_residence: applicationType === "international_permit" ? (states.find(s => s.id === parseInt(selectedState, 10))?.name || "") : undefined,
-          lga: applicationType === "international_permit" ? (lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || "") : undefined,
+          state_id: parseInt(selectedState, 10),
+          lga_id: parseInt(selectedLga, 10),
+          state_of_residence: states.find(s => s.id === parseInt(selectedState, 10))?.name || "",
+          lga: lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || "",
           old_licence_number: applicationType !== "international_permit" ? oldLicenceNumber.trim() : undefined,
           nin: nin.trim(),
           passport_photo: passportPhoto,
@@ -1301,10 +1304,10 @@ export default function ApplyPage() {
   }
 
   /* ── Application form ── */
-  const activeSteps = applicationType === "fresh" ? [1, 2, 3, 4, 5] : [1, 4, 5];
+  const activeSteps = applicationType === "fresh" ? [1, 2, 3, 4, 5] : [1, 2, 4, 5];
   const activeLabels = applicationType === "fresh"
     ? ["Application type", "Personal details", "Next of kin", "Document", "Review & submit"]
-    : ["Application type", "Details", "Review & submit"];
+    : ["Application type", "Residence", "Details", "Review & submit"];
   const stepDisplayIndex = Math.max(1, activeSteps.indexOf(step) + 1);
 
   return (
@@ -1411,10 +1414,14 @@ export default function ApplyPage() {
                   </div>
                   <FieldError message={fieldErrors.validityPeriod} />
                 </div>
-              )}
             </div>
+          </div>
+        )}
 
-            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3 mt-4">
+        {/* Step 2 */}
+        {step === 2 && (
+          <div className="space-y-5 p-6">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
               <div>
                 <h2 className="text-[13px] font-medium text-[#111111]">State &amp; LGA of residence</h2>
                 <p className="text-[12px] text-[#7A7A7A]">This determines which capturing center processes your application.</p>
@@ -1444,13 +1451,10 @@ export default function ApplyPage() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Step 2 */}
-        {step === 2 && (
-          <div className="space-y-5 p-6">
-            <p className="text-[13px] text-slate-500">Pre-filled from your profile — check everything's correct.</p>
+            {applicationType === "fresh" && (
+              <>
+                <p className="text-[13px] text-slate-500 mt-4">Pre-filled from your profile — check everything's correct.</p>
             {user && (
               <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: BRAND }}>
@@ -1603,6 +1607,8 @@ export default function ApplyPage() {
                 </div>
               )}
             </div>
+            </>
+            )}
           </div>
         )}
 
@@ -1742,24 +1748,42 @@ export default function ApplyPage() {
                       ],
                     },
                   ]
-                : [
-                    {
-                      section: "Application",
-                      rows: [
-                        ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
-                        ["Validity period", validityPeriod || "—"],
-                      ],
-                    },
-                    {
-                      section: `${applicationType === "reissue" ? "Reissue" : "Renewal"} details`,
-                      rows: [
-                        ["Old licence number", oldLicenceNumber || "—"],
-                        ["NIN", nin || "—"],
-                        ["Old licence photo", renewalDocs.old_driver_licence?.fileName || "Not provided"],
-                        ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
-                      ],
-                    },
-                  ]
+                : applicationType === "international_permit"
+                  ? [
+                      {
+                        section: "Application",
+                        rows: [
+                          ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                          ["State / LGA", (selectedState && selectedLga) ? `${states.find(s => s.id === parseInt(selectedState, 10))?.name || ""} / ${lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || ""}` : "—"],
+                        ],
+                      },
+                      {
+                        section: "Permit details",
+                        rows: [
+                          ["NIN", nin || "—"],
+                          ["ID Document", renewalDocs.id_document?.fileName || "Not provided"],
+                          ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                        ],
+                      },
+                    ]
+                  : [
+                      {
+                        section: "Application",
+                        rows: [
+                          ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                          ["Validity period", validityPeriod || "—"],
+                        ],
+                      },
+                      {
+                        section: `${applicationType === "reissue" ? "Reissue" : "Renewal"} details`,
+                        rows: [
+                          ["Old licence number", oldLicenceNumber || "—"],
+                          ["NIN", nin || "—"],
+                          ["Old licence photo", renewalDocs.old_driver_licence?.fileName || "Not provided"],
+                          ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
+                        ],
+                      },
+                    ]
               ).map(({ section, rows }) => (
                 <div key={section} className="overflow-hidden rounded-xl border border-slate-100">
                   <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
