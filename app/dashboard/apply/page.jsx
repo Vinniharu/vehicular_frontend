@@ -86,6 +86,7 @@ const APPLICATION_TYPES = [
   { value: "fresh", label: "Fresh application", desc: "First-time licence — includes driving school enrollment." },
   { value: "renewal", label: "Renewal", desc: "Renew a licence that's expired or expiring soon." },
   { value: "reissue", label: "Reissue", desc: "Replace a lost, stolen, or damaged licence." },
+  { value: "international_permit", label: "International Driver's Permit", desc: "Apply for an international driving permit." },
 ];
 
 // Standard FRSC licence classes — required for fresh applications so the
@@ -535,8 +536,10 @@ export default function ApplyPage() {
   const validateStep = (n) => {
     const errors = {};
     if (n === 1) {
-      if (!validityPeriod) errors.validityPeriod = "Select a validity period.";
+      if (applicationType !== "international_permit" && !validityPeriod) errors.validityPeriod = "Select a validity period.";
       if (applicationType === "fresh" && !licenceClass) errors.licenceClass = "Select a licence class.";
+      if (!selectedState) errors.selectedState = "Select your state of residence.";
+      if (!selectedLga) errors.selectedLga = "Select your LGA.";
     }
     if (n === 2 && applicationType === "fresh") {
       const trimmedFirst = firstName.trim();
@@ -552,8 +555,7 @@ export default function ApplyPage() {
         const age = ageFromDob(dob);
         if (age === null || age < MIN_APPLICANT_AGE) errors.dob = `Applicant must be at least ${MIN_APPLICANT_AGE} years old.`;
       }
-      if (!selectedState) errors.selectedState = "Select your state of residence.";
-      if (!selectedLga) errors.selectedLga = "Select your LGA.";
+
       const trimmedNin = nin.trim();
       if (trimmedNin && !NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
       if (heightCm && (Number(heightCm) < 100 || Number(heightCm) > 250)) errors.heightCm = "Height must be between 100 and 250 cm.";
@@ -568,9 +570,12 @@ export default function ApplyPage() {
       if (!passportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
     }
     if (n === 4 && applicationType !== "fresh") {
-      if (!renewalDocs.old_driver_licence?.url) errors.documents = "Attach a photo of the front of your old licence.";
-      const trimmedOldNum = oldLicenceNumber.trim();
-      if (!trimmedOldNum) errors.oldLicenceNumber = "Your old licence number is required.";
+      if (applicationType === "international_permit") {
+        if (!renewalDocs.id_document?.url) errors.documents = "Attach a photo of your International Passport or Nigeria Driver's Licence.";
+      } else {
+        if (!renewalDocs.old_driver_licence?.url) errors.documents = "Attach a photo of the front of your old licence.";
+        if (!oldLicenceNumber.trim()) errors.oldLicenceNumber = "Enter your old licence number.";
+      }
       const trimmedNin = nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
@@ -587,11 +592,6 @@ export default function ApplyPage() {
       showToast("error", res.error || "Insufficient wallet funds. Please top up your wallet or pay by card.");
       return;
     }
-    // A wallet debit is confirmed synchronously by this response — there's
-    // no gateway round-trip to wait on, so show success right away instead
-    // of routing through the checkout-oriented payment/success page (which
-    // defaults to "pending" while it waits on a Monnify confirmation that,
-    // for a wallet payment, never comes).
     showToast(
       "success",
       res.data?.is_fully_paid
@@ -622,9 +622,6 @@ export default function ApplyPage() {
     setSubmitting(true);
     setSubmitError(null);
 
-    // Renewal/reissue is a simplified submission — only the 4 fields below
-    // are sent; the backend inherits everything else (name, DOB, next of
-    // kin, address, etc.) from the customer's most recent prior application.
     const res = applicationType === "fresh"
       ? await submitDriverLicenceApplication({
           application_type: applicationType,
@@ -665,10 +662,13 @@ export default function ApplyPage() {
       : await submitDriverLicenceApplication({
           application_type: applicationType,
           validity_period: validityPeriod,
-          old_licence_number: oldLicenceNumber.trim(),
+          old_licence_number: applicationType !== "international_permit" ? oldLicenceNumber.trim() : undefined,
           nin: nin.trim(),
           passport_photo: passportPhoto,
-          documents: renewalDocs.old_driver_licence?.url
+          id_document: applicationType === "international_permit" && renewalDocs.id_document?.url
+            ? { doc_type: "international_passport", file_url: renewalDocs.id_document.url }
+            : undefined,
+          documents: applicationType !== "international_permit" && renewalDocs.old_driver_licence?.url
             ? [{ doc_type: "old_driver_licence", file_url: renewalDocs.old_driver_licence.url }]
             : [],
         });
@@ -1026,7 +1026,6 @@ export default function ApplyPage() {
                   </div>
                 </div>
 
-                {/* 1. Payment Verification Check (Priority First Step) */}
                 {!isApplicationPaid(selectedAppDetail) && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
                     <div className="flex items-start gap-3">
@@ -1071,7 +1070,6 @@ export default function ApplyPage() {
                   </div>
                 )}
 
-                {/* 2. Exception & Correction Alerts */}
                 {selectedAppDetail.status === "needs_correction" && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <div className="flex items-start gap-3">
@@ -1128,7 +1126,6 @@ export default function ApplyPage() {
                   </div>
                 )}
 
-                {/* 3. Assigned VIO Processing Agent Details */}
                 {(selectedAppDetail.assigned_agent || ["agent_assigned", "agent_accepted", "capture_scheduled", "capturing_scheduled", "scheduled", "captured", "capturing_completed", "agent_completed"].includes(selectedAppDetail.status)) && (
                   <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4.5 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-3 border-b border-slate-100 pb-2.5">
@@ -1160,7 +1157,6 @@ export default function ApplyPage() {
                   </div>
                 )}
 
-                {/* 4. Biometric Capture Appointment Details */}
                 {!["ready_for_pickup", "awaiting_customer", "completed"].includes(selectedAppDetail.status) &&
                   (selectedAppDetail.capture_scheduled_at || ["capture_scheduled", "capturing_scheduled", "captured", "capturing_completed"].includes(selectedAppDetail.status)) && (
                   <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4.5 shadow-sm">
@@ -1198,7 +1194,6 @@ export default function ApplyPage() {
                   </div>
                 )}
 
-                {/* 5. Driving School Details (Fresh Applications) */}
                 {!["ready_for_pickup", "awaiting_customer", "completed"].includes(selectedAppDetail.status) &&
                   (selectedAppDetail.driving_school || ["driving_school_enrolled", "driving_school_certificate_ready", "driving_school_graduated"].includes(selectedAppDetail.status)) && (
                   <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4.5 shadow-sm">
@@ -1301,17 +1296,11 @@ export default function ApplyPage() {
     );
   }
 
-  /* ── Application form ──
-     Renewal/reissue skip Steps 2-3 (personal details, next of kin) — those
-     are inherited server-side from the customer's most recent prior
-     application — so the wizard only ever visits steps 1, 4, and 5 for
-     those types. `step` itself still uses the same 1-5 values throughout
-     the component; `activeSteps`/`activeLabels` just control which values
-     are reachable and how the progress bar displays them. */
+  /* ── Application form ── */
   const activeSteps = applicationType === "fresh" ? [1, 2, 3, 4, 5] : [1, 4, 5];
   const activeLabels = applicationType === "fresh"
     ? ["Application type", "Personal details", "Next of kin", "Document", "Review & submit"]
-    : ["Application type", "Renewal details", "Review & submit"];
+    : ["Application type", "Details", "Review & submit"];
   const stepDisplayIndex = Math.max(1, activeSteps.indexOf(step) + 1);
 
   return (
@@ -1332,7 +1321,7 @@ export default function ApplyPage() {
             New application
           </h1>
           <p className="text-[12.5px] text-[#7A7A7A]">
-            {applicationType === "fresh" ? "Fresh application — five short steps." : "Renewal or reissue — just a few details."}
+            {applicationType === "fresh" ? "Fresh application — five short steps." : "Renewal, reissue, or international permit — just a few details."}
           </p>
         </div>
       </div>
@@ -1400,32 +1389,28 @@ export default function ApplyPage() {
                   <FieldError message={fieldErrors.licenceClass} />
                 </div>
               )}
-              <div>
-                <label className={label}>Validity period <span className="text-red-400">*</span></label>
-                <div className="relative">
-                  <select
-                    value={validityPeriod}
-                    onChange={(e) => setValidityPeriod(e.target.value)}
-                    className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.validityPeriod)}`}
-                  >
-                    <option value="" disabled>Select validity period</option>
-                    {VALIDITY_PERIODS.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              {applicationType !== "international_permit" && (
+                <div>
+                  <label className={label}>Validity period <span className="text-red-400">*</span></label>
+                  <div className="relative">
+                    <select
+                      value={validityPeriod}
+                      onChange={(e) => setValidityPeriod(e.target.value)}
+                      className={`${inputBase} appearance-none pr-8 ${errInputClass(!!fieldErrors.validityPeriod)}`}
+                    >
+                      <option value="" disabled>Select validity period</option>
+                      {VALIDITY_PERIODS.map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <FieldError message={fieldErrors.validityPeriod} />
                 </div>
-                <FieldError message={fieldErrors.validityPeriod} />
-              </div>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* Step 2 */}
-        {step === 2 && (
-          <div className="space-y-5 p-6">
-            {/* State + LGA of residence (for capturing-center routing) */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3 mt-4">
               <div>
                 <h2 className="text-[13px] font-medium text-[#111111]">State &amp; LGA of residence</h2>
                 <p className="text-[12px] text-[#7A7A7A]">This determines which capturing center processes your application.</p>
@@ -1455,9 +1440,13 @@ export default function ApplyPage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
+        {/* Step 2 */}
+        {step === 2 && (
+          <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">Pre-filled from your profile — check everything's correct.</p>
-
             {user && (
               <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: BRAND }}>
@@ -1469,8 +1458,6 @@ export default function ApplyPage() {
                 </div>
               </div>
             )}
-
-            {/* Name row */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label className={label}>First name <span className="text-red-400">*</span></label>
@@ -1487,8 +1474,6 @@ export default function ApplyPage() {
                 <FieldError message={fieldErrors.lastName} />
               </div>
             </div>
-
-            {/* DOB + Gender */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Date of birth <span className="text-red-400">*</span></label>
@@ -1508,8 +1493,6 @@ export default function ApplyPage() {
                 </div>
               </div>
             </div>
-
-            {/* Nationality + Marital */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Nationality</label>
@@ -1526,8 +1509,6 @@ export default function ApplyPage() {
                 </div>
               </div>
             </div>
-
-            {/* NIN + Residential address */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>NIN <span className="text-red-400">*</span></label>
@@ -1539,8 +1520,6 @@ export default function ApplyPage() {
                 <input type="text" value={residentialAddress} onChange={(e) => setResidentialAddress(e.target.value)} placeholder="123 Example Street, Lagos" className={inputBase} />
               </div>
             </div>
-
-            {/* Blood group */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Blood group</label>
@@ -1553,8 +1532,6 @@ export default function ApplyPage() {
                 </div>
               </div>
             </div>
-
-            {/* State + LGA of origin (optional) */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>State of origin</label>
@@ -1577,8 +1554,6 @@ export default function ApplyPage() {
                 </div>
               </div>
             </div>
-
-            {/* City + Country */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>City</label>
@@ -1589,8 +1564,6 @@ export default function ApplyPage() {
                 <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Nigeria" className={inputBase} />
               </div>
             </div>
-
-            {/* Mother's maiden name + Height */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Mother's maiden name</label>
@@ -1603,47 +1576,28 @@ export default function ApplyPage() {
                 <FieldError message={fieldErrors.heightCm} />
               </div>
             </div>
-
-            {/* Facial mark + Disability */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
               <p className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Physical Characteristics</p>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={hasFacialMark}
-                  onChange={(e) => { setHasFacialMark(e.target.checked); if (!e.target.checked) setFacialMarkDesc(""); }}
-                  className="h-4 w-4 rounded accent-[#28A745]"
-                />
+                <input type="checkbox" checked={hasFacialMark} onChange={(e) => { setHasFacialMark(e.target.checked); if (!e.target.checked) setFacialMarkDesc(""); }} className="h-4 w-4 rounded accent-[#28A745]" />
                 <span className="text-[13.5px] font-medium text-slate-800">Has facial mark</span>
               </label>
               {hasFacialMark && (
                 <div>
-                  <input type="text" value={facialMarkDesc} onChange={(e) => setFacialMarkDesc(e.target.value)}
-                    placeholder="Brief description of facial mark(s)" className={`${inputBase} ${errInputClass(!!fieldErrors.facialMarkDesc)}`} />
+                  <input type="text" value={facialMarkDesc} onChange={(e) => setFacialMarkDesc(e.target.value)} placeholder="Brief description of facial mark(s)" className={`${inputBase} ${errInputClass(!!fieldErrors.facialMarkDesc)}`} />
                   <FieldError message={fieldErrors.facialMarkDesc} />
                 </div>
               )}
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={hasDisability}
-                  onChange={(e) => { setHasDisability(e.target.checked); if (!e.target.checked) setDisabilityDesc(""); }}
-                  className="h-4 w-4 rounded accent-[#28A745]"
-                />
+                <input type="checkbox" checked={hasDisability} onChange={(e) => { setHasDisability(e.target.checked); if (!e.target.checked) setDisabilityDesc(""); }} className="h-4 w-4 rounded accent-[#28A745]" />
                 <span className="text-[13.5px] font-medium text-slate-800">Has any disability</span>
               </label>
               {hasDisability && (
                 <div>
-                  <input type="text" value={disabilityDesc} onChange={(e) => setDisabilityDesc(e.target.value)}
-                    placeholder="Brief description of disability" className={`${inputBase} ${errInputClass(!!fieldErrors.disabilityDesc)}`} />
+                  <input type="text" value={disabilityDesc} onChange={(e) => setDisabilityDesc(e.target.value)} placeholder="Brief description of disability" className={`${inputBase} ${errInputClass(!!fieldErrors.disabilityDesc)}`} />
                   <FieldError message={fieldErrors.disabilityDesc} />
                 </div>
               )}
-            </div>
-
-            <div className="flex items-start gap-2 text-[11.5px] text-slate-400">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>Your state and LGA determine which capturing center processes your application.</span>
             </div>
           </div>
         )}
@@ -1654,8 +1608,7 @@ export default function ApplyPage() {
             <p className="text-[13px] text-slate-500">Who should we contact in an emergency?</p>
             <div>
               <label className={label}>Full name <span className="text-red-400">*</span></label>
-              <input type="text" value={nokName} onChange={(e) => setNokName(e.target.value)}
-                placeholder="Emeka Obi" className={`${inputBase} ${errInputClass(!!fieldErrors.nokName)}`} />
+              <input type="text" value={nokName} onChange={(e) => setNokName(e.target.value)} placeholder="Emeka Obi" className={`${inputBase} ${errInputClass(!!fieldErrors.nokName)}`} />
               <FieldError message={fieldErrors.nokName} />
             </div>
             <div>
@@ -1672,11 +1625,7 @@ export default function ApplyPage() {
               <label className={label}>Phone number <span className="text-red-400">*</span></label>
               <div className="flex rounded-xl border border-[#E5E5E5] bg-slate-50/60 overflow-hidden focus-within:border-[#28A745] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#28A745]/15">
                 <span className="flex items-center pl-3.5 pr-3 text-[13.5px] font-semibold text-slate-500 select-none border-r border-[#E5E5E5] bg-slate-100/80">+234</span>
-                <input type="tel"
-                  value={nokPhone.replace(/^\+?234/, "").replace(/^0/, "")}
-                  onChange={(e) => { const raw = e.target.value.replace(/\D/g, "").replace(/^234/, "").replace(/^0/, ""); setNokPhone("+234" + raw); }}
-                  placeholder="8012345678"
-                  className="flex-1 min-w-0 px-3.5 py-2.5 text-[13.5px] bg-transparent outline-none text-[#111111] font-mono" />
+                <input type="tel" value={nokPhone.replace(/^\+?234/, "").replace(/^0/, "")} onChange={(e) => { const raw = e.target.value.replace(/\D/g, "").replace(/^234/, "").replace(/^0/, ""); setNokPhone("+234" + raw); }} placeholder="8012345678" className="flex-1 min-w-0 px-3.5 py-2.5 text-[13.5px] bg-transparent outline-none text-[#111111] font-mono" />
               </div>
               <FieldError message={fieldErrors.nokPhone} />
             </div>
@@ -1688,36 +1637,32 @@ export default function ApplyPage() {
           <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">
               Your other details are carried over from your most recent application — we just need
-              these four things to process your {applicationType}.
+              these things to process your {applicationType.replace("_", " ")}.
             </p>
-            <DocUploadSlot
-              title="Front of your old licence"
-              value={renewalDocs.old_driver_licence}
-              onChange={(v) => setRenewalDocs((p) => ({ ...p, old_driver_licence: v }))}
-            />
-            <FieldError message={fieldErrors.documents} />
-            <div>
-              <label className={label}>Old licence number <span className="text-red-400">*</span></label>
-              <input
-                type="text"
-                value={oldLicenceNumber}
-                onChange={(e) => setOldLicenceNumber(e.target.value)}
-                placeholder="e.g. LAG-01-23456789"
-                className={`${inputBase} ${errInputClass(!!fieldErrors.oldLicenceNumber)}`}
+            {applicationType === "international_permit" ? (
+              <DocUploadSlot
+                title="International Passport or Nigeria Driver's Licence"
+                value={renewalDocs.id_document}
+                onChange={(v) => setRenewalDocs((p) => ({ ...p, id_document: v }))}
               />
-              <FieldError message={fieldErrors.oldLicenceNumber} />
-            </div>
+            ) : (
+              <DocUploadSlot
+                title="Front of your old licence"
+                value={renewalDocs.old_driver_licence}
+                onChange={(v) => setRenewalDocs((p) => ({ ...p, old_driver_licence: v }))}
+              />
+            )}
+            <FieldError message={fieldErrors.documents} />
+            {applicationType !== "international_permit" && (
+              <div>
+                <label className={label}>Old licence number <span className="text-red-400">*</span></label>
+                <input type="text" value={oldLicenceNumber} onChange={(e) => setOldLicenceNumber(e.target.value)} placeholder="e.g. LAG-01-23456789" className={`${inputBase} ${errInputClass(!!fieldErrors.oldLicenceNumber)}`} />
+                <FieldError message={fieldErrors.oldLicenceNumber} />
+              </div>
+            )}
             <div>
               <label className={label}>NIN <span className="text-red-400">*</span></label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={nin}
-                onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
-                placeholder="12345678901"
-                maxLength={11}
-                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
-              />
+              <input type="text" inputMode="numeric" value={nin} onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`} />
               <FieldError message={fieldErrors.nin} />
             </div>
             <DocUploadSlot
@@ -1747,14 +1692,12 @@ export default function ApplyPage() {
         {step === 5 && (
           <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">Check everything below, then submit.</p>
-
             {submitError && (
               <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[12.5px] font-medium text-red-700">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
                 <span>{submitError}</span>
               </div>
             )}
-
             <div className="space-y-3">
               {(applicationType === "fresh"
                 ? [
