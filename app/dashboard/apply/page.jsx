@@ -1414,6 +1414,7 @@ export default function ApplyPage() {
                   </div>
                   <FieldError message={fieldErrors.validityPeriod} />
                 </div>
+              )}
             </div>
           </div>
         )}
