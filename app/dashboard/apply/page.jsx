@@ -662,6 +662,10 @@ export default function ApplyPage() {
       : await submitDriverLicenceApplication({
           application_type: applicationType,
           validity_period: validityPeriod,
+          state_id: applicationType === "international_permit" ? parseInt(selectedState, 10) : undefined,
+          lga_id: applicationType === "international_permit" ? parseInt(selectedLga, 10) : undefined,
+          state_of_residence: applicationType === "international_permit" ? (states.find(s => s.id === parseInt(selectedState, 10))?.name || "") : undefined,
+          lga: applicationType === "international_permit" ? (lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || "") : undefined,
           old_licence_number: applicationType !== "international_permit" ? oldLicenceNumber.trim() : undefined,
           nin: nin.trim(),
           passport_photo: passportPhoto,
