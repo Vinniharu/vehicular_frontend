@@ -21,6 +21,7 @@ import {
 } from "@/lib/api";
 
 const CAPABILITY_OPTIONS = ["driver_licence", "roadworthiness"];
+const APPLICATION_TYPE_OPTIONS = ["fresh", "renewal", "reissue", "international_permit"];
 
 function StatusBadge({ active }) {
   return active ? (
@@ -116,6 +117,9 @@ export default function AccountsTable({ role, title, description }) {
       is_active: account.is_active,
       vio_office: account.agent_profile?.vio_office || "",
       capabilities: account.agent_profile?.capabilities || [],
+      allowed_application_types: account.agent_profile?.allowed_application_types?.length
+        ? account.agent_profile.allowed_application_types
+        : APPLICATION_TYPE_OPTIONS,
       custom_commission_kobo: account.agent_profile?.custom_commission_kobo != null
         ? String(account.agent_profile.custom_commission_kobo / 100)
         : "",
@@ -139,6 +143,15 @@ export default function AccountsTable({ role, title, description }) {
     }));
   };
 
+  const toggleApplicationType = (type) => {
+    setEditForm((p) => ({
+      ...p,
+      allowed_application_types: p.allowed_application_types.includes(type)
+        ? p.allowed_application_types.filter((t) => t !== type)
+        : [...p.allowed_application_types, type],
+    }));
+  };
+
   const handleSaveEdit = async () => {
     setSavingEdit(true);
     setEditError(null);
@@ -159,6 +172,9 @@ export default function AccountsTable({ role, title, description }) {
       const agentUpdates = {
         vio_office: editForm.vio_office,
         capabilities: editForm.capabilities,
+        allowed_application_types: editForm.allowed_application_types.length === APPLICATION_TYPE_OPTIONS.length
+          ? null
+          : editForm.allowed_application_types,
       };
       if (selectedStateId && selectedLgaId) {
         agentUpdates.state_id = parseInt(selectedStateId, 10);
@@ -435,6 +451,29 @@ export default function AccountsTable({ role, title, description }) {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Allowed Application Types</label>
+                    <div className="flex flex-wrap gap-2">
+                      {APPLICATION_TYPE_OPTIONS.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => toggleApplicationType(type)}
+                          className="px-3 py-1.5 rounded-lg text-[11.5px] font-semibold uppercase tracking-wide border transition-colors"
+                          style={{
+                            background: editForm.allowed_application_types?.includes(type) ? "rgba(40, 167, 69,0.1)" : "#fff",
+                            borderColor: editForm.allowed_application_types?.includes(type) ? "#28A745" : "#e2e8f0",
+                            color: editForm.allowed_application_types?.includes(type) ? "#28A745" : "#64748b",
+                          }}
+                        >
+                          {type.replace(/_/g, " ")}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      Uncheck a type to prevent this agent from being offered that kind of application. All checked = unrestricted.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Custom Commission (₦)</label>

@@ -39,7 +39,15 @@ import {
   bulkUpdateAgentCommission,
   getReferenceStates,
   getReferenceLgas,
+  adminUpdateAgentEligibility,
 } from "@/lib/api";
+
+const APPLICATION_TYPE_OPTIONS = [
+  { value: "fresh", label: "Fresh" },
+  { value: "renewal", label: "Renewal" },
+  { value: "reissue", label: "Reissue" },
+  { value: "international_permit", label: "International Permit" },
+];
 
 /* ─── Helpers ─── */
 function koboToNaira(kobo) {
@@ -130,6 +138,13 @@ export default function AdminPage() {
   const [vioOffice, setVioOffice] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedLga, setSelectedLga] = useState("");
+  const [allowedApplicationTypes, setAllowedApplicationTypes] = useState(
+    APPLICATION_TYPE_OPTIONS.map((o) => o.value)
+  );
+
+  const [editingEligibility, setEditingEligibility] = useState(false);
+  const [detailAllowedTypes, setDetailAllowedTypes] = useState([]);
+  const [updatingEligibility, setUpdatingEligibility] = useState(false);
 
   const [toast, setToast] = useState(null);
 
@@ -175,6 +190,7 @@ export default function AdminPage() {
     setModalType(type);
     setName(""); setEmail(""); setPhone("+234"); setTempPassword("Vehiculars2026!");
     setVioOffice(""); setSelectedState(""); setSelectedLga(""); setModalError(null);
+    setAllowedApplicationTypes(APPLICATION_TYPE_OPTIONS.map((o) => o.value));
     setIsModalOpen(true);
   };
 
@@ -200,6 +216,7 @@ export default function AdminPage() {
       }
       const stateObj = states.find((s) => String(s.id) === String(selectedState));
       const lgaObj = lgas.find((l) => String(l.id) === String(selectedLga));
+      const isUnrestricted = allowedApplicationTypes.length === APPLICATION_TYPE_OPTIONS.length;
       const res = await adminCreateAgent({
         ...payload,
         vio_office: vioOffice.trim(),
@@ -208,6 +225,7 @@ export default function AdminPage() {
         state_id: parseInt(selectedState, 10),
         lga_id: parseInt(selectedLga, 10),
         capabilities: ["driver_licence", "roadworthiness"],
+        allowed_application_types: isUnrestricted ? null : allowedApplicationTypes,
       });
       setSubmitting(false);
       if (res.error) { setModalError(res.error); return; }
@@ -233,6 +251,7 @@ export default function AdminPage() {
     setSelectedAgentDetail(agent);
     setLoadingAgentDetail(true);
     setEditingCommission(false);
+    setEditingEligibility(false);
     const res = await adminGetAgent(agent.id);
     if (res.data) {
       setSelectedAgentDetail(res.data);
@@ -241,8 +260,33 @@ export default function AdminPage() {
       } else {
         setCustomCommissionVal("");
       }
+      const allowedTypes = res.data.agent_profile?.allowed_application_types;
+      setDetailAllowedTypes(
+        allowedTypes && allowedTypes.length > 0 ? allowedTypes : APPLICATION_TYPE_OPTIONS.map((o) => o.value)
+      );
     }
     setLoadingAgentDetail(false);
+  };
+
+  const handleSaveEligibility = async () => {
+    setUpdatingEligibility(true);
+    const isUnrestricted = detailAllowedTypes.length === APPLICATION_TYPE_OPTIONS.length;
+    const val = isUnrestricted ? null : detailAllowedTypes;
+    const res = await adminUpdateAgentEligibility(selectedAgentDetail.id, val);
+    setUpdatingEligibility(false);
+    if (res.error) {
+      showToast("error", "Could not update agent's allowed application types.");
+    } else {
+      setSelectedAgentDetail({
+        ...selectedAgentDetail,
+        agent_profile: { ...selectedAgentDetail.agent_profile, allowed_application_types: val },
+      });
+      setAgentsList((list) => list.map((a) => a.id === selectedAgentDetail.id
+        ? { ...a, agent_profile: { ...a.agent_profile, allowed_application_types: val } }
+        : a));
+      setEditingEligibility(false);
+      showToast("success", "Agent's allowed application types updated.");
+    }
   };
 
   const handleSaveCommission = async () => {
@@ -832,6 +876,36 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Allowed Application Types</label>
+                    <div className="flex flex-wrap gap-2">
+                      {APPLICATION_TYPE_OPTIONS.map((opt) => {
+                        const checked = allowedApplicationTypes.includes(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setAllowedApplicationTypes((prev) =>
+                                checked ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
+                              );
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
+                              checked
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : "bg-slate-50 text-slate-500 border-slate-200"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      Uncheck a type to prevent this agent from being offered that kind of application. All checked = unrestricted.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -951,6 +1025,59 @@ export default function AdminPage() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-slate-500">Allowed Application Types:</span>
+                        {!editingEligibility ? (
+                          <button onClick={() => setEditingEligibility(true)} className="text-[#28A745] hover:text-[#218838] flex items-center gap-1 text-[11px] bg-[#28A745]/5 px-2 py-0.5 rounded">
+                            <Pencil className="w-3 h-3" /> Edit
+                          </button>
+                        ) : null}
+                      </div>
+                      {!editingEligibility ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {(selectedAgentDetail.agent_profile?.allowed_application_types || APPLICATION_TYPE_OPTIONS.map((o) => o.value)).map((t) => (
+                            <span key={t} className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">
+                              {t.replace(/_/g, " ")}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            {APPLICATION_TYPE_OPTIONS.map((opt) => {
+                              const checked = detailAllowedTypes.includes(opt.value);
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setDetailAllowedTypes((prev) =>
+                                      checked ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
+                                    );
+                                  }}
+                                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
+                                    checked
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                      : "bg-slate-50 text-slate-500 border-slate-200"
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex items-center gap-2 pt-1">
+                            <button onClick={handleSaveEligibility} disabled={updatingEligibility} className="px-3 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
+                              {updatingEligibility ? "Saving..." : "Save"}
+                            </button>
+                            <button onClick={() => setEditingEligibility(false)} disabled={updatingEligibility} className="px-3 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
