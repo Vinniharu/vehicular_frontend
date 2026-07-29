@@ -42,6 +42,7 @@ import {
 } from "@/lib/api";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
+import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 
 /* ────────────────────────────────────────────────────────────
    Design tokens — brand color is the only hardcoded value here.
@@ -415,6 +416,7 @@ export default function ApplyPage() {
 
   const [view, setView] = useState("list"); // "list" | "form"
   const [selectedAppDetail, setSelectedAppDetail] = useState(null);
+  const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [payingFromWallet, setPayingFromWallet] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [toast, setToast] = useState(null);
@@ -850,6 +852,7 @@ export default function ApplyPage() {
 
     return (
       <div className="mx-auto max-w-4xl space-y-8 py-6 pb-20">
+        <DocumentPreviewModal isOpen={!!previewDocUrl} onClose={() => setPreviewDocUrl(null)} fileUrl={previewDocUrl} />
         {/* Header */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -1293,16 +1296,14 @@ export default function ApplyPage() {
                             </div>
                           </div>
                           {doc.file_url && (
-                            <a
-                              href={resolveMediaUrl(doc.file_url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }}
                               className="inline-flex items-center gap-1 text-[12px] font-semibold hover:underline"
                               style={{ color: BRAND }}
                             >
                               View
                               <ExternalLink className="h-3 w-3" />
-                            </a>
+                            </button>
                           )}
                         </div>
                       ))}
