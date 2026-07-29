@@ -34,7 +34,6 @@ import {
   uploadApplicationDocument,
   uploadApplicationFile,
   reapplyApplication,
-  confirmReceipt,
   getReferenceStates,
   getReferenceLgas,
   resolveMediaUrl,
@@ -90,7 +89,7 @@ const STATUS_CONFIG = {
   staff_final_review: { label: "Final review", tone: "warning" },
   ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
   in_process: { label: "In process", tone: "info" },
-  awaiting_customer: { label: "Action needed — confirm receipt", tone: "warning" },
+  awaiting_customer: { label: "Awaiting confirmed receipt", tone: "warning" },
   completed: { label: "Completed", tone: "success" },
   needs_correction: { label: "Needs correction", tone: "warning" },
   staff_rejected: { label: "Rejected", tone: "danger" },
@@ -136,7 +135,7 @@ function nextStepCopy(application) {
       ready_for_pickup: "Your licence is ready for pickup.",
       needs_correction: "One of your documents needs a re-upload — see below.",
       agent_completed: "Processing is complete.",
-      awaiting_customer: "Your licence is ready — please confirm you've received it below.",
+      awaiting_customer: "Your licence is ready — our team will confirm receipt shortly.",
       completed: "Completed.",
     };
     return map[s] || "We'll update this as your application moves forward.";
@@ -856,7 +855,6 @@ export default function CustomerApplicationDetailsPage() {
 
   const [payingWallet, setPayingWallet] = useState(false);
   const [payingCard, setPayingCard] = useState(false);
-  const [confirmingReceipt, setConfirmingReceipt] = useState(false);
   const [notice, setNotice] = useState(null);
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -968,20 +966,6 @@ export default function CustomerApplicationDetailsPage() {
       setDocUrlInput("");
       setDocFileName("");
       setNotice({ type: "success", message: "Document uploaded and attached to your application." });
-      await loadData(true);
-    }
-  };
-
-  const handleConfirmReceipt = async () => {
-    if (!application) return;
-    setConfirmingReceipt(true);
-    setNotice(null);
-    const res = await confirmReceipt(application.id);
-    setConfirmingReceipt(false);
-    if (res.error) {
-      setNotice({ type: "error", message: res.error });
-    } else {
-      setNotice({ type: "success", message: "Thanks for confirming! Your application is now complete." });
       await loadData(true);
     }
   };
@@ -1217,31 +1201,20 @@ export default function CustomerApplicationDetailsPage() {
         </div>
       )}
 
-      {/* ── CONFIRM RECEIPT BANNER ── */}
+      {/* ── AWAITING RECEIPT BANNER (passive — staff now confirms receipt, not the customer) ── */}
       {awaitingCustomer && (
         <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-[15px] font-bold text-emerald-900">Your licence is ready</h3>
-                <p className="mt-1 text-[13px] leading-relaxed text-emerald-700/90">
-                  Once you've collected your physical Driver's Licence, confirm receipt below to close out this application.
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6" />
             </div>
-            <button
-              type="button"
-              onClick={handleConfirmReceipt}
-              disabled={confirmingReceipt}
-              className={`${btnPrimary} shrink-0`}
-              style={{ background: BRAND }}
-            >
-              {confirmingReceipt ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {confirmingReceipt ? "Confirming…" : "I've received my licence"}
-            </button>
+            <div>
+              <h3 className="text-[15px] font-bold text-emerald-900">Your licence is ready</h3>
+              <p className="mt-1 text-[13px] leading-relaxed text-emerald-700/90">
+                Your Driver's Licence document has been handed to our team — you'll be notified as
+                soon as it's confirmed received and your application is marked complete.
+              </p>
+            </div>
           </div>
         </div>
       )}

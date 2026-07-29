@@ -35,6 +35,7 @@ import {
   staffFinalReview,
   staffPushToCustomer,
   staffReadyForPickup,
+  staffConfirmReceipt,
   staffReviewDocument,
   staffClaimApplication,
   getCachedUser,
@@ -268,6 +269,8 @@ export default function StaffApplicationDetailsPage() {
       });
     } else if (modalType === "ready-for-pickup") {
       res = await staffReadyForPickup(application.id);
+    } else if (modalType === "confirm-receipt") {
+      res = await staffConfirmReceipt(application.id);
     }
 
     if (res?.error) {
@@ -482,12 +485,49 @@ export default function StaffApplicationDetailsPage() {
           )}
 
           {application.assigned_staff && application.status === "awaiting_customer" && (
-            <button onClick={() => openModal("push-to-customer")} className={btnPrimary} style={{ background: BRAND }}>
-              <Send className="h-4 w-4" /> Record dispatch
-            </button>
+            <>
+              <button onClick={() => openModal("push-to-customer")} className={btnSecondary}>
+                <Send className="h-4 w-4" /> Record dispatch
+              </button>
+              <button onClick={() => openModal("confirm-receipt")} className={btnPrimary} style={{ background: BRAND }}>
+                <CheckCircle2 className="h-4 w-4" /> Mark as received
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Document pickup callout — renewal/reissue/international_permit only
+          surface at this status once the finished document is ready to be
+          collected from the assigned agent's VIO office. */}
+      {["renewal", "reissue", "international_permit"].includes(application.application_type) &&
+        application.status === "awaiting_customer" && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+              <MapPin className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-indigo-900">Document ready for pickup</h3>
+              <p className="mt-1 text-[13px] text-indigo-800 leading-relaxed">
+                Collect the finished card from{" "}
+                <strong>{application.assigned_agent?.vio_office || "the assigned VIO office"}</strong>
+                {application.assigned_agent?.lga ? ` (${application.assigned_agent.lga} LGA)` : ""}.
+              </p>
+            </div>
+          </div>
+          {application.permanent_licence?.document_url && (
+            <a
+              href={resolveMediaUrl(application.permanent_licence.document_url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={btnSecondary}
+            >
+              <ImageIcon className="h-3.5 w-3.5" /> View document sent by agent
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row items-start gap-8">
         {/* Sticky Sidebar Navigation */}
@@ -939,9 +979,10 @@ export default function StaffApplicationDetailsPage() {
               )}
               {application.status === "awaiting_customer" && (
                 <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  Awaiting the customer to confirm receipt of their physical licence. Use{" "}
-                  <strong>Record dispatch</strong> at the top to log who dispatched it and any
-                  tracking note for the customer.
+                  Use <strong>Record dispatch</strong> at the top to log who dispatched it and any
+                  tracking note for the customer, and <strong>Mark as received</strong> once you've
+                  physically received the finished document (from the agent or courier) to close
+                  out this application and notify the customer.
                   {application.dispatched_at && (
                     <span className="mt-2 block text-[12.5px] text-slate-500">
                       Dispatched by <strong className="text-slate-700">{application.dispatched_by || "—"}</strong> on{" "}
@@ -953,7 +994,8 @@ export default function StaffApplicationDetailsPage() {
               )}
               {application.status === "completed" && (
                 <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-emerald-700">
-                  Completed — the customer has confirmed receipt of their licence.
+                  Completed — staff confirmed physical receipt of the licence document and the
+                  customer has been notified.
                 </p>
               )}
             </div>
@@ -977,6 +1019,7 @@ export default function StaffApplicationDetailsPage() {
                 {modalType === "final-review" && "Final review"}
                 {modalType === "push-to-customer" && "Push to customer"}
                 {modalType === "ready-for-pickup" && "Mark ready for pickup"}
+                {modalType === "confirm-receipt" && "Mark as received"}
                 {modalType === "notice" && "Done"}
               </h3>
               <button
@@ -1126,8 +1169,9 @@ export default function StaffApplicationDetailsPage() {
                 <p className="text-[12.5px] text-slate-500">
                   Confirm the completed job (the permanent licence card) checks out. Approving moves
                   the application to <strong className="text-slate-800">awaiting_customer</strong> —
-                  the customer will be able to confirm receipt from their dashboard and see the card
-                  details. Rejecting sends it back to the agent.
+                  from there, use <strong>Mark as received</strong> once the finished document is
+                  physically in hand to close it out and notify the customer. Rejecting sends it
+                  back to the agent.
                 </p>
                 <LicenceSummary licence={application.permanent_licence} />
                 <div>
@@ -1181,6 +1225,17 @@ export default function StaffApplicationDetailsPage() {
                 <span>
                   This notifies the customer over SMS and WhatsApp that their physical licence card
                   is ready for pickup at the assigned agent's VIO office.
+                </span>
+              </div>
+            )}
+
+            {modalType === "confirm-receipt" && (
+              <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <span>
+                  Confirms you've physically received the finished licence document (from the agent
+                  or courier) and closes out this application. The customer will be notified over
+                  SMS and WhatsApp that it's complete.
                 </span>
               </div>
             )}

@@ -21,7 +21,16 @@ import Link from "next/link";
 import { getAgentOffers, acceptOffer, declineOffer, getAgentWallet, getAgentApplications, authGetMe } from "@/lib/api";
 
 const NEEDS_ACTION_STATUSES = ["agent_accepted", "captured", "capturing_completed", "temp_licence_pending_review"];
-const DONE_STATUSES = ["completed", "expired"];
+// Mirrors AGENT_ACTIVE_JOB_STATUSES in app/routers/agent.py — statuses where
+// the agent still owes active work. Excludes ready_for_pickup/
+// awaiting_customer/agent_completed/staff_final_review since the agent's own
+// part is already done on those, so they don't count toward the job cap.
+const ACTIVE_JOB_STATUSES = [
+  "agent_accepted", "capture_scheduled", "capturing_scheduled", "captured",
+  "capturing_completed", "temp_licence_pending_review", "temp_licence_issued",
+  "needs_correction", "in_process",
+];
+const MAX_ACTIVE_JOBS = 10;
 
 function isThisMonth(iso) {
   if (!iso) return false;
@@ -72,7 +81,8 @@ export default function AgentOffersPage() {
     setRefreshing(false);
   };
 
-  const activeJobs = applications.filter((a) => !DONE_STATUSES.includes(a.status));
+  const activeJobs = applications.filter((a) => ACTIVE_JOB_STATUSES.includes(a.status));
+  const atJobCap = activeJobs.length >= MAX_ACTIVE_JOBS;
   const needsAction = applications.filter((a) => NEEDS_ACTION_STATUSES.includes(a.status));
   const completedThisMonth = applications.filter((a) => a.status === "completed" && isThisMonth(a.updated_at));
 
@@ -155,12 +165,14 @@ export default function AgentOffersPage() {
           </div>
           <p className="mt-1.5 text-2xl font-bold text-slate-900">{loading ? "—" : offers.length}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-400">
+        <div className={`rounded-2xl border p-4 shadow-sm ${atJobCap ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"}`}>
+          <div className={`flex items-center gap-2 ${atJobCap ? "text-red-600" : "text-slate-400"}`}>
             <ClipboardList className="h-4 w-4" />
             <span className="text-[11px] font-bold uppercase tracking-wide">Active jobs</span>
           </div>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{loading ? "—" : activeJobs.length}</p>
+          <p className={`mt-1.5 text-2xl font-bold ${atJobCap ? "text-red-900" : "text-slate-900"}`}>
+            {loading ? "—" : `${activeJobs.length}/${MAX_ACTIVE_JOBS}`}
+          </p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
           <div className="flex items-center gap-2 text-amber-600">
@@ -202,6 +214,13 @@ export default function AgentOffersPage() {
           </button>
         </div>
       </div>
+
+      {atJobCap && (
+        <div className="flex items-center gap-2.5 rounded-xl bg-red-50 p-3.5 text-[13px] text-red-700 ring-1 ring-inset ring-red-200 font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          You have {activeJobs.length} active jobs — the maximum is {MAX_ACTIVE_JOBS}. Complete some before accepting new ones.
+        </div>
+      )}
 
       {notice && (
         <div className={`flex items-center gap-2.5 rounded-xl p-3.5 text-[13px] ${notice.type === "error" ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200" : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 font-medium"}`}>
@@ -269,7 +288,8 @@ export default function AgentOffersPage() {
                 <button
                   type="button"
                   onClick={() => handleAccept(offer)}
-                  disabled={actingId === offer.id}
+                  disabled={actingId === offer.id || atJobCap}
+                  title={atJobCap ? `You've reached the ${MAX_ACTIVE_JOBS}-job limit — complete some active jobs first.` : undefined}
                   className={btnPrimary}
                   style={{ background: BRAND }}
                 >
