@@ -39,12 +39,18 @@ const SUPER_ADMIN_NAV = [
 export default function SuperAdminLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isLoginRoute = pathname === "/super-admin/login";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    // The login page manages its own auth state — this guard has no
+    // business running on it (see app/admin/layout.jsx for the full
+    // rationale, identical here).
+    if (isLoginRoute) return;
+
     const token = getToken();
     if (!token) {
       router.push("/super-admin/login");
@@ -76,12 +82,16 @@ export default function SuperAdminLayout({ children }) {
         setLoading(false);
       }
     });
-  }, [router]);
+  }, [router, isLoginRoute]);
 
   const handleLogout = () => {
     removeToken();
     router.push("/super-admin/login");
   };
+
+  if (isLoginRoute) {
+    return children;
+  }
 
   if (loading) {
     return (

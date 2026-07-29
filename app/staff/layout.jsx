@@ -52,6 +52,7 @@ const fieldLabel = "block text-[11.5px] font-semibold uppercase tracking-wide te
 export default function StaffLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isLoginRoute = pathname === "/staff/login";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
@@ -65,6 +66,11 @@ export default function StaffLayout({ children }) {
   const [passSuccess, setPassSuccess] = useState(null);
 
   useEffect(() => {
+    // The login page manages its own auth state — this guard has no
+    // business running on it (see app/admin/layout.jsx for the full
+    // rationale, identical here).
+    if (isLoginRoute) return;
+
     const token = getToken();
     if (!token) {
       router.push("/staff/login");
@@ -98,7 +104,7 @@ export default function StaffLayout({ children }) {
         setLoading(false);
       }
     });
-  }, [router]);
+  }, [router, isLoginRoute]);
 
   const handleLogout = () => {
     removeToken();
@@ -141,6 +147,10 @@ export default function StaffLayout({ children }) {
       setPassSuccess(null);
     }, 1000);
   };
+
+  if (isLoginRoute) {
+    return children;
+  }
 
   if (loading) {
     return (

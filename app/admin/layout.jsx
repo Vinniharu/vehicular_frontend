@@ -55,12 +55,23 @@ const ADMIN_NAV = [
 export default function AdminLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isLoginRoute = pathname === "/admin/login";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    // The login page manages its own auth state (PortalLoginForm bounces an
+    // already-signed-in visitor back to /admin itself) — this guard has no
+    // business running on it. Without this check, a logged-out visitor
+    // landing directly on /admin/login (e.g. via the subdomain root
+    // redirect) would hit the "no token" branch below, which pushes to
+    // /admin/login — a no-op since we're already there — and returns
+    // without ever calling setLoading(false), leaving the spinner stuck
+    // forever instead of ever showing the login form.
+    if (isLoginRoute) return;
+
     const token = getToken();
     if (!token) {
       router.push("/admin/login");
@@ -92,12 +103,21 @@ export default function AdminLayout({ children }) {
         setLoading(false);
       }
     });
-  }, [router]);
+  }, [router, isLoginRoute]);
 
   const handleLogout = () => {
     removeToken();
     router.push("/admin/login");
   };
+
+  if (isLoginRoute) {
+    // No sidebar/topbar shell on the login route — otherwise navigating
+    // here from an already-mounted authenticated layout (e.g. clicking
+    // "Sign out") leaves this component's stale loading/user state in
+    // place across the client-side route change, and the login form ends
+    // up rendered inside the still-visible admin sidebar shell.
+    return children;
+  }
 
   if (loading) {
     return (

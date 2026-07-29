@@ -11,7 +11,7 @@ const HOST_PREFIX: Record<string, string> = {
   staff: "/staff",
 };
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const subdomain = host.split(".")[0];
   const prefix = HOST_PREFIX[subdomain];
