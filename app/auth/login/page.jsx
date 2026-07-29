@@ -4,7 +4,8 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, CheckCircle2, KeyRound, X, Loader2 } from "lucide-react";
-import { authLogin, authGetMe, getCachedUser, authForgotPassword } from "@/lib/api";
+import { authLogin, authGetMe, getCachedUser, authForgotPassword, authGoogleLogin } from "@/lib/api";
+import { GoogleLogin } from "@react-oauth/google";
 
 function LoginForm() {
   const router = useRouter();
@@ -114,6 +115,55 @@ function LoginForm() {
       }
     }
   };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError(null);
+    setLoading(true);
+    setSuccessMsg("Authenticating with Google...");
+    
+    const result = await authGoogleLogin({ token: credentialResponse.credential });
+    
+    if (result.data?.access_token) {
+      const meRes = await authGetMe();
+      const userRole = meRes.data?.role || result.data?.user?.role || getCachedUser()?.role || "customer";
+      setLoading(false);
+
+      if (userRole === "admin") {
+        const dest = targetRedirect && targetRedirect.startsWith("/admin") ? targetRedirect : "/admin";
+        setSuccessMsg("Login successful.");
+        setTimeout(() => {
+          router.push(dest);
+        }, 500);
+      } else if (userRole === "staff") {
+        const dest = targetRedirect && targetRedirect.startsWith("/staff") ? targetRedirect : "/staff";
+        setSuccessMsg("Login successful.");
+        setTimeout(() => {
+          router.push(dest);
+        }, 500);
+      } else if (userRole === "agent") {
+        const dest = targetRedirect && targetRedirect.startsWith("/agent") ? targetRedirect : "/agent";
+        setSuccessMsg("Login successful.");
+        setTimeout(() => {
+          router.push(dest);
+        }, 500);
+      } else {
+        const dest = targetRedirect && !targetRedirect.startsWith("/admin") && !targetRedirect.startsWith("/staff") ? targetRedirect : "/dashboard";
+        setSuccessMsg("Login successful.");
+        setTimeout(() => {
+          router.push(dest);
+        }, 500);
+      }
+    } else {
+      setLoading(false);
+      setError(result.error || "Google authentication failed on the server.");
+      setSuccessMsg(null);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Google Sign-In failed. Please try again.");
+  };
+
 
   return (
     <div>
@@ -246,6 +296,27 @@ function LoginForm() {
           </button>
         </div>
       </form>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-white/[0.08]"></div>
+        </div>
+        <div className="relative flex justify-center text-[13px]">
+          <span className="px-3 text-white/50" style={{ background: "#0a0a0a" }}>Or continue with</span>
+        </div>
+      </div>
+
+      <div className="flex justify-center w-full">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+          theme="filled_black"
+          shape="rectangular"
+          text="continue_with"
+          size="large"
+          width="320"
+        />
+      </div>
 
       {/* Footer Navigation */}
       <div className="mt-8 pt-6 border-t border-white/[0.08] text-center">
