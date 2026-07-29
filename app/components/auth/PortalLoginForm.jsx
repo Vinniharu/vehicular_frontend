@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, CheckCircle2, ShieldCheck, KeyRound, X, Loader2 } from "lucide-react";
 import { authLogin, authGetMe, getCachedUser, authForgotPassword } from "@/lib/api";
@@ -21,6 +21,26 @@ export default function PortalLoginForm({ portalName, expectedRole, homePath }) 
     // static / outside Suspense fallback
   }
   const sessionExpired = searchParams?.get("reason") === "session_expired";
+
+  // The subdomain's bare root always redirects here first (middleware can't
+  // read localStorage to know who's logged in) — decided synchronously,
+  // before first paint, so an already-authenticated visitor never sees the
+  // login form flash before being bounced straight to their dashboard. A
+  // stale/invalid cached role still fails safe: it just falls through to
+  // the destination layout's own authGetMe() check instead, same as every
+  // other portal guard in this app.
+  const [alreadySignedIn] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const cached = getCachedUser();
+    return !!cached && allowedRoles.includes(cached.role);
+  });
+
+  useEffect(() => {
+    if (alreadySignedIn) {
+      router.replace(homePath);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -91,6 +111,10 @@ export default function PortalLoginForm({ portalName, expectedRole, homePath }) 
       setError(result.error || "Unexpected response from authentication endpoint.");
     }
   };
+
+  if (alreadySignedIn) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f5f5f7] px-4" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>

@@ -30,6 +30,21 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // The bare root of each portal subdomain should feel like landing on a
+  // distinct site's front door — a real redirect (URL bar updates) straight
+  // to that portal's own login page, instead of rewriting through to the
+  // dashboard shell and only then discovering client-side that there's no
+  // session and bouncing to /login. Auth tokens live in localStorage, which
+  // this edge middleware can't read, so it can't tell logged-in apart from
+  // logged-out here — an already-authenticated visitor is bounced straight
+  // back to their dashboard by PortalLoginForm itself, before the login
+  // form ever paints.
+  if (pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = `${prefix}/login`;
+    return NextResponse.redirect(url);
+  }
+
   if (pathname.startsWith(prefix)) {
     return NextResponse.next();
   }
