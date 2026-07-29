@@ -67,14 +67,14 @@ export default function StaffLayout({ children }) {
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      router.push("/auth/login?redirect=/staff");
+      router.push("/staff/login");
       return;
     }
 
     const cached = getCachedUser();
     if (cached) {
       if (cached.role !== "staff" && cached.role !== "admin") {
-        router.push("/dashboard");
+        router.push("/staff/login");
         return;
       }
       setUser(cached);
@@ -85,10 +85,10 @@ export default function StaffLayout({ children }) {
     authGetMe().then((res) => {
       if (res.error && res.status === 401) {
         removeToken();
-        router.push("/auth/login?redirect=/staff");
+        router.push("/staff/login");
       } else if (res.data) {
         if (res.data.role !== "staff" && res.data.role !== "admin") {
-          router.push("/dashboard");
+          router.push("/staff/login");
           return;
         }
         setUser(res.data);
@@ -102,7 +102,7 @@ export default function StaffLayout({ children }) {
 
   const handleLogout = () => {
     removeToken();
-    router.push("/auth/login");
+    router.push("/staff/login");
   };
 
   const handlePasswordChangeSubmit = async (e) => {
