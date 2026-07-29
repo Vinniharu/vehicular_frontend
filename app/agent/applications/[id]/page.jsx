@@ -43,6 +43,7 @@ import {
   resolveMediaUrl,
 } from "@/lib/api";
 import { statusMeta, StatusBadge } from "../../_status";
+import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 
 const BRAND = "#28A745";
 
@@ -89,7 +90,7 @@ const REVIEW_STATUS_TONE = {
   rejected: "bg-red-50 text-red-700 ring-red-200",
 };
 
-function LicenceCard({ title, licence }) {
+function LicenceCard({ title, licence, onViewDoc }) {
   if (!licence) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 p-4">
@@ -117,9 +118,9 @@ function LicenceCard({ title, licence }) {
         <p className="mt-1 text-[11.5px] font-semibold text-red-600">Expired</p>
       )}
       {licence.document_url && (
-        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <button onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(licence.document_url)); }} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           View document <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        </button>
       )}
     </div>
   );
@@ -205,6 +206,7 @@ export default function AgentApplicationDetailPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [previewDocUrl, setPreviewDocUrl] = useState(null);
 
   const [modalType, setModalType] = useState(null); // schedule | reassign | upload-proof | flag-issue
 
@@ -411,6 +413,11 @@ export default function AgentApplicationDetailPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 pb-16">
+      <DocumentPreviewModal 
+        isOpen={!!previewDocUrl} 
+        onClose={() => setPreviewDocUrl(null)} 
+        fileUrl={previewDocUrl} 
+      />
       {/* Header */}
       <div>
         <Link href="/agent/applications" className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
@@ -589,8 +596,8 @@ export default function AgentApplicationDetailPage() {
       {(application.temporary_licence || application.permanent_licence) && (
         <Section title="Licence issuance" icon={BadgeCheck}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <LicenceCard title="Temporary licence" licence={application.temporary_licence} />
-            <LicenceCard title="Permanent licence" licence={application.permanent_licence} />
+            <LicenceCard title="Temporary licence" licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
+            <LicenceCard title="Permanent licence" licence={application.permanent_licence} onViewDoc={setPreviewDocUrl} />
           </div>
         </Section>
       )}
@@ -618,9 +625,9 @@ export default function AgentApplicationDetailPage() {
                   </div>
                   <p className="text-[13.5px] font-semibold capitalize text-slate-900">Passport Photograph</p>
                 </div>
-                <a href={resolveMediaUrl(application.passport_photo)} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+                <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(application.passport_photo)); }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
                   View <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                </button>
               </div>
             )}
             {application.documents?.map((doc, idx) => (
@@ -632,9 +639,9 @@ export default function AgentApplicationDetailPage() {
                   <p className="text-[13.5px] font-semibold capitalize text-slate-900">{doc.doc_type?.replace(/_/g, " ")}</p>
                 </div>
                 {doc.file_url && (
-                  <a href={resolveMediaUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+                  <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
                     View <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                  </button>
                 )}
               </div>
             ))}

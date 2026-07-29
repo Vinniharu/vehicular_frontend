@@ -39,6 +39,7 @@ import {
   resolveMediaUrl,
 } from "@/lib/api";
 import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
+import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -174,7 +175,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function CustomerLicenceCard({ title, licence, expired = false }) {
+function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
   if (!licence) {
     return (
       <div className="rounded-xl border border-dashed border-[#E5E5E5] p-4">
@@ -193,9 +194,9 @@ function CustomerLicenceCard({ title, licence, expired = false }) {
           : "No expiry date recorded"}
       </p>
       {licence.document_url && (
-        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <button onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(licence.document_url)); }} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           View <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        </button>
       )}
     </div>
   );
@@ -863,6 +864,7 @@ export default function CustomerApplicationDetailsPage() {
   const [docFileName, setDocFileName] = useState("");
 
   const [showReapplyModal, setShowReapplyModal] = useState(false);
+  const [previewDocUrl, setPreviewDocUrl] = useState(null);
 
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
 
@@ -1026,6 +1028,11 @@ export default function CustomerApplicationDetailsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 pb-16">
+      <DocumentPreviewModal 
+        isOpen={!!previewDocUrl} 
+        onClose={() => setPreviewDocUrl(null)} 
+        fileUrl={previewDocUrl} 
+      />
       {/* Reapply modal */}
       {showReapplyModal && (
         <ReapplyModal
@@ -1191,11 +1198,12 @@ export default function CustomerApplicationDetailsPage() {
             Your driver's licence
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <CustomerLicenceCard title="Temporary licence" licence={application.temporary_licence} />
+            <CustomerLicenceCard title="Temporary licence" licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
             <CustomerLicenceCard
               title="Permanent licence"
               licence={application.permanent_licence}
               expired={application.status === "expired"}
+              onViewDoc={setPreviewDocUrl}
             />
           </div>
         </div>
@@ -1480,10 +1488,10 @@ export default function CustomerApplicationDetailsPage() {
                   </div>
                 </div>
                 {doc.file_url && (
-                  <a href={resolveMediaUrl(doc.file_url)} target="_blank" rel="noopener noreferrer"
+                  <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
                     View <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                  </button>
                 )}
               </div>
             ))}
