@@ -519,7 +519,7 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
       </header>
 
       {/* ── HERO — Dark, immersive ── */}
-      <section className="relative overflow-hidden h-screen vh-section" style={{ background: "#111111" }}>
+      <section className="relative overflow-hidden min-h-screen vh-section" style={{ background: "#111111" }}>
         <div className="vh-hero-glow" aria-hidden />
         <div className="vh-hero-glow-2" aria-hidden />
         {/* Subtle grid pattern — static, no animation */}
@@ -531,8 +531,8 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
         }} />
 
         <div className="relative mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8 pt-24 pb-16 lg:pt-36 lg:pb-28">
-          <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-8">
-            <div className="lg:col-span-7 relative z-10 flex flex-col items-center text-center lg:items-start lg:text-left">
+          <div className="grid items-center gap-10 md:gap-12 lg:gap-8 md:grid-cols-12">
+            <div className="md:col-span-7 relative z-10 flex flex-col items-center text-center md:items-start md:text-left">
               {/* Eyebrow badge */}
               <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12px] font-medium text-[#28A745] mb-6 lg:mb-8"
                 style={{ background: "rgba(40, 167, 69,0.08)", border: "1px solid rgba(40, 167, 69,0.15)" }}>
@@ -555,10 +555,10 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
                 Renewals, inspections, genuine parts and more — managed in one place, across Nigeria. Relief from a countdown you didn't know you were losing.
               </p>
 
-              <div className="mt-8 lg:mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-3.5 sm:gap-4 w-full">
+              <div className="mt-8 lg:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center md:justify-start gap-3.5 sm:gap-4 w-full">
                 <Link
                   href={isLoggedIn ? dashboardHref : `/auth/signup?redirect=${encodeURIComponent(redirectTo)}`}
-                  className="group inline-flex h-13 items-center justify-center gap-2 rounded-xl px-8 text-[15px] font-semibold w-full sm:w-auto"
+                  className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl px-8 text-[15px] font-semibold w-full sm:w-auto"
                   style={{ background: "#28A745", color: "#f0ede6" }}
                 >
                   {isLoggedIn ? dashboardLabel : "Get started"}
@@ -566,7 +566,7 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
                 </Link>
                 <a
                   href="#how"
-                  className="inline-flex h-13 items-center justify-center gap-2 rounded-xl px-6 text-[15px] font-medium text-white/60 transition-colors duration-150 hover:text-white w-full sm:w-auto"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 text-[15px] font-medium text-white/60 transition-colors duration-150 hover:text-white w-full sm:w-auto"
                   style={{ border: "1px solid rgba(255,255,255,0.10)" }}
                 >
                   <Play className="h-3.5 w-3.5" />
@@ -575,13 +575,13 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
               </div>
 
               {/* Proof numbers */}
-              <div className="mt-12 lg:mt-14 flex flex-wrap items-center justify-center lg:justify-start gap-8 sm:gap-12">
+              <div className="mt-12 lg:mt-14 grid grid-cols-3 items-start justify-items-center md:justify-items-start gap-4 sm:gap-8 lg:gap-12">
                 {[
                   ["40,000+", "Drivers served"],
                   ["Nationwide", "Every state"],
                   ["48 hrs", "Avg. turnaround"],
                 ].map(([num, label]) => (
-                  <div key={num} className="text-center lg:text-left">
+                  <div key={num} className="text-center md:text-left">
                     <p className="font-display text-[22px] sm:text-[26px] font-medium text-white leading-none">{num}</p>
                     <p className="mt-1 text-[11px] uppercase tracking-widest text-white/40">{label}</p>
                   </div>
@@ -589,8 +589,8 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
               </div>
             </div>
 
-            <div className="lg:col-span-5 relative z-10 w-full flex justify-center items-center">
-              <div className="w-full max-w-[420px] lg:max-w-none flex justify-center">
+            <div className="md:col-span-5 relative z-10 w-full flex justify-center items-center">
+              <div className="w-full max-w-[380px] sm:max-w-[420px] md:max-w-[480px] lg:max-w-none flex justify-center">
                 <HeroPhoneShowcase />
               </div>
             </div>

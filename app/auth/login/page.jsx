@@ -217,6 +217,27 @@ function LoginForm() {
         </div>
       )}
 
+      <div className="flex justify-center w-full">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+          theme="filled_black"
+          shape="rectangular"
+          text="continue_with"
+          size="large"
+          width="320"
+        />
+      </div>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-white/[0.08]"></div>
+        </div>
+        <div className="relative flex justify-center text-[13px]">
+          <span className="px-3 text-white/50" style={{ background: "#0a0a0a" }}>Or continue with email</span>
+        </div>
+      </div>
+
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -296,27 +317,6 @@ function LoginForm() {
           </button>
         </div>
       </form>
-
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/[0.08]"></div>
-        </div>
-        <div className="relative flex justify-center text-[13px]">
-          <span className="px-3 text-white/50" style={{ background: "#0a0a0a" }}>Or continue with</span>
-        </div>
-      </div>
-
-      <div className="flex justify-center w-full">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={handleGoogleError}
-          theme="filled_black"
-          shape="rectangular"
-          text="continue_with"
-          size="large"
-          width="320"
-        />
-      </div>
 
       {/* Footer Navigation */}
       <div className="mt-8 pt-6 border-t border-white/[0.08] text-center">

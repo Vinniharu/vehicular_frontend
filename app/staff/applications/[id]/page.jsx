@@ -43,6 +43,7 @@ import {
   resolveMediaUrl,
   downloadStaffBiodataPdf,
 } from "@/lib/api";
+import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 
 const BRAND = "#28A745";
 
@@ -125,6 +126,7 @@ export default function StaffApplicationDetailsPage() {
   const appId = params?.id ? Number(params.id) : null;
 
   const [application, setApplication] = useState(null);
+  const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -348,6 +350,10 @@ export default function StaffApplicationDetailsPage() {
   // Backend only ever emits "unpaid" | "pending" | "success" | "failed" for
   // payment_status — "paid" is never produced, so only "success" is checked.
   const isPaid = application.payment_status === "success" || application.payment_options?.payment_status === "success";
+  // NGN10,000 "pay small small" minimum — enough to unlock approval/enrollment/
+  // certificate steps, but NOT enough to push the application to an agent
+  // (that still requires isPaid/full payment).
+  const hasMinimumPayment = isPaid || !!application.payment_options?.has_minimum_payment;
   const hasDrivingSchoolCertificate = application.documents?.some((d) => d.doc_type === "driving_school_certificate");
   const skipPathCertOnFile = hasDrivingSchoolCertificate && !application.driving_school_enrolled_at;
   const verifSlipUrl =
@@ -356,6 +362,11 @@ export default function StaffApplicationDetailsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-24">
+      <DocumentPreviewModal 
+        isOpen={!!previewDocUrl} 
+        onClose={() => setPreviewDocUrl(null)} 
+        fileUrl={previewDocUrl} 
+      />
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-start gap-4">
@@ -426,13 +437,13 @@ export default function StaffApplicationDetailsPage() {
               <button onClick={() => openModal("reject")} className={btnDanger}>
                 <X className="h-4 w-4" /> Reject
               </button>
-              <button 
-                onClick={() => openModal("approve")} 
-                disabled={!isPaid}
-                className={btnPrimary} 
-                style={{ background: isPaid ? BRAND : undefined }}
+              <button
+                onClick={() => openModal("approve")}
+                disabled={!hasMinimumPayment}
+                className={btnPrimary}
+                style={{ background: hasMinimumPayment ? BRAND : undefined }}
               >
-                <CheckCircle2 className="h-4 w-4" /> {isPaid ? "Approve & verify" : "Awaiting payment"}
+                <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Approve & verify" : "Awaiting ₦10,000 min. payment"}
               </button>
             </>
           )}
@@ -443,12 +454,12 @@ export default function StaffApplicationDetailsPage() {
                 <X className="h-4 w-4" /> Reject
               </button>
               {hasDrivingSchoolCertificate ? (
-                <button onClick={() => openModal("confirm-cert")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? "#0d9488" : undefined }}>
-                  <CheckCircle2 className="h-4 w-4" /> {isPaid ? "Certificate on file — verify & route" : "Awaiting payment"}
+                <button onClick={() => openModal("confirm-cert")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}>
+                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Certificate on file — verify & route" : "Awaiting ₦10,000 min. payment"}
                 </button>
               ) : (
-                <button onClick={() => openModal("enroll")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? "#7c3aed" : undefined }}>
-                  <Building className="h-4 w-4" /> {isPaid ? "Enroll in driving school" : "Awaiting payment"}
+                <button onClick={() => openModal("enroll")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#7c3aed" : undefined }}>
+                  <Building className="h-4 w-4" /> {hasMinimumPayment ? "Enroll in driving school" : "Awaiting ₦10,000 min. payment"}
                 </button>
               )}
             </>
@@ -461,8 +472,8 @@ export default function StaffApplicationDetailsPage() {
           )}
 
           {application.assigned_staff && application.status === "driving_school_certificate_ready" && (
-            <button onClick={() => openModal("route")} className={btnPrimary} style={{ background: BRAND }}>
-              <Send className="h-4 w-4" /> Route to {application.lga || "agent"}
+            <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
+              <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || "agent"}` : "Awaiting full payment"}
             </button>
           )}
 
@@ -517,14 +528,12 @@ export default function StaffApplicationDetailsPage() {
             </div>
           </div>
           {application.permanent_licence?.document_url && (
-            <a
-              href={resolveMediaUrl(application.permanent_licence.document_url)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(application.permanent_licence.document_url)); }}
               className={btnSecondary}
             >
               <ImageIcon className="h-3.5 w-3.5" /> View document sent by agent
-            </a>
+            </button>
           )}
         </div>
       )}
@@ -596,6 +605,11 @@ export default function StaffApplicationDetailsPage() {
                 </>
               )}
             </div>
+            {!isPaid && application.status === "driving_school_certificate_ready" && application.payment_options && (
+              <p className="mt-3 text-[12.5px] text-slate-500">
+                Certificate verified — this application will automatically route to an agent once the remaining balance is paid in full.
+              </p>
+            )}
           </section>
 
           {/* Personal & Origin */}
@@ -720,8 +734,8 @@ export default function StaffApplicationDetailsPage() {
             <section id="licence-issuance" className="scroll-mt-24">
               <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Licence Issuance</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <StaffLicenceCard title="Temporary licence" licence={application.temporary_licence} />
-                <StaffLicenceCard title="Permanent licence" licence={application.permanent_licence} />
+                <StaffLicenceCard title="Temporary licence" licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
+                <StaffLicenceCard title="Permanent licence" licence={application.permanent_licence} onViewDoc={setPreviewDocUrl} />
               </div>
             </section>
           )}
@@ -755,9 +769,9 @@ export default function StaffApplicationDetailsPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {doc.file_url && (
-                        <a href={resolveMediaUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" className={btnGhostLink}>
+                        <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }} className={btnGhostLink}>
                           Preview <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
+                        </button>
                       )}
                       <button
                         onClick={() => handleReviewDocument(doc.id, "approved")}
@@ -828,15 +842,13 @@ export default function StaffApplicationDetailsPage() {
                       </p>
                     </div>
                     {application.driving_school?.certificate_url ? (
-                      <a
-                        href={resolveMediaUrl(application.driving_school.certificate_url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(application.driving_school.certificate_url)); }}
                         className={btnSecondary}
                         style={{ padding: "0.4rem 0.75rem" }}
                       >
                         <Eye className="h-3.5 w-3.5" /> View
-                      </a>
+                      </button>
                     ) : null}
                   </div>
                 </div>
@@ -867,15 +879,13 @@ export default function StaffApplicationDetailsPage() {
                           </div>
                         </div>
                         {verifSlipUrl ? (
-                          <a
-                            href={resolveMediaUrl(verifSlipUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(verifSlipUrl)); }}
                             className={btnSecondary}
                             style={{ padding: "0.4rem 0.75rem" }}
                           >
                             <Eye className="h-3.5 w-3.5" /> View
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-[11.5px] italic text-slate-400">Not attached</span>
                         )}
@@ -1146,7 +1156,7 @@ export default function StaffApplicationDetailsPage() {
                   visible on the customer's dashboard; rejecting sends the application back to the
                   agent to re-submit.
                 </p>
-                <LicenceSummary licence={application.temporary_licence} />
+                <LicenceSummary licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
                 <div>
                   <label className={fieldLabel}>Decision</label>
                   <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
@@ -1173,7 +1183,7 @@ export default function StaffApplicationDetailsPage() {
                   physically in hand to close it out and notify the customer. Rejecting sends it
                   back to the agent.
                 </p>
-                <LicenceSummary licence={application.permanent_licence} />
+                <LicenceSummary licence={application.permanent_licence} onViewDoc={setPreviewDocUrl} />
                 <div>
                   <label className={fieldLabel}>Decision</label>
                   <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
@@ -1294,7 +1304,7 @@ function DecisionToggle({ value, onChange }) {
   );
 }
 
-function LicenceSummary({ licence }) {
+function LicenceSummary({ licence, onViewDoc }) {
   if (!licence) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-[12.5px]">
@@ -1309,9 +1319,9 @@ function LicenceSummary({ licence }) {
         </div>
       </div>
       {licence.document_url && (
-        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <button onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(licence.document_url)); }} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           <Eye className="h-3.5 w-3.5" /> View submitted card
-        </a>
+        </button>
       )}
     </div>
   );
@@ -1323,7 +1333,7 @@ const LICENCE_REVIEW_TONE = {
   rejected: "bg-red-50 text-red-700 ring-red-200",
 };
 
-function StaffLicenceCard({ title, licence }) {
+function StaffLicenceCard({ title, licence, onViewDoc }) {
   if (!licence) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 p-4">
@@ -1349,9 +1359,9 @@ function StaffLicenceCard({ title, licence }) {
       </p>
       {licence.is_expired && <p className="mt-1 text-[11.5px] font-semibold text-red-600">Expired</p>}
       {licence.document_url && (
-        <a href={resolveMediaUrl(licence.document_url)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
+        <button onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(licence.document_url)); }} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
           <Eye className="h-3.5 w-3.5" /> View document
-        </a>
+        </button>
       )}
     </div>
   );
