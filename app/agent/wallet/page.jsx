@@ -8,7 +8,7 @@ import {
   BarChart3, Calendar, ArrowLeftRight, Inbox,
   ShieldCheck, ChevronDown,
 } from "lucide-react";
-import { getAgentWallet, getAgentBankAccount, setAgentBankAccount, getAgentTransfers, koboToNaira } from "@/lib/api";
+import { getAgentWallet, getAgentBankAccount, setAgentBankAccount, getAgentTransfers, withdrawAgentWallet, koboToNaira } from "@/lib/api";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -80,6 +80,7 @@ function AgentWalletContent() {
   const [bankCode, setBankCode] = useState(BANKS[0].code);
   const [accountNumber, setAccountNumber] = useState("");
   const [saving, setSaving] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [notice, setNotice] = useState(null);
 
   const loadAll = async (isRefresh = false) => {
@@ -114,8 +115,31 @@ function AgentWalletContent() {
       setNotice({ type: "error", message: res.error });
     } else {
       setBankAccountState(res.data);
-      setNotice({ type: "success", message: "Settlement account saved and verified. Job earnings now auto-withdraw here." });
+      setNotice({ type: "success", message: "Settlement account saved and verified." });
       setAccountNumber("");
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!bankAccount) {
+      alert("Please link a bank account first.");
+      setActiveTab("bank-account");
+      return;
+    }
+    const amount = wallet?.balance_kobo;
+    if (!amount || amount <= 0) return;
+    
+    if (!window.confirm(`Are you sure you want to withdraw ${koboToNaira(amount)} to ${bankAccount.account_name}?`)) return;
+
+    setWithdrawing(true);
+    const res = await withdrawAgentWallet({ amount_kobo: amount });
+    setWithdrawing(false);
+
+    if (res.error) {
+      alert(res.error);
+    } else {
+      alert("Withdrawal initiated successfully! The funds will arrive in your account shortly.");
+      loadAll(true);
     }
   };
 
@@ -183,9 +207,19 @@ function AgentWalletContent() {
         <p className="text-[12px] font-semibold uppercase tracking-widest text-emerald-200/70">
           Available Balance
         </p>
-        <p className="mt-2 font-mono text-[38px] font-bold tracking-tight">
-          {koboToNaira(wallet?.balance_kobo || 0)}
-        </p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="font-mono text-[38px] font-bold tracking-tight">
+            {koboToNaira(wallet?.balance_kobo || 0)}
+          </p>
+          <button
+            onClick={handleWithdraw}
+            disabled={withdrawing || !wallet?.balance_kobo || wallet.balance_kobo <= 0}
+            className="rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#065f46] shadow-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+          >
+            {withdrawing ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+            Withdraw
+          </button>
+        </div>
         <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-emerald-200/80">
           <span className="font-semibold text-white">{wallet?.lga}</span>
           <span>·</span>
@@ -193,8 +227,8 @@ function AgentWalletContent() {
         </p>
         <p className="mt-3 text-[12px] text-emerald-100/70 max-w-md">
           {bankAccount
-            ? "Job earnings are credited here and auto-withdrawn to your settlement account immediately."
-            : "Add a settlement account below — job earnings auto-withdraw there as soon as you accept paid jobs."}
+            ? "Job earnings are credited here. You can manually withdraw your balance to your settlement account at any time."
+            : "Add a settlement account below so you can withdraw your job earnings."}
         </p>
       </div>
 
@@ -239,7 +273,7 @@ function AgentWalletContent() {
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div>
                 <h2 className="text-[15px] font-bold text-slate-900">Transaction History</h2>
-                <p className="mt-0.5 text-[12px] text-slate-400">Credits are added when you accept a job offer, then auto-withdrawn.</p>
+                <p className="mt-0.5 text-[12px] text-slate-400">Credits are added when you accept a job offer.</p>
               </div>
               <BarChart3 className="h-4 w-4 text-slate-300" />
             </div>

@@ -350,6 +350,10 @@ export default function StaffApplicationDetailsPage() {
   // Backend only ever emits "unpaid" | "pending" | "success" | "failed" for
   // payment_status — "paid" is never produced, so only "success" is checked.
   const isPaid = application.payment_status === "success" || application.payment_options?.payment_status === "success";
+  // NGN10,000 "pay small small" minimum — enough to unlock approval/enrollment/
+  // certificate steps, but NOT enough to push the application to an agent
+  // (that still requires isPaid/full payment).
+  const hasMinimumPayment = isPaid || !!application.payment_options?.has_minimum_payment;
   const hasDrivingSchoolCertificate = application.documents?.some((d) => d.doc_type === "driving_school_certificate");
   const skipPathCertOnFile = hasDrivingSchoolCertificate && !application.driving_school_enrolled_at;
   const verifSlipUrl =
@@ -433,13 +437,13 @@ export default function StaffApplicationDetailsPage() {
               <button onClick={() => openModal("reject")} className={btnDanger}>
                 <X className="h-4 w-4" /> Reject
               </button>
-              <button 
-                onClick={() => openModal("approve")} 
-                disabled={!isPaid}
-                className={btnPrimary} 
-                style={{ background: isPaid ? BRAND : undefined }}
+              <button
+                onClick={() => openModal("approve")}
+                disabled={!hasMinimumPayment}
+                className={btnPrimary}
+                style={{ background: hasMinimumPayment ? BRAND : undefined }}
               >
-                <CheckCircle2 className="h-4 w-4" /> {isPaid ? "Approve & verify" : "Awaiting payment"}
+                <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Approve & verify" : "Awaiting ₦10,000 min. payment"}
               </button>
             </>
           )}
@@ -450,12 +454,12 @@ export default function StaffApplicationDetailsPage() {
                 <X className="h-4 w-4" /> Reject
               </button>
               {hasDrivingSchoolCertificate ? (
-                <button onClick={() => openModal("confirm-cert")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? "#0d9488" : undefined }}>
-                  <CheckCircle2 className="h-4 w-4" /> {isPaid ? "Certificate on file — verify & route" : "Awaiting payment"}
+                <button onClick={() => openModal("confirm-cert")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}>
+                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Certificate on file — verify & route" : "Awaiting ₦10,000 min. payment"}
                 </button>
               ) : (
-                <button onClick={() => openModal("enroll")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? "#7c3aed" : undefined }}>
-                  <Building className="h-4 w-4" /> {isPaid ? "Enroll in driving school" : "Awaiting payment"}
+                <button onClick={() => openModal("enroll")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#7c3aed" : undefined }}>
+                  <Building className="h-4 w-4" /> {hasMinimumPayment ? "Enroll in driving school" : "Awaiting ₦10,000 min. payment"}
                 </button>
               )}
             </>
@@ -468,8 +472,8 @@ export default function StaffApplicationDetailsPage() {
           )}
 
           {application.assigned_staff && application.status === "driving_school_certificate_ready" && (
-            <button onClick={() => openModal("route")} className={btnPrimary} style={{ background: BRAND }}>
-              <Send className="h-4 w-4" /> Route to {application.lga || "agent"}
+            <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
+              <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || "agent"}` : "Awaiting full payment"}
             </button>
           )}
 
@@ -601,6 +605,11 @@ export default function StaffApplicationDetailsPage() {
                 </>
               )}
             </div>
+            {!isPaid && application.status === "driving_school_certificate_ready" && application.payment_options && (
+              <p className="mt-3 text-[12.5px] text-slate-500">
+                Certificate verified — this application will automatically route to an agent once the remaining balance is paid in full.
+              </p>
+            )}
           </section>
 
           {/* Personal & Origin */}
