@@ -58,6 +58,7 @@ const fieldLabel = "block text-[11.5px] font-semibold uppercase tracking-wide te
 export default function AgentLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isLoginRoute = pathname === "/agent/login";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,11 @@ export default function AgentLayout({ children }) {
   const [passSuccess, setPassSuccess] = useState(null);
 
   useEffect(() => {
+    // The login page manages its own auth state — this guard has no
+    // business running on it (see app/admin/layout.jsx for the full
+    // rationale, identical here).
+    if (isLoginRoute) return;
+
     const token = getToken();
     if (!token) {
       router.push("/agent/login");
@@ -104,7 +110,7 @@ export default function AgentLayout({ children }) {
         setLoading(false);
       }
     });
-  }, [router]);
+  }, [router, isLoginRoute]);
 
   const handleLogout = () => {
     removeToken();
@@ -147,6 +153,10 @@ export default function AgentLayout({ children }) {
       setPassSuccess(null);
     }, 1000);
   };
+
+  if (isLoginRoute) {
+    return children;
+  }
 
   if (loading) {
     return (
