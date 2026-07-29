@@ -73,14 +73,14 @@ export default function AgentLayout({ children }) {
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      router.push("/auth/login?redirect=/agent");
+      router.push("/agent/login");
       return;
     }
 
     const cached = getCachedUser();
     if (cached) {
       if (cached.role !== "agent") {
-        router.push("/dashboard");
+        router.push("/agent/login");
         return;
       }
       setUser(cached);
@@ -91,10 +91,10 @@ export default function AgentLayout({ children }) {
     authGetMe().then((res) => {
       if (res.error && res.status === 401) {
         removeToken();
-        router.push("/auth/login?redirect=/agent");
+        router.push("/agent/login");
       } else if (res.data) {
         if (res.data.role !== "agent") {
-          router.push("/dashboard");
+          router.push("/agent/login");
           return;
         }
         setUser(res.data);
@@ -108,7 +108,7 @@ export default function AgentLayout({ children }) {
 
   const handleLogout = () => {
     removeToken();
-    router.push("/auth/login");
+    router.push("/agent/login");
   };
 
   const handlePasswordChangeSubmit = async (e) => {

@@ -69,6 +69,7 @@ export default function DashboardLayout({ children }) {
       if (cached.role === "admin") { router.push("/admin"); return; }
       if (cached.role === "staff") { router.push("/staff"); return; }
       if (cached.role === "agent") { router.push("/agent"); return; }
+      if (cached.role === "super_admin") { router.push("/super-admin"); return; }
       setUser(cached);
       setLoading(false);
     }
@@ -81,6 +82,7 @@ export default function DashboardLayout({ children }) {
         if (res.data.role === "admin") { router.push("/admin"); return; }
         if (res.data.role === "staff") { router.push("/staff"); return; }
         if (res.data.role === "agent") { router.push("/agent"); return; }
+        if (res.data.role === "super_admin") { router.push("/super-admin"); return; }
         setUser(res.data);
         setLoading(false);
       } else if (!cached) {
