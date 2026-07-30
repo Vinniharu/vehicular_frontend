@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
@@ -418,6 +418,7 @@ export default function ApplyPage() {
   const [selectedAppDetail, setSelectedAppDetail] = useState(null);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [payingFromWallet, setPayingFromWallet] = useState(null);
+  const payingFromWalletRef = useRef(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [toast, setToast] = useState(null);
 
@@ -634,8 +635,11 @@ export default function ApplyPage() {
   };
 
   const handlePayFromWallet = async (appId, amountKobo) => {
+    if (payingFromWalletRef.current) return;
+    payingFromWalletRef.current = true;
     setPayingFromWallet(appId);
     const res = await payFromWalletEndpoint(appId, { amount_kobo: amountKobo });
+    payingFromWalletRef.current = false;
     setPayingFromWallet(null);
     if (res.error) {
       showToast("error", res.error || "Insufficient wallet funds. Please top up your wallet or pay by card.");
