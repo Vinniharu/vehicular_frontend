@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Menu,
   X,
@@ -27,6 +28,13 @@ const NAV_ITEMS = [
     icon: LayoutDashboard,
     exact: true,
     desc: "Overview & profile",
+  },
+  {
+    label: "Services",
+    href: "/dashboard/services",
+    icon: LayoutGrid,
+    exact: true,
+    desc: "Browse all services",
   },
   {
     label: "Applications",

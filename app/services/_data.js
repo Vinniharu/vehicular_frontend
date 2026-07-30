@@ -23,6 +23,8 @@ export const SERVICES = [
   {
     slug: "drivers-licence",
     icon: CreditCard,
+    category: "Other documents",
+    cta: { type: "resolved_price", value: null },
     title: "Driver's Licence Services",
     tagline:
       "Fresh DL, renewal, re-issue, learner's permit, and international permit — all processed nationwide without the FRSC queue.",
@@ -84,6 +86,8 @@ export const SERVICES = [
   {
     slug: "number-plate",
     icon: Hash,
+    category: "Number plates",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Number Plate Services",
     tagline:
       "New plates, fancy/custom plates, replacements, and change of ownership — processed by VIO without the queue.",
@@ -137,6 +141,8 @@ export const SERVICES = [
   {
     slug: "vehicle-particulars",
     icon: FileText,
+    category: "Vehicle particulars",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Vehicle Particulars & Renewals",
     tagline:
       "Vehicle licence, road worthiness, hackney permit, insurance, and proof of ownership — renewed without queueing.",
@@ -202,6 +208,8 @@ export const SERVICES = [
   {
     slug: "vehicle-verification",
     icon: BadgeCheck,
+    category: "Other documents",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Vehicle Verification",
     tagline: "Confirm a vehicle's papers, ownership, and history are clean before you buy or transfer it.",
     intro:
@@ -224,6 +232,8 @@ export const SERVICES = [
   {
     slug: "pre-purchase-inspection",
     icon: Search,
+    category: "Fast-track & logistics",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Pre-Purchase Vehicle Inspection",
     tagline: "Send a vetted inspector to check a used car you're about to buy — body, engine, papers, the lot.",
     intro:
@@ -253,6 +263,8 @@ export const SERVICES = [
   {
     slug: "roadworthiness-express",
     icon: ShieldCheck,
+    category: "Fast-track & logistics",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Roadworthiness Express (RWX)",
     tagline: "Same-day roadworthiness certificate — the priority lane handled by our RWX team.",
     intro:
@@ -274,6 +286,8 @@ export const SERVICES = [
   {
     slug: "tinted-permit",
     icon: Sun,
+    category: "Other documents",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Tinted Glass Permit",
     tagline: "Police-issued tinted glass permit, processed without the back-and-forth.",
     intro:
@@ -291,6 +305,8 @@ export const SERVICES = [
   {
     slug: "port-clearing",
     icon: Ship,
+    category: "Fast-track & logistics",
+    cta: { type: "quote_on_request", value: null },
     title: "Port Clearing & Customs",
     tagline: "Tell us the vehicle (or container) and we'll quote you a clean, all-in clearing price.",
     intro:
@@ -314,6 +330,8 @@ export const SERVICES = [
   {
     slug: "spare-parts",
     icon: Wrench,
+    category: "Marketplace",
+    cta: { type: "quote_on_request", value: null },
     title: "Genuine Spare Parts",
     tagline: "Post the part you need. Verified dealers bid. You pick — and arrange collection directly with them.",
     intro:
@@ -338,6 +356,8 @@ export const SERVICES = [
   {
     slug: "find-a-technician",
     icon: UserCheck,
+    category: "Marketplace",
+    cta: { type: "quote_on_request", value: null },
     title: "Find a Trusted Technician",
     tagline: "Connect with mechanics, auto-electricians, and panel beaters that real customers have recommended.",
     intro:
@@ -356,6 +376,8 @@ export const SERVICES = [
   {
     slug: "sponsor-a-service",
     icon: Gift,
+    category: "Marketplace",
+    cta: { type: "badge", value: "Coming soon" },
     title: "Sponsor a Service",
     tagline: "Pay for a friend or family member's vehicle service — without exchanging passwords or money.",
     intro:
@@ -374,6 +396,8 @@ export const SERVICES = [
   {
     slug: "driveconnect",
     icon: GraduationCap,
+    category: "Other documents",
+    cta: { type: "badge", value: "Coming soon" },
     title: "DriveConnect — Learn to Drive",
     tagline: "Vetted instructors, structured lessons, and your fresh driver's licence — all in one package, nationwide.",
     intro:
