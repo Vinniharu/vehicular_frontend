@@ -856,6 +856,8 @@ export default function CustomerApplicationDetailsPage() {
 
   const [payingWallet, setPayingWallet] = useState(false);
   const [payingCard, setPayingCard] = useState(false);
+  const payingWalletRef = useRef(false);
+  const payingCardRef = useRef(false);
   const [notice, setNotice] = useState(null);
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -922,10 +924,12 @@ export default function CustomerApplicationDetailsPage() {
   }, [application]);
 
   const handlePayFromWallet = async (amountKobo) => {
-    if (!application || !amountKobo) return;
+    if (!application || !amountKobo || payingWalletRef.current) return;
+    payingWalletRef.current = true;
     setPayingWallet(true);
     setNotice(null);
     const res = await payFromWalletEndpoint(application.id, { amount_kobo: amountKobo });
+    payingWalletRef.current = false;
     setPayingWallet(false);
     if (res.error) {
       setNotice({ type: "error", message: res.error });
@@ -939,10 +943,12 @@ export default function CustomerApplicationDetailsPage() {
   };
 
   const handlePayPartialByCard = async (amountKobo) => {
-    if (!application || !amountKobo) return;
+    if (!application || !amountKobo || payingCardRef.current) return;
+    payingCardRef.current = true;
     setPayingCard(true);
     setNotice(null);
     const res = await initializeCardPayment(application.id, { amount_kobo: amountKobo });
+    payingCardRef.current = false;
     setPayingCard(false);
     if (res.error) {
       setNotice({ type: "error", message: res.error });
