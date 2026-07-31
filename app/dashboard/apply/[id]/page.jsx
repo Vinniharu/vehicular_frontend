@@ -40,6 +40,8 @@ import {
 } from "@/lib/api";
 import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
+import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import { getNextStepCopy } from "@/app/dashboard/_shared/status-config";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -57,9 +59,10 @@ function estimateFeeKobo(appType, period) {
 }
 
 // Exact doc_type strings the backend requires before a renewal/reissue
-// application can auto-route to a field agent (app/routers/applications.py
-// check_missing_docs) — offered here so a customer can complete/fix these
-// after initial submission, not just at apply time.
+// application can pass staff review and route to a field agent
+// (app/routers/applications.py check_missing_docs) — offered here so a
+// customer can complete/fix these after initial submission, not just at
+// apply time.
 const REQUIRED_DOCS_BY_TYPE = {
   renewal: [
     { value: "old_driver_licence", label: "Old driver's licence" },
@@ -71,109 +74,6 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "nin_slip", label: "NIN slip" },
   ],
 };
-
-const STATUS_CONFIG = {
-  submitted: { label: "Submitted", tone: "info" },
-  staff_review: { label: "Under review", tone: "warning" },
-  driving_school_enrolled: { label: "Driving school", tone: "purple" },
-  driving_school_certificate_ready: { label: "School complete", tone: "teal" },
-  routed: { label: "Sent to agent", tone: "success" },
-  agent_assigned: { label: "Agent assigned", tone: "success" },
-  agent_accepted: { label: "Agent en route", tone: "success" },
-  capture_scheduled: { label: "Capture scheduled", tone: "indigo" },
-  capturing_scheduled: { label: "Capture scheduled", tone: "indigo" },
-  captured: { label: "Biometrics captured", tone: "teal" },
-  capturing_completed: { label: "Biometrics captured", tone: "teal" },
-  temp_licence_pending_review: { label: "Temporary licence — under review", tone: "warning" },
-  temp_licence_issued: { label: "Temporary licence issued", tone: "purple" },
-  agent_completed: { label: "Processing complete", tone: "teal" },
-  staff_final_review: { label: "Final review", tone: "warning" },
-  ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
-  in_process: { label: "In process", tone: "info" },
-  awaiting_customer: { label: "Awaiting confirmed receipt", tone: "warning" },
-  completed: { label: "Completed", tone: "success" },
-  needs_correction: { label: "Needs correction", tone: "warning" },
-  staff_rejected: { label: "Rejected", tone: "danger" },
-  expired: { label: "Licence expired — renew now", tone: "danger" },
-};
-
-const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  danger: "bg-red-50 text-red-700 ring-red-200",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
-};
-const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  indigo: "bg-indigo-500",
-  teal: "bg-teal-500",
-  neutral: "bg-slate-400",
-};
-
-function statusMeta(status) {
-  return STATUS_CONFIG[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" };
-}
-
-function nextStepCopy(application) {
-  const s = application.status;
-  const type = application.application_type;
-  if (s === "staff_rejected") return "This application was rejected — review the reason below and edit your details to reapply.";
-  if (type !== "fresh") {
-    const map = {
-      submitted: "We're waiting on your documents and payment before this routes to an agent.",
-      routed: "Your application has been sent to an agent in your LGA.",
-      agent_assigned: "An agent has accepted your case and is processing it.",
-      agent_accepted: "An agent has accepted your case and is processing it.",
-      capturing_completed: "Capture's done. Your agent is finishing up processing.",
-      ready_for_pickup: "Your licence is ready for pickup.",
-      needs_correction: "One of your documents needs a re-upload — see below.",
-      agent_completed: "Processing is complete.",
-      awaiting_customer: "Your licence is ready — our team will confirm receipt shortly.",
-      completed: "Completed.",
-    };
-    return map[s] || "We'll update this as your application moves forward.";
-  }
-  const map = {
-    submitted: "Your application is waiting for staff to review it.",
-    staff_review: "Staff are checking your documents now.",
-    driving_school_enrolled: "You're enrolled in driving school — see your countdown below.",
-    driving_school_certificate_ready: "School's done. Your file is being routed to an agent.",
-    routed: "An agent in your LGA has been offered your case.",
-    agent_accepted: "An agent has accepted and will schedule your biometric capture soon.",
-    capture_scheduled: "Your capture appointment is booked — check the date below.",
-    capturing_scheduled: "Your capture appointment is booked — check the date below.",
-    captured: "Capture's done. Your agent is finishing up processing.",
-    capturing_completed: "Capture's done. Your agent is finishing up processing.",
-    temp_licence_pending_review: "Your temporary licence has been submitted and is awaiting staff review.",
-    temp_licence_issued: "Your temporary licence is ready — see below. Your permanent card is being processed.",
-    agent_completed: "Processing is complete — staff are doing a final review.",
-    staff_final_review: "Staff are doing a final review before your licence is dispatched.",
-    ready_for_pickup: "Your licence is ready for pickup.",
-    awaiting_customer: "Your licence is ready — please confirm you've received it below.",
-    completed: "Your licence is ready.",
-    needs_correction: "One of your documents needs a re-upload — see below.",
-    expired: "Your licence has expired — please apply for a renewal.",
-  };
-  return map[s] || "We'll update this as your application moves forward.";
-}
-
-function StatusBadge({ status }) {
-  const meta = statusMeta(status);
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-      {meta.label}
-    </span>
-  );
-}
 
 function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
   if (!licence) {
@@ -1072,7 +972,7 @@ export default function CustomerApplicationDetailsPage() {
             Refresh
           </button>
         </div>
-        <p className="mt-2 text-[13.5px] text-slate-500">{nextStepCopy(application)}</p>
+        <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
       </div>
 
       {/* Notice bar */}

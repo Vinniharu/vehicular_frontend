@@ -43,6 +43,8 @@ import {
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
+import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import { statusMeta, getStatusDescription, TONE_HEX, getStageProgress } from "@/app/dashboard/_shared/status-config";
 
 /* ────────────────────────────────────────────────────────────
    Design tokens — brand color is the only hardcoded value here.
@@ -134,118 +136,12 @@ function estimateFeeKobo(appType, period) {
   return bucket[period] || bucket["5 years"];
 }
 
-// Ordered stages for the fresh-application journey — used to compute how
-// far along an application is, independent of its current status label.
-const STAGE_ORDER = [
-  "submitted",
-  "staff_review",
-  "driving_school_enrolled",
-  "driving_school_certificate_ready",
-  "driving_school_graduated",
-  "routed",
-  "agent_assigned",
-  "agent_accepted",
-  "capture_scheduled",
-  "capturing_scheduled",
-  "scheduled",
-  "captured",
-  "capturing_completed",
-  "agent_completed",
-  "staff_final_review",
-  "in_review",
-  "ready_for_pickup",
-  "awaiting_customer",
-  "completed",
-];
-
-const STATUS_CONFIG = {
-  // Initial & Routing States
-  submitted: { label: "Submitted", tone: "info", desc: "Application form and documents submitted; awaiting payment verification." },
-  staff_review: { label: "Under Staff Review", tone: "warning", desc: "Verifying background details & assigning driving school." },
-  routed: { label: "Routed to LGA Agents", tone: "info", desc: "Verified and auto-routed to LGA VIO Processing Agents." },
-
-  // Driving School States (Fresh Applications Only)
-  driving_school_enrolled: { label: "Driving School Enrolled", tone: "purple", desc: "Enrolled in accredited driving school training." },
-  driving_school_certificate_ready: { label: "Certificate Issued", tone: "purple", desc: "Driving school completed and certificate ready." },
-  driving_school_graduated: { label: "School Complete", tone: "purple", desc: "Driving school training completed; transitioning to VIO." },
-
-  // Processing Agent & Biometric Capture States
-  agent_assigned: { label: "Processing at VIO Office", tone: "info", desc: "VIO processing agent accepted file at VIO office." },
-  agent_accepted: { label: "Processing at VIO Office", tone: "info", desc: "VIO processing agent accepted file at VIO office." },
-  capture_scheduled: { label: "Biometric Capture Scheduled", tone: "indigo", desc: "Biometric capture appointment booked at VIO center." },
-  capturing_scheduled: { label: "Biometric Capture Scheduled", tone: "indigo", desc: "Biometric capture appointment booked at VIO center." },
-  scheduled: { label: "Biometric Capture Scheduled", tone: "indigo", desc: "Biometric capture appointment booked at VIO center." },
-  captured: { label: "Capture Completed - License in Production", tone: "teal", desc: "Biometrics completed; license card in production." },
-  capturing_completed: { label: "Capture Completed - License in Production", tone: "teal", desc: "Biometrics completed; license card in production." },
-
-  // Licence Issuance States (Fresh Applications Only)
-  temp_licence_pending_review: { label: "Temporary Licence — Under Review", tone: "warning", desc: "Agent issued a temporary licence; awaiting staff approval." },
-  temp_licence_issued: { label: "Temporary Licence Issued", tone: "purple", desc: "Temporary licence approved — permanent card is being processed." },
-
-  // Final & Resolution States
-  agent_completed: { label: "Final Verification & Quality Check", tone: "teal", desc: "Agent processing finished; undergoing staff quality assurance." },
-  staff_final_review: { label: "Final Verification & Quality Check", tone: "warning", desc: "Undergoing internal quality assurance check." },
-  in_review: { label: "Final Verification & Quality Check", tone: "warning", desc: "Undergoing internal quality assurance check." },
-  ready_for_pickup: { label: "Ready for Pickup / Delivery", tone: "success", desc: "Driver's license card printed and ready for pickup." },
-  awaiting_customer: { label: "Ready — Confirm Receipt", tone: "success", desc: "Card ready; please confirm receipt upon pickup." },
-  completed: { label: "Completed", tone: "success", desc: "Driver's license application finished and closed." },
-
-  // Exceptions & Corrections
-  needs_correction: { label: "Action Required: Document Correction", tone: "warning", desc: "Flagged issue with uploaded documents." },
-  staff_rejected: { label: "Application Rejected / Closed", tone: "danger", desc: "Application formally rejected or disqualified." },
-  failed: { label: "Application Rejected / Closed", tone: "danger", desc: "Application formally rejected or disqualified." },
-  expired: { label: "Licence Expired", tone: "danger", desc: "Validity period has elapsed — apply for a renewal." },
-};
-
-const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  danger: "bg-red-50 text-red-700 ring-red-200",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
-};
-
-const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  indigo: "bg-indigo-500",
-  teal: "bg-teal-500",
-  neutral: "bg-slate-400",
-};
-
-function statusMeta(status) {
-  return STATUS_CONFIG[status] || { label: (status || "unknown").replace(/_/g, " "), tone: "neutral", desc: "" };
-}
-
-function stageProgress(status) {
-  const idx = STAGE_ORDER.indexOf(status);
-  if (idx === -1) return status === "completed" ? 1 : 0.05;
-  return (idx + 1) / STAGE_ORDER.length;
-}
-
-function MiniProgressRing({ status, size = 36 }) {
-  const progress = stageProgress(status);
+function MiniProgressRing({ status, applicationType, size = 36 }) {
+  const progress = getStageProgress(status, applicationType);
   const isRejected = status === "staff_rejected" || status === "failed";
   const isDone = status === "completed";
   const meta = statusMeta(status);
-  
-  const toneColors = {
-    info: "#0ea5e9", // sky-500
-    warning: "#f59e0b", // amber-500
-    danger: "#ef4444", // red-500
-    success: "#10b981", // emerald-500
-    purple: "#8b5cf6", // violet-500
-    indigo: "#6366f1", // indigo-500
-    teal: "#14b8a6", // teal-500
-    neutral: "#94a3b8", // slate-400
-  };
-  const strokeColor = toneColors[meta.tone] || toneColors.neutral;
+  const strokeColor = TONE_HEX[meta.tone] || TONE_HEX.neutral;
 
   const stroke = 3;
   const r = (size - stroke) / 2;
@@ -285,27 +181,6 @@ function paymentStatusMeta(app) {
   if (s === "abandoned" || s === "failed") return { label: "Payment Failed / Retry", tone: "danger", needsRetry: true };
   return { label: "Payment Due", tone: "warning", needsRetry: false };
 }
-
-/* ────────────────────────────────────────────────────────────
-   Status badge — dot + label, never color alone
-   ──────────────────────────────────────────────────────────── */
-function StatusBadge({ status, size = "md" }) {
-  const meta = statusMeta(status);
-  const pad = size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-[12px]";
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-semibold ring-1 ring-inset ${pad} ${TONE_CLASSES[meta.tone]}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-      {meta.label}
-    </span>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────
-   Progress ring — a small, quiet callback to how far an
-   application has travelled through its journey.
-   ──────────────────────────────────────────────────────────── */
 
 /* ────────────────────────────────────────────────────────────
    Segmented step progress bar for the application form
@@ -956,7 +831,7 @@ export default function ApplyPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 min-w-0">
-                      <MiniProgressRing status={app.status} size={40} />
+                      <MiniProgressRing status={app.status} applicationType={app.application_type} size={40} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[15px] font-bold capitalize text-[#111111] group-hover:text-[#28A745] transition-colors">
@@ -1068,7 +943,7 @@ export default function ApplyPage() {
 
               <div className="space-y-6 p-6">
                 <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                  <MiniProgressRing status={selectedAppDetail.status} size={40} />
+                  <MiniProgressRing status={selectedAppDetail.status} applicationType={selectedAppDetail.application_type} size={40} />
                   <div>
                     <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                       Current status
@@ -1076,9 +951,9 @@ export default function ApplyPage() {
                     <div className="mt-1 flex items-center gap-2">
                       <StatusBadge status={selectedAppDetail.status} />
                     </div>
-                    {statusMeta(selectedAppDetail.status).desc && (
+                    {getStatusDescription(selectedAppDetail.status, selectedAppDetail.application_type) && (
                       <p className="mt-1.5 text-[12.5px] text-slate-600 leading-snug">
-                        {statusMeta(selectedAppDetail.status).desc}
+                        {getStatusDescription(selectedAppDetail.status, selectedAppDetail.application_type)}
                       </p>
                     )}
                   </div>

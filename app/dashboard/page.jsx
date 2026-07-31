@@ -10,6 +10,8 @@ import {
   TrendingUp, Zap, AlertCircle, Eye, RefreshCw,
 } from "lucide-react";
 import { authGetMe, getWallet, getMyApplications, getCachedUser, getReferenceStates } from "@/lib/api";
+import { statusMeta, TONE_HEX, getStageProgress } from "@/app/dashboard/_shared/status-config";
+import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -33,69 +35,12 @@ function greeting() {
   return "Good evening";
 }
 
-const STATUS_CONFIG = {
-  submitted: { label: "Submitted", color: "#0ea5e9", bg: "#f0f9ff", ring: "#bae6fd" },
-  staff_review: { label: "Under Review", color: "#f59e0b", bg: "#fffbeb", ring: "#fde68a" },
-  driving_school_enrolled: { label: "Driving School", color: "#8b5cf6", bg: "#f5f3ff", ring: "#ddd6fe" },
-  driving_school_certificate_ready: { label: "School Complete", color: "#14b8a6", bg: "#f0fdfa", ring: "#99f6e4" },
-  routed: { label: "Sent to Agent", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
-  agent_assigned: { label: "Agent Assigned", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
-  agent_accepted: { label: "Agent En Route", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
-  capture_scheduled: { label: "Capture Scheduled", color: "#6366f1", bg: "#eef2ff", ring: "#c7d2fe" },
-  capturing_scheduled: { label: "Capture Scheduled", color: "#6366f1", bg: "#eef2ff", ring: "#c7d2fe" },
-  captured: { label: "Biometrics Captured", color: "#14b8a6", bg: "#f0fdfa", ring: "#99f6e4" },
-  capturing_completed: { label: "Capture Completed", color: "#14b8a6", bg: "#f0fdfa", ring: "#99f6e4" },
-  temp_licence_pending_review: { label: "Temp Licence — Under Review", color: "#f59e0b", bg: "#fffbeb", ring: "#fde68a" },
-  temp_licence_issued: { label: "Temp Licence Issued", color: "#8b5cf6", bg: "#f5f3ff", ring: "#ddd6fe" },
-  agent_completed: { label: "Processing Complete", color: "#14b8a6", bg: "#f0fdfa", ring: "#99f6e4" },
-  staff_final_review: { label: "Final Review", color: "#f59e0b", bg: "#fffbeb", ring: "#fde68a" },
-  ready_for_pickup: { label: "Ready for Pickup", color: "#6366f1", bg: "#eef2ff", ring: "#c7d2fe" },
-  in_process: { label: "In Process", color: "#0ea5e9", bg: "#f0f9ff", ring: "#bae6fd" },
-  needs_correction: { label: "Action Required", color: "#f59e0b", bg: "#fffbeb", ring: "#fde68a" },
-  awaiting_customer: { label: "Ready — Confirm", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
-  completed: { label: "Completed", color: BRAND, bg: "#f0fdf4", ring: "#a7f3d0" },
-  staff_rejected: { label: "Rejected", color: "#ef4444", bg: "#fef2f2", ring: "#fecaca" },
-  failed: { label: "Rejected", color: "#ef4444", bg: "#fef2f2", ring: "#fecaca" },
-  expired: { label: "Licence Expired", color: "#ef4444", bg: "#fef2f2", ring: "#fecaca" },
-};
-
-function statusMeta(status) {
-  return STATUS_CONFIG[status] || { label: (status || "Unknown").replace(/_/g, " "), color: "#64748b", bg: "#f8fafc", ring: "#e2e8f0" };
-}
-
-function StatusPill({ status }) {
-  const meta = statusMeta(status);
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1"
-      style={{ color: meta.color, background: meta.bg, ringColor: meta.ring, boxShadow: `0 0 0 1px ${meta.ring}` }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: meta.color }} />
-      {meta.label}
-    </span>
-  );
-}
-
-const STAGE_ORDER = [
-  "submitted", "staff_review", "driving_school_enrolled", "driving_school_certificate_ready",
-  "routed", "agent_accepted", "capture_scheduled", "capturing_scheduled", "captured",
-  "capturing_completed", "agent_completed", "staff_final_review", "ready_for_pickup",
-  "awaiting_customer", "completed",
-];
-
-function stageProgress(status) {
-  if (status === "completed") return 1;
-  if (status === "staff_rejected" || status === "failed") return 0;
-  const idx = STAGE_ORDER.indexOf(status);
-  if (idx === -1) return 0.05;
-  return (idx + 1) / STAGE_ORDER.length;
-}
-
-function MiniProgressRing({ status, size = 36 }) {
-  const progress = stageProgress(status);
+function MiniProgressRing({ status, applicationType, size = 36 }) {
+  const progress = getStageProgress(status, applicationType);
   const isRejected = status === "staff_rejected" || status === "failed";
   const isDone = status === "completed";
   const meta = statusMeta(status);
+  const color = TONE_HEX[meta.tone] || TONE_HEX.neutral;
   const stroke = 3;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -104,7 +49,7 @@ function MiniProgressRing({ status, size = 36 }) {
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} stroke="#f1f5f9" fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} fill="none" strokeLinecap="round"
-          stroke={isRejected ? "#ef4444" : meta.color}
+          stroke={isRejected ? "#ef4444" : color}
           strokeDasharray={c} strokeDashoffset={c * (1 - progress)}
           style={{ transition: "stroke-dashoffset 0.7s ease-out" }} />
       </svg>
@@ -114,7 +59,7 @@ function MiniProgressRing({ status, size = 36 }) {
         ) : isRejected ? (
           <XCircle className="h-3.5 w-3.5 text-red-400" />
         ) : (
-          <div className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+          <div className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
         )}
       </div>
     </div>
@@ -578,7 +523,7 @@ export default function DashboardPage() {
                       className={`group flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-slate-50/70 ${isNeedsAction ? "bg-red-50/20" : ""}`}
                     >
                       <div className="flex min-w-0 items-center gap-4">
-                        <MiniProgressRing status={app.status} />
+                        <MiniProgressRing status={app.status} applicationType={app.application_type} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[13.5px] font-bold capitalize text-[#111111]">
@@ -601,7 +546,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2.5">
-                        <StatusPill status={app.status} />
+                        <StatusBadge status={app.status} size="sm" />
                         <ChevronRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </Link>
