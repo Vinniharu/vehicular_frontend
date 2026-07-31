@@ -97,6 +97,7 @@ function StaffApplicationsQueueInner() {
   // Filters & Search — initial tab can be deep-linked via ?tab=
   const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   const loadData = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -142,6 +143,9 @@ function StaffApplicationsQueueInner() {
 
       if (!matchSearch) return false;
 
+      const matchType = typeFilter === "all" || app.application_type === typeFilter;
+      if (!matchType) return false;
+
       if (activeTab === "all") return true;
       if (activeTab === "unclaimed") return !app.staff_id;
       if (activeTab === "mine") return app.staff_id === currentUser?.id;
@@ -154,7 +158,7 @@ function StaffApplicationsQueueInner() {
       if (activeTab === "flagged") return app.status === "staff_rejected" || app.status === "needs_correction";
       return true;
     });
-  }, [applications, activeTab, searchQuery, currentUser]);
+  }, [applications, activeTab, searchQuery, currentUser, typeFilter]);
 
   // Counts for top tabs
   const counts = useMemo(() => {
@@ -186,7 +190,7 @@ function StaffApplicationsQueueInner() {
               Applications Review Queue
             </h1>
             <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-              Search, filter, and review all applications (fresh, renewal, and reissue). Open any candidate file to inspect documents, enroll into accredited driving academies, route graduates to VIO field agents, or complete a final review before dispatch.
+              Search, filter, and review all applications (fresh, renewal, reissue, and international permit). Open any candidate file to inspect documents, enroll into accredited driving academies, route graduates to VIO field agents, or complete a final review before dispatch.
             </p>
           </div>
           <button
@@ -221,6 +225,18 @@ function StaffApplicationsQueueInner() {
             </button>
           )}
         </div>
+
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+        >
+          <option value="all">All types</option>
+          <option value="fresh">Fresh</option>
+          <option value="renewal">Renewal</option>
+          <option value="reissue">Reissue</option>
+          <option value="international_permit">International Permit</option>
+        </select>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
           {[

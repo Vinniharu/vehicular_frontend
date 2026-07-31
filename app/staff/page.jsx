@@ -172,9 +172,9 @@ export default function StaffStatsDashboardPage() {
               What needs your attention
             </h1>
             <p className="mt-2 text-sm text-slate-600 max-w-2xl leading-relaxed">
-              Every fresh, renewal, and reissue application currently in your queue, grouped by
-              what's next: review new submissions, enroll in driving school, route to a field
-              agent, sign off on finished jobs, and confirm dispatch details.
+              Every fresh, renewal, reissue, and international permit application currently in your
+              queue, grouped by what's next: review new submissions, enroll in driving school, route
+              to a field agent, sign off on finished jobs, and confirm dispatch details.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
@@ -204,7 +204,7 @@ export default function StaffStatsDashboardPage() {
             className="group rounded-xl border border-slate-200 bg-slate-50/60 p-4 hover:border-[#28A745] hover:bg-white transition-all shadow-sm"
           >
             <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-800">
-              Total Fresh
+              Total Applications
             </span>
             <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.all}</span>
           </Link>
