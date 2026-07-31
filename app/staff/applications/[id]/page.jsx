@@ -453,7 +453,11 @@ export default function StaffApplicationDetailsPage() {
               <button onClick={() => openModal("reject")} className={btnDanger}>
                 <X className="h-4 w-4" /> Reject
               </button>
-              {hasDrivingSchoolCertificate ? (
+              {application.application_type !== "fresh" ? (
+                <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
+                  <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || "agent"}` : "Awaiting full payment"}
+                </button>
+              ) : hasDrivingSchoolCertificate ? (
                 <button onClick={() => openModal("confirm-cert")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}>
                   <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Certificate on file — verify & route" : "Awaiting ₦10,000 min. payment"}
                 </button>
@@ -811,17 +815,25 @@ export default function StaffApplicationDetailsPage() {
                 </p>
               )}
 
-              {application.status === "staff_review" && !hasDrivingSchoolCertificate && (
+              {application.status === "staff_review" && application.application_type === "fresh" && !hasDrivingSchoolCertificate && (
                 <p className="text-[13.5px] leading-relaxed text-slate-600">
                   Applicant is verified. Enroll them in an accredited driving school using the <strong>Enroll</strong> button at the top to attach the verification slip and start their countdown.
                 </p>
               )}
 
-              {application.status === "staff_review" && hasDrivingSchoolCertificate && (
+              {application.status === "staff_review" && application.application_type === "fresh" && hasDrivingSchoolCertificate && (
                 <p className="text-[13.5px] leading-relaxed text-slate-600">
                   Customer provided this certificate at submission — no enrollment or waiting period
                   needed. Review it in the <strong>Documents</strong> section below, then use{" "}
                   <strong>Certificate on file — verify &amp; route</strong> at the top.
+                </p>
+              )}
+
+              {application.status === "staff_review" && application.application_type !== "fresh" && (
+                <p className="text-[13.5px] leading-relaxed text-slate-600">
+                  This is a {application.application_type?.replace(/_/g, " ")} application — no driving
+                  school step applies. Once documents are verified and full payment is received, use{" "}
+                  <strong>Route to {application.lga || "agent"}</strong> at the top to send it to a field agent.
                 </p>
               )}
 
@@ -947,7 +959,7 @@ export default function StaffApplicationDetailsPage() {
                 !application.driving_school && (
                   <p className="text-[13px] text-slate-500">
                     Not applicable — driving school enrollment doesn't apply to this application's current status (
-                    {statusMeta(application.status).label.toLowerCase()}), or it's a renewal/reissue.
+                    {statusMeta(application.status).label.toLowerCase()}), or it's a renewal, reissue, or international permit application.
                   </p>
                 )}
 

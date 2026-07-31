@@ -9,8 +9,9 @@ import {
   authGetMe, authUpdateProfile, authChangePassword, getReferenceStates,
   getReferenceLgas, getCachedUser, apiFetch
 } from "@/lib/api";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 
 const AFRICAN_COUNTRIES = [
   "Algeria","Angola","Benin","Botswana","Burkina Faso","Burundi","Cabo Verde",

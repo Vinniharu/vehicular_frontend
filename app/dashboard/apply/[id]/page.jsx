@@ -40,8 +40,12 @@ import {
 } from "@/lib/api";
 import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
+import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import { getNextStepCopy } from "@/app/dashboard/_shared/status-config";
+import { btnPrimary, btnSecondary, inputBase, label as fieldLabel } from "@/app/dashboard/_shared/ui";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 
 // Mirrors the backend's FEE_SCHEDULE (app/core/payment_helpers.py) — only
@@ -57,9 +61,10 @@ function estimateFeeKobo(appType, period) {
 }
 
 // Exact doc_type strings the backend requires before a renewal/reissue
-// application can auto-route to a field agent (app/routers/applications.py
-// check_missing_docs) — offered here so a customer can complete/fix these
-// after initial submission, not just at apply time.
+// application can pass staff review and route to a field agent
+// (app/routers/applications.py check_missing_docs) — offered here so a
+// customer can complete/fix these after initial submission, not just at
+// apply time.
 const REQUIRED_DOCS_BY_TYPE = {
   renewal: [
     { value: "old_driver_licence", label: "Old driver's licence" },
@@ -71,109 +76,6 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "nin_slip", label: "NIN slip" },
   ],
 };
-
-const STATUS_CONFIG = {
-  submitted: { label: "Submitted", tone: "info" },
-  staff_review: { label: "Under review", tone: "warning" },
-  driving_school_enrolled: { label: "Driving school", tone: "purple" },
-  driving_school_certificate_ready: { label: "School complete", tone: "teal" },
-  routed: { label: "Sent to agent", tone: "success" },
-  agent_assigned: { label: "Agent assigned", tone: "success" },
-  agent_accepted: { label: "Agent en route", tone: "success" },
-  capture_scheduled: { label: "Capture scheduled", tone: "indigo" },
-  capturing_scheduled: { label: "Capture scheduled", tone: "indigo" },
-  captured: { label: "Biometrics captured", tone: "teal" },
-  capturing_completed: { label: "Biometrics captured", tone: "teal" },
-  temp_licence_pending_review: { label: "Temporary licence — under review", tone: "warning" },
-  temp_licence_issued: { label: "Temporary licence issued", tone: "purple" },
-  agent_completed: { label: "Processing complete", tone: "teal" },
-  staff_final_review: { label: "Final review", tone: "warning" },
-  ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
-  in_process: { label: "In process", tone: "info" },
-  awaiting_customer: { label: "Awaiting confirmed receipt", tone: "warning" },
-  completed: { label: "Completed", tone: "success" },
-  needs_correction: { label: "Needs correction", tone: "warning" },
-  staff_rejected: { label: "Rejected", tone: "danger" },
-  expired: { label: "Licence expired — renew now", tone: "danger" },
-};
-
-const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  danger: "bg-red-50 text-red-700 ring-red-200",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
-};
-const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  indigo: "bg-indigo-500",
-  teal: "bg-teal-500",
-  neutral: "bg-slate-400",
-};
-
-function statusMeta(status) {
-  return STATUS_CONFIG[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" };
-}
-
-function nextStepCopy(application) {
-  const s = application.status;
-  const type = application.application_type;
-  if (s === "staff_rejected") return "This application was rejected — review the reason below and edit your details to reapply.";
-  if (type !== "fresh") {
-    const map = {
-      submitted: "We're waiting on your documents and payment before this routes to an agent.",
-      routed: "Your application has been sent to an agent in your LGA.",
-      agent_assigned: "An agent has accepted your case and is processing it.",
-      agent_accepted: "An agent has accepted your case and is processing it.",
-      capturing_completed: "Capture's done. Your agent is finishing up processing.",
-      ready_for_pickup: "Your licence is ready for pickup.",
-      needs_correction: "One of your documents needs a re-upload — see below.",
-      agent_completed: "Processing is complete.",
-      awaiting_customer: "Your licence is ready — our team will confirm receipt shortly.",
-      completed: "Completed.",
-    };
-    return map[s] || "We'll update this as your application moves forward.";
-  }
-  const map = {
-    submitted: "Your application is waiting for staff to review it.",
-    staff_review: "Staff are checking your documents now.",
-    driving_school_enrolled: "You're enrolled in driving school — see your countdown below.",
-    driving_school_certificate_ready: "School's done. Your file is being routed to an agent.",
-    routed: "An agent in your LGA has been offered your case.",
-    agent_accepted: "An agent has accepted and will schedule your biometric capture soon.",
-    capture_scheduled: "Your capture appointment is booked — check the date below.",
-    capturing_scheduled: "Your capture appointment is booked — check the date below.",
-    captured: "Capture's done. Your agent is finishing up processing.",
-    capturing_completed: "Capture's done. Your agent is finishing up processing.",
-    temp_licence_pending_review: "Your temporary licence has been submitted and is awaiting staff review.",
-    temp_licence_issued: "Your temporary licence is ready — see below. Your permanent card is being processed.",
-    agent_completed: "Processing is complete — staff are doing a final review.",
-    staff_final_review: "Staff are doing a final review before your licence is dispatched.",
-    ready_for_pickup: "Your licence is ready for pickup.",
-    awaiting_customer: "Your licence is ready — please confirm you've received it below.",
-    completed: "Your licence is ready.",
-    needs_correction: "One of your documents needs a re-upload — see below.",
-    expired: "Your licence has expired — please apply for a renewal.",
-  };
-  return map[s] || "We'll update this as your application moves forward.";
-}
-
-function StatusBadge({ status }) {
-  const meta = statusMeta(status);
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-      {meta.label}
-    </span>
-  );
-}
 
 function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
   if (!licence) {
@@ -201,14 +103,6 @@ function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
     </div>
   );
 }
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
-const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-[#E5E5E5] bg-white px-5 py-3 text-[13.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98]";
-const inputBase =
-  "w-full rounded-xl border border-[#E5E5E5] bg-slate-50/60 px-3.5 py-2.5 text-[13.5px] text-[#111111] placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
-const fieldLabel = "block text-[12.5px] font-semibold text-slate-700 mb-1.5";
 
 function PaymentProgressBar({ paidKobo, totalKobo }) {
   const pct = totalKobo > 0 ? Math.min(100, Math.round((paidKobo / totalKobo) * 100)) : 0;
@@ -468,7 +362,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               Personal Details
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className={fieldLabel}>First name *</label>
                   <input name="first_name" value={form.first_name} onChange={handleChange} required className={inputBase} />
@@ -482,7 +376,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   <input name="last_name" value={form.last_name} onChange={handleChange} required className={inputBase} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Date of birth *</label>
                   <input type="date" name="date_of_birth" value={form.date_of_birth} onChange={handleChange} required className={inputBase} />
@@ -498,7 +392,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Nationality *</label>
                   <input name="nationality" value={form.nationality} onChange={handleChange} placeholder="Nigerian" required className={inputBase} />
@@ -522,7 +416,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                 <label className={fieldLabel}>Residential address</label>
                 <input name="residential_address" value={form.residential_address} onChange={handleChange} placeholder="123 Example St, Lagos" className={inputBase} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Mother's maiden name</label>
                   <input name="mothers_maiden_name" value={form.mothers_maiden_name} onChange={handleChange} placeholder="e.g. Adeyemi" className={inputBase} />
@@ -582,7 +476,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               State & LGA of Origin
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={fieldLabel}>State of origin</label>
                 <div className="relative">
@@ -612,7 +506,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               State & LGA of Residence
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={fieldLabel}>State *</label>
                 <div className="relative">
@@ -643,7 +537,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               Next of Kin
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Full name</label>
                   <input name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} placeholder="Jane Doe" className={inputBase} />
@@ -687,7 +581,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               {application.application_type === "international_permit" ? "Permit Details" : "Renewal Details"}
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>NIN</label>
                   <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
@@ -1072,7 +966,7 @@ export default function CustomerApplicationDetailsPage() {
             Refresh
           </button>
         </div>
-        <p className="mt-2 text-[13.5px] text-slate-500">{nextStepCopy(application)}</p>
+        <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
       </div>
 
       {/* Notice bar */}
@@ -1184,7 +1078,7 @@ export default function CustomerApplicationDetailsPage() {
                 {application.capture_centre_name || application.assigned_agent?.vio_office || `${application.lga || "Designated"} FRSC/VIO Capture Centre`}
               </span>
             </div>
-            {application.assigned_agent && (
+            {application.assigned_agent?.name && (
               <div className="flex items-start justify-between gap-4">
                 <span className="shrink-0 text-slate-500">Field agent</span>
                 <span className="text-right font-semibold text-indigo-950">
@@ -1402,7 +1296,7 @@ export default function CustomerApplicationDetailsPage() {
               className="h-20 w-20 rounded-lg border border-[#E5E5E5] object-cover"
             />
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.first_name || "—"}</span>
