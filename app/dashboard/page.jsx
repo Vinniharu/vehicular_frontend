@@ -12,12 +12,13 @@ import {
 import { authGetMe, getWallet, getMyApplications, getCachedUser, getReferenceStates } from "@/lib/api";
 import { statusMeta, TONE_HEX, getStageProgress } from "@/app/dashboard/_shared/status-config";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 const BRAND_GLOW = "rgba(40, 167, 69,0.15)";
-const INK = "#111111";
-const PAPER_BORDER = "#E5E5E5";
+const INK = colors.ink.DEFAULT;
+const PAPER_BORDER = colors.paper.border;
 
 function koboToNaira(kobo) {
   return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });

@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Search, ArrowRight } from "lucide-react";
 import { SERVICES } from "@/app/services/_data";
 import { getDriverLicenceFeeSchedule } from "@/lib/api";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
-const INK = "#111111";
-const PAPER_BORDER = "#E5E5E5";
+const BRAND = colors.primary.DEFAULT;
+const INK = colors.ink.DEFAULT;
+const PAPER_BORDER = colors.paper.border;
 
 // Matches the category taxonomy assigned to each entry in
 // app/services/_data.js — order here controls section/chip order on screen.

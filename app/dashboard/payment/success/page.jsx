@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, ArrowRight, AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { getApplication, getMyApplications, verifyPaymentTransaction } from "@/lib/api";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69, 0.08)";
 
 function koboToNaira(kobo) {

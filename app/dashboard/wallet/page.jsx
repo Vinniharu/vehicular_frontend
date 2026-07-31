@@ -21,8 +21,11 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getWallet, depositIntoWalletInitialize, verifyWalletDeposit, getWalletTransactions, activateWallet } from "@/lib/api";
+import { btnPrimary, btnSecondary, inputBase, fieldLabel } from "@/app/dashboard/_shared/ui";
+import Modal from "@/app/dashboard/_shared/Modal";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 const SANDBOX_DEPOSIT_ENABLED = true;
 
 function koboToNaira(kobo) {
@@ -45,14 +48,6 @@ function txStatusMeta(status) {
   if (status === "pending") return { label: "Pending", className: "bg-amber-50 text-amber-700" };
   return { label: "Paid", className: "bg-[#28A745]/10 text-[#28A745]" };
 }
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50";
-const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-[#E5E5E5] bg-white px-5 py-3 text-[13.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98]";
-const fieldLabel = "block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5";
-const inputBase =
-  "w-full rounded-xl border border-[#E5E5E5] bg-slate-50/60 px-3.5 py-2.5 text-[13.5px] text-[#111111] placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
 
 export default function WalletPage() {
   const router = useRouter();
@@ -297,14 +292,14 @@ export default function WalletPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-7 px-3 sm:px-0">
               <h2 className="text-xl sm:text-[22px] font-extrabold text-[#111111] tracking-tight">Transactions</h2>
               
-              <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
                 {/* Search Bar - styled per Adze design */}
-                <div className="flex-1 relative hidden lg:block w-[280px]">
+                <div className="relative w-full sm:w-[280px]">
                   <input type="text" placeholder="Search for transactions" className="w-full bg-slate-50/70 border border-[#F5F5F5] rounded-full px-10 py-2.5 text-[13px] font-medium text-slate-600 outline-none focus:bg-white focus:border-slate-300 transition-colors" />
                   <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                
-                <div className="flex items-center gap-2.5 bg-slate-50/70 border border-[#F5F5F5] rounded-full px-4 py-2 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap">
+
+                <div className="flex items-center justify-center gap-2.5 bg-slate-50/70 border border-[#F5F5F5] rounded-full px-4 py-2 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap">
                   <span className="text-[13px] font-bold text-slate-700">This week</span>
                   <Calendar className="h-4 w-4 text-slate-500" />
                 </div>
@@ -439,8 +434,7 @@ export default function WalletPage() {
       )}
 
       {/* Deposit modal */}
-      {isDepositModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <Modal open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen} title="Deposit into wallet">
           <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-[#F5F5F5] px-5 py-4">
               <h3 className="text-[15px] font-bold text-[#111111]">Deposit into Wallet</h3>
@@ -485,12 +479,10 @@ export default function WalletPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </Modal>
 
       {/* BVN / dedicated account modal */}
-      {isBvnModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <Modal open={isBvnModalOpen} onOpenChange={setIsBvnModalOpen} title="Set up dedicated account">
           <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-[#F5F5F5] px-5 py-4">
               <h3 className="text-[15px] font-bold text-[#111111]">Set up dedicated account</h3>
@@ -558,8 +550,7 @@ export default function WalletPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

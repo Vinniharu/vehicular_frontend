@@ -31,29 +31,31 @@ export const STATUS_META = {
   expired: { label: "Licence expired", tone: "danger" },
 };
 
+// Sourced from the status-tone CSS vars wired in app/globals.css's
+// @theme inline block (in turn mirroring lib/design-tokens.ts
+// colors.status) rather than stock Tailwind palette colors — this is
+// also what fixes danger, previously stock red instead of the
+// deliberately desaturated "ink stamp" red used for rejections.
 export const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  // Retuned from stock Tailwind red to the design-tokens "ink stamp" red
-  // (lib/design-tokens.ts colors.status.danger) — reads as an official
-  // rejection stamp rather than a generic error color.
-  danger: "bg-[#FBF1EE] text-[#8A3320] ring-[#E8C4B8]",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
+  info: "bg-status-info-bg text-status-info-text ring-status-info-border",
+  warning: "bg-status-warning-bg text-status-warning-text ring-status-warning-border",
+  danger: "bg-status-danger-bg text-status-danger-text ring-status-danger-border",
+  success: "bg-status-success-bg text-status-success-text ring-status-success-border",
+  purple: "bg-status-purple-bg text-status-purple-text ring-status-purple-border",
+  indigo: "bg-status-indigo-bg text-status-indigo-text ring-status-indigo-border",
+  teal: "bg-status-teal-bg text-status-teal-text ring-status-teal-border",
+  neutral: "bg-status-neutral-bg text-status-neutral-text ring-status-neutral-border",
 };
 
 export const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-[#B3452F]",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  indigo: "bg-indigo-500",
-  teal: "bg-teal-500",
-  neutral: "bg-slate-400",
+  info: "bg-status-info-dot",
+  warning: "bg-status-warning-dot",
+  danger: "bg-status-danger-dot",
+  success: "bg-status-success-dot",
+  purple: "bg-status-purple-dot",
+  indigo: "bg-status-indigo-dot",
+  teal: "bg-status-teal-dot",
+  neutral: "bg-status-neutral-dot",
 };
 
 // Raw hex per tone, for SVG stroke / non-Tailwind consumers (progress rings).

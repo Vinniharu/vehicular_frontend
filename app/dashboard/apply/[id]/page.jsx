@@ -42,8 +42,10 @@ import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/d
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import { getNextStepCopy } from "@/app/dashboard/_shared/status-config";
+import { btnPrimary, btnSecondary, inputBase, label as fieldLabel } from "@/app/dashboard/_shared/ui";
+import { colors } from "@/lib/design-tokens";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 
 // Mirrors the backend's FEE_SCHEDULE (app/core/payment_helpers.py) — only
@@ -101,14 +103,6 @@ function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
     </div>
   );
 }
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
-const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-[#E5E5E5] bg-white px-5 py-3 text-[13.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98]";
-const inputBase =
-  "w-full rounded-xl border border-[#E5E5E5] bg-slate-50/60 px-3.5 py-2.5 text-[13.5px] text-[#111111] placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
-const fieldLabel = "block text-[12.5px] font-semibold text-slate-700 mb-1.5";
 
 function PaymentProgressBar({ paidKobo, totalKobo }) {
   const pct = totalKobo > 0 ? Math.min(100, Math.round((paidKobo / totalKobo) * 100)) : 0;
@@ -368,7 +362,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               Personal Details
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className={fieldLabel}>First name *</label>
                   <input name="first_name" value={form.first_name} onChange={handleChange} required className={inputBase} />
@@ -382,7 +376,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   <input name="last_name" value={form.last_name} onChange={handleChange} required className={inputBase} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Date of birth *</label>
                   <input type="date" name="date_of_birth" value={form.date_of_birth} onChange={handleChange} required className={inputBase} />
@@ -398,7 +392,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Nationality *</label>
                   <input name="nationality" value={form.nationality} onChange={handleChange} placeholder="Nigerian" required className={inputBase} />
@@ -422,7 +416,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                 <label className={fieldLabel}>Residential address</label>
                 <input name="residential_address" value={form.residential_address} onChange={handleChange} placeholder="123 Example St, Lagos" className={inputBase} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Mother's maiden name</label>
                   <input name="mothers_maiden_name" value={form.mothers_maiden_name} onChange={handleChange} placeholder="e.g. Adeyemi" className={inputBase} />
@@ -482,7 +476,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               State & LGA of Origin
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={fieldLabel}>State of origin</label>
                 <div className="relative">
@@ -512,7 +506,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               State & LGA of Residence
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={fieldLabel}>State *</label>
                 <div className="relative">
@@ -543,7 +537,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               Next of Kin
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Full name</label>
                   <input name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} placeholder="Jane Doe" className={inputBase} />
@@ -587,7 +581,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               {application.application_type === "international_permit" ? "Permit Details" : "Renewal Details"}
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>NIN</label>
                   <input name="nin" value={form.nin} onChange={handleChange} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono`} />
@@ -1302,7 +1296,7 @@ export default function CustomerApplicationDetailsPage() {
               className="h-20 w-20 rounded-lg border border-[#E5E5E5] object-cover"
             />
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.first_name || "—"}</span>

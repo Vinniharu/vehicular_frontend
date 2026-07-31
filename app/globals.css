@@ -12,6 +12,42 @@
   --color-paper: #f7f7f7;
   --color-paper-card: #ffffff;
   --color-paper-border: #e5e5e5;
+
+  /* Status-tone system — see lib/design-tokens.ts colors.status for the
+     canonical values (danger is a deliberately desaturated "ink stamp"
+     red, not stock Tailwind red). */
+  --color-status-info-dot: #0ea5e9;
+  --color-status-info-bg: #f0f9ff;
+  --color-status-info-text: #0369a1;
+  --color-status-info-border: #bae6fd;
+  --color-status-warning-dot: #f59e0b;
+  --color-status-warning-bg: #fffbeb;
+  --color-status-warning-text: #b45309;
+  --color-status-warning-border: #fde68a;
+  --color-status-danger-dot: #b3452f;
+  --color-status-danger-bg: #fbf1ee;
+  --color-status-danger-text: #8a3320;
+  --color-status-danger-border: #e8c4b8;
+  --color-status-success-dot: #10b981;
+  --color-status-success-bg: #ecfdf5;
+  --color-status-success-text: #047857;
+  --color-status-success-border: #a7f3d0;
+  --color-status-purple-dot: #8b5cf6;
+  --color-status-purple-bg: #f5f3ff;
+  --color-status-purple-text: #6d28d9;
+  --color-status-purple-border: #ddd6fe;
+  --color-status-teal-dot: #14b8a6;
+  --color-status-teal-bg: #f0fdfa;
+  --color-status-teal-text: #0f766e;
+  --color-status-teal-border: #99f6e4;
+  --color-status-indigo-dot: #6366f1;
+  --color-status-indigo-bg: #eef2ff;
+  --color-status-indigo-text: #4338ca;
+  --color-status-indigo-border: #c7d2fe;
+  --color-status-neutral-dot: #64748b;
+  --color-status-neutral-bg: #f1f5f9;
+  --color-status-neutral-text: #475569;
+  --color-status-neutral-border: #e2e8f0;
 }
 
 @theme inline {
@@ -24,6 +60,38 @@
   --color-paper: var(--color-paper);
   --color-paper-card: var(--color-paper-card);
   --color-paper-border: var(--color-paper-border);
+  --color-status-info-dot: var(--color-status-info-dot);
+  --color-status-info-bg: var(--color-status-info-bg);
+  --color-status-info-text: var(--color-status-info-text);
+  --color-status-info-border: var(--color-status-info-border);
+  --color-status-warning-dot: var(--color-status-warning-dot);
+  --color-status-warning-bg: var(--color-status-warning-bg);
+  --color-status-warning-text: var(--color-status-warning-text);
+  --color-status-warning-border: var(--color-status-warning-border);
+  --color-status-danger-dot: var(--color-status-danger-dot);
+  --color-status-danger-bg: var(--color-status-danger-bg);
+  --color-status-danger-text: var(--color-status-danger-text);
+  --color-status-danger-border: var(--color-status-danger-border);
+  --color-status-success-dot: var(--color-status-success-dot);
+  --color-status-success-bg: var(--color-status-success-bg);
+  --color-status-success-text: var(--color-status-success-text);
+  --color-status-success-border: var(--color-status-success-border);
+  --color-status-purple-dot: var(--color-status-purple-dot);
+  --color-status-purple-bg: var(--color-status-purple-bg);
+  --color-status-purple-text: var(--color-status-purple-text);
+  --color-status-purple-border: var(--color-status-purple-border);
+  --color-status-teal-dot: var(--color-status-teal-dot);
+  --color-status-teal-bg: var(--color-status-teal-bg);
+  --color-status-teal-text: var(--color-status-teal-text);
+  --color-status-teal-border: var(--color-status-teal-border);
+  --color-status-indigo-dot: var(--color-status-indigo-dot);
+  --color-status-indigo-bg: var(--color-status-indigo-bg);
+  --color-status-indigo-text: var(--color-status-indigo-text);
+  --color-status-indigo-border: var(--color-status-indigo-border);
+  --color-status-neutral-dot: var(--color-status-neutral-dot);
+  --color-status-neutral-bg: var(--color-status-neutral-bg);
+  --color-status-neutral-text: var(--color-status-neutral-text);
+  --color-status-neutral-border: var(--color-status-neutral-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display-serif);

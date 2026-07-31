@@ -45,24 +45,12 @@ import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import { statusMeta, getStatusDescription, TONE_HEX, getStageProgress } from "@/app/dashboard/_shared/status-config";
+import { btnPrimary, btnSecondary, btnGhost, inputBase, label } from "@/app/dashboard/_shared/ui";
+import Modal from "@/app/dashboard/_shared/Modal";
+import { colors } from "@/lib/design-tokens";
 
-/* ────────────────────────────────────────────────────────────
-   Design tokens — brand color is the only hardcoded value here.
-   Everything else (spacing, radius, type scale) is expressed
-   through consistent Tailwind classes below.
-   ──────────────────────────────────────────────────────────── */
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm shadow-emerald-900/10 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
-const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-slate-700 bg-white border border-[#E5E5E5] hover:border-slate-300 hover:bg-slate-50 transition-all active:scale-[0.98]";
-const btnGhost =
-  "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12.5px] font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors";
-const inputBase =
-  "w-full rounded-xl border border-[#E5E5E5] bg-slate-50/60 px-3.5 py-2.5 text-[13.5px] text-[#111111] placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
-const label = "block text-[12.5px] font-semibold text-slate-700 mb-1.5";
 
 /* ────────────────────────────────────────────────────────────
    Helpers
@@ -767,7 +755,7 @@ export default function ApplyPage() {
 
         {/* Summary strip — one card, hairline dividers, not three boxes */}
         {totalApps > 0 && (
-          <div className="grid grid-cols-3 divide-x divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white">
+          <div className="grid grid-cols-1 divide-y divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             <div className="px-5 py-4">
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total</span>
               <span className="mt-0.5 block text-[22px] font-bold text-[#111111]">{totalApps}</span>
@@ -922,9 +910,13 @@ export default function ApplyPage() {
         )}
 
         {/* Detail panel */}
-        {selectedAppDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <Modal
+          open={!!selectedAppDetail}
+          onOpenChange={(open) => { if (!open) setSelectedAppDetail(null); }}
+          title={selectedAppDetail ? `${selectedAppDetail.application_type} application` : "Application details"}
+        >
+          {selectedAppDetail && (
+            <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
               <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
                 <div>
                   <h3 className="text-[15px] font-bold capitalize text-[#111111]">
@@ -1221,8 +1213,8 @@ export default function ApplyPage() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </Modal>
       </div>
     );
   }

@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
+import { colors } from "@/lib/design-tokens";
+import MobileDrawer from "@/app/dashboard/_shared/MobileDrawer";
 
-const BRAND = "#28A745";
+const BRAND = colors.primary.DEFAULT;
 
 const NAV_ITEMS = [
   {
@@ -127,7 +129,7 @@ export default function DashboardLayout({ children }) {
       {/* ══════════════════════════════════════
           SIDEBAR — Desktop
       ══════════════════════════════════════ */}
-      <aside className="hidden lg:flex flex-col w-[248px] shrink-0 bg-[#111111] fixed h-full text-white z-30">
+      <aside className="hidden md:flex flex-col w-[248px] shrink-0 bg-[#111111] fixed h-full text-white z-30">
 
         {/* Logo */}
         <div className="px-6 pt-7 pb-5 border-b border-white/[0.06]">
@@ -228,7 +230,7 @@ export default function DashboardLayout({ children }) {
       {/* ══════════════════════════════════════
           MOBILE HEADER
       ══════════════════════════════════════ */}
-      <header className="lg:hidden flex items-center justify-between px-4 py-3.5 bg-[#111111] text-white fixed top-0 inset-x-0 z-40 border-b border-white/[0.06]">
+      <header className="md:hidden flex items-center justify-between px-4 py-3.5 bg-[#111111] text-white fixed top-0 inset-x-0 z-40 border-b border-white/[0.06]">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: BRAND }}>
             <span className="text-[12px] font-black text-white">V</span>
@@ -255,74 +257,75 @@ export default function DashboardLayout({ children }) {
       {/* ══════════════════════════════════════
           MOBILE DRAWER
       ══════════════════════════════════════ */}
-      {mobileMenuOpen && (
-        <div
-          className="lg:hidden fixed inset-0 top-[57px] z-40 bg-[#111111] text-white flex flex-col overflow-y-auto"
-          onClick={() => setMobileMenuOpen(false)}
-        >
-          {/* User card */}
-          <div className="flex items-center gap-3.5 mx-4 mt-4 mb-3 rounded-2xl bg-white/[0.06] border border-white/[0.08] p-4">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
-            >
-              {initials}
-            </div>
-            <div>
-              <p className="text-[14px] font-bold text-white">{user?.name}</p>
-              <p className="text-[12px] text-white/50">{user?.email}</p>
-            </div>
+      <MobileDrawer
+        open={mobileMenuOpen}
+        onOpenChange={setMobileMenuOpen}
+        title="Navigation menu"
+        side="left"
+        panelClassName="inset-x-0 top-[57px] bottom-0 md:hidden bg-[#111111] text-white flex flex-col overflow-y-auto"
+      >
+        {/* User card */}
+        <div className="flex items-center gap-3.5 mx-4 mt-4 mb-3 rounded-2xl bg-white/[0.06] border border-white/[0.08] p-4">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-white"
+            style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
+          >
+            {initials}
           </div>
-
-          <nav className="flex-1 px-4 space-y-1" onClick={(e) => e.stopPropagation()}>
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(pathname, item);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all"
-                  style={{
-                    background: active ? "rgba(40, 167, 69,0.15)" : "transparent",
-                  }}
-                >
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: active ? BRAND : "rgba(255,255,255,0.07)", color: active ? "#fff" : "rgba(255,255,255,0.4)" }}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-semibold" style={{ color: active ? "#fff" : "rgba(255,255,255,0.6)" }}>{item.label}</p>
-                    <p className="text-[11.5px]" style={{ color: "rgba(255,255,255,0.3)" }}>{item.desc}</p>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="px-4 pb-6 pt-3 space-y-1 border-t border-white/[0.06] mt-3">
-            <Link href="/dashboard/settings" onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[14px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all">
-              <Settings className="h-5 w-5" /> Settings
-            </Link>
-            <button type="button" onClick={handleLogout}
-              className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[14px] font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all">
-              <LogOut className="h-5 w-5" /> Sign out
-            </button>
+          <div>
+            <p className="text-[14px] font-bold text-white">{user?.name}</p>
+            <p className="text-[12px] text-white/50">{user?.email}</p>
           </div>
         </div>
-      )}
+
+        <nav className="flex-1 px-4 space-y-1">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(pathname, item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all"
+                style={{
+                  background: active ? "rgba(40, 167, 69,0.15)" : "transparent",
+                }}
+              >
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: active ? BRAND : "rgba(255,255,255,0.07)", color: active ? "#fff" : "rgba(255,255,255,0.4)" }}
+                >
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[14px] font-semibold" style={{ color: active ? "#fff" : "rgba(255,255,255,0.6)" }}>{item.label}</p>
+                  <p className="text-[11.5px]" style={{ color: "rgba(255,255,255,0.3)" }}>{item.desc}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="px-4 pb-6 pt-3 space-y-1 border-t border-white/[0.06] mt-3">
+          <Link href="/dashboard/settings" onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[14px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all">
+            <Settings className="h-5 w-5" /> Settings
+          </Link>
+          <button type="button" onClick={handleLogout}
+            className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[14px] font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all">
+            <LogOut className="h-5 w-5" /> Sign out
+          </button>
+        </div>
+      </MobileDrawer>
 
       {/* ══════════════════════════════════════
           MAIN CONTENT
       ══════════════════════════════════════ */}
-      <div className="flex-1 lg:pl-[248px] flex flex-col min-h-screen">
+      <div className="min-w-0 flex-1 md:pl-[248px] flex flex-col min-h-screen">
 
         {/* Desktop top bar */}
-        <div className="hidden lg:flex items-center justify-between px-8 py-3.5 bg-white/80 backdrop-blur-sm border-b border-[#E5E5E5] sticky top-0 z-20">
+        <div className="hidden md:flex items-center justify-between px-8 py-3.5 bg-white/80 backdrop-blur-sm border-b border-[#E5E5E5] sticky top-0 z-20">
           <div className="flex items-center gap-2 text-[13px] text-[#7A7A7A]">
             <Link href="/" className="hover:text-[#28A745] transition-colors font-medium">Vehiculars</Link>
             <ChevronRight className="h-3.5 w-3.5 text-[#D4D4D4]" />
@@ -349,7 +352,7 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Page content */}
-        <div className="flex-1 pt-[57px] lg:pt-0 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 max-w-[1100px] w-full mx-auto">
+        <div className="flex-1 pt-[57px] md:pt-0 px-4 py-6 sm:px-6 sm:py-8 md:px-8 max-w-[1100px] w-full mx-auto">
           {children}
         </div>
       </div>
