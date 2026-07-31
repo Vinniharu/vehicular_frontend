@@ -1078,7 +1078,7 @@ export default function CustomerApplicationDetailsPage() {
                 {application.capture_centre_name || application.assigned_agent?.vio_office || `${application.lga || "Designated"} FRSC/VIO Capture Centre`}
               </span>
             </div>
-            {application.assigned_agent && (
+            {application.assigned_agent?.name && (
               <div className="flex items-start justify-between gap-4">
                 <span className="shrink-0 text-slate-500">Field agent</span>
                 <span className="text-right font-semibold text-indigo-950">

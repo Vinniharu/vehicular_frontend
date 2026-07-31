@@ -1106,7 +1106,7 @@ export default function ApplyPage() {
                           {selectedAppDetail.capture_centre_name || selectedAppDetail.assigned_agent?.vio_office || `${selectedAppDetail.lga || "Designated"} FRSC/VIO Capture Center`}
                         </span>
                       </div>
-                      {selectedAppDetail.assigned_agent && (
+                      {selectedAppDetail.assigned_agent?.name && (
                         <div className="flex items-start justify-between gap-4">
                           <span className="text-slate-500 shrink-0">Field Agent:</span>
                           <span className="font-semibold text-indigo-950 text-right">
