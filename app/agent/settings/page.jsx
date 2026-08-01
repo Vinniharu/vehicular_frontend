@@ -80,8 +80,7 @@ export default function AgentSettingsPage() {
 
         // The agent record only exposes state/lga as name strings here — match
         // them against the reference list to find the ids needed to prefill
-        // the edit selects (same name->id matching pattern already used in
-        // app/dashboard/settings/page.jsx for biodata's state of origin).
+        // the edit selects.
         if (walletRes.data.state && statesRes.data) {
           const matchedState = statesRes.data.find((s) => s.name === walletRes.data.state);
           if (matchedState) {

@@ -341,34 +341,28 @@ export default function ApplyPage() {
 
         if (meRes.data) {
           setUser(meRes.data);
-          const bd = meRes.data.biodata || {};
-          // Most recent past application is a strictly richer prefill source
-          // than biodata alone (has city, height, disability/facial-mark,
-          // passport photo, and real origin-state/LGA ids) — it wins field by
-          // field when it has a value, biodata fills in the rest. NIN is the
-          // one exception: the applications list endpoint redacts it (NDPA),
-          // so it can only ever come from biodata.
+          // Most recent past application is the prefill source (has city,
+          // height, disability/facial-mark, passport photo, and real
+          // origin-state/LGA ids) — falls through to a hardcoded default
+          // when there's no prior application. NIN never prefills: the
+          // applications list endpoint redacts it (NDPA), so it starts blank.
           const latestApp = (appsRes.data && appsRes.data[0]) || {};
-          const pick = (appVal, bdVal, fallback = "") =>
-            appVal !== undefined && appVal !== null && appVal !== ""
-              ? appVal
-              : bdVal !== undefined && bdVal !== null && bdVal !== ""
-              ? bdVal
-              : fallback;
+          const pick = (appVal, fallback = "") =>
+            appVal !== undefined && appVal !== null && appVal !== "" ? appVal : fallback;
 
-          setFirstName(pick(latestApp.first_name, bd.first_name, (meRes.data.name || "").split(" ")[0] || ""));
-          setMiddleName(pick(latestApp.middle_name, bd.middle_name, ""));
-          setLastName(pick(latestApp.last_name, bd.surname, (meRes.data.name || "").split(" ").slice(1).join(" ") || ""));
-          setDob(pick(latestApp.date_of_birth, bd.date_of_birth, ""));
-          setGender(pick(latestApp.gender, bd.gender, ""));
-          setNationality(pick(latestApp.nationality, bd.nationality, "Nigerian"));
-          setMaritalStatus(pick(latestApp.marital_status, bd.marital_status, ""));
-          setMothersMaidenName(pick(latestApp.mothers_maiden_name, bd.mothers_maiden_name, ""));
-          setResidentialAddress(pick(latestApp.residential_address, bd.residential_address, ""));
+          setFirstName(pick(latestApp.first_name, (meRes.data.name || "").split(" ")[0] || ""));
+          setMiddleName(pick(latestApp.middle_name, ""));
+          setLastName(pick(latestApp.last_name, (meRes.data.name || "").split(" ").slice(1).join(" ") || ""));
+          setDob(pick(latestApp.date_of_birth, ""));
+          setGender(pick(latestApp.gender, ""));
+          setNationality(pick(latestApp.nationality, "Nigerian"));
+          setMaritalStatus(pick(latestApp.marital_status, ""));
+          setMothersMaidenName(pick(latestApp.mothers_maiden_name, ""));
+          setResidentialAddress(pick(latestApp.residential_address, ""));
           setCity(latestApp.city || "");
           setCountry(latestApp.country || "Nigeria");
-          setNin(bd.nin || "");
-          setBloodGroup(pick(latestApp.blood_group, bd.blood_group, ""));
+          setNin("");
+          setBloodGroup(pick(latestApp.blood_group, ""));
           setHeightCm(latestApp.height_cm != null ? String(latestApp.height_cm) : "");
           if (latestApp.has_facial_mark) {
             setHasFacialMark(true);
@@ -379,9 +373,9 @@ export default function ApplyPage() {
             setDisabilityDesc(latestApp.disability_description || "");
           }
           setPassportPhoto(latestApp.passport_photo || "");
-          setNokName(pick(latestApp.next_of_kin_name, bd.next_of_kin_name, ""));
-          setNokRelationship(pick(latestApp.next_of_kin_relationship, bd.next_of_kin_relationship, ""));
-          setNokPhone(pick(latestApp.next_of_kin_phone, bd.next_of_kin_phone, "+234"));
+          setNokName(pick(latestApp.next_of_kin_name, ""));
+          setNokRelationship(pick(latestApp.next_of_kin_relationship, ""));
+          setNokPhone(pick(latestApp.next_of_kin_phone, "+234"));
           if (meRes.data.state_id) setSelectedState(String(meRes.data.state_id));
           if (latestApp.origin_state_id) setSelectedOriginState(String(latestApp.origin_state_id));
         }

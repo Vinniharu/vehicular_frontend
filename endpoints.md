@@ -58,7 +58,6 @@ names). Every endpoint below was checked directly against the router source
 |---|---|---|---|---|
 | `GET` | `/customers/me` | `customer` | — | `UserResponse` |
 | `PATCH` | `/customers/me` | `customer` | `{"state_id","lga_id"}` | `UserResponse` |
-| `PUT` | `/customers/me/biodata` | `customer` | `BiodataUpdate` (partial, `exclude_unset`) | `BiodataResponse` |
 
 ## 5. Admin (`app/routers/admin.py`)
 
