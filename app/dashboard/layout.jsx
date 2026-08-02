@@ -20,6 +20,7 @@ import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
 import { colors } from "@/lib/design-tokens";
 import MobileDrawer from "@/app/dashboard/_shared/MobileDrawer";
+import ChatWidget from "@/app/dashboard/_shared/ChatWidget";
 
 const BRAND = colors.primary.DEFAULT;
 
@@ -356,6 +357,8 @@ export default function DashboardLayout({ children }) {
           {children}
         </div>
       </div>
+
+      <ChatWidget />
     </div>
   );
 }
