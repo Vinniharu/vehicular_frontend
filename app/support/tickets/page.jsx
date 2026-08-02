@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   MessageCircle,
   AlertCircle,
@@ -117,7 +118,9 @@ export default function SupportTicketsPage() {
                 <div key={ticket.id} className="p-5 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[13.5px] font-bold text-slate-900">{ticket.subject}</p>
+                      <Link href={`/support/tickets/${ticket.id}`} className="text-[13.5px] font-bold text-slate-900 hover:underline">
+                        {ticket.subject}
+                      </Link>
                       <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-slate-400">
                         <Clock className="h-3 w-3" />
                         {ticket.created_at ? new Date(ticket.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }) : "—"}
