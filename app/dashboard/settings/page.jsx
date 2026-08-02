@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import {
   User, Mail, Phone, CheckCircle2,
-  AlertCircle, Pencil, X, Save, ChevronDown, Loader2, KeyRound, Eye, EyeOff
+  AlertCircle, Pencil, X, Save, ChevronDown, Loader2, KeyRound, Eye, EyeOff,
+  MessageCircle, Send,
 } from "lucide-react";
 import {
   authGetMe, authUpdateProfile, authChangePassword, getReferenceStates,
-  getReferenceLgas, getCachedUser
+  getReferenceLgas, getCachedUser, createCustomerSupportTicket,
 } from "@/lib/api";
 import { colors } from "@/lib/design-tokens";
 
@@ -48,6 +49,12 @@ export default function SettingsPage() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
+
+  // Contact Support section
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketMessage, setTicketMessage] = useState("");
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [ticketError, setTicketError] = useState(null);
 
   const [toast, setToast] = useState(null);
 
@@ -160,6 +167,28 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmNewPassword("");
       showToast("success", "Your password has been changed successfully.");
+    }
+  };
+
+  const handleSubmitTicket = async (e) => {
+    e.preventDefault();
+    setTicketError(null);
+    if (!ticketSubject.trim() || !ticketMessage.trim()) {
+      setTicketError("Please fill in both a subject and a message.");
+      return;
+    }
+    setSubmittingTicket(true);
+    const res = await createCustomerSupportTicket({
+      subject: ticketSubject.trim(),
+      initial_message: ticketMessage.trim(),
+    });
+    setSubmittingTicket(false);
+    if (res.error) {
+      setTicketError(res.error);
+    } else {
+      setTicketSubject("");
+      setTicketMessage("");
+      showToast("success", "Your message has been sent to our support team.");
     }
   };
 
@@ -302,6 +331,49 @@ export default function SettingsPage() {
             </form>
           )}
         </div>
+      </div>
+
+      {/* Contact Support */}
+      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
+        <div className="px-6 sm:px-8 py-5 border-b border-slate-100">
+          <h2 className="font-display text-base font-semibold text-[#111111] flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" style={{ color: BRAND }} /> Contact Support
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">Send a message to our customer support team.</p>
+        </div>
+        <form onSubmit={handleSubmitTicket} className="px-6 sm:px-8 py-6 space-y-5 max-w-lg">
+          {ticketError && (
+            <div className="flex items-start gap-2.5 rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-inset ring-red-200">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{ticketError}</span>
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Subject</label>
+            <input
+              type="text"
+              value={ticketSubject}
+              onChange={(e) => setTicketSubject(e.target.value)}
+              placeholder="What's this about?"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Message</label>
+            <textarea
+              value={ticketMessage}
+              onChange={(e) => setTicketMessage(e.target.value)}
+              placeholder="Describe your issue or question..."
+              rows={4}
+              className={`${inputCls} resize-none`}
+            />
+          </div>
+          <div className="pt-2">
+            <button type="submit" disabled={submittingTicket} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
+              <Send className="h-4 w-4" /> {submittingTicket ? "Sending..." : "Send Message"}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Password */}
