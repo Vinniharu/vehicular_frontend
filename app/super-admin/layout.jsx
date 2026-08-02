@@ -14,6 +14,7 @@ import {
   UserCog,
   Briefcase,
   Shield,
+  LifeBuoy,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -32,6 +33,7 @@ const SUPER_ADMIN_NAV = [
       { label: "Staff", href: "/super-admin/staff", icon: UserCog, desc: "Verification staff accounts" },
       { label: "Agents", href: "/super-admin/agents", icon: Briefcase, desc: "VIO field agent accounts" },
       { label: "Admins", href: "/super-admin/admins", icon: Shield, desc: "Admin accounts" },
+      { label: "Support", href: "/super-admin/support", icon: LifeBuoy, desc: "Customer support (CS) accounts" },
     ],
   },
 ];
