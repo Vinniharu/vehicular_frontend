@@ -10,6 +10,13 @@ import { authGetMe, authUpdateProfile, authChangePassword, getCachedUser, getAdm
 const BRAND = "#28A745";
 const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
 
+const APPLICATION_TYPE_OPTIONS = [
+  { value: "fresh", label: "Fresh" },
+  { value: "renewal", label: "Renewal" },
+  { value: "reissue", label: "Reissue" },
+  { value: "international_permit", label: "International Permit" },
+];
+
 export default function AdminSettingsPage() {
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
@@ -30,6 +37,12 @@ export default function AdminSettingsPage() {
   const [editingSettings, setEditingSettings] = useState(false);
   const [updatingSettings, setUpdatingSettings] = useState(false);
   const [globalCommissionKobo, setGlobalCommissionKobo] = useState("");
+  // Keyed by application_type value -> naira string (mirrors globalCommissionKobo's
+  // shape). Always holds all 4 keys (possibly "") so a save always sends the
+  // complete dict, matching the backend's wholesale-replace PATCH semantics.
+  const [byTypeCommission, setByTypeCommission] = useState(() =>
+    Object.fromEntries(APPLICATION_TYPE_OPTIONS.map((o) => [o.value, ""]))
+  );
 
   const [toast, setToast] = useState(null);
 
@@ -49,10 +62,22 @@ export default function AdminSettingsPage() {
         } else {
           setGlobalCommissionKobo("");
         }
+        seedByTypeCommission(res.data.default_commission_by_type);
       }
       setLoading(false);
     });
   }, []);
+
+  const seedByTypeCommission = (byType) => {
+    setByTypeCommission(
+      Object.fromEntries(
+        APPLICATION_TYPE_OPTIONS.map((o) => {
+          const kobo = byType?.[o.value];
+          return [o.value, kobo !== null && kobo !== undefined ? (kobo / 100).toString() : ""];
+        })
+      )
+    );
+  };
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -121,12 +146,21 @@ export default function AdminSettingsPage() {
     if (globalCommissionKobo !== "") {
       val = Math.round(parseFloat(globalCommissionKobo) * 100);
     }
-    const res = await updateAdminSettings({ default_agent_commission_kobo: val });
+    const default_commission_by_type = Object.fromEntries(
+      Object.entries(byTypeCommission)
+        .filter(([, v]) => v !== "")
+        .map(([type, v]) => [type, Math.round(parseFloat(v) * 100)])
+    );
+    const res = await updateAdminSettings({
+      default_agent_commission_kobo: val,
+      default_commission_by_type,
+    });
     setUpdatingSettings(false);
     if (res.error) {
       showToast("error", "Could not save system settings.");
     } else if (res.data) {
       setSystemSettings(res.data);
+      seedByTypeCommission(res.data.default_commission_by_type);
       setEditingSettings(false);
       showToast("success", "System settings updated successfully.");
     }
@@ -138,6 +172,7 @@ export default function AdminSettingsPage() {
     } else {
       setGlobalCommissionKobo("");
     }
+    seedByTypeCommission(systemSettings?.default_commission_by_type);
     setEditingSettings(false);
   };
 
@@ -299,9 +334,32 @@ export default function AdminSettingsPage() {
             </div>
           )}
         </div>
-        <div className="px-6 sm:px-8 py-6 max-w-lg">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Global Agent Commission (₦)</label>
+        <div className="px-6 sm:px-8 py-6 max-w-lg space-y-6">
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-slate-700">Global Commission by Application Type (₦)</p>
+            {APPLICATION_TYPE_OPTIONS.map((opt) => (
+              <div key={opt.value}>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{opt.label}</label>
+                {editingSettings ? (
+                  <input
+                    type="number"
+                    value={byTypeCommission[opt.value]}
+                    onChange={(e) => setByTypeCommission((prev) => ({ ...prev, [opt.value]: e.target.value }))}
+                    className={inputCls}
+                    placeholder="Leave empty to use the fallback below"
+                  />
+                ) : (
+                  <p className="text-[15px] font-medium text-slate-800">
+                    {systemSettings?.default_commission_by_type?.[opt.value] !== null && systemSettings?.default_commission_by_type?.[opt.value] !== undefined
+                      ? `₦${(systemSettings.default_commission_by_type[opt.value] / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : "Uses fallback"}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="pt-4 border-t border-dashed border-slate-200">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Fallback Commission (₦)</label>
             {editingSettings ? (
               <input
                 type="number"
@@ -317,7 +375,7 @@ export default function AdminSettingsPage() {
                   : "Default"}
               </p>
             )}
-            <p className="text-xs text-slate-500 mt-1.5">This overrides the default dynamic commission calculation for all agents unless a specific agent has a custom commission.</p>
+            <p className="text-xs text-slate-500 mt-1.5">Used for any application type not set above, unless a specific agent has their own commission override.</p>
           </div>
         </div>
       </div>
