@@ -2,47 +2,23 @@
 
 import { useState, useEffect } from "react";
 import {
-  User, Mail, Phone, CheckCircle2,
-  AlertCircle, Pencil, X, Save, ChevronDown, Loader2, KeyRound, Eye, EyeOff,
-  MessageCircle, Send,
+  User, Mail, Phone, CheckCircle2, AlertCircle, Pencil, X, Save,
+  KeyRound, Eye, EyeOff, Loader2,
 } from "lucide-react";
-import {
-  authGetMe, authUpdateProfile, authChangePassword, getReferenceStates,
-  getReferenceLgas, getCachedUser, createCustomerSupportTicket,
-} from "@/lib/api";
-import { colors } from "@/lib/design-tokens";
+import { authGetMe, authUpdateProfile, authChangePassword, getCachedUser } from "@/lib/api";
 
-const BRAND = colors.primary.DEFAULT;
-
+const BRAND = "#28A745";
 const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
-const selectCls = `${inputCls} appearance-none`;
 
-// Normalise a phone field to always start with +234
-function normalisePhone(val) {
-  if (!val) return "+234";
-  const stripped = val.replace(/^\+?234/, "").replace(/^0/, "");
-  return "+234" + stripped;
-}
-
-export default function SettingsPage() {
+export default function SupportSettingsPage() {
   const [user, setUser] = useState(() => getCachedUser());
-  const [states, setStates] = useState([]);
-
-  // Location section
-  const [lgas, setLgas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingBasic, setEditingBasic] = useState(false);
-  const [updatingBasic, setUpdatingBasic] = useState(false);
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedLga, setSelectedLga] = useState("");
 
-  // Basic info (name/phone) section
   const [editingProfile, setEditingProfile] = useState(false);
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
 
-  // Password section
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -50,69 +26,22 @@ export default function SettingsPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
 
-  // Contact Support section
-  const [ticketSubject, setTicketSubject] = useState("");
-  const [ticketMessage, setTicketMessage] = useState("");
-  const [submittingTicket, setSubmittingTicket] = useState(false);
-  const [ticketError, setTicketError] = useState(null);
-
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      const [meRes, statesRes] = await Promise.all([authGetMe(), getReferenceStates()]);
-      if (meRes.data) {
-        setUser(meRes.data);
-        setProfileName(meRes.data.name || "");
-        setProfilePhone(meRes.data.phone || "");
-        setSelectedState(meRes.data.state_id ? String(meRes.data.state_id) : "");
-        setSelectedLga(meRes.data.lga_id ? String(meRes.data.lga_id) : "");
-      }
-      if (statesRes.data && Array.isArray(statesRes.data)) {
-        setStates(statesRes.data);
+    authGetMe().then((res) => {
+      if (res.data) {
+        setUser(res.data);
+        setProfileName(res.data.name || "");
+        setProfilePhone(res.data.phone || "");
       }
       setLoading(false);
-    }
-    loadData();
+    });
   }, []);
-
-  // Load LGAs for the Location section
-  useEffect(() => {
-    async function loadLgas() {
-      if (!selectedState) { setLgas([]); return; }
-      const res = await getReferenceLgas(selectedState);
-      setLgas(res.data && Array.isArray(res.data) ? res.data : []);
-    }
-    loadLgas();
-  }, [selectedState]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4500);
-  };
-
-  const handleSaveBasic = async (e) => {
-    e.preventDefault();
-    setUpdatingBasic(true);
-    const res = await authUpdateProfile({
-      state_id: selectedState ? parseInt(selectedState, 10) : null,
-      lga_id: selectedLga ? parseInt(selectedLga, 10) : null,
-    });
-    setUpdatingBasic(false);
-    if (res.error) {
-      showToast("error", "Could not save your changes. Please try again.");
-    } else if (res.data) {
-      setUser(res.data);
-      setEditingBasic(false);
-      showToast("success", "Your profile has been updated successfully.");
-    }
-  };
-
-  const handleCancelBasic = () => {
-    setSelectedState(user?.state_id ? String(user.state_id) : "");
-    setSelectedLga(user?.lga_id ? String(user.lga_id) : "");
-    setEditingBasic(false);
   };
 
   const handleSaveProfile = async (e) => {
@@ -170,28 +99,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSubmitTicket = async (e) => {
-    e.preventDefault();
-    setTicketError(null);
-    if (!ticketSubject.trim() || !ticketMessage.trim()) {
-      setTicketError("Please fill in both a subject and a message.");
-      return;
-    }
-    setSubmittingTicket(true);
-    const res = await createCustomerSupportTicket({
-      subject: ticketSubject.trim(),
-      initial_message: ticketMessage.trim(),
-    });
-    setSubmittingTicket(false);
-    if (res.error) {
-      setTicketError(res.error);
-    } else {
-      setTicketSubject("");
-      setTicketMessage("");
-      showToast("success", "Your message has been sent to our support team.");
-    }
-  };
-
   if (loading && !user) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center gap-3">
@@ -201,11 +108,8 @@ export default function SettingsPage() {
     );
   }
 
-  const resolvedState = states.find((s) => s.id === user?.state_id);
-
   return (
     <div className="space-y-6 pb-12 max-w-4xl">
-      {/* Toast */}
       {toast && (
         <div className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"}`}>
           <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
@@ -221,15 +125,14 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Header */}
       <div>
         <h1
           className="text-[28px] tracking-tight text-[#111111]"
           style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
         >
-          Settings &amp; profile
+          Settings
         </h1>
-        <p className="text-sm text-[#7A7A7A] mt-1">Manage your account details.</p>
+        <p className="text-sm text-[#7A7A7A] mt-1">Manage your support account details.</p>
       </div>
 
       {/* Basic Info */}
@@ -273,107 +176,6 @@ export default function SettingsPage() {
             </div>
           </form>
         )}
-      </div>
-
-      {/* Location & Residence */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold text-[#111111]">Location & Residence</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Your state and LGA is used to determine relevant VIO offices and services.</p>
-          </div>
-          {!editingBasic && (
-            <button type="button" onClick={() => setEditingBasic(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-          )}
-        </div>
-        <div className="px-6 sm:px-8 py-6">
-          {!editingBasic ? (
-            <dl className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                <dt className="text-sm text-slate-500 w-36 shrink-0">State</dt>
-                <dd className="text-sm font-medium text-[#111111]">{resolvedState ? resolvedState.name : <span className="text-slate-400 italic">Not set</span>}</dd>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                <dt className="text-sm text-slate-500 w-36 shrink-0">Local Govt. Area</dt>
-                <dd className="text-sm font-medium text-[#111111]">{user?.lga_id ? (lgas.find(l => l.id === user.lga_id)?.name || "—") : <span className="text-slate-400 italic">Not set</span>}</dd>
-              </div>
-            </dl>
-          ) : (
-            <form onSubmit={handleSaveBasic} className="space-y-5 max-w-lg">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">State of Residence</label>
-                <div className="relative">
-                  <select value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }} className={selectCls}>
-                    <option value="" disabled>Choose your state...</option>
-                    {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Local Government Area</label>
-                <div className="relative">
-                  <select value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} disabled={!selectedState || lgas.length === 0} className={selectCls}>
-                    <option value="" disabled>{!selectedState ? "Select a state first" : "Choose your LGA..."}</option>
-                    {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                </div>
-              </div>
-              <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={updatingBasic} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
-                  <Save className="h-4 w-4" /> {updatingBasic ? "Saving..." : "Save Changes"}
-                </button>
-                <button type="button" onClick={handleCancelBasic} className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]">Cancel</button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-
-      {/* Contact Support */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100">
-          <h2 className="font-display text-base font-semibold text-[#111111] flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" style={{ color: BRAND }} /> Contact Support
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">Send a message to our customer support team.</p>
-        </div>
-        <form onSubmit={handleSubmitTicket} className="px-6 sm:px-8 py-6 space-y-5 max-w-lg">
-          {ticketError && (
-            <div className="flex items-start gap-2.5 rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-inset ring-red-200">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{ticketError}</span>
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Subject</label>
-            <input
-              type="text"
-              value={ticketSubject}
-              onChange={(e) => setTicketSubject(e.target.value)}
-              placeholder="What's this about?"
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Message</label>
-            <textarea
-              value={ticketMessage}
-              onChange={(e) => setTicketMessage(e.target.value)}
-              placeholder="Describe your issue or question..."
-              rows={4}
-              className={`${inputCls} resize-none`}
-            />
-          </div>
-          <div className="pt-2">
-            <button type="submit" disabled={submittingTicket} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
-              <Send className="h-4 w-4" /> {submittingTicket ? "Sending..." : "Send Message"}
-            </button>
-          </div>
-        </form>
       </div>
 
       {/* Password */}
@@ -448,4 +250,3 @@ function InfoRow({ icon: Icon, label, value, monospace, empty = "Not provided" }
     </div>
   );
 }
-
