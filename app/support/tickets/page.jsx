@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   MessageCircle,
@@ -28,6 +29,7 @@ function StatusBadge({ status }) {
 }
 
 export default function SupportTicketsPage() {
+  const router = useRouter();
   const user = getCachedUser();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,10 +117,14 @@ export default function SupportTicketsPage() {
               const isMine = ticket.claimed_by_id === user?.id;
               const isUnclaimed = !ticket.claimed_by_id;
               return (
-                <div key={ticket.id} className="p-5 space-y-3">
+                <div
+                  key={ticket.id}
+                  onClick={() => router.push(`/support/tickets/${ticket.id}`)}
+                  className="p-5 space-y-3 cursor-pointer hover:bg-slate-50/80 transition-colors"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <Link href={`/support/tickets/${ticket.id}`} className="text-[13.5px] font-bold text-slate-900 hover:underline">
+                      <Link href={`/support/tickets/${ticket.id}`} onClick={(e) => e.stopPropagation()} className="text-[13.5px] font-bold text-slate-900 hover:underline">
                         {ticket.subject}
                       </Link>
                       <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-slate-400">
@@ -138,7 +144,7 @@ export default function SupportTicketsPage() {
                       {isUnclaimed && (
                         <button
                           type="button"
-                          onClick={() => handleClaim(ticket)}
+                          onClick={(e) => { e.stopPropagation(); handleClaim(ticket); }}
                           disabled={actingOn === ticket.id}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-[#28A745] px-3 py-1.5 text-[11.5px] font-semibold text-white hover:bg-[#1F8838] transition-colors disabled:opacity-60"
                         >
@@ -149,7 +155,7 @@ export default function SupportTicketsPage() {
                       {isMine && ticket.status === "open" && (
                         <button
                           type="button"
-                          onClick={() => handleClose(ticket)}
+                          onClick={(e) => { e.stopPropagation(); handleClose(ticket); }}
                           disabled={actingOn === ticket.id}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11.5px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-60"
                         >
