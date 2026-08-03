@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   FileText,
   MapPinOff,
+  MapPin,
   MessageCircle,
   Settings,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const SUPPORT_NAV = [
     items: [
       { label: "All applications", href: "/support/applications", icon: FileText },
       { label: "Unassigned", href: "/support/unassigned", icon: MapPinOff },
+      { label: "LGA coverage", href: "/support/lga-coverage", icon: MapPin },
     ],
   },
   {

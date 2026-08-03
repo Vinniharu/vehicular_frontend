@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -41,9 +41,12 @@ import {
   uploadTemporaryLicence,
   flagDocumentIssue,
   resolveMediaUrl,
+  getAgentSupportChat,
+  sendAgentSupportChatMessage,
 } from "@/lib/api";
 import { statusMeta, StatusBadge } from "../../_status";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
+import AgentChatPanel from "@/app/components/design/AgentChatPanel";
 
 const BRAND = "#28A745";
 
@@ -248,6 +251,9 @@ export default function AgentApplicationDetailPage() {
     loadDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId]);
+
+  const loadChatThread = useCallback(() => getAgentSupportChat(appId), [appId]);
+  const sendChatMessage = useCallback((body) => sendAgentSupportChatMessage(appId, { body }), [appId]);
 
   const openModal = (type) => {
     setActionError(null);
@@ -649,7 +655,13 @@ export default function AgentApplicationDetailPage() {
         )}
       </Section>
 
-
+      {/* Support chat — no attachments, contact-info blocked both ways */}
+      <AgentChatPanel
+        myRole="agent"
+        headerLabel="Chat with Support"
+        loadThread={loadChatThread}
+        sendMessage={sendChatMessage}
+      />
 
       {/* Action modal */}
       {modalType && (
