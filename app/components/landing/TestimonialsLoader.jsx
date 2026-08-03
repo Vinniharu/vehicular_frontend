@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { TestimonialsCarousel } from "./TestimonialsCarousel";
+import { GREEN, PAPER, INK } from "./theme";
 
 const SAMPLE_TESTIMONIALS = [
   {
@@ -77,16 +79,22 @@ export function TestimonialsLoader({
   }, [serviceId]);
 
   return (
-    <section className="vh-card vh-card-light px-4 sm:px-6 md:px-10 py-[40px] sm:py-[56px] lg:py-[64px]">
+    <section className="relative px-4 sm:px-6 md:px-10 py-[64px] sm:py-[80px] lg:py-[96px]" style={{ background: PAPER }}>
       <div className="mx-auto max-w-6xl">
-        <div className="max-w-2xl mb-10">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-[#28A745]">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.5 }}
+          className="max-w-2xl mb-10"
+        >
+          <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: GREEN }}>
             {eyebrow}
           </p>
-          <h2 className="mt-3 font-display font-medium tracking-[-0.02em] leading-[1.05] text-[clamp(1.75rem,2.4vw+1rem,2.5rem)] text-[#111111]">
+          <h2 className="mt-3 font-display font-medium tracking-[-0.02em] leading-[1.05] text-[clamp(1.75rem,2.4vw+1rem,2.5rem)]" style={{ color: INK }}>
             {heading}
           </h2>
-        </div>
+        </motion.div>
         <TestimonialsCarousel testimonials={items} />
       </div>
     </section>

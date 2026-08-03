@@ -141,7 +141,18 @@ export default function SupportTicketsPage() {
                       <Link href={`/support/customers/${ticket.customer_id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
                         Customer #{ticket.customer_id}
                       </Link>
-                      {ticket.application_id && <span> · re: application #{ticket.application_id}</span>}
+                      {ticket.application_id && (
+                        <>
+                          {" · re: "}
+                          <Link
+                            href={`/support/applications/${ticket.application_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="hover:underline"
+                          >
+                            application #{ticket.application_id}
+                          </Link>
+                        </>
+                      )}
                     </p>
                     <div className="flex items-center gap-2">
                       {isUnclaimed && (
