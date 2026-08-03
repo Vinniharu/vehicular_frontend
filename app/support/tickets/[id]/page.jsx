@@ -222,6 +222,14 @@ export default function SupportTicketThreadPage() {
                   <Phone className="h-3.5 w-3.5" /> {ticket.customer_phone}
                 </p>
               )}
+              {ticket.application_id && (
+                <p className="text-[12.5px] text-slate-500">
+                  Re:{" "}
+                  <Link href={`/support/applications/${ticket.application_id}`} className="font-semibold hover:underline">
+                    Application #{ticket.application_id}
+                  </Link>
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">

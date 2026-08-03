@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Star, ShieldCheck } from "lucide-react";
+import { INK, GREEN, GOLD } from "./theme";
 
 function useVisibleCount() {
   const [n, setN] = useState(1);
@@ -81,20 +82,21 @@ export function TestimonialsCarousel({
           >
             <article
               className="flex h-full flex-col rounded-2xl bg-white p-5 sm:p-6 shadow-sm"
-              style={{ border: "1px solid rgba(17, 17, 17,0.10)" }}
+              style={{ border: `1px solid ${INK}1a` }}
             >
               <div className="flex items-center gap-3">
                 <img
                   src={t.customer_photo_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
                   alt={t.customer_name}
                   loading="lazy"
-                  className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-[#28A745]/20"
+                  className="h-14 w-14 shrink-0 rounded-full object-cover"
+                  style={{ boxShadow: `0 0 0 2px ${GREEN}33` }}
                 />
                 <div className="min-w-0">
-                  <p className="text-[15px] font-semibold text-[#111111] truncate">
+                  <p className="text-[15px] font-semibold truncate" style={{ color: INK }}>
                     {t.customer_name}
                   </p>
-                  <p className="text-[13px] text-[#111111]/60 truncate">{t.customer_location}</p>
+                  <p className="text-[13px] truncate" style={{ color: `${INK}99` }}>{t.customer_location}</p>
                   <div className="mt-0.5 flex">
                     {Array.from({ length: 5 }).map((_, n) => (
                       <Star
@@ -107,17 +109,17 @@ export function TestimonialsCarousel({
                   </div>
                 </div>
               </div>
-              <blockquote className="mt-4 text-[15px] italic leading-relaxed text-[#111111]/80">
+              <blockquote className="mt-4 text-[15px] italic leading-relaxed" style={{ color: `${INK}cc` }}>
                 &ldquo;{t.testimonial_text}&rdquo;
               </blockquote>
               <div className="mt-auto pt-4 space-y-2">
                 {t.service_completed && (
-                  <span className="inline-block rounded-full bg-[#28A745]/10 px-2.5 py-1 text-[12px] font-medium text-[#28A745]">
+                  <span className="inline-block rounded-full px-2.5 py-1 text-[12px] font-medium" style={{ background: `${GREEN}1a`, color: GREEN }}>
                     {t.service_completed}
                   </span>
                 )}
                 {t.verified !== false && (
-                  <p className="flex items-center gap-1 text-[12px] text-[#28A745]">
+                  <p className="flex items-center gap-1 text-[12px] font-medium" style={{ color: GOLD }}>
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Verified customer
                   </p>

@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 const JADE = "#28A745";
-const FOREST = "#111111";
-const FOREST_CARD = "#0f2415";
-const CREAM = "#f0ede6";
+const FOREST = "#0B1210";
+const FOREST_CARD = "#13221B";
+const CREAM = "#F3F5F2";
 const JADE_SOFT = "rgba(40, 167, 69,0.25)";
 
 function StatusBar() {
