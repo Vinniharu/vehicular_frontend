@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
@@ -209,6 +210,9 @@ export default function SupportTicketThreadPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">{ticket.subject}</h1>
+            <Link href={`/support/customers/${ticket.customer_id}`} className="text-[13px] font-semibold text-slate-700 hover:underline">
+              {ticket.customer_name}
+            </Link>
             <div className="mt-1.5 space-y-0.5">
               <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600">
                 <Mail className="h-3.5 w-3.5" /> {ticket.customer_email}

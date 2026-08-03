@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
@@ -14,7 +15,8 @@ import {
   Ban,
   Clock,
 } from "lucide-react";
-import { getSupportApplication } from "@/lib/api";
+import { getSupportApplication, getSupportAgentChat, sendSupportAgentChatMessage } from "@/lib/api";
+import AgentChatPanel from "@/app/components/design/AgentChatPanel";
 
 const STATUS_TONE = {
   submitted: "bg-sky-50 text-sky-700 ring-sky-200",
@@ -48,6 +50,9 @@ export default function SupportApplicationDetailPage() {
       setLoading(false);
     });
   }, [params.id]);
+
+  const loadThread = useCallback(() => getSupportAgentChat(params.id), [params.id]);
+  const sendMessage = useCallback((body) => sendSupportAgentChatMessage(params.id, { body }), [params.id]);
 
   if (loading) {
     return (
@@ -97,7 +102,9 @@ export default function SupportApplicationDetailPage() {
         {/* Customer */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">Customer</h2>
-          <p className="text-[14px] font-bold text-slate-900">{ad.account_name}</p>
+          <Link href={`/support/customers/${ad.user_id}`} className="text-[14px] font-bold text-slate-900 hover:underline">
+            {ad.account_name}
+          </Link>
           <div className="mt-2 space-y-1.5">
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Mail className="h-3.5 w-3.5" /> {ad.email}</p>
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Phone className="h-3.5 w-3.5" /> {ad.phone}</p>
@@ -137,7 +144,7 @@ export default function SupportApplicationDetailPage() {
                 <MapPin className="h-3 w-3" /> {app.assigned_agent.state} / {app.assigned_agent.lga}
               </p>
               <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
-                <Ban className="h-3 w-3" /> Contact details hidden — Support cannot message agents directly.
+                <Ban className="h-3 w-3" /> Contact details hidden — chat below instead of exchanging numbers/emails.
               </p>
             </div>
           ) : (
@@ -145,6 +152,14 @@ export default function SupportApplicationDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Agent chat — no attachments, contact-info blocked both ways */}
+      <AgentChatPanel
+        myRole="support"
+        headerLabel="Chat with assigned agent"
+        loadThread={loadThread}
+        sendMessage={sendMessage}
+      />
 
       {/* Event timeline */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">

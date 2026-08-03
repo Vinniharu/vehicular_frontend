@@ -137,7 +137,10 @@ export default function SupportTicketsPage() {
                   <p className="text-[13px] text-slate-600 whitespace-pre-wrap">{ticket.initial_message}</p>
                   <div className="flex items-center justify-between gap-3">
                     <p className="flex items-center gap-1.5 text-[11.5px] text-slate-400">
-                      <User className="h-3 w-3" /> Customer #{ticket.customer_id}
+                      <User className="h-3 w-3" />
+                      <Link href={`/support/customers/${ticket.customer_id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                        Customer #{ticket.customer_id}
+                      </Link>
                       {ticket.application_id && <span> · re: application #{ticket.application_id}</span>}
                     </p>
                     <div className="flex items-center gap-2">

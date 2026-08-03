@@ -208,7 +208,9 @@ export default function SupportApplicationsPage() {
                       <Link href={`/support/applications/${app.id}`} className="hover:underline">#{app.id}</Link>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-[13px] font-semibold text-slate-800">{app.applicant_name}</p>
+                      <Link href={`/support/customers/${app.customer_id}`} className="text-[13px] font-semibold text-slate-800 hover:underline">
+                        {app.applicant_name}
+                      </Link>
                       <div className="mt-0.5 space-y-0.5">
                         <p className="flex items-center gap-1 text-[11px] text-slate-500"><Mail className="h-2.5 w-2.5" />{app.customer_email}</p>
                         {app.customer_phone && <p className="flex items-center gap-1 text-[11px] text-slate-500"><Phone className="h-2.5 w-2.5" />{app.customer_phone}</p>}
