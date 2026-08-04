@@ -38,6 +38,9 @@ import {
   staffConfirmReceipt,
   staffReviewDocument,
   staffClaimApplication,
+  staffGetEligibleAgents,
+  staffAssignAgent,
+  getVehicle,
   getCachedUser,
   koboToNaira,
   resolveMediaUrl,
@@ -152,6 +155,18 @@ export default function StaffApplicationDetailsPage() {
 
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
 
+  // Manual agent assignment — for applications stuck at "routed" with no
+  // assignee (the common case, since auto-routing usually finds nobody).
+  const [eligibleAgents, setEligibleAgents] = useState([]);
+  const [loadingEligibleAgents, setLoadingEligibleAgents] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState(null);
+
+  // tinted_permit only — the linked vehicle's details, shown in place of
+  // the licence-class/driving-school fields that don't apply.
+  const [vehicle, setVehicle] = useState(null);
+
   const loadDetail = async (isRefresh = false) => {
     if (!appId) return;
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -194,6 +209,41 @@ export default function StaffApplicationDetailsPage() {
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [application]);
+
+  useEffect(() => {
+    if (!application) return;
+    if (application.application_type === "tinted_permit" && application.vehicle_id) {
+      getVehicle(application.vehicle_id).then((res) => {
+        if (res.data) setVehicle(res.data);
+      });
+    }
+    if (application.status === "routed" && !application.assigned_agent_id) {
+      setLoadingEligibleAgents(true);
+      staffGetEligibleAgents(appId).then((res) => {
+        if (res.data) setEligibleAgents(res.data);
+        setLoadingEligibleAgents(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [application?.id, application?.status, application?.vehicle_id]);
+
+  const handleAssignAgent = async () => {
+    if (!selectedAgentId) {
+      setAssignError("Pick an agent first.");
+      return;
+    }
+    setAssigning(true);
+    setAssignError(null);
+    const res = await staffAssignAgent(appId, Number(selectedAgentId));
+    setAssigning(false);
+    if (res.error) {
+      setAssignError(res.error);
+      return;
+    }
+    setNoticeMessage("Agent assigned successfully.");
+    setModalType("notice");
+    await loadDetail(true);
+  };
 
   const openModal = (type) => {
     setActionError(null);
@@ -455,7 +505,7 @@ export default function StaffApplicationDetailsPage() {
               </button>
               {application.application_type !== "fresh" ? (
                 <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
-                  <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || "agent"}` : "Awaiting full payment"}
+                  <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || application.state_of_residence || "agent"}` : "Awaiting full payment"}
                 </button>
               ) : hasDrivingSchoolCertificate ? (
                 <button onClick={() => openModal("confirm-cert")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}>
@@ -511,6 +561,86 @@ export default function StaffApplicationDetailsPage() {
           )}
         </div>
       </div>
+
+      {/* Manual agent assignment — the common case, since auto-routing
+          usually finds nobody in the matching LGA/state. Generic, not
+          tinted_permit-special-cased. */}
+      {application.status === "routed" && !application.assigned_agent_id && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+          <h3 className="flex items-center gap-2 text-[14px] font-bold text-amber-900">
+            <UserCheck className="h-4.5 w-4.5" /> No agent auto-matched — assign one manually
+          </h3>
+          <p className="mt-1 text-[13px] text-amber-800 leading-relaxed">
+            Routing didn't find an eligible agent automatically. Pick one below to assign this application directly.
+          </p>
+
+          {loadingEligibleAgents ? (
+            <p className="mt-3 flex items-center gap-2 text-[12.5px] text-amber-700">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading eligible agents…
+            </p>
+          ) : eligibleAgents.length === 0 ? (
+            <p className="mt-3 text-[12.5px] text-amber-700">
+              No eligible agents found. {application.application_type === "tinted_permit" ? "Make sure at least one agent has opted into tinted_permit and is active in this state." : "Make sure at least one active agent covers this LGA."}
+            </p>
+          ) : (
+            <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <select
+                value={selectedAgentId}
+                onChange={(e) => setSelectedAgentId(e.target.value)}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/15"
+              >
+                <option value="">Select an agent…</option>
+                {eligibleAgents.map((a) => (
+                  <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
+                    Agent #{a.agent_id} — {a.vio_office} ({a.state}{a.lga ? ` / ${a.lga}` : ""}){!a.has_bank_account ? " — no bank account on file" : ""}
+                  </option>
+                ))}
+              </select>
+              <button onClick={handleAssignAgent} disabled={assigning || !selectedAgentId} className={btnPrimary} style={{ background: BRAND }}>
+                {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Assign agent
+              </button>
+            </div>
+          )}
+          {assignError && <p className="mt-2 text-[12.5px] font-medium text-red-600">{assignError}</p>}
+        </div>
+      )}
+
+      {/* tinted_permit only — vehicle this application is for, in place of
+          the licence-class/driving-school fields that don't apply. */}
+      {application.application_type === "tinted_permit" && vehicle && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Vehicle</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make / Model</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.make} {vehicle.model}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Colour</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.colour}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration number</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.registration_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+            </div>
+            {application.justification && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Document pickup callout — renewal/reissue/international_permit only
           surface at this status once the finished document is ready to be

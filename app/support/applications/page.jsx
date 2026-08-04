@@ -17,6 +17,7 @@ import {
   MapPinOff,
   Mail,
   Phone,
+  Eye,
 } from "lucide-react";
 import { getSupportApplications } from "@/lib/api";
 import RedirectModal from "../_shared/RedirectModal";
@@ -154,6 +155,7 @@ export default function SupportApplicationsPage() {
           <option value="fresh">Fresh</option>
           <option value="renewal">Renewal</option>
           <option value="reissue">Reissue</option>
+          <option value="tinted_permit">Tinted Permit</option>
         </select>
         <select
           value={statusFilter}
@@ -198,7 +200,7 @@ export default function SupportApplicationsPage() {
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">LGA</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Staff</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Agent</th>
-                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500"></th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -244,15 +246,23 @@ export default function SupportApplicationsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3.5">
-                      {!app.assigned_agent && (
-                        <button
-                          type="button"
-                          onClick={() => setRedirecting(app)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11.5px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/support/applications/${app.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                         >
-                          <MapPinOff className="h-3 w-3" /> Redirect
-                        </button>
-                      )}
+                          <Eye className="h-3 w-3" /> Details
+                        </Link>
+                        {!app.assigned_agent && (
+                          <button
+                            type="button"
+                            onClick={() => setRedirecting(app)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11.5px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                          >
+                            <MapPinOff className="h-3 w-3" /> Redirect
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

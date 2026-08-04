@@ -49,6 +49,11 @@ function txStatusMeta(status) {
   return { label: "Paid", className: "bg-[#28A745]/10 text-[#28A745]" };
 }
 
+function txLabel(tx) {
+  if (tx.source && tx.source.startsWith("referral_reward_app_")) return "Referral Reward";
+  return tx.type === "credit" ? "Wallet Deposit" : "Service Payment";
+}
+
 export default function WalletPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -329,7 +334,7 @@ export default function WalletPage() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-[13.5px] text-slate-800">
-                                {isCredit ? "Wallet Deposit" : "Service Payment"}
+                                {txLabel(tx)}
                               </p>
                               <p className="text-[12px] text-slate-400">{formatDate(tx.created_at)}</p>
                             </div>
@@ -383,7 +388,7 @@ export default function WalletPage() {
                                   {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
                                 </div>
                                 <span className="font-bold text-[13.5px] text-slate-800">
-                                  {isCredit ? "Wallet Deposit" : "Service Payment"}
+                                  {txLabel(tx)}
                                 </span>
                               </div>
                             </td>

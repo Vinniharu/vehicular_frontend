@@ -50,6 +50,7 @@ const APPLICATION_TYPE_OPTIONS = [
   { value: "renewal", label: "Renewal" },
   { value: "reissue", label: "Reissue" },
   { value: "international_permit", label: "International Permit" },
+  { value: "tinted_permit", label: "Tinted Permit" },
 ];
 
 /* ─── Helpers ─── */
