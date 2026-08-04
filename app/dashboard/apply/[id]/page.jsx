@@ -37,6 +37,7 @@ import {
   getReferenceStates,
   getReferenceLgas,
   resolveMediaUrl,
+  getVehicle,
 } from "@/lib/api";
 import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
@@ -55,7 +56,9 @@ const FEE_SCHEDULE_KOBO = {
   fresh: { "3 years": 3867500, "5 years": 4577500 },
   renewal: { "3 years": 3000000, "5 years": 3500000 },
 };
+const TINTED_PERMIT_FEE_KOBO = 2_405_000;
 function estimateFeeKobo(appType, period) {
+  if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
@@ -74,6 +77,15 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "police_extract", label: "Police extract" },
     { value: "affidavit_of_loss", label: "Affidavit of loss" },
     { value: "nin_slip", label: "NIN slip" },
+  ],
+  tinted_permit: [
+    { value: "proof_of_ownership", label: "Proof of ownership" },
+    { value: "vehicle_licence", label: "Vehicle licence" },
+    { value: "tinted_passport_photo", label: "Passport photograph" },
+    { value: "vehicle_photo_front", label: "Vehicle photo — front" },
+    { value: "vehicle_photo_back", label: "Vehicle photo — back" },
+    { value: "vehicle_photo_side", label: "Vehicle photo — side" },
+    { value: "vin_sticker_photo", label: "VIN sticker photo" },
   ],
 };
 
@@ -129,6 +141,10 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   // simplified apply-form fields, not the full fresh biodata form.
   const isFresh = application.application_type === "fresh";
   const isIdp = application.application_type === "international_permit";
+  // tinted_permit never routes here — it has its own TintedPermitReapplyModal
+  // — but guard defensively since isFresh/isIdp are both false for it, which
+  // would otherwise fall through to the renewal/reissue fields below.
+  const isTinted = application.application_type === "tinted_permit";
 
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
@@ -575,7 +591,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
 
           {/* Simplified renewal/reissue/international_permit fields — mirrors
               exactly what their own apply form asks for. */}
-          {!isFresh && (
+          {!isFresh && !isTinted && (
           <section>
             <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               {application.application_type === "international_permit" ? "Permit Details" : "Renewal Details"}
@@ -735,6 +751,142 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   );
 }
 
+// tinted_permit correction payload is just { nin?, documents? } — the
+// backend's DLApplicationReapply schema has no vehicle_id/justification
+// field for this flow — so this stays a small, dedicated modal rather than
+// forking the much larger DL ReapplyModal above.
+const TINTED_DOC_TYPES = REQUIRED_DOCS_BY_TYPE.tinted_permit;
+
+function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
+  const [nin, setNin] = useState(application.nin || "");
+  const [docs, setDocs] = useState({});
+  const [uploadingType, setUploadingType] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleFile = async (docType, file) => {
+    if (!file) return;
+    setError(null);
+    setUploadingType(docType);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setUploadingType(null);
+    if (uploadError || !data?.file_url) {
+      setError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    setDocs((prev) => ({ ...prev, [docType]: { fileName: file.name, url: data.file_url } }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const documents = Object.entries(docs).map(([doc_type, v]) => ({ doc_type, file_url: v.url }));
+    const trimmedNin = nin.trim();
+    const ninChanged = trimmedNin && trimmedNin !== application.nin;
+    if (documents.length === 0 && !ninChanged) {
+      setError("Upload at least one corrected document, or update your NIN.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const payload = {};
+    if (ninChanged) payload.nin = trimmedNin;
+    if (documents.length > 0) payload.documents = documents;
+    const res = await reapplyApplication(application.id, payload);
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSuccess(res.data);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#111111]">Fix &amp; Resubmit</h2>
+            <p className="mt-0.5 text-[12.5px] text-slate-500">
+              Re-upload the flagged document(s) for permit #{application.id}.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div>
+            <label className={fieldLabel}>NIN</label>
+            <input
+              value={nin}
+              onChange={(e) => setNin(e.target.value.replace(/\D/g, "").slice(0, 11))}
+              placeholder="11-digit National Identification Number"
+              inputMode="numeric"
+              className={`${inputBase} font-mono`}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <p className={fieldLabel}>Re-upload document(s)</p>
+            {TINTED_DOC_TYPES.map((d) => (
+              <div key={d.value} className="rounded-xl border border-[#E5E5E5] p-3.5">
+                <p className="text-[13px] font-semibold text-[#111111]">{d.label}</p>
+                <div className="mt-2">
+                  {!docs[d.value]?.url ? (
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition-all hover:border-[#28A745]">
+                      <Upload className="h-4 w-4" style={{ color: BRAND }} />
+                      <span className="text-[12.5px] font-semibold text-slate-700">
+                        {uploadingType === d.value ? "Uploading…" : "Click to upload"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        disabled={uploadingType === d.value}
+                        onChange={(e) => handleFile(d.value, e.target.files?.[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <p className="truncate text-[12.5px] font-semibold text-[#111111]">{docs[d.value].fileName}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDocs((prev) => { const next = { ...prev }; delete next[d.value]; return next; })}
+                        className="shrink-0 text-[11px] font-medium text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </form>
+
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+          <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {submitting ? "Resubmitting…" : "Resubmit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ──────────────────────────────────────────────
    Main Page
    ────────────────────────────────────────────── */
@@ -760,7 +912,9 @@ export default function CustomerApplicationDetailsPage() {
   const [docFileName, setDocFileName] = useState("");
 
   const [showReapplyModal, setShowReapplyModal] = useState(false);
+  const [showTintedReapplyModal, setShowTintedReapplyModal] = useState(false);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
 
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
 
@@ -791,6 +945,12 @@ export default function CustomerApplicationDetailsPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId]);
+
+  useEffect(() => {
+    if (application?.application_type === "tinted_permit" && application?.vehicle_id) {
+      getVehicle(application.vehicle_id).then((res) => { if (res.data) setVehicle(res.data); });
+    }
+  }, [application?.application_type, application?.vehicle_id]);
 
   useEffect(() => {
     const rawTarget = application?.driving_school_target_date || application?.driving_school?.target_date;
@@ -874,6 +1034,7 @@ export default function CustomerApplicationDetailsPage() {
 
   const handleReapplySuccess = async (updated) => {
     setShowReapplyModal(false);
+    setShowTintedReapplyModal(false);
     setNotice({ type: "success", message: "Application resubmitted successfully! It's now back under staff review." });
     await loadData(true);
   };
@@ -908,6 +1069,7 @@ export default function CustomerApplicationDetailsPage() {
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
   const checkoutUrl = application.payment_options?.checkout_url;
+  const isTinted = application.application_type === "tinted_permit";
   const isRejected = application.status === "staff_rejected";
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
@@ -941,12 +1103,22 @@ export default function CustomerApplicationDetailsPage() {
           onSuccess={handleReapplySuccess}
         />
       )}
+      {showTintedReapplyModal && (
+        <TintedPermitReapplyModal
+          application={application}
+          onClose={() => setShowTintedReapplyModal(false)}
+          onSuccess={handleReapplySuccess}
+        />
+      )}
 
       {/* Header */}
       <div>
-        <Link href="/dashboard/apply" className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
+        <Link
+          href={isTinted ? "/dashboard/apply/tinted-permit" : "/dashboard/apply"}
+          className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800"
+        >
           <ArrowLeft className="h-3.5 w-3.5" />
-          My applications
+          {isTinted ? "My tinted permit applications" : "My applications"}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -954,7 +1126,7 @@ export default function CustomerApplicationDetailsPage() {
               className="text-[24px] tracking-tight text-[#111111]"
               style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
             >
-              Driver's licence <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
+              {isTinted ? "Tinted Permit" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} />
             <span className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
@@ -968,6 +1140,42 @@ export default function CustomerApplicationDetailsPage() {
         </div>
         <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
       </div>
+
+      {/* tinted_permit only — the vehicle this application is for, in place
+          of the licence-class/driving-school fields that don't apply. */}
+      {isTinted && vehicle && (
+        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Vehicle</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make / Model</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.make} {vehicle.model}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Colour</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.colour}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration number</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.registration_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+            </div>
+            {application.justification && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notice bar */}
       {notice && (
@@ -1007,7 +1215,7 @@ export default function CustomerApplicationDetailsPage() {
             </div>
             <button
               type="button"
-              onClick={() => setShowReapplyModal(true)}
+              onClick={() => (isTinted ? setShowTintedReapplyModal(true) : setShowReapplyModal(true))}
               className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] sm:mt-0"
               style={{ background: isRejected ? "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
             >
@@ -1032,22 +1240,22 @@ export default function CustomerApplicationDetailsPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-red-900">Your licence has expired</h3>
+                <h3 className="text-[15px] font-bold text-red-900">{isTinted ? "Your permit has expired" : "Your licence has expired"}</h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-red-700/90">
-                  {application.permanent_licence?.expiry_date
+                  {!isTinted && application.permanent_licence?.expiry_date
                     ? `It was valid until ${new Date(application.permanent_licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}. `
                     : ""}
-                  Apply for a renewal to get a new one.
+                  {isTinted ? "Submit a new tinted permit application to get a new one." : "Apply for a renewal to get a new one."}
                 </p>
               </div>
             </div>
             <Link
-              href="/dashboard/apply?type=renewal"
+              href={isTinted ? "/dashboard/apply/tinted-permit/new" : "/dashboard/apply?type=renewal"}
               className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" }}
             >
               <RefreshCw className="h-4 w-4" />
-              Apply for renewal
+              {isTinted ? "Apply again" : "Apply for renewal"}
             </Link>
           </div>
         </div>

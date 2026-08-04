@@ -102,6 +102,14 @@ const STATUS_DESCRIPTIONS = {
   expired: "Validity period has elapsed — apply for a renewal.",
 };
 
+// tinted_permit has no licence card and no driving-school leg — override the
+// handful of descriptions that otherwise read as "driver's licence" copy.
+const TINTED_STATUS_DESCRIPTIONS = {
+  ready_for_pickup: "Tinted glass permit ready for pickup.",
+  awaiting_customer: "Permit ready; please confirm receipt upon pickup.",
+  completed: "Tinted glass permit application finished and closed.",
+};
+
 // staff_review is the one status whose description actually differs by
 // application type: only fresh applications go through driving-school
 // assignment during staff review, renewal/reissue/IDP don't.
@@ -110,6 +118,9 @@ export function getStatusDescription(status, applicationType) {
     return applicationType === "fresh"
       ? "Verifying background details & assigning driving school."
       : "Verifying your documents and background details.";
+  }
+  if (applicationType === "tinted_permit" && TINTED_STATUS_DESCRIPTIONS[status]) {
+    return TINTED_STATUS_DESCRIPTIONS[status];
   }
   return STATUS_DESCRIPTIONS[status] || "";
 }
@@ -157,13 +168,31 @@ const NEXT_STEP_NON_FRESH = {
   completed: "Completed.",
 };
 
+// tinted_permit's status machine has no biometrics/driving-school leg and
+// skips straight from agent processing to a final review — a distinct
+// sequence from both fresh and the other non-fresh DL types, so it needs its
+// own copy map rather than falling into NEXT_STEP_NON_FRESH.
+const NEXT_STEP_TINTED = {
+  submitted: "Your application is waiting for staff to review it.",
+  staff_review: "Staff are checking your documents now.",
+  routed: "Your application has been sent to an available agent.",
+  agent_accepted: "An agent has accepted and is processing your permit.",
+  agent_assigned: "An agent is processing your permit.",
+  agent_completed: "Processing is complete — staff are doing a final review.",
+  staff_final_review: "Staff are doing a final review before your permit is dispatched.",
+  awaiting_customer: "Your permit is ready — please confirm you've received it below.",
+  completed: "Your permit is ready.",
+  needs_correction: "One of your documents needs a re-upload — see below.",
+  expired: "Your permit has expired — please submit a new application.",
+};
+
 export function getNextStepCopy(application) {
   const status = application.status;
   const type = application.application_type;
   if (status === "staff_rejected") {
     return "This application was rejected — review the reason below and edit your details to reapply.";
   }
-  const map = type === "fresh" ? NEXT_STEP_FRESH : NEXT_STEP_NON_FRESH;
+  const map = type === "tinted_permit" ? NEXT_STEP_TINTED : type === "fresh" ? NEXT_STEP_FRESH : NEXT_STEP_NON_FRESH;
   return map[status] || "We'll update this as your application moves forward.";
 }
 
@@ -183,10 +212,20 @@ const STAGE_ORDER_OTHER = [
   "staff_final_review", "in_review", "ready_for_pickup", "awaiting_customer", "completed",
 ];
 
+// Mirrors the backend's TINTED_PERMIT_TRANSITIONS exactly (app/modules/
+// driver_licence/status_machine.py) — no capture/driving-school steps and no
+// ready_for_pickup, which don't exist for this application type.
+const STAGE_ORDER_TINTED = [
+  "submitted", "staff_review", "routed", "agent_accepted", "agent_assigned",
+  "agent_completed", "staff_final_review", "awaiting_customer", "completed",
+];
+
 export function getStageProgress(status, applicationType) {
   if (status === "completed") return 1;
   if (status === "staff_rejected" || status === "failed") return 0;
-  const order = applicationType === "fresh" ? STAGE_ORDER_FRESH : STAGE_ORDER_OTHER;
+  const order = applicationType === "tinted_permit"
+    ? STAGE_ORDER_TINTED
+    : applicationType === "fresh" ? STAGE_ORDER_FRESH : STAGE_ORDER_OTHER;
   const idx = order.indexOf(status);
   if (idx === -1) return 0.05;
   return (idx + 1) / order.length;

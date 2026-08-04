@@ -1,515 +1,262 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
-  Upload,
-  Image as ImageIcon,
-  Loader2,
   CheckCircle2,
-  Plus,
-  Car,
+  ChevronRight,
   Clock,
+  ExternalLink,
+  FileText,
+  Plus,
+  RefreshCw,
 } from "lucide-react";
-import {
-  getCachedUser,
-  getReferenceStates,
-  listVehicles,
-  createVehicle,
-  submitDriverLicenceApplication,
-  uploadApplicationFile,
-  payFromWalletEndpoint,
-  getWallet,
-  koboToNaira,
-} from "@/lib/api";
+import { getMyApplications, getWallet, payFromWalletEndpoint } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
-import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
+import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import { btnPrimary, btnGhost } from "@/app/dashboard/_shared/ui";
+import { colors } from "@/lib/design-tokens";
+import {
+  koboToNaira,
+  formatDate,
+  MiniProgressRing,
+  isApplicationPaid,
+  paymentStatusMeta,
+} from "@/app/dashboard/_shared/apply-helpers";
 
-const BRAND = "#28A745";
-const BRAND_TINT = "rgba(40, 167, 69,0.08)";
-const TOTAL_FEE_KOBO = 2_405_000; // NGN 24,050 — mirrors app/core/payment_helpers.py
+const BRAND = colors.primary.DEFAULT;
 
-const DOC_SLOTS = [
-  {
-    doc_type: "proof_of_ownership",
-    title: "Proof of Ownership (PDF or photo)",
-    guide: "document",
-  },
-  {
-    doc_type: "vehicle_licence",
-    title: "Vehicle Licence (PDF or photo)",
-    guide: "document",
-  },
-  {
-    doc_type: "tinted_passport_photo",
-    title: "Your passport photograph",
-    guide: "passport",
-  },
-  {
-    doc_type: "vehicle_photo_front",
-    title: "Vehicle photo — Front",
-    guide: "car-front",
-  },
-  {
-    doc_type: "vehicle_photo_back",
-    title: "Vehicle photo — Back",
-    guide: "car-back",
-  },
-  {
-    doc_type: "vehicle_photo_side",
-    title: "Vehicle photo — Side",
-    guide: "car-side",
-  },
-  {
-    doc_type: "vin_sticker_photo",
-    title: "VIN sticker photo",
-    hint: "Usually on driver-side door jamb or dashboard.",
-    guide: "vin",
-  },
-];
+// Mirrors the backend's flat tinted_permit fee (app/core/payment_helpers.py)
+// — only used as a fallback while payment_options hasn't loaded; the real
+// amount always comes from the backend once available.
+const TINTED_FEE_KOBO = 2_405_000;
 
-/* ── Simple illustrative guides — not real photos, none available ── */
-function GuideDocument() {
-  return (
-    <svg viewBox="0 0 64 48" className="h-12 w-16" aria-hidden>
-      <rect x="14" y="4" width="36" height="40" rx="3" fill="#fff" stroke="#94a3b8" strokeWidth="2" />
-      <line x1="20" y1="14" x2="44" y2="14" stroke="#cbd5e1" strokeWidth="2" />
-      <line x1="20" y1="20" x2="44" y2="20" stroke="#cbd5e1" strokeWidth="2" />
-      <line x1="20" y1="26" x2="36" y2="26" stroke="#cbd5e1" strokeWidth="2" />
-      <circle cx="40" cy="34" r="7" fill="#28A745" />
-      <path d="M37 34l2 2 4-4" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function GuidePassport() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-12 w-12" aria-hidden>
-      <rect x="4" y="4" width="40" height="40" rx="4" fill="#f8fafc" stroke="#94a3b8" strokeWidth="2" />
-      <ellipse cx="24" cy="20" rx="8" ry="9" fill="none" stroke="#28A745" strokeWidth="2" strokeDasharray="3 2" />
-      <circle cx="24" cy="17" r="4.5" fill="#cbd5e1" />
-      <path d="M15 32c2-5 6-7 9-7s7 2 9 7" fill="#cbd5e1" />
-    </svg>
-  );
-}
-function GuideCar({ angle }) {
-  // angle: "front" | "back" | "side"
-  if (angle === "side") {
-    return (
-      <svg viewBox="0 0 72 40" className="h-10 w-18" aria-hidden>
-        <rect x="2" y="2" width="68" height="36" rx="3" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="3 2" />
-        <path d="M10 26 L16 14 L28 10 L46 10 L54 16 L62 18 L62 26 L10 26 Z" fill="#e2f5e8" stroke="#28A745" strokeWidth="2" />
-        <circle cx="20" cy="27" r="4.5" fill="#111111" />
-        <circle cx="52" cy="27" r="4.5" fill="#111111" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 56 40" className="h-10 w-14" aria-hidden>
-      <rect x="2" y="2" width="52" height="36" rx="3" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="3 2" />
-      <rect x="14" y="10" width="28" height="20" rx="4" fill="#e2f5e8" stroke="#28A745" strokeWidth="2" />
-      <rect x="18" y="14" width="20" height="6" rx="1.5" fill="#28A745" opacity="0.4" />
-      <circle cx="20" cy="32" r="3" fill="#111111" />
-      <circle cx="36" cy="32" r="3" fill="#111111" />
-    </svg>
-  );
-}
-function GuideVin() {
-  return (
-    <svg viewBox="0 0 64 44" className="h-11 w-16" aria-hidden>
-      <path d="M8 30 L14 16 L28 12 L48 12 L56 20 L56 30 L8 30 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.5" />
-      <circle cx="34" cy="18" r="9" fill="none" stroke="#28A745" strokeWidth="2" />
-      <path d="M34 12v4M34 20v2M30 18h2M36 18h2" stroke="#28A745" strokeWidth="1.5" />
-      <path d="M30 6 L34 12 L38 6" fill="#28A745" />
-    </svg>
-  );
-}
-function DocGuide({ kind }) {
-  if (kind === "document") return <GuideDocument />;
-  if (kind === "passport") return <GuidePassport />;
-  if (kind === "car-front") return <GuideCar angle="front" />;
-  if (kind === "car-back") return <GuideCar angle="back" />;
-  if (kind === "car-side") return <GuideCar angle="side" />;
-  if (kind === "vin") return <GuideVin />;
-  return null;
-}
+export default function TintedPermitApplicationsPage() {
+  const router = useRouter();
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [payingFromWallet, setPayingFromWallet] = useState(null);
+  const payingFromWalletRef = useRef(false);
+  const [toast, setToast] = useState(null);
 
-function UploadSlot({ slot, value, onChange }) {
-  const [dragActive, setDragActive] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleFile = async (file) => {
-    if (!file) return;
-    setError(null);
-    setUploading(true);
-    const { data, error: uploadError } = await uploadApplicationFile(file);
-    setUploading(false);
-    if (uploadError || !data?.file_url) {
-      setError(uploadError || "Upload failed. Please try again.");
-      return;
-    }
-    onChange({ fileName: file.name, url: data.file_url });
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 5000);
   };
 
-  return (
-    <div className="flex gap-4 rounded-xl border border-[#E5E5E5] p-4">
-      <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-50">
-        <DocGuide kind={slot.guide} />
-      </div>
-      <div className="flex-1">
-        <p className="text-[13.5px] font-semibold text-[#111111]">{slot.title}</p>
-        {slot.hint && <p className="mt-0.5 text-[12px] text-slate-500">{slot.hint}</p>}
-        <p className="mt-0.5 text-[11.5px] text-slate-400">JPG, PNG, WEBP, HEIC, or PDF · up to 10 MB</p>
-
-        <div className="mt-2.5">
-          {!value?.url ? (
-            <label
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3.5 transition-all"
-              style={{ borderColor: dragActive ? BRAND : "#cbd5e1", background: dragActive ? BRAND_TINT : "#f8fafc" }}
-            >
-              <Upload className="h-4 w-4" style={{ color: BRAND }} />
-              <span className="text-[12.5px] font-semibold text-slate-700">{uploading ? "Uploading…" : "Click or drop a file here"}</span>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                disabled={uploading}
-                onChange={(e) => handleFile(e.target.files?.[0])}
-                className="hidden"
-              />
-            </label>
-          ) : (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                <p className="truncate text-[12.5px] font-semibold text-[#111111]">{value.fileName}</p>
-                <span className="shrink-0 text-[11px] text-slate-400">Ready</span>
-              </div>
-              <button type="button" onClick={() => onChange(null)} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-        {error && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{error}</p>}
-      </div>
-    </div>
-  );
-}
-
-export default function TintedPermitApplyPage() {
-  const router = useRouter();
-  const user = getCachedUser();
-
-  const [states, setStates] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
-  const [loadingVehicles, setLoadingVehicles] = useState(true);
-  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
-  const [addingVehicle, setAddingVehicle] = useState(false);
-
-  const [vehicleForm, setVehicleForm] = useState({
-    registration_number: "", plate_number: "", make: "", model: "", colour: "", state_id: "",
-  });
-  const [creatingVehicle, setCreatingVehicle] = useState(false);
-  const [vehicleError, setVehicleError] = useState(null);
-
-  const [nin, setNin] = useState("");
-  const [justification, setJustification] = useState("");
-  const [docs, setDocs] = useState({});
-
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [successApp, setSuccessApp] = useState(null);
-  const [payOpts, setPayOpts] = useState(null);
-  const [payingFromWallet, setPayingFromWallet] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
+  const loadApplications = async () => {
+    const [appsRes, walletRes] = await Promise.all([getMyApplications(), getWallet()]);
+    if (appsRes.data) setApplications(appsRes.data.filter((a) => a.application_type === "tinted_permit"));
+    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    Promise.all([getReferenceStates(), listVehicles(), getWallet()]).then(([statesRes, vehiclesRes, walletRes]) => {
-      if (statesRes.data) setStates(statesRes.data);
-      if (vehiclesRes.data) {
-        setVehicles(vehiclesRes.data);
-        if (vehiclesRes.data.length > 0) setSelectedVehicleId(vehiclesRes.data[0].id);
-        else setAddingVehicle(true);
-      } else {
-        setAddingVehicle(true);
-      }
-      if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-      setLoadingVehicles(false);
-    });
+    loadApplications();
   }, []);
 
-  const handleCreateVehicle = async () => {
-    setVehicleError(null);
-    if (!vehicleForm.registration_number || !vehicleForm.plate_number || !vehicleForm.make || !vehicleForm.model || !vehicleForm.colour || !vehicleForm.state_id) {
-      setVehicleError("Fill in every field before adding the vehicle.");
-      return;
-    }
-    setCreatingVehicle(true);
-    const res = await createVehicle({ ...vehicleForm, state_id: Number(vehicleForm.state_id) });
-    setCreatingVehicle(false);
+  const handlePayFromWallet = async (appId, amountKobo) => {
+    if (payingFromWalletRef.current) return;
+    payingFromWalletRef.current = true;
+    setPayingFromWallet(appId);
+    const res = await payFromWalletEndpoint(appId, { amount_kobo: amountKobo });
+    payingFromWalletRef.current = false;
+    setPayingFromWallet(null);
     if (res.error) {
-      setVehicleError(res.error);
+      showToast("error", res.error || "Insufficient wallet funds. Please top up your wallet or pay by card.");
       return;
     }
-    setVehicles((prev) => [res.data, ...prev]);
-    setSelectedVehicleId(res.data.id);
-    setAddingVehicle(false);
-  };
-
-  const allDocsUploaded = DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
-  const canSubmit = selectedVehicleId && /^\d{11}$/.test(nin) && allDocsUploaded;
-
-  const handleSubmit = async () => {
-    if (!canSubmit) {
-      setSubmitError("Pick a vehicle, enter a valid 11-digit NIN, and upload every document before submitting.");
-      return;
-    }
-    setSubmitError(null);
-    setSubmitting(true);
-    const res = await submitDriverLicenceApplication({
-      application_type: "tinted_permit",
-      vehicle_id: selectedVehicleId,
-      nin,
-      justification: justification || undefined,
-      documents: DOC_SLOTS.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setSubmitError(res.error);
-      return;
-    }
-    setSuccessApp(res.data);
-    setPayOpts(res.data.payment_options || null);
-  };
-
-  const handlePayFromWallet = async (amountKobo) => {
-    if (!successApp) return;
-    setPayingFromWallet(true);
-    const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: amountKobo });
-    setPayingFromWallet(false);
-    if (res.error) return;
-    const walletRes = await getWallet();
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-    if (res.data) {
-      setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
-    }
-  };
-
-  if (successApp) {
-    const isPaid = (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0;
-    return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Tinted permit application submitted</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Under 72 hours — proof of process &amp; payment so you can drive freely. 7 working days for the main permit certificate.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? TOTAL_FEE_KOBO)}</span>
-            </div>
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5 text-left">
-              <PartialPayControls
-                remainingKobo={payOpts.remaining_kobo ?? payOpts.amount_kobo}
-                walletBalanceKobo={walletBalance}
-                payingWallet={payingFromWallet}
-                onPay={handlePayFromWallet}
-              />
-              {payOpts.checkout_url && (
-                <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Pay by card instead
-                </a>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => router.push("/dashboard/apply")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
-            Back to applications
-          </button>
-        </div>
-      </div>
+    showToast(
+      "success",
+      res.data?.is_fully_paid
+        ? `Paid ${koboToNaira(amountKobo)} from your wallet — application fully paid!`
+        : `Paid ${koboToNaira(amountKobo)} from your wallet. ${koboToNaira(res.data?.remaining_kobo || 0)} still remaining.`
     );
-  }
+    await loadApplications();
+  };
+
+  const totalApps = applications.length;
+  const paidApps = applications.filter(isApplicationPaid).length;
+  const pendingPaymentApps = totalApps - paidApps;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
-        <ArrowLeft className="h-3.5 w-3.5" /> Back
-      </button>
-
-      <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply for Tinted Permit</h1>
-        <p className="mt-1.5 text-[13.5px] text-slate-500">
-          Upload the documents and vehicle photos below. We'll process your application end-to-end.
-        </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">Under 72 hours — proof of process &amp; payment so you can drive freely</p>
-          </div>
-          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">7 working days — main Permit certificate</p>
-          </div>
+    <div className="mx-auto max-w-4xl space-y-8 py-6 pb-20">
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 rounded-xl px-4 py-3 text-[13px] font-semibold shadow-lg ${
+            toast.type === "error" ? "bg-red-600 text-white" : "bg-emerald-600 text-white"
+          }`}
+        >
+          {toast.msg}
         </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Tinted permit
+            </span>
+          </div>
+          <h1
+            className="mt-1.5 text-[30px] tracking-tight text-[#111111]"
+            style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
+          >
+            Your tinted permit applications
+          </h1>
+          <p className="mt-1 text-[13.5px] text-slate-500">
+            Track progress, handle payment, and see what's next for each one.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/apply/tinted-permit/new")}
+          className={btnPrimary}
+          style={{ background: BRAND }}
+        >
+          <Plus className="h-4 w-4" />
+          New application
+        </button>
       </div>
 
-      {/* Vehicle */}
-      <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-        <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
-          <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle
-        </h2>
-
-        {!loadingVehicles && vehicles.length > 0 && !addingVehicle && (
-          <div className="space-y-2">
-            {vehicles.map((v) => {
-              const active = selectedVehicleId === v.id;
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setSelectedVehicleId(v.id)}
-                  className="flex w-full items-center justify-between rounded-xl border-2 p-3.5 text-left transition-all"
-                  style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
-                >
-                  <div>
-                    <p className="text-[13.5px] font-semibold text-[#111111]">{v.make} {v.model} — {v.plate_number}</p>
-                    <p className="text-[12px] text-slate-500">{v.colour} · {v.state}</p>
-                  </div>
-                  {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: BRAND }} />}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setAddingVehicle(true)}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 p-2.5 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add another vehicle
-            </button>
+      {/* Summary strip */}
+      {totalApps > 0 && (
+        <div className="grid grid-cols-1 divide-y divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="px-5 py-4">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total</span>
+            <span className="mt-0.5 block text-[22px] font-bold text-[#111111]">{totalApps}</span>
           </div>
-        )}
-
-        {(addingVehicle || (!loadingVehicles && vehicles.length === 0)) && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className={label}>Registration number</label>
-                <input className={inputBase} value={vehicleForm.registration_number} onChange={(e) => setVehicleForm((f) => ({ ...f, registration_number: e.target.value }))} />
-              </div>
-              <div>
-                <label className={label}>Plate number</label>
-                <input className={inputBase} value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} />
-              </div>
-              <div>
-                <label className={label}>Make</label>
-                <input className={inputBase} value={vehicleForm.make} onChange={(e) => setVehicleForm((f) => ({ ...f, make: e.target.value }))} placeholder="e.g. Toyota" />
-              </div>
-              <div>
-                <label className={label}>Model</label>
-                <input className={inputBase} value={vehicleForm.model} onChange={(e) => setVehicleForm((f) => ({ ...f, model: e.target.value }))} placeholder="e.g. Camry" />
-              </div>
-              <div>
-                <label className={label}>Colour</label>
-                <input className={inputBase} value={vehicleForm.colour} onChange={(e) => setVehicleForm((f) => ({ ...f, colour: e.target.value }))} />
-              </div>
-              <div>
-                <label className={label}>State</label>
-                <select className={inputBase} value={vehicleForm.state_id} onChange={(e) => setVehicleForm((f) => ({ ...f, state_id: e.target.value }))}>
-                  <option value="">Select state</option>
-                  {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-            </div>
-            {vehicleError && <p className="text-[12px] font-medium text-red-600">{vehicleError}</p>}
-            <div className="flex gap-2">
-              <button type="button" onClick={handleCreateVehicle} disabled={creatingVehicle} className={btnPrimary} style={{ background: BRAND }}>
-                {creatingVehicle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Add vehicle
-              </button>
-              {vehicles.length > 0 && (
-                <button type="button" onClick={() => setAddingVehicle(false)} className={btnSecondary}>Cancel</button>
-              )}
-            </div>
+          <div className="px-5 py-4">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Paid</span>
+            <span className="mt-0.5 block text-[22px] font-bold text-emerald-600">{paidApps}</span>
           </div>
-        )}
-      </section>
-
-      {/* Applicant details */}
-      <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className={label}>Email address</label>
-            <input className={inputBase} value={user?.email || ""} disabled />
-          </div>
-          <div>
-            <label className={label}>NIN</label>
-            <input
-              className={inputBase}
-              value={nin}
-              onChange={(e) => setNin(e.target.value.replace(/\D/g, "").slice(0, 11))}
-              placeholder="11-digit National Identification Number"
-              inputMode="numeric"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={label}>Justification <span className="font-normal text-slate-400">(optional)</span></label>
-            <textarea
-              className={inputBase}
-              rows={2}
-              value={justification}
-              onChange={(e) => setJustification(e.target.value)}
-              placeholder="Any justification the authority asks for (e.g. medical reason)."
-            />
+          <div className="px-5 py-4">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Awaiting payment
+            </span>
+            <span className="mt-0.5 block text-[22px] font-bold text-amber-600">{pendingPaymentApps}</span>
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Documents & photos */}
-      <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents &amp; photos</h2>
+      {/* Applications — card list */}
+      {loading ? (
         <div className="space-y-3">
-          {DOC_SLOTS.map((slot) => (
-            <UploadSlot
-              key={slot.doc_type}
-              slot={slot}
-              value={docs[slot.doc_type]}
-              onChange={(v) => setDocs((prev) => ({ ...prev, [slot.doc_type]: v }))}
-            />
+          {[0, 1].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
           ))}
         </div>
-      </section>
+      ) : applications.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white px-8 py-16 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
+            <FileText className="h-7 w-7" />
+          </div>
+          <h3 className="mt-4 text-[16px] font-bold text-[#111111]">No tinted permit applications yet</h3>
+          <p className="mx-auto mt-1 max-w-xs text-[13px] text-slate-500">
+            Apply for a vehicle tinted glass permit — pick or add a vehicle to get started.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/apply/tinted-permit/new")}
+            className={`${btnPrimary} mt-5`}
+            style={{ background: BRAND }}
+          >
+            <Plus className="h-4 w-4" />
+            Start application
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {applications.map((app) => {
+            const payOpts = app.payment_options;
+            const isPaid = isApplicationPaid(app);
+            const payMeta = paymentStatusMeta(app);
+            const amountKobo = payOpts?.amount_kobo || TINTED_FEE_KOBO;
+            const remainingKobo = payOpts?.remaining_kobo ?? amountKobo;
 
-      {/* Payment */}
-      <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-        <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-        <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(TOTAL_FEE_KOBO)}</p>
-        <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
-      </section>
+            return (
+              <div
+                key={app.id}
+                onClick={() => router.push(`/dashboard/apply/${app.id}`)}
+                className="cursor-pointer rounded-2xl border border-[#E5E5E5] bg-white p-5 transition-all hover:border-[#28A745]/60 hover:shadow-md group"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 min-w-0">
+                    <MiniProgressRing status={app.status} applicationType={app.application_type} size={40} />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[15px] font-bold text-[#111111] group-hover:text-[#28A745] transition-colors">
+                          Tinted permit application
+                        </span>
+                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
+                          #{app.id}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-slate-500">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          {formatDate(app.created_at)}
+                        </span>
+                      </div>
+                      <div className="mt-2.5">
+                        <StatusBadge status={app.status} size="sm" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-      {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
+                <div className="mt-4 border-t border-slate-100 pt-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    {isPaid ? (
+                      <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-700">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Paid {koboToNaira(amountKobo)}
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold ${payMeta.needsRetry ? "text-red-600" : "text-amber-700"}`}>
+                        {payMeta.needsRetry ? <RefreshCw className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                        {payMeta.label} ({koboToNaira(remainingKobo)} left)
+                      </span>
+                    )}
+                    {!isPaid && payOpts?.checkout_url && (
+                      <a
+                        href={payOpts.checkout_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={btnGhost}
+                      >
+                        Checkout
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
 
-      <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {submitting ? "Submitting…" : "Submit application"}
-      </button>
+                  {!isPaid && (
+                    <div className="mt-3.5 max-w-md">
+                      <PartialPayControls
+                        remainingKobo={remainingKobo}
+                        walletBalanceKobo={walletBalance}
+                        payingWallet={payingFromWallet === app.id}
+                        onPay={(amt) => handlePayFromWallet(app.id, amt)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <button type="button" onClick={() => router.push(`/dashboard/apply/${app.id}`)} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-[#28A745] hover:text-white hover:border-[#28A745] transition-all shadow-sm">
+                      <span>View Full Details &amp; Status</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
