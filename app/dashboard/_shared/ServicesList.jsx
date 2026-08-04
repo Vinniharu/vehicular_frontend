@@ -30,12 +30,26 @@ export default function ServicesList({ showSearch = true }) {
     });
   }, []);
 
-  // "From ₦X" on the Driver's Licence card resolves to the cheapest live
-  // tier — the only service in this catalog wired to a real backend price.
+  // "From ₦X" on the Driver's Licence card resolves to the cheapest live DL
+  // tier. tinted_permit is excluded here — it's a flat-fee service returned
+  // in the same schedule, and at ₦24,050 it's cheaper than every DL tier, so
+  // including it would make the DL card show the wrong ("From ₦24,050") price.
   const driversLicenceMinKobo = useMemo(() => {
     if (!feeSchedule || feeSchedule.length === 0) return null;
-    return Math.min(...feeSchedule.map((p) => p.amount_kobo));
+    const dlPrices = feeSchedule.filter((p) => p.application_type !== "tinted_permit");
+    if (dlPrices.length === 0) return null;
+    return Math.min(...dlPrices.map((p) => p.amount_kobo));
   }, [feeSchedule]);
+
+  const tintedPermitFeeKobo = useMemo(() => {
+    if (!feeSchedule) return null;
+    return feeSchedule.find((p) => p.application_type === "tinted_permit")?.amount_kobo ?? null;
+  }, [feeSchedule]);
+
+  const feeByScheduleType = {
+    drivers_licence: driversLicenceMinKobo,
+    tinted_permit: tintedPermitFeeKobo,
+  };
 
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -98,7 +112,7 @@ export default function ServicesList({ showSearch = true }) {
                 <ServiceCard
                   key={service.slug}
                   service={service}
-                  feeKobo={service.slug === "drivers-licence" ? driversLicenceMinKobo : null}
+                  feeKobo={service.feeScheduleType ? feeByScheduleType[service.feeScheduleType] ?? null : null}
                 />
               ))}
             </div>
@@ -169,11 +183,9 @@ export function CtaBadge({ service, feeKobo }) {
 
 export function ServiceCard({ service, feeKobo }) {
   const Icon = service.icon;
-  const isLive = service.cta?.type === "resolved_price";
-  // Only the Driver's Licence card is wired to the real application flow -
-  // every other service is informational for now and links to its public
-  // marketing page instead.
-  const href = isLive ? "/dashboard/apply" : `/services/${service.slug}`;
+  // Services with a real apply flow set applyHref explicitly; everything
+  // else is informational for now and links to its public marketing page.
+  const href = service.applyHref || `/services/${service.slug}`;
 
   return (
     <Link

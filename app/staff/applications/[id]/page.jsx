@@ -543,7 +543,8 @@ export default function StaffApplicationDetailsPage() {
             </button>
           )}
 
-          {application.assigned_staff && ["captured", "capturing_completed", "agent_completed"].includes(application.status) && (
+          {application.assigned_staff && application.application_type !== "tinted_permit" &&
+            ["captured", "capturing_completed", "agent_completed"].includes(application.status) && (
             <button onClick={() => openModal("ready-for-pickup")} className={btnPrimary} style={{ background: "#4f46e5" }}>
               <Send className="h-4 w-4" /> Ready for pickup
             </button>
@@ -1286,7 +1287,9 @@ export default function StaffApplicationDetailsPage() {
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                 <span>
                   This offers the job to active agents in <strong className="text-slate-800">{application.lga || "this LGA"}</strong>.
-                  Once one accepts, biometric capture scheduling begins.
+                  {application.application_type === "tinted_permit"
+                    ? " Once one accepts, they'll begin processing the permit."
+                    : " Once one accepts, biometric capture scheduling begins."}
                 </span>
               </div>
             )}
@@ -1319,7 +1322,7 @@ export default function StaffApplicationDetailsPage() {
             {modalType === "final-review" && (
               <div className="space-y-3.5">
                 <p className="text-[12.5px] text-slate-500">
-                  Confirm the completed job (the permanent licence card) checks out. Approving moves
+                  Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : "the permanent licence card"}) checks out. Approving moves
                   the application to <strong className="text-slate-800">awaiting_customer</strong> —
                   from there, use <strong>Mark as received</strong> once the finished document is
                   physically in hand to close it out and notify the customer. Rejecting sends it

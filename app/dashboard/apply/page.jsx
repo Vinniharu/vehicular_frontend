@@ -44,10 +44,20 @@ import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
-import { statusMeta, getStatusDescription, TONE_HEX, getStageProgress } from "@/app/dashboard/_shared/status-config";
+import { getStatusDescription } from "@/app/dashboard/_shared/status-config";
 import { btnPrimary, btnSecondary, btnGhost, inputBase, label } from "@/app/dashboard/_shared/ui";
 import Modal from "@/app/dashboard/_shared/Modal";
 import { colors } from "@/lib/design-tokens";
+import {
+  koboToNaira,
+  formatDate,
+  errInputClass,
+  FieldError,
+  MiniProgressRing,
+  isApplicationPaid,
+  paymentStatusMeta,
+  StepProgress,
+} from "@/app/dashboard/_shared/apply-helpers";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -55,15 +65,6 @@ const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 /* ────────────────────────────────────────────────────────────
    Helpers
    ──────────────────────────────────────────────────────────── */
-function koboToNaira(kobo) {
-  return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
-}
-
-function formatDate(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
-}
-
 function ageFromDob(dobStr) {
   const dob = new Date(dobStr);
   if (isNaN(dob.getTime())) return null;
@@ -103,13 +104,6 @@ const VALIDITY_PERIODS = ["3 years", "5 years"];
 const NAME_RE = /^[A-Za-z' -]{2,50}$/;
 const NIN_RE = /^\d{11}$/;
 const MIN_APPLICANT_AGE = 18;
-const errInputClass = (hasError) =>
-  hasError ? "border-red-400 focus:border-red-400 focus:ring-red-400/15" : "";
-
-function FieldError({ message }) {
-  if (!message) return null;
-  return <p className="mt-1 text-[12px] font-medium text-red-600">{message}</p>;
-}
 
 // Mirrors the backend's FEE_SCHEDULE (app/core/payment_helpers.py) — only
 // used for the pre-submission cost preview, before an application exists
@@ -122,81 +116,6 @@ const FEE_SCHEDULE_KOBO = {
 function estimateFeeKobo(appType, period) {
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
-}
-
-function MiniProgressRing({ status, applicationType, size = 36 }) {
-  const progress = getStageProgress(status, applicationType);
-  const isRejected = status === "staff_rejected" || status === "failed";
-  const isDone = status === "completed";
-  const meta = statusMeta(status);
-  const strokeColor = TONE_HEX[meta.tone] || TONE_HEX.neutral;
-
-  const stroke = 3;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} stroke="#f1f5f9" fill="none" />
-        <circle cx={size / 2} cy={size / 2} r={r} strokeWidth={stroke} fill="none" strokeLinecap="round"
-          stroke={isRejected ? "#ef4444" : strokeColor}
-          strokeDasharray={c} strokeDashoffset={c * (1 - progress)}
-          style={{ transition: "stroke-dashoffset 0.7s ease-out" }} />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        {isDone ? (
-          <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "#28A745" }} />
-        ) : isRejected ? (
-          <XCircle className="h-3.5 w-3.5 text-red-400" />
-        ) : (
-          <div className="h-1.5 w-1.5 rounded-full" style={{ background: strokeColor }} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function isApplicationPaid(app) {
-  if (!app) return false;
-  const s = app.payment_status || app.payment_options?.payment_status;
-  return s === "success" || s === "paid";
-}
-
-function paymentStatusMeta(app) {
-  if (!app) return { label: "Payment Due", tone: "warning", needsRetry: false };
-  const s = app.payment_status || app.payment_options?.payment_status;
-  if (s === "success" || s === "paid") return { label: "Paid", tone: "success", needsRetry: false };
-  if (s === "abandoned" || s === "failed") return { label: "Payment Failed / Retry", tone: "danger", needsRetry: true };
-  return { label: "Payment Due", tone: "warning", needsRetry: false };
-}
-
-/* ────────────────────────────────────────────────────────────
-   Segmented step progress bar for the application form
-   ──────────────────────────────────────────────────────────── */
-function StepProgress({ steps, current }) {
-  return (
-    <div>
-      <div className="flex items-center gap-1.5">
-        {steps.map((_, idx) => (
-          <div key={idx} className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500 ease-out motion-reduce:transition-none"
-              style={{
-                width: idx + 1 <= current ? "100%" : "0%",
-                background: BRAND,
-              }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          Step {current} of {steps.length}
-        </span>
-        <span className="text-[13px] font-bold text-[#111111]">{steps[current - 1]}</span>
-      </div>
-    </div>
-  );
 }
 
 function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
@@ -335,7 +254,7 @@ export default function ApplyPage() {
     Promise.all([authGetMe(), getReferenceStates(), getMyApplications(), getWallet()]).then(
       ([meRes, statesRes, appsRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
-        if (appsRes.data) setExistingApplications(appsRes.data);
+        if (appsRes.data) setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
         setLoadingExisting(false);
 
@@ -510,7 +429,7 @@ export default function ApplyPage() {
     );
     const [appsRes, walletRes] = await Promise.all([getMyApplications(), getWallet()]);
     if (appsRes.data) {
-      setExistingApplications(appsRes.data);
+      setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
       if (successApp?.id === appId) {
         const updated = appsRes.data.find((a) => a.id === appId);
         if (updated) setSuccessApp(updated);
@@ -1277,22 +1196,6 @@ export default function ApplyPage() {
                   </button>
                 );
               })}
-              {/* Vehicle-centric, not person-centric — a genuinely different
-                  flow (pick/add a vehicle, no state/LGA of residence, its
-                  own document set), so it lives on its own dedicated page
-                  rather than continuing this wizard's fresh/renewal/reissue/
-                  IDP step machinery. */}
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard/apply/tinted-permit")}
-                className="flex w-full items-start gap-3.5 rounded-xl border-2 border-dashed p-4 text-left transition-all border-slate-200 hover:border-slate-300 bg-white"
-              >
-                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-slate-300" />
-                <div>
-                  <p className="text-[14px] font-semibold text-[#111111]">Tinted permit</p>
-                  <p className="mt-0.5 text-[12.5px] text-slate-500">Apply for a vehicle tint permit — attached to a vehicle, not a person.</p>
-                </div>
-              </button>
             </div>
 
             {applicationType === "fresh" && (

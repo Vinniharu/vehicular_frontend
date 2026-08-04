@@ -25,6 +25,8 @@ export const SERVICES = [
     icon: CreditCard,
     category: "Other documents",
     cta: { type: "resolved_price", value: null },
+    applyHref: "/dashboard/apply",
+    feeScheduleType: "drivers_licence",
     title: "Driver's Licence Services",
     tagline:
       "Fresh DL, renewal, re-issue, learner's permit, and international permit — all processed nationwide without the FRSC queue.",
@@ -287,7 +289,9 @@ export const SERVICES = [
     slug: "tinted-permit",
     icon: Sun,
     category: "Other documents",
-    cta: { type: "badge", value: "Coming soon" },
+    cta: { type: "resolved_price", value: null },
+    applyHref: "/dashboard/apply/tinted-permit",
+    feeScheduleType: "tinted_permit",
     title: "Tinted Glass Permit",
     tagline: "Police-issued tinted glass permit, processed without the back-and-forth.",
     intro:

@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   FileText,
+  Sun,
   Wallet,
   Settings,
   ChevronRight,
@@ -21,6 +22,7 @@ import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
 import { colors } from "@/lib/design-tokens";
 import MobileDrawer from "@/app/dashboard/_shared/MobileDrawer";
 import ChatWidget from "@/app/dashboard/_shared/ChatWidget";
+import SidebarNavItem, { isActive, isChildActive } from "@/app/dashboard/_shared/SidebarNavItem";
 
 const BRAND = colors.primary.DEFAULT;
 
@@ -41,10 +43,12 @@ const NAV_ITEMS = [
   },
   {
     label: "Applications",
-    href: "/dashboard/apply",
     icon: FileText,
-    exact: false,
-    desc: "Driver's licence",
+    desc: "Driver's licence & tinted permit",
+    children: [
+      { label: "Driver's Licence", href: "/dashboard/apply", icon: FileText },
+      { label: "Tinted Permit", href: "/dashboard/apply/tinted-permit", icon: Sun },
+    ],
   },
   {
     label: "Wallet",
@@ -55,9 +59,18 @@ const NAV_ITEMS = [
   },
 ];
 
-function isActive(pathname, item) {
-  if (item.exact) return pathname === item.href;
-  return pathname === item.href || pathname.startsWith(item.href + "/");
+// A parent with children renders "Parent › Child" once its active child is
+// found; a flat item renders just its own label.
+function breadcrumbLabel(pathname) {
+  for (const item of NAV_ITEMS) {
+    if (item.children) {
+      const activeChild = item.children.find((c) => isChildActive(pathname, c));
+      if (activeChild) return `${item.label} › ${activeChild.label}`;
+    } else if (isActive(pathname, item)) {
+      return item.label;
+    }
+  }
+  return "Dashboard";
 }
 
 export default function DashboardLayout({ children }) {
@@ -150,40 +163,9 @@ export default function DashboardLayout({ children }) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(pathname, item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group flex items-center gap-3 px-3 py-3 rounded-xl text-[13.5px] font-semibold transition-all"
-                style={{
-                  background: active ? "rgba(40, 167, 69,0.15)" : "transparent",
-                  color: active ? "#4ade80" : "rgba(255,255,255,0.5)",
-                }}
-              >
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all"
-                  style={{
-                    background: active ? BRAND : "rgba(255,255,255,0.06)",
-                    color: active ? "#fff" : "rgba(255,255,255,0.4)",
-                  }}
-                >
-                  <Icon className="h-[17px] w-[17px]" />
-                </div>
-                <div className="min-w-0">
-                  <span className="block" style={{ color: active ? "#fff" : "rgba(255,255,255,0.6)" }}>
-                    {item.label}
-                  </span>
-                  <span className="block text-[11px] font-normal" style={{ color: active ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)" }}>
-                    {item.desc}
-                  </span>
-                </div>
-                {active && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />}
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.map((item) => (
+            <SidebarNavItem key={item.href || item.label} item={item} pathname={pathname} variant="desktop" />
+          ))}
         </nav>
 
         {/* Bottom section */}
@@ -280,32 +262,15 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <nav className="flex-1 px-4 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(pathname, item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all"
-                style={{
-                  background: active ? "rgba(40, 167, 69,0.15)" : "transparent",
-                }}
-              >
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: active ? BRAND : "rgba(255,255,255,0.07)", color: active ? "#fff" : "rgba(255,255,255,0.4)" }}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[14px] font-semibold" style={{ color: active ? "#fff" : "rgba(255,255,255,0.6)" }}>{item.label}</p>
-                  <p className="text-[11.5px]" style={{ color: "rgba(255,255,255,0.3)" }}>{item.desc}</p>
-                </div>
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.map((item) => (
+            <SidebarNavItem
+              key={item.href || item.label}
+              item={item}
+              pathname={pathname}
+              variant="mobile"
+              onNavigate={() => setMobileMenuOpen(false)}
+            />
+          ))}
         </nav>
 
         <div className="px-4 pb-6 pt-3 space-y-1 border-t border-white/[0.06] mt-3">
@@ -330,8 +295,8 @@ export default function DashboardLayout({ children }) {
           <div className="flex items-center gap-2 text-[13px] text-[#7A7A7A]">
             <Link href="/" className="hover:text-[#28A745] transition-colors font-medium">Vehiculars</Link>
             <ChevronRight className="h-3.5 w-3.5 text-[#D4D4D4]" />
-            <span className="font-semibold text-[#111111] capitalize">
-              {NAV_ITEMS.find((n) => isActive(pathname, n))?.label || "Dashboard"}
+            <span className="font-semibold text-[#111111]">
+              {breadcrumbLabel(pathname)}
             </span>
           </div>
 
