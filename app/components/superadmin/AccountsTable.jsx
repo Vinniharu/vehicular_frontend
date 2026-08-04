@@ -21,7 +21,7 @@ import {
 } from "@/lib/api";
 
 const CAPABILITY_OPTIONS = ["driver_licence", "roadworthiness"];
-const APPLICATION_TYPE_OPTIONS = ["fresh", "renewal", "reissue", "international_permit"];
+const APPLICATION_TYPE_OPTIONS = ["fresh", "renewal", "reissue", "international_permit", "tinted_permit"];
 
 function StatusBadge({ active }) {
   return active ? (

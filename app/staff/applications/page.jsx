@@ -236,6 +236,7 @@ function StaffApplicationsQueueInner() {
           <option value="renewal">Renewal</option>
           <option value="reissue">Reissue</option>
           <option value="international_permit">International Permit</option>
+          <option value="tinted_permit">Tinted Permit</option>
         </select>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">

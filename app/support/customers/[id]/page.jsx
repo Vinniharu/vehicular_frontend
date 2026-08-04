@@ -17,6 +17,7 @@ import {
   MapPin,
   FileText,
   Receipt,
+  Eye,
 } from "lucide-react";
 import { getSupportCustomer } from "@/lib/api";
 
@@ -150,6 +151,7 @@ export default function SupportCustomerDetailPage() {
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Payment</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">State / LGA</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Submitted</th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -179,6 +181,14 @@ export default function SupportCustomerDetailPage() {
                     </td>
                     <td className="px-4 py-3.5 text-[12px] text-slate-400">
                       {a.created_at ? new Date(a.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "—"}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Link
+                        href={`/support/applications/${a.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Eye className="h-3 w-3" /> Details
+                      </Link>
                     </td>
                   </tr>
                 ))}

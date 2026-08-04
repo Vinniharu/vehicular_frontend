@@ -181,6 +181,7 @@ export default function AdminApplicationsPage() {
           <option value="fresh">Fresh</option>
           <option value="renewal">Renewal</option>
           <option value="reissue">Reissue</option>
+          <option value="tinted_permit">Tinted Permit</option>
         </select>
         <select
           value={statusFilter}

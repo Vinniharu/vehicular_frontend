@@ -25,6 +25,7 @@ function SignupForm() {
   const [phone, setPhone] = useState("+234 ");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState(searchParams?.get("ref") || "");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -62,6 +63,7 @@ function SignupForm() {
       phone: cleanPhone,
       password,
       role: "customer",
+      referred_by_code: referralCode.trim() || undefined,
     });
 
     if (regResult.error) {
@@ -235,6 +237,24 @@ function SignupForm() {
               }}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="referralCode">
+            Referral code <span className="text-white/40 font-normal">(optional)</span>
+          </label>
+          <input
+            id="referralCode"
+            type="text"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            placeholder="e.g. HPG849ND"
+            className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none font-mono uppercase transition-all"
+            style={{
+              background: "rgba(17, 17, 17, 0.6)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+            }}
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1277,6 +1277,22 @@ export default function ApplyPage() {
                   </button>
                 );
               })}
+              {/* Vehicle-centric, not person-centric — a genuinely different
+                  flow (pick/add a vehicle, no state/LGA of residence, its
+                  own document set), so it lives on its own dedicated page
+                  rather than continuing this wizard's fresh/renewal/reissue/
+                  IDP step machinery. */}
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/apply/tinted-permit")}
+                className="flex w-full items-start gap-3.5 rounded-xl border-2 border-dashed p-4 text-left transition-all border-slate-200 hover:border-slate-300 bg-white"
+              >
+                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-slate-300" />
+                <div>
+                  <p className="text-[14px] font-semibold text-[#111111]">Tinted permit</p>
+                  <p className="mt-0.5 text-[12.5px] text-slate-500">Apply for a vehicle tint permit — attached to a vehicle, not a person.</p>
+                </div>
+              </button>
             </div>
 
             {applicationType === "fresh" && (
