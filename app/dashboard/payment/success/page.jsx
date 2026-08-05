@@ -88,7 +88,10 @@ function PaymentSuccessContent() {
   };
 
   const amountPaid = verifiedAmount ? koboToNaira(verifiedAmount) : amountParam ? koboToNaira(amountParam) : application?.payment_options ? koboToNaira(application.payment_options.amount_kobo) : "₦30,000.00";
-  const applicationHref = `/dashboard/apply/${application?.id || appIdParam || ""}`;
+  const isTinted = application?.application_type === "tinted_permit";
+  const applicationHref = isTinted
+    ? "/dashboard/apply/tinted-permit"
+    : `/dashboard/apply/${application?.id || appIdParam || ""}`;
 
   if (loading) {
     return (
@@ -193,7 +196,7 @@ function PaymentSuccessContent() {
         </div>
         <h2 className="text-[21px] font-bold tracking-tight text-slate-900">Payment successful</h2>
         <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-          Your application fee has been verified and processed. Your driver's licence application is now moving to priority processing.
+          Your application fee has been verified and processed. Your {isTinted ? "tinted permit" : "driver's licence"} application is now moving to priority processing.
         </p>
         {detailsCard}
         <div className="mt-8 border-t border-slate-100 pt-5 text-center">

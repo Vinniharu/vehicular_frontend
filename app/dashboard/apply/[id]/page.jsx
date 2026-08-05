@@ -56,7 +56,7 @@ const FEE_SCHEDULE_KOBO = {
   fresh: { "3 years": 3867500, "5 years": 4577500 },
   renewal: { "3 years": 3000000, "5 years": 3500000 },
 };
-const TINTED_PERMIT_FEE_KOBO = 2_405_000;
+const TINTED_PERMIT_FEE_KOBO = 2_705_000;
 function estimateFeeKobo(appType, period) {
   if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
@@ -1158,10 +1158,6 @@ export default function CustomerApplicationDetailsPage() {
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
               <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.registration_number}</span>
             </div>
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>

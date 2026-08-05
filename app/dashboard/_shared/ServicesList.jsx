@@ -32,8 +32,8 @@ export default function ServicesList({ showSearch = true }) {
 
   // "From ₦X" on the Driver's Licence card resolves to the cheapest live DL
   // tier. tinted_permit is excluded here — it's a flat-fee service returned
-  // in the same schedule, and at ₦24,050 it's cheaper than every DL tier, so
-  // including it would make the DL card show the wrong ("From ₦24,050") price.
+  // in the same schedule, and at ₦27,050 it's cheaper than every DL tier, so
+  // including it would make the DL card show the wrong ("From ₦27,050") price.
   const driversLicenceMinKobo = useMemo(() => {
     if (!feeSchedule || feeSchedule.length === 0) return null;
     const dlPrices = feeSchedule.filter((p) => p.application_type !== "tinted_permit");

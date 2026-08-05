@@ -29,7 +29,7 @@ const BRAND = colors.primary.DEFAULT;
 // Mirrors the backend's flat tinted_permit fee (app/core/payment_helpers.py)
 // — only used as a fallback while payment_options hasn't loaded; the real
 // amount always comes from the backend once available.
-const TINTED_FEE_KOBO = 2_405_000;
+const TINTED_FEE_KOBO = 2_705_000;
 
 export default function TintedPermitApplicationsPage() {
   const router = useRouter();

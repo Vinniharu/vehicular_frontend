@@ -12,6 +12,7 @@ import {
   FileText,
   Sun,
   Wallet,
+  Gift,
   Settings,
   ChevronRight,
   Bell,
@@ -56,6 +57,13 @@ const NAV_ITEMS = [
     icon: Wallet,
     exact: true,
     desc: "Balance & payments",
+  },
+  {
+    label: "Refer & earn",
+    href: "/dashboard/refer",
+    icon: Gift,
+    exact: true,
+    desc: "Invite friends & earn rewards",
   },
 ];
 
