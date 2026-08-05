@@ -34,7 +34,6 @@ const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 // fee-schedule fetch (below) hasn't resolved yet or failed.
 const TOTAL_FEE_KOBO = 2_405_000;
 
-const REGISTRATION_RE = /^[A-Za-z0-9/-]{4,20}$/;
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 
 const DOC_SLOTS = [
@@ -192,7 +191,7 @@ export default function TintedPermitNewApplicationPage() {
   const [addingVehicle, setAddingVehicle] = useState(false);
 
   const [vehicleForm, setVehicleForm] = useState({
-    registration_number: "", plate_number: "", make: "", model: "", colour: "", state_id: "",
+    plate_number: "", make: "", model: "", colour: "", state_id: "",
   });
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
@@ -235,8 +234,6 @@ export default function TintedPermitNewApplicationPage() {
 
   const handleCreateVehicle = async () => {
     const errors = {};
-    if (!vehicleForm.registration_number.trim()) errors.registration_number = "Registration number is required.";
-    else if (!REGISTRATION_RE.test(vehicleForm.registration_number.trim())) errors.registration_number = "Use 4-20 letters, digits, hyphens, or slashes.";
     if (!vehicleForm.plate_number.trim()) errors.plate_number = "Plate number is required.";
     else if (!PLATE_RE.test(vehicleForm.plate_number.trim())) errors.plate_number = "Use 4-15 letters, digits, or hyphens.";
     if (!vehicleForm.make.trim()) errors.make = "Make is required.";
@@ -252,7 +249,7 @@ export default function TintedPermitNewApplicationPage() {
     const res = await createVehicle({ ...vehicleForm, state_id: Number(vehicleForm.state_id) });
     setCreatingVehicle(false);
     if (res.error) {
-      setVehicleFieldErrors({ registration_number: res.error });
+      setVehicleFieldErrors({ plate_number: res.error });
       return;
     }
     setVehicles((prev) => [res.data, ...prev]);
@@ -443,15 +440,6 @@ export default function TintedPermitNewApplicationPage() {
           {(addingVehicle || (!loadingVehicles && vehicles.length === 0)) && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className={label}>Registration number</label>
-                  <input
-                    className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.registration_number)}`}
-                    value={vehicleForm.registration_number}
-                    onChange={(e) => setVehicleForm((f) => ({ ...f, registration_number: e.target.value }))}
-                  />
-                  <FieldError message={vehicleFieldErrors.registration_number} />
-                </div>
                 <div>
                   <label className={label}>Plate number</label>
                   <input

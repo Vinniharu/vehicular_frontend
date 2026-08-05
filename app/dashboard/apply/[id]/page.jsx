@@ -1160,10 +1160,6 @@ export default function CustomerApplicationDetailsPage() {
               <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.registration_number}</span>
-            </div>
-            <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
               <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
             </div>
