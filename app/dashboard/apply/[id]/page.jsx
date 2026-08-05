@@ -56,7 +56,7 @@ const FEE_SCHEDULE_KOBO = {
   fresh: { "3 years": 3867500, "5 years": 4577500 },
   renewal: { "3 years": 3000000, "5 years": 3500000 },
 };
-const TINTED_PERMIT_FEE_KOBO = 2_405_000;
+const TINTED_PERMIT_FEE_KOBO = 2_705_000;
 function estimateFeeKobo(appType, period) {
   if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;

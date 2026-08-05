@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Upload,
-  Image as ImageIcon,
   Loader2,
   CheckCircle2,
   Plus,
@@ -22,6 +21,7 @@ import {
   payFromWalletEndpoint,
   getWallet,
   getDriverLicenceFeeSchedule,
+  getApplication,
   koboToNaira,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
@@ -32,95 +32,48 @@ const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 // Mirrors app/core/payment_helpers.py — fallback only, used while the live
 // fee-schedule fetch (below) hasn't resolved yet or failed.
-const TOTAL_FEE_KOBO = 2_405_000;
+const TOTAL_FEE_KOBO = 2_705_000;
 
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 
+// Reference-photo guides shown as the background of each upload box below.
+// Drop the matching photo into public/doc-guides/ using these exact
+// filenames to have it appear — a missing file just falls back to a plain
+// background, nothing breaks if a photo hasn't been supplied yet.
 const DOC_SLOTS = [
-  { doc_type: "proof_of_ownership", title: "Proof of Ownership (PDF or photo)", guide: "document" },
-  { doc_type: "vehicle_licence", title: "Vehicle Licence (PDF or photo)", guide: "document" },
-  { doc_type: "tinted_passport_photo", title: "Your passport photograph", guide: "passport" },
-  { doc_type: "vehicle_photo_front", title: "Vehicle photo — Front", guide: "car-front" },
-  { doc_type: "vehicle_photo_back", title: "Vehicle photo — Back", guide: "car-back" },
-  { doc_type: "vehicle_photo_side", title: "Vehicle photo — Side", guide: "car-side" },
-  { doc_type: "vin_sticker_photo", title: "VIN sticker photo", hint: "Usually on driver-side door jamb or dashboard.", guide: "vin" },
+  { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Vehicle particulars or purchase receipt", image: "/doc-guides/proof-of-ownership.jpg" },
+  { doc_type: "vehicle_licence", title: "Vehicle Licence", hint: "Front of your vehicle licence", image: "/doc-guides/vehicle-licence.jpg" },
+  { doc_type: "tinted_passport_photo", title: "Passport Photograph", hint: "Clear photo of your face", image: "/doc-guides/passport-photo.jpg" },
+  { doc_type: "vehicle_photo_front", title: "Vehicle Photo — Front", hint: "Full front view of the vehicle", image: "/doc-guides/vehicle-front.jpg" },
+  { doc_type: "vehicle_photo_back", title: "Vehicle Photo — Back", hint: "Full rear view of the vehicle", image: "/doc-guides/vehicle-back.jpg" },
+  { doc_type: "vehicle_photo_side", title: "Vehicle Photo — Side", hint: "Full side profile of the vehicle", image: "/doc-guides/vehicle-side.jpg" },
+  { doc_type: "vin_sticker_photo", title: "VIN Sticker Photo", hint: "Usually on driver-side door jamb or dashboard", image: "/doc-guides/vin-sticker.jpg" },
 ];
 
 const STEP_LABELS = ["Vehicle", "Applicant details", "Documents", "Review & submit"];
-
-/* ── Simple illustrative guides — not real photos, none available ── */
-function GuideDocument() {
-  return (
-    <svg viewBox="0 0 64 48" className="h-12 w-16" aria-hidden>
-      <rect x="14" y="4" width="36" height="40" rx="3" fill="#fff" stroke="#94a3b8" strokeWidth="2" />
-      <line x1="20" y1="14" x2="44" y2="14" stroke="#cbd5e1" strokeWidth="2" />
-      <line x1="20" y1="20" x2="44" y2="20" stroke="#cbd5e1" strokeWidth="2" />
-      <line x1="20" y1="26" x2="36" y2="26" stroke="#cbd5e1" strokeWidth="2" />
-      <circle cx="40" cy="34" r="7" fill="#28A745" />
-      <path d="M37 34l2 2 4-4" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function GuidePassport() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-12 w-12" aria-hidden>
-      <rect x="4" y="4" width="40" height="40" rx="4" fill="#f8fafc" stroke="#94a3b8" strokeWidth="2" />
-      <ellipse cx="24" cy="20" rx="8" ry="9" fill="none" stroke="#28A745" strokeWidth="2" strokeDasharray="3 2" />
-      <circle cx="24" cy="17" r="4.5" fill="#cbd5e1" />
-      <path d="M15 32c2-5 6-7 9-7s7 2 9 7" fill="#cbd5e1" />
-    </svg>
-  );
-}
-function GuideCar({ angle }) {
-  if (angle === "side") {
-    return (
-      <svg viewBox="0 0 72 40" className="h-10 w-18" aria-hidden>
-        <rect x="2" y="2" width="68" height="36" rx="3" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="3 2" />
-        <path d="M10 26 L16 14 L28 10 L46 10 L54 16 L62 18 L62 26 L10 26 Z" fill="#e2f5e8" stroke="#28A745" strokeWidth="2" />
-        <circle cx="20" cy="27" r="4.5" fill="#111111" />
-        <circle cx="52" cy="27" r="4.5" fill="#111111" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 56 40" className="h-10 w-14" aria-hidden>
-      <rect x="2" y="2" width="52" height="36" rx="3" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="3 2" />
-      <rect x="14" y="10" width="28" height="20" rx="4" fill="#e2f5e8" stroke="#28A745" strokeWidth="2" />
-      <rect x="18" y="14" width="20" height="6" rx="1.5" fill="#28A745" opacity="0.4" />
-      <circle cx="20" cy="32" r="3" fill="#111111" />
-      <circle cx="36" cy="32" r="3" fill="#111111" />
-    </svg>
-  );
-}
-function GuideVin() {
-  return (
-    <svg viewBox="0 0 64 44" className="h-11 w-16" aria-hidden>
-      <path d="M8 30 L14 16 L28 12 L48 12 L56 20 L56 30 L8 30 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.5" />
-      <circle cx="34" cy="18" r="9" fill="none" stroke="#28A745" strokeWidth="2" />
-      <path d="M34 12v4M34 20v2M30 18h2M36 18h2" stroke="#28A745" strokeWidth="1.5" />
-      <path d="M30 6 L34 12 L38 6" fill="#28A745" />
-    </svg>
-  );
-}
-function DocGuide({ kind }) {
-  if (kind === "document") return <GuideDocument />;
-  if (kind === "passport") return <GuidePassport />;
-  if (kind === "car-front") return <GuideCar angle="front" />;
-  if (kind === "car-back") return <GuideCar angle="back" />;
-  if (kind === "car-side") return <GuideCar angle="side" />;
-  if (kind === "vin") return <GuideVin />;
-  return null;
-}
 
 function UploadSlot({ slot, value, onChange }) {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  // Revoke the local object URL whenever it's replaced or the component
+  // unmounts, so picking several files in a row doesn't leak memory.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleFile = async (file) => {
     if (!file) return;
     setError(null);
     setUploading(true);
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploading(false);
     if (uploadError || !data?.file_url) {
@@ -130,49 +83,77 @@ function UploadSlot({ slot, value, onChange }) {
     onChange({ fileName: file.name, url: data.file_url });
   };
 
-  return (
-    <div className="flex gap-4 rounded-xl border border-[#E5E5E5] p-4">
-      <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-50">
-        <DocGuide kind={slot.guide} />
-      </div>
-      <div className="flex-1">
-        <p className="text-[13.5px] font-semibold text-[#111111]">{slot.title}</p>
-        {slot.hint && <p className="mt-0.5 text-[12px] text-slate-500">{slot.hint}</p>}
-        <p className="mt-0.5 text-[11.5px] text-slate-400">JPG, PNG, WEBP, HEIC, or PDF · up to 10 MB</p>
+  const handleRemove = () => {
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    onChange(null);
+  };
 
-        <div className="mt-2.5">
-          {!value?.url ? (
-            <label
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
-              className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3.5 transition-all"
-              style={{ borderColor: dragActive ? BRAND : "#cbd5e1", background: dragActive ? BRAND_TINT : "#f8fafc" }}
-            >
-              <Upload className="h-4 w-4" style={{ color: BRAND }} />
-              <span className="text-[12.5px] font-semibold text-slate-700">{uploading ? "Uploading…" : "Click or drop a file here"}</span>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                disabled={uploading}
-                onChange={(e) => handleFile(e.target.files?.[0])}
-                className="hidden"
-              />
-            </label>
-          ) : (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                <p className="truncate text-[12.5px] font-semibold text-[#111111]">{value.fileName}</p>
-                <span className="shrink-0 text-[11px] text-slate-400">Ready</span>
-              </div>
-              <button type="button" onClick={() => onChange(null)} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">
-                Remove
-              </button>
-            </div>
-          )}
+  const bgStyle = (url) => ({
+    backgroundImage: url ? `url(${url})` : undefined,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundColor: "#f8fafc",
+  });
+
+  if (!value?.url) {
+    return (
+      <label
+        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
+        className="relative flex aspect-[4/3] cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border-2 transition-all"
+        style={{ borderColor: dragActive ? BRAND : "#E5E5E5", ...bgStyle(slot.image) }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/50" />
+        <div className="relative z-[1] p-3.5">
+          <p className="text-[13px] font-semibold text-white drop-shadow-sm">{slot.title}</p>
+          {slot.hint && <p className="mt-0.5 text-[11px] text-white/80 drop-shadow-sm">{slot.hint}</p>}
         </div>
-        {error && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{error}</p>}
+        <div className="relative z-[1] p-3.5">
+          <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2.5">
+            <Upload className="h-4 w-4 shrink-0" style={{ color: BRAND }} />
+            <span className="text-[12px] font-semibold text-slate-700">
+              {uploading ? "Uploading…" : "Click or drop a file here"}
+            </span>
+          </div>
+          {error && <p className="mt-1.5 rounded-md bg-red-600/90 px-2 py-1 text-[11px] font-medium text-white">{error}</p>}
+          <p className="mt-1.5 text-[10.5px] text-white/70 drop-shadow-sm">JPG, PNG, WEBP, HEIC, or PDF · up to 10 MB</p>
+        </div>
+        <input
+          type="file"
+          accept="image/*,application/pdf"
+          disabled={uploading}
+          onChange={(e) => handleFile(e.target.files?.[0])}
+          className="hidden"
+        />
+      </label>
+    );
+  }
+
+  return (
+    <div
+      className="relative flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-2xl border-2"
+      style={{ borderColor: BRAND, ...bgStyle(previewUrl) }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/40" />
+      <div className="relative z-[1] p-3.5">
+        <p className="text-[13px] font-semibold text-white drop-shadow-sm">{slot.title}</p>
+      </div>
+      <div className="relative z-[1] flex items-center justify-between gap-2 p-3.5">
+        <div className="flex min-w-0 items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2.5">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+          <p className="truncate text-[12px] font-semibold text-[#111111]">{value.fileName}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRemove}
+          className="shrink-0 rounded-xl bg-white/95 px-3 py-2.5 text-[11px] font-semibold text-red-600 hover:bg-white"
+        >
+          Remove
+        </button>
       </div>
     </div>
   );
@@ -323,12 +304,45 @@ export default function TintedPermitNewApplicationPage() {
     const walletRes = await getWallet();
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     if (res.data) {
+      if (res.data.is_fully_paid) {
+        router.push("/dashboard/apply/tinted-permit");
+        return;
+      }
       setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
     }
   };
 
+  const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
+
+  // "Pay by card" opens Monnify in a new tab (consistent with every other
+  // pay-by-card link in this app) — this tab never gets a callback, so it
+  // has to notice payment completion itself once the customer switches
+  // back, instead of leaving them stranded on this form.
+  useEffect(() => {
+    if (!successApp || isPaid) return;
+    const checkPayment = async () => {
+      const res = await getApplication(successApp.id);
+      const opts = res.data?.payment_options;
+      if (!opts) return;
+      const remaining = opts.remaining_kobo ?? opts.amount_kobo ?? 0;
+      if (remaining <= 0) {
+        router.push("/dashboard/apply/tinted-permit");
+      } else {
+        setPayOpts(opts);
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") checkPayment();
+    };
+    window.addEventListener("focus", checkPayment);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", checkPayment);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [successApp, isPaid, router]);
+
   if (successApp) {
-    const isPaid = (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0;
     return (
       <div className="mx-auto max-w-lg py-10">
         <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
@@ -337,7 +351,7 @@ export default function TintedPermitNewApplicationPage() {
           </div>
           <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Tinted permit application submitted</h2>
           <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Under 72 hours — proof of process &amp; payment so you can drive freely. 7 working days for the main permit certificate.
+            5 working days — proof of process &amp; payment so you can drive freely. 7 working days for the main permit certificate.
           </p>
 
           <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
@@ -389,7 +403,7 @@ export default function TintedPermitNewApplicationPage() {
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">Under 72 hours — proof of process &amp; payment so you can drive freely</p>
+            <p className="text-[12.5px] text-slate-600">5 working days — proof of process &amp; payment so you can drive freely</p>
           </div>
           <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
@@ -544,7 +558,7 @@ export default function TintedPermitNewApplicationPage() {
       {step === 3 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents &amp; photos</h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {DOC_SLOTS.map((slot) => (
               <UploadSlot
                 key={slot.doc_type}
