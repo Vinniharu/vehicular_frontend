@@ -37,17 +37,17 @@ const TOTAL_FEE_KOBO = 2_705_000;
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 
 // Reference-photo guides shown as the background of each upload box below.
-// Drop the matching photo into public/doc-guides/ using these exact
-// filenames to have it appear — a missing file just falls back to a plain
-// background, nothing breaks if a photo hasn't been supplied yet.
+// Files live in public/placeholder/ — swap in a different photo for a slot
+// by replacing that file (or point `image` at a new path) any time; a
+// missing file just falls back to a plain background, nothing breaks.
 const DOC_SLOTS = [
-  { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Vehicle particulars or purchase receipt", image: "/doc-guides/proof-of-ownership.jpg" },
-  { doc_type: "vehicle_licence", title: "Vehicle Licence", hint: "Front of your vehicle licence", image: "/doc-guides/vehicle-licence.jpg" },
-  { doc_type: "tinted_passport_photo", title: "Passport Photograph", hint: "Clear photo of your face", image: "/doc-guides/passport-photo.jpg" },
-  { doc_type: "vehicle_photo_front", title: "Vehicle Photo — Front", hint: "Full front view of the vehicle", image: "/doc-guides/vehicle-front.jpg" },
-  { doc_type: "vehicle_photo_back", title: "Vehicle Photo — Back", hint: "Full rear view of the vehicle", image: "/doc-guides/vehicle-back.jpg" },
-  { doc_type: "vehicle_photo_side", title: "Vehicle Photo — Side", hint: "Full side profile of the vehicle", image: "/doc-guides/vehicle-side.jpg" },
-  { doc_type: "vin_sticker_photo", title: "VIN Sticker Photo", hint: "Usually on driver-side door jamb or dashboard", image: "/doc-guides/vin-sticker.jpg" },
+  { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Vehicle particulars or purchase receipt", image: "/placeholder/proof.jpeg" },
+  { doc_type: "vehicle_licence", title: "Vehicle Licence", hint: "Front of your vehicle licence", image: "/placeholder/vehicle.jpeg" },
+  { doc_type: "tinted_passport_photo", title: "Passport Photograph", hint: "Clear photo of your face", image: "/placeholder/person.jpeg" },
+  { doc_type: "vehicle_photo_front", title: "Vehicle Photo — Front", hint: "Full front view of the vehicle", image: "/placeholder/front.jpeg" },
+  { doc_type: "vehicle_photo_back", title: "Vehicle Photo — Back", hint: "Full rear view of the vehicle", image: "/placeholder/back.jpeg" },
+  { doc_type: "vehicle_photo_side", title: "Vehicle Photo — Side", hint: "Full side profile of the vehicle", image: "/placeholder/side.jpeg" },
+  { doc_type: "vin_sticker_photo", title: "VIN Sticker Photo", hint: "Usually on driver-side door jamb or dashboard", image: "/placeholder/vin.jpeg" },
 ];
 
 const STEP_LABELS = ["Vehicle", "Applicant details", "Documents", "Review & submit"];
