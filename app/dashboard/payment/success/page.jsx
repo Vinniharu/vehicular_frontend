@@ -89,8 +89,11 @@ function PaymentSuccessContent() {
 
   const amountPaid = verifiedAmount ? koboToNaira(verifiedAmount) : amountParam ? koboToNaira(amountParam) : application?.payment_options ? koboToNaira(application.payment_options.amount_kobo) : "₦30,000.00";
   const isTinted = application?.application_type === "tinted_permit";
+  const isNumberPlate = application?.application_type?.startsWith("number_plate_");
   const applicationHref = isTinted
     ? "/dashboard/apply/tinted-permit"
+    : isNumberPlate
+    ? "/dashboard/apply/number-plate"
     : `/dashboard/apply/${application?.id || appIdParam || ""}`;
 
   if (loading) {

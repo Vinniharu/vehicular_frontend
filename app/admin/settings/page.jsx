@@ -15,6 +15,7 @@ const APPLICATION_TYPE_OPTIONS = [
   { value: "renewal", label: "Renewal" },
   { value: "reissue", label: "Reissue" },
   { value: "international_permit", label: "International Permit" },
+  { value: "number_plate", label: "Number Plate" },
 ];
 
 export default function AdminSettingsPage() {

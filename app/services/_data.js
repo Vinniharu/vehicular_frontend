@@ -89,7 +89,9 @@ export const SERVICES = [
     slug: "number-plate",
     icon: Hash,
     category: "Number plates",
-    cta: { type: "badge", value: "Coming soon" },
+    cta: { type: "resolved_price", value: null },
+    applyHref: "/dashboard/apply/number-plate",
+    feeScheduleType: "number_plate",
     title: "Number Plate Services",
     tagline:
       "New plates, fancy/custom plates, replacements, and change of ownership — processed by VIO without the queue.",
@@ -144,29 +146,31 @@ export const SERVICES = [
     slug: "vehicle-particulars",
     icon: FileText,
     category: "Vehicle particulars",
-    cta: { type: "badge", value: "Coming soon" },
+    cta: { type: "resolved_price", value: null },
+    applyHref: "/dashboard/apply/vehicle-particulars",
+    feeScheduleType: "vehicle_particulars",
     title: "Vehicle Particulars & Renewals",
     tagline:
-      "Vehicle licence, road worthiness, hackney permit, insurance, and proof of ownership — renewed without queueing.",
+      "Vehicle licence, road worthiness, hackney permit, third-party insurance, and proof of ownership — renewed without queueing.",
     intro:
-      "Keep your vehicle papers current without leaving home. We process each document with the right MDA and deliver soft copies plus originals where applicable.",
+      "Keep your vehicle papers current without leaving home. Pick any combination of documents in one request, pay once, and we process each with the right MDA — soft copy uploaded to your dashboard, each with its own expiry date.",
     whatsIncluded: [
       "Direct processing with the issuing authority",
-      "Soft copy uploaded to your dashboard",
-      "Hard copy delivered where applicable",
-      "Renewal reminders before the next expiry",
+      "Soft copy of each renewed document uploaded to your dashboard",
+      "Independent tracking per document — one running late never holds up the others",
+      "Staff review before your request is released to a field agent",
     ],
     whatYouBring: [
       "Current vehicle particulars (for renewals)",
       "Valid ID",
-      "For new comprehensive insurance: estimated vehicle value",
+      "Commercial registration evidence (for the hackney permit only)",
     ],
-    pricingNote: null,
+    pricingNote: "Pay only for the documents you select — priced individually and summed at checkout.",
     howItWorks: [
-      { title: "Pick the document", desc: "Vehicle licence, road worthiness, hackney permit, insurance, or proof of ownership." },
-      { title: "Pay or request a quote", desc: "Comprehensive insurance is quote-based (5% of vehicle value)." },
-      { title: "Upload supporting docs", desc: "From your dashboard, in under a minute." },
-      { title: "We process and deliver", desc: "Soft copy first, hard copy when it's ready." },
+      { title: "Pick your documents", desc: "Any combination of vehicle licence, road worthiness, hackney permit, third-party insurance, or proof of ownership." },
+      { title: "Upload evidence & pay", desc: "One payment covers everything you selected." },
+      { title: "Staff review, then processing", desc: "Verified before release to a field agent, then processed per document." },
+      { title: "Receive your documents", desc: "Each renewed document delivered independently, with its own expiry date." },
     ],
     children: [
       {
@@ -192,12 +196,6 @@ export const SERVICES = [
         title: "Third-Party Insurance",
         blurb:
           "Third-party is the minimum legal cover for every vehicle in Nigeria. It pays for damage you cause to others — not your own vehicle. We arrange it with a vetted underwriter and deliver the certificate.",
-      },
-      {
-        slug: "comprehensive-insurance",
-        title: "Comprehensive Insurance",
-        blurb:
-          "Comprehensive cover protects your own vehicle (theft, fire, accident) in addition to third-party liability. Premium is the industry-standard 5% of the insured vehicle value. We send a firm quote within hours.",
       },
       {
         slug: "proof-of-ownership",

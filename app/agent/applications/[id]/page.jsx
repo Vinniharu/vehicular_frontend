@@ -378,8 +378,11 @@ export default function AgentApplicationDetailPage() {
       setNotice({ type: "error", message: uploaded.error || "Upload failed. Please try again." });
       return;
     }
+    const progressDocType = application.application_type?.startsWith("number_plate_")
+      ? "plate_production_in_progress"
+      : "tinted_permit_progress_evidence";
     const res = await addApplicationDocument(application.id, {
-      doc_type: "tinted_permit_progress_evidence",
+      doc_type: progressDocType,
       file_url: uploaded.data.file_url,
     });
     setUploadingProgressEvidence(false);
@@ -446,15 +449,16 @@ export default function AgentApplicationDetailPage() {
   // too); renewal/reissue can go straight from acceptance (or after a
   // customer correction) to proof upload — no capture step.
   const isTintedPermit = application.application_type === "tinted_permit";
-  // tinted_permit has no biometric-capture leg at all — proof (interim
-  // progress evidence, then the finished permit) is reachable straight
-  // from acceptance, same shape as renewal/reissue.
+  const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
+  // tinted_permit and number_plate_* have no biometric-capture leg at all —
+  // proof (interim progress evidence, then the finished document/plate) is
+  // reachable straight from acceptance, same shape as renewal/reissue.
   const canUploadProof = ["captured", "capturing_completed"].includes(application.status)
     || (isFreshApp && ["temp_licence_pending_review", "temp_licence_issued"].includes(application.status))
     || (isRenewalOrReissue && ["agent_accepted", "agent_assigned"].includes(application.status))
-    || (isTintedPermit && ["agent_accepted", "agent_assigned"].includes(application.status));
-  const canFlagIssue = (isRenewalOrReissue || isTintedPermit) && ["agent_accepted", "agent_assigned"].includes(application.status);
-  const canUploadProgressEvidence = isTintedPermit && ["agent_accepted", "agent_assigned"].includes(application.status);
+    || ((isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status));
+  const canFlagIssue = (isRenewalOrReissue || isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status);
+  const canUploadProgressEvidence = (isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 pb-16">
@@ -568,7 +572,7 @@ export default function AgentApplicationDetailPage() {
           )}
           {canUploadProof && (
             <ActionButton variant="accent" icon={Upload} onClick={() => openModal("upload-proof")}>
-              {isFreshApp ? "Upload permanent licence" : isTintedPermit ? "Upload the finished permit" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof")}
+              {isFreshApp ? "Upload permanent licence" : isTintedPermit ? "Upload the finished permit" : isNumberPlate ? "Upload the finished plate" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof")}
             </ActionButton>
           )}
           {canFlagIssue && (
@@ -731,7 +735,7 @@ export default function AgentApplicationDetailPage() {
                 {modalType === "schedule" && "Schedule biometric capture"}
                 {modalType === "reassign" && "Reassign capture centre"}
                 {modalType === "issue-temp-licence" && "Issue temporary licence"}
-                {modalType === "upload-proof" && (isFreshApp ? "Upload permanent licence" : isTintedPermit ? "Upload the finished permit" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof of finished card"))}
+                {modalType === "upload-proof" && (isFreshApp ? "Upload permanent licence" : isTintedPermit ? "Upload the finished permit" : isNumberPlate ? "Upload the finished plate" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof of finished card"))}
                 {modalType === "flag-issue" && "Flag document issue"}
               </h3>
               <button onClick={() => setModalType(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -819,7 +823,7 @@ export default function AgentApplicationDetailPage() {
             {modalType === "upload-proof" && (
               <div className="space-y-3.5">
                 <div>
-                  <label className={fieldLabel}>{isFreshApp ? "Permanent licence card" : isTintedPermit ? "Finished permit document" : (application.application_type === "international_permit" ? "International Permit Document" : "Finished card proof")}</label>
+                  <label className={fieldLabel}>{isFreshApp ? "Permanent licence card" : isTintedPermit ? "Finished permit document" : isNumberPlate ? "Finished plate photo" : (application.application_type === "international_permit" ? "International Permit Document" : "Finished card proof")}</label>
                   <UploadField
                     fileName={proofFileName}
                     hasValue={!!proofUrlInput}

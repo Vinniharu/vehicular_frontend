@@ -51,6 +51,12 @@ const APPLICATION_TYPE_OPTIONS = [
   { value: "reissue", label: "Reissue" },
   { value: "international_permit", label: "International Permit" },
   { value: "tinted_permit", label: "Tinted Permit" },
+  { value: "number_plate", label: "Number Plate" },
+  { value: "vehicle_licence", label: "Vehicle Particulars — Vehicle Licence" },
+  { value: "road_worthiness", label: "Vehicle Particulars — Road Worthiness" },
+  { value: "proof_of_ownership", label: "Vehicle Particulars — Proof of Ownership" },
+  { value: "insurance_third_party", label: "Vehicle Particulars — Third-Party Insurance" },
+  { value: "hackney_permit", label: "Vehicle Particulars — Hackney Permit" },
 ];
 
 /* ─── Helpers ─── */

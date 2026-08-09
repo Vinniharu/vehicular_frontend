@@ -40,6 +40,8 @@ import {
   staffClaimApplication,
   staffGetEligibleAgents,
   staffAssignAgent,
+  staffReleaseParticularsToAgents,
+  staffParticularsItemFinalReview,
   getVehicle,
   getCachedUser,
   koboToNaira,
@@ -53,6 +55,8 @@ const BRAND = "#28A745";
 const STAFF_STATUS = {
   submitted: { label: "Awaiting review", tone: "info" },
   staff_review: { label: "Under verification", tone: "warning" },
+  released_to_agents: { label: "Released to agents", tone: "success" },
+  in_progress: { label: "Agents working", tone: "success" },
   driving_school_enrolled: { label: "In driving school", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete", tone: "teal" },
   routed: { label: "Routed to agent", tone: "success" },
@@ -167,6 +171,11 @@ export default function StaffApplicationDetailsPage() {
   // the licence-class/driving-school fields that don't apply.
   const [vehicle, setVehicle] = useState(null);
 
+  // vehicle_particulars only — which ParticularsItem the "particulars-item-review"
+  // modal is currently scoped to (decisionInput/noteInput are reused, same as
+  // every other decision+note modal on this page).
+  const [selectedParticularsItem, setSelectedParticularsItem] = useState(null);
+
   const loadDetail = async (isRefresh = false) => {
     if (!appId) return;
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -212,7 +221,7 @@ export default function StaffApplicationDetailsPage() {
 
   useEffect(() => {
     if (!application) return;
-    if (application.application_type === "tinted_permit" && application.vehicle_id) {
+    if ((application.application_type === "tinted_permit" || application.application_type?.startsWith("number_plate_") || application.application_type === "vehicle_particulars") && application.vehicle_id) {
       getVehicle(application.vehicle_id).then((res) => {
         if (res.data) setVehicle(res.data);
       });
@@ -257,6 +266,11 @@ export default function StaffApplicationDetailsPage() {
     setDispatchedByInput("");
     setDecisionInput("approved");
     setModalType(type);
+  };
+
+  const openItemReviewModal = (item) => {
+    openModal("particulars-item-review");
+    setSelectedParticularsItem(item);
   };
 
   const handleConfirmAction = async () => {
@@ -323,6 +337,15 @@ export default function StaffApplicationDetailsPage() {
       res = await staffReadyForPickup(application.id);
     } else if (modalType === "confirm-receipt") {
       res = await staffConfirmReceipt(application.id);
+    } else if (modalType === "release-particulars") {
+      res = await staffReleaseParticularsToAgents(application.id);
+    } else if (modalType === "particulars-item-review") {
+      if (decisionInput === "rejected" && !noteInput.trim()) {
+        setActionError("A note is required when rejecting a document.");
+        setActionLoading(false);
+        return;
+      }
+      res = await staffParticularsItemFinalReview(selectedParticularsItem.id, { decision: decisionInput, note: noteInput.trim() });
     }
 
     if (res?.error) {
@@ -396,6 +419,8 @@ export default function StaffApplicationDetailsPage() {
       </div>
     );
   }
+
+  const isVehicleParticulars = application.application_type === "vehicle_particulars";
 
   // Backend only ever emits "unpaid" | "pending" | "success" | "failed" for
   // payment_status — "paid" is never produced, so only "success" is checked.
@@ -503,7 +528,11 @@ export default function StaffApplicationDetailsPage() {
               <button onClick={() => openModal("reject")} className={btnDanger}>
                 <X className="h-4 w-4" /> Reject
               </button>
-              {application.application_type !== "fresh" ? (
+              {isVehicleParticulars ? (
+                <button onClick={() => openModal("release-particulars")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
+                  <Send className="h-4 w-4" /> {isPaid ? "Release to agents" : "Awaiting full payment"}
+                </button>
+              ) : application.application_type !== "fresh" ? (
                 <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
                   <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || application.state_of_residence || "agent"}` : "Awaiting full payment"}
                 </button>
@@ -544,6 +573,7 @@ export default function StaffApplicationDetailsPage() {
           )}
 
           {application.assigned_staff && application.application_type !== "tinted_permit" &&
+            !application.application_type?.startsWith("number_plate_") &&
             ["captured", "capturing_completed", "agent_completed"].includes(application.status) && (
             <button onClick={() => openModal("ready-for-pickup")} className={btnPrimary} style={{ background: "#4f46e5" }}>
               <Send className="h-4 w-4" /> Ready for pickup
@@ -581,7 +611,7 @@ export default function StaffApplicationDetailsPage() {
             </p>
           ) : eligibleAgents.length === 0 ? (
             <p className="mt-3 text-[12.5px] text-amber-700">
-              No eligible agents found. {application.application_type === "tinted_permit" ? "Make sure at least one agent has opted into tinted_permit and is active in this state." : "Make sure at least one active agent covers this LGA."}
+              No eligible agents found. {application.application_type === "tinted_permit" ? "Make sure at least one agent has opted into tinted_permit and is active in this state." : application.application_type?.startsWith("number_plate_") ? "Make sure at least one agent has opted into number_plate and is active in this state." : "Make sure at least one active agent covers this LGA."}
             </p>
           ) : (
             <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
@@ -607,9 +637,10 @@ export default function StaffApplicationDetailsPage() {
         </div>
       )}
 
-      {/* tinted_permit only — vehicle this application is for, in place of
-          the licence-class/driving-school fields that don't apply. */}
-      {application.application_type === "tinted_permit" && vehicle && (
+      {/* Vehicle-centric types only (tinted_permit, number_plate_*) —
+          vehicle this application is for, in place of the licence-class/
+          driving-school fields that don't apply. */}
+      {(application.application_type === "tinted_permit" || application.application_type?.startsWith("number_plate_") || isVehicleParticulars) && vehicle && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Vehicle</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -623,18 +654,81 @@ export default function StaffApplicationDetailsPage() {
             </div>
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number}</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number || "Pending"}</span>
             </div>
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
               <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
             </div>
+            {application.use_type && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use type</span>
+                <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.use_type}</span>
+              </div>
+            )}
             {application.justification && (
               <div className="col-span-2 sm:col-span-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
                 <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
               </div>
             )}
+            {application.previous_owner_details && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous owner</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Particulars documents — per-item final review, independent of the
+          bundle's own status. Only "agent_completed" items are actionable;
+          approving/rejecting one never touches or blocks its siblings. */}
+      {isVehicleParticulars && (application.items || []).length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">
+            Documents in this request ({application.items.length})
+          </h3>
+          <div className="divide-y divide-slate-100">
+            {application.items.map((item) => {
+              const meta = statusMeta(item.status);
+              const finalDoc = (application.documents || []).find((d) => d.doc_type === `${item.document_type}_final`);
+              return (
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-bold capitalize text-slate-900">
+                      {item.document_type?.replace(/_/g, " ")}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate-500">
+                      <span>{koboToNaira(item.price_kobo)}</span>
+                      {item.expiry_date && (
+                        <span>Valid until {new Date(item.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}</span>
+                      )}
+                      {item.status === "rejected" && item.final_review_note && (
+                        <span className="text-red-600">Reason: {item.final_review_note}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
+                      {meta.label}
+                    </span>
+                    {finalDoc?.file_url && (
+                      <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(finalDoc.file_url)); }} className={btnGhostLink}>
+                        View <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {item.status === "agent_completed" && (
+                      <button onClick={() => openItemReviewModal(item)} className={btnPrimary} style={{ background: "#7c3aed", padding: "0.5rem 0.9rem" }}>
+                        <ShieldCheck className="h-3.5 w-3.5" /> Final review
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -936,9 +1030,17 @@ export default function StaffApplicationDetailsPage() {
                 <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Driving school enrollment</h3>
               </div>
               
-              {application.status === "submitted" && (
+              {application.status === "submitted" && application.application_type === "fresh" && (
                 <p className="text-[13.5px] leading-relaxed text-slate-600">
                   Verify the applicant's NIN and biodata against the national database before enrolling them in a driving school. Use the <strong>Approve</strong> button at the top to proceed.
+                </p>
+              )}
+
+              {application.status === "submitted" && application.application_type !== "fresh" && (
+                <p className="text-[13.5px] leading-relaxed text-slate-600">
+                  This is a {application.application_type?.replace(/_/g, " ")} application — no driving
+                  school step applies. Verify the applicant's documents, then use the actions at the top
+                  to proceed once payment is confirmed.
                 </p>
               )}
 
@@ -1086,7 +1188,7 @@ export default function StaffApplicationDetailsPage() {
                 !application.driving_school && (
                   <p className="text-[13px] text-slate-500">
                     Not applicable — driving school enrollment doesn't apply to this application's current status (
-                    {statusMeta(application.status).label.toLowerCase()}), or it's a renewal, reissue, or international permit application.
+                    {statusMeta(application.status).label.toLowerCase()}), or it's a non-fresh application type.
                   </p>
                 )}
 
@@ -1169,6 +1271,8 @@ export default function StaffApplicationDetailsPage() {
                 {modalType === "push-to-customer" && "Push to customer"}
                 {modalType === "ready-for-pickup" && "Mark ready for pickup"}
                 {modalType === "confirm-receipt" && "Mark as received"}
+                {modalType === "release-particulars" && "Release to agents"}
+                {modalType === "particulars-item-review" && "Final review"}
                 {modalType === "notice" && "Done"}
               </h3>
               <button
@@ -1285,6 +1389,8 @@ export default function StaffApplicationDetailsPage() {
                   This offers the job to active agents in <strong className="text-slate-800">{application.lga || "this LGA"}</strong>.
                   {application.application_type === "tinted_permit"
                     ? " Once one accepts, they'll begin processing the permit."
+                    : application.application_type?.startsWith("number_plate_")
+                    ? " Once one accepts, they'll begin processing the plate."
                     : " Once one accepts, biometric capture scheduling begins."}
                 </span>
               </div>
@@ -1318,7 +1424,7 @@ export default function StaffApplicationDetailsPage() {
             {modalType === "final-review" && (
               <div className="space-y-3.5">
                 <p className="text-[12.5px] text-slate-500">
-                  Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : "the permanent licence card"}) checks out. Approving moves
+                  Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : application.application_type?.startsWith("number_plate_") ? "the number plate" : "the permanent licence card"}) checks out. Approving moves
                   the application to <strong className="text-slate-800">awaiting_customer</strong> —
                   from there, use <strong>Mark as received</strong> once the finished document is
                   physically in hand to close it out and notify the customer. Rejecting sends it
@@ -1388,6 +1494,55 @@ export default function StaffApplicationDetailsPage() {
                   or courier) and closes out this application. The customer will be notified over
                   SMS and WhatsApp that it's complete.
                 </span>
+              </div>
+            )}
+
+            {modalType === "release-particulars" && (
+              <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <span>
+                  This offers each document in this bundle to agents eligible for that specific
+                  document type — different documents can go to different agents. Once an agent
+                  accepts an item, they begin working on it independently of the rest of the bundle.
+                </span>
+              </div>
+            )}
+
+            {modalType === "particulars-item-review" && selectedParticularsItem && (
+              <div className="space-y-3.5">
+                <p className="text-[12.5px] text-slate-500">
+                  Confirm the finished{" "}
+                  <strong className="text-slate-800">{selectedParticularsItem.document_type?.replace(/_/g, " ")}</strong>{" "}
+                  checks out. Approving sets its expiry date and counts toward completing this bundle;
+                  it never affects the other documents in this request. Rejecting sends it back to the
+                  same agent to re-upload.
+                </p>
+                {(() => {
+                  const finalDoc = (application.documents || []).find((d) => d.doc_type === `${selectedParticularsItem.document_type}_final`);
+                  return finalDoc?.file_url ? (
+                    <button
+                      onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(finalDoc.file_url)); }}
+                      className={btnSecondary}
+                      style={{ padding: "0.4rem 0.75rem" }}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> View submitted document
+                    </button>
+                  ) : null;
+                })()}
+                <div>
+                  <label className={fieldLabel}>Decision</label>
+                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
+                  <textarea
+                    rows={3}
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder={decisionInput === "rejected" ? "e.g. Document is blurry, re-upload needed." : "e.g. Verified against application details."}
+                    className={inputBase}
+                  />
+                </div>
               </div>
             )}
 

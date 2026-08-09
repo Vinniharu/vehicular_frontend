@@ -21,6 +21,8 @@ const BRAND = "#28A745";
 const STAFF_STATUS = {
   submitted: { label: "Awaiting review", tone: "info" },
   staff_review: { label: "Under verification", tone: "warning" },
+  released_to_agents: { label: "Released to agents", tone: "success" },
+  in_progress: { label: "Agents working", tone: "success" },
   driving_school_enrolled: { label: "In driving school pool", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete — Ready to route", tone: "teal" },
   routed: { label: "Routed to field agent", tone: "success" },
@@ -237,6 +239,10 @@ function StaffApplicationsQueueInner() {
           <option value="reissue">Reissue</option>
           <option value="international_permit">International Permit</option>
           <option value="tinted_permit">Tinted Permit</option>
+          <option value="number_plate_new">Number Plate — New</option>
+          <option value="number_plate_replacement">Number Plate — Replacement</option>
+          <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
+          <option value="vehicle_particulars">Vehicle Particulars</option>
         </select>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">

@@ -182,6 +182,9 @@ export default function AdminApplicationsPage() {
           <option value="renewal">Renewal</option>
           <option value="reissue">Reissue</option>
           <option value="tinted_permit">Tinted Permit</option>
+          <option value="number_plate_new">Number Plate — New</option>
+          <option value="number_plate_replacement">Number Plate — Replacement</option>
+          <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
         </select>
         <select
           value={statusFilter}

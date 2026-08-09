@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Settings,
+  Tag,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -42,6 +43,7 @@ const ADMIN_NAV = [
     section: "Finance",
     items: [
       { label: "Revenue", href: "/admin/revenue", icon: Wallet, desc: "Inflow, platform profit, agent payouts, and transactions" },
+      { label: "Pricing", href: "/admin/pricing", icon: Tag, desc: "Set prices for every service in the catalogue" },
     ],
   },
   {
