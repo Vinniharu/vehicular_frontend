@@ -11,6 +11,7 @@ import {
   X,
   FileText,
   Sun,
+  Hash,
   Wallet,
   Gift,
   Settings,
@@ -45,10 +46,12 @@ const NAV_ITEMS = [
   {
     label: "Applications",
     icon: FileText,
-    desc: "Driver's licence & tinted permit",
+    desc: "Driver's licence, tinted permit, number plate & vehicle particulars",
     children: [
       { label: "Driver's Licence", href: "/dashboard/apply", icon: FileText },
       { label: "Tinted Permit", href: "/dashboard/apply/tinted-permit", icon: Sun },
+      { label: "Number Plate", href: "/dashboard/apply/number-plate", icon: Hash },
+      { label: "Vehicle Particulars", href: "/dashboard/apply/vehicle-particulars", icon: FileText },
     ],
   },
   {

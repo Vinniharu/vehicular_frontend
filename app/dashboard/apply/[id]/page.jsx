@@ -57,8 +57,27 @@ const FEE_SCHEDULE_KOBO = {
   renewal: { "3 years": 3000000, "5 years": 3500000 },
 };
 const TINTED_PERMIT_FEE_KOBO = 2_705_000;
+const NUMBER_PLATE_FEE_KOBO = {
+  number_plate_new: 10_500_000,
+  number_plate_replacement: 10_500_000,
+  number_plate_change_of_ownership: 12_000_000,
+};
+// Maps a real backend application_type back to the ?type= query param the
+// apply/number-plate/new wizard expects (see PLATE_TYPES there).
+const NUMBER_PLATE_QUERY_TYPE = {
+  number_plate_new: "new",
+  number_plate_replacement: "replacement",
+  number_plate_change_of_ownership: "change-of-ownership",
+};
 function estimateFeeKobo(appType, period) {
   if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
+  if (NUMBER_PLATE_FEE_KOBO[appType]) return NUMBER_PLATE_FEE_KOBO[appType];
+  // vehicle_particulars has no fixed fee — it's the sum of whichever items
+  // the customer selected, and payment_options is always created at
+  // submission time for this type, so this fallback should never actually
+  // be reached. 0 (not the renewal bucket below) avoids silently mispricing
+  // a bundle display the one time this estimator IS hit before load.
+  if (appType === "vehicle_particulars") return 0;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
@@ -87,7 +106,119 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "vehicle_photo_side", label: "Vehicle photo — side" },
     { value: "vin_sticker_photo", label: "VIN sticker photo" },
   ],
+  number_plate_new: [
+    { value: "vehicle_registration_document", label: "Vehicle registration document" },
+    { value: "proof_of_ownership", label: "Proof of ownership" },
+    { value: "owner_id", label: "Owner's ID" },
+  ],
+  number_plate_replacement: [
+    { value: "vehicle_registration_document", label: "Vehicle registration document" },
+    { value: "proof_of_ownership", label: "Proof of ownership" },
+    { value: "owner_id", label: "Owner's ID" },
+  ],
+  number_plate_change_of_ownership: [
+    { value: "vehicle_registration_document", label: "Vehicle registration document" },
+    { value: "proof_of_ownership", label: "Proof of ownership" },
+    { value: "owner_id", label: "Owner's ID" },
+    { value: "proof_of_transfer", label: "Proof of transfer" },
+  ],
+  // Union of every document type's evidence doc_type, deduped — a
+  // vehicle_particulars bundle only actually requires the subset backing
+  // its own selected items (see ParticularsItemsSummary/the reapply modal
+  // below, which scope to just those), but this generic "attach another
+  // document" list needs the full menu since it doesn't know which items a
+  // given bundle selected.
+  vehicle_particulars: [
+    { value: "vehicle_licence_evidence", label: "Current vehicle licence" },
+    { value: "road_worthiness_evidence", label: "Expiring road worthiness certificate" },
+    { value: "proof_of_ownership_evidence", label: "Proof of ownership" },
+    { value: "owner_id_evidence", label: "Owner's ID" },
+    { value: "commercial_registration_evidence", label: "Commercial registration evidence" },
+  ],
 };
+
+// document_type -> its required evidence doc_type(s), mirroring the
+// backend's REQUIRED_EVIDENCE_BY_DOCUMENT_TYPE (app/modules/driver_licence/router.py).
+const PARTICULARS_EVIDENCE_BY_DOCUMENT_TYPE = {
+  vehicle_licence: ["vehicle_licence_evidence"],
+  road_worthiness: ["road_worthiness_evidence"],
+  proof_of_ownership: ["proof_of_ownership_evidence", "owner_id_evidence"],
+  insurance_third_party: ["owner_id_evidence"],
+  hackney_permit: ["commercial_registration_evidence"],
+};
+
+const PARTICULARS_DOCUMENT_TYPE_LABELS = {
+  vehicle_licence: "Vehicle Licence",
+  road_worthiness: "Road Worthiness Certificate",
+  proof_of_ownership: "Proof of Ownership",
+  insurance_third_party: "Third-Party Insurance",
+  hackney_permit: "Hackney Permit",
+};
+
+const PARTICULARS_ITEM_STATUS_META = {
+  pending_evidence: { label: "Awaiting evidence", tone: "warning" },
+  evidence_submitted: { label: "Awaiting release to agent", tone: "warning" },
+  offered: { label: "Offered to agents", tone: "info" },
+  agent_accepted: { label: "Agent working on it", tone: "info" },
+  agent_completed: { label: "Under staff review", tone: "warning" },
+  rejected: { label: "Sent back to agent", tone: "danger" },
+  needs_correction: { label: "Needs correction", tone: "danger" },
+  approved: { label: "Approved", tone: "success" },
+};
+
+function ParticularsItemsSummary({ application, onViewDoc }) {
+  const items = application.items || [];
+  if (items.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+      <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Documents in this request</h3>
+      <div className="space-y-3">
+        {items.map((item) => {
+          const meta = PARTICULARS_ITEM_STATUS_META[item.status] || { label: item.status, tone: "neutral" };
+          const finalDoc = (application.documents || []).find((d) => d.doc_type === `${item.document_type}_final`);
+          return (
+            <div key={item.id} className="rounded-xl border border-slate-200 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[13.5px] font-semibold text-[#111111]">
+                  {PARTICULARS_DOCUMENT_TYPE_LABELS[item.document_type] || item.document_type}
+                </p>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                  meta.tone === "success" ? "bg-emerald-50 text-emerald-700"
+                  : meta.tone === "danger" ? "bg-red-50 text-red-700"
+                  : meta.tone === "info" ? "bg-sky-50 text-sky-700"
+                  : meta.tone === "warning" ? "bg-amber-50 text-amber-700"
+                  : "bg-slate-100 text-slate-600"
+                }`}>
+                  {meta.label}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-slate-500">
+                <span>{koboToNaira(item.price_kobo)}</span>
+                {item.expiry_date && (
+                  <span>Valid until {new Date(item.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}</span>
+                )}
+                {item.status === "rejected" && item.final_review_note && (
+                  <span className="text-red-600">Reason: {item.final_review_note}</span>
+                )}
+              </div>
+              {item.status === "approved" && finalDoc?.file_url && (
+                <button
+                  type="button"
+                  onClick={() => onViewDoc(resolveMediaUrl(finalDoc.file_url))}
+                  className="mt-2 text-[12px] font-semibold underline"
+                  style={{ color: "#28A745" }}
+                >
+                  View document
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
   if (!licence) {
@@ -887,6 +1018,254 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
   );
 }
 
+// number_plate_* correction payload mirrors tinted_permit's — documents
+// only, no vehicle_id/justification field on DLApplicationReapply — but
+// with no NIN field at all (number_plate never collects one, see
+// create_dl_application's number_plate branch), so this is even smaller
+// than TintedPermitReapplyModal rather than a copy of it.
+function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
+  const docTypes = REQUIRED_DOCS_BY_TYPE[application.application_type] || [];
+  const [docs, setDocs] = useState({});
+  const [uploadingType, setUploadingType] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleFile = async (docType, file) => {
+    if (!file) return;
+    setError(null);
+    setUploadingType(docType);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setUploadingType(null);
+    if (uploadError || !data?.file_url) {
+      setError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    setDocs((prev) => ({ ...prev, [docType]: { fileName: file.name, url: data.file_url } }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const documents = Object.entries(docs).map(([doc_type, v]) => ({ doc_type, file_url: v.url }));
+    if (documents.length === 0) {
+      setError("Upload at least one corrected document.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const res = await reapplyApplication(application.id, { documents });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSuccess(res.data);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#111111]">Fix &amp; Resubmit</h2>
+            <p className="mt-0.5 text-[12.5px] text-slate-500">
+              Re-upload the flagged document(s) for application #{application.id}.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <p className={fieldLabel}>Re-upload document(s)</p>
+            {docTypes.map((d) => (
+              <div key={d.value} className="rounded-xl border border-[#E5E5E5] p-3.5">
+                <p className="text-[13px] font-semibold text-[#111111]">{d.label}</p>
+                <div className="mt-2">
+                  {!docs[d.value]?.url ? (
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition-all hover:border-[#28A745]">
+                      <Upload className="h-4 w-4" style={{ color: BRAND }} />
+                      <span className="text-[12.5px] font-semibold text-slate-700">
+                        {uploadingType === d.value ? "Uploading…" : "Click to upload"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        disabled={uploadingType === d.value}
+                        onChange={(e) => handleFile(d.value, e.target.files?.[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <p className="truncate text-[12.5px] font-semibold text-[#111111]">{docs[d.value].fileName}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDocs((prev) => { const next = { ...prev }; delete next[d.value]; return next; })}
+                        className="shrink-0 text-[11px] font-medium text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </form>
+
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+          <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {submitting ? "Resubmitting…" : "Resubmit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// vehicle_particulars correction payload — unlike the fixed per-type doc
+// list every other reapply modal uses, the evidence slots here are the
+// UNION of whatever the bundle's own items actually require (deduped by
+// evidence doc_type, same dedup the apply wizard's Step 3 does), since a
+// bundle only ever carries a subset of the 5 document types.
+function ParticularsReapplyModal({ application, onClose, onSuccess }) {
+  const docTypes = [];
+  const seen = new Set();
+  for (const item of application.items || []) {
+    for (const docType of PARTICULARS_EVIDENCE_BY_DOCUMENT_TYPE[item.document_type] || []) {
+      if (seen.has(docType)) continue;
+      seen.add(docType);
+      const label = (REQUIRED_DOCS_BY_TYPE.vehicle_particulars || []).find((d) => d.value === docType)?.label || docType;
+      docTypes.push({ value: docType, label });
+    }
+  }
+
+  const [docs, setDocs] = useState({});
+  const [uploadingType, setUploadingType] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleFile = async (docType, file) => {
+    if (!file) return;
+    setError(null);
+    setUploadingType(docType);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setUploadingType(null);
+    if (uploadError || !data?.file_url) {
+      setError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    setDocs((prev) => ({ ...prev, [docType]: { fileName: file.name, url: data.file_url } }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const documents = Object.entries(docs).map(([doc_type, v]) => ({ doc_type, file_url: v.url }));
+    if (documents.length === 0) {
+      setError("Upload at least one corrected document.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const res = await reapplyApplication(application.id, { documents });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSuccess(res.data);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#111111]">Edit &amp; Reapply</h2>
+            <p className="mt-0.5 text-[12.5px] text-slate-500">
+              Re-upload the flagged document(s) for request #{application.id}.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <p className={fieldLabel}>Re-upload document(s)</p>
+            {docTypes.map((d) => (
+              <div key={d.value} className="rounded-xl border border-[#E5E5E5] p-3.5">
+                <p className="text-[13px] font-semibold text-[#111111]">{d.label}</p>
+                <div className="mt-2">
+                  {!docs[d.value]?.url ? (
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition-all hover:border-[#28A745]">
+                      <Upload className="h-4 w-4" style={{ color: BRAND }} />
+                      <span className="text-[12.5px] font-semibold text-slate-700">
+                        {uploadingType === d.value ? "Uploading…" : "Click to upload"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        disabled={uploadingType === d.value}
+                        onChange={(e) => handleFile(d.value, e.target.files?.[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <p className="truncate text-[12.5px] font-semibold text-[#111111]">{docs[d.value].fileName}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDocs((prev) => { const next = { ...prev }; delete next[d.value]; return next; })}
+                        className="shrink-0 text-[11px] font-medium text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </form>
+
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+          <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {submitting ? "Resubmitting…" : "Resubmit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ──────────────────────────────────────────────
    Main Page
    ────────────────────────────────────────────── */
@@ -913,6 +1292,8 @@ export default function CustomerApplicationDetailsPage() {
 
   const [showReapplyModal, setShowReapplyModal] = useState(false);
   const [showTintedReapplyModal, setShowTintedReapplyModal] = useState(false);
+  const [showNumberPlateReapplyModal, setShowNumberPlateReapplyModal] = useState(false);
+  const [showParticularsReapplyModal, setShowParticularsReapplyModal] = useState(false);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [vehicle, setVehicle] = useState(null);
 
@@ -947,7 +1328,8 @@ export default function CustomerApplicationDetailsPage() {
   }, [appId]);
 
   useEffect(() => {
-    if (application?.application_type === "tinted_permit" && application?.vehicle_id) {
+    const isVehicleCentric = application?.application_type === "tinted_permit" || application?.application_type?.startsWith("number_plate_");
+    if (isVehicleCentric && application?.vehicle_id) {
       getVehicle(application.vehicle_id).then((res) => { if (res.data) setVehicle(res.data); });
     }
   }, [application?.application_type, application?.vehicle_id]);
@@ -1070,6 +1452,9 @@ export default function CustomerApplicationDetailsPage() {
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
   const checkoutUrl = application.payment_options?.checkout_url;
   const isTinted = application.application_type === "tinted_permit";
+  const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
+  const isVehicleParticulars = application.application_type === "vehicle_particulars";
+  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars;
   const isRejected = application.status === "staff_rejected";
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
@@ -1110,15 +1495,29 @@ export default function CustomerApplicationDetailsPage() {
           onSuccess={handleReapplySuccess}
         />
       )}
+      {showNumberPlateReapplyModal && (
+        <NumberPlateReapplyModal
+          application={application}
+          onClose={() => setShowNumberPlateReapplyModal(false)}
+          onSuccess={handleReapplySuccess}
+        />
+      )}
+      {showParticularsReapplyModal && (
+        <ParticularsReapplyModal
+          application={application}
+          onClose={() => setShowParticularsReapplyModal(false)}
+          onSuccess={handleReapplySuccess}
+        />
+      )}
 
       {/* Header */}
       <div>
         <Link
-          href={isTinted ? "/dashboard/apply/tinted-permit" : "/dashboard/apply"}
+          href={isTinted ? "/dashboard/apply/tinted-permit" : isNumberPlate ? "/dashboard/apply/number-plate" : isVehicleParticulars ? "/dashboard/apply/vehicle-particulars" : "/dashboard/apply"}
           className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {isTinted ? "My tinted permit applications" : "My applications"}
+          {isTinted ? "My tinted permit applications" : isNumberPlate ? "My number plate applications" : isVehicleParticulars ? "My vehicle particulars renewals" : "My applications"}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -1126,7 +1525,7 @@ export default function CustomerApplicationDetailsPage() {
               className="text-[24px] tracking-tight text-[#111111]"
               style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
             >
-              {isTinted ? "Tinted Permit" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
+              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} />
             <span className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
@@ -1141,9 +1540,10 @@ export default function CustomerApplicationDetailsPage() {
         <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
       </div>
 
-      {/* tinted_permit only — the vehicle this application is for, in place
-          of the licence-class/driving-school fields that don't apply. */}
-      {isTinted && vehicle && (
+      {/* Vehicle-centric types only (tinted_permit, number_plate_*) — the
+          vehicle this application is for, in place of the licence-class/
+          driving-school fields that don't apply. */}
+      {isVehicleCentric && vehicle && (
         <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Vehicle</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -1157,20 +1557,54 @@ export default function CustomerApplicationDetailsPage() {
             </div>
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number}</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number || "Pending"}</span>
             </div>
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
               <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
             </div>
+            {isNumberPlate && vehicle.year && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Year</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.year}</span>
+              </div>
+            )}
+            {isNumberPlate && application.use_type && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use type</span>
+                <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.use_type}</span>
+              </div>
+            )}
+            {isNumberPlate && vehicle.chassis_number && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis number</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.chassis_number}</span>
+              </div>
+            )}
+            {isNumberPlate && vehicle.engine_number && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine number</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.engine_number}</span>
+              </div>
+            )}
             {application.justification && (
               <div className="col-span-2 sm:col-span-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
                 <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
               </div>
             )}
+            {isNumberPlate && application.previous_owner_details && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous owner</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {isVehicleParticulars && (
+        <ParticularsItemsSummary application={application} onViewDoc={setPreviewDocUrl} />
       )}
 
       {/* Notice bar */}
@@ -1211,7 +1645,12 @@ export default function CustomerApplicationDetailsPage() {
             </div>
             <button
               type="button"
-              onClick={() => (isTinted ? setShowTintedReapplyModal(true) : setShowReapplyModal(true))}
+              onClick={() => {
+                if (isTinted) setShowTintedReapplyModal(true);
+                else if (isNumberPlate) setShowNumberPlateReapplyModal(true);
+                else if (isVehicleParticulars) setShowParticularsReapplyModal(true);
+                else setShowReapplyModal(true);
+              }}
               className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] sm:mt-0"
               style={{ background: isRejected ? "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
             >
@@ -1236,22 +1675,30 @@ export default function CustomerApplicationDetailsPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-red-900">{isTinted ? "Your permit has expired" : "Your licence has expired"}</h3>
+                <h3 className="text-[15px] font-bold text-red-900">{isTinted ? "Your permit has expired" : isNumberPlate ? "Your plate application has expired" : isVehicleParticulars ? "One or more documents have expired" : "Your licence has expired"}</h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-red-700/90">
-                  {!isTinted && application.permanent_licence?.expiry_date
+                  {!isVehicleCentric && application.permanent_licence?.expiry_date
                     ? `It was valid until ${new Date(application.permanent_licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}. `
                     : ""}
-                  {isTinted ? "Submit a new tinted permit application to get a new one." : "Apply for a renewal to get a new one."}
+                  {isTinted ? "Submit a new tinted permit application to get a new one." : isNumberPlate ? "Submit a new number plate application to get a new one." : isVehicleParticulars ? "Submit a new renewal request to get updated documents." : "Apply for a renewal to get a new one."}
                 </p>
               </div>
             </div>
             <Link
-              href={isTinted ? "/dashboard/apply/tinted-permit/new" : "/dashboard/apply?type=renewal"}
+              href={
+                isTinted
+                  ? "/dashboard/apply/tinted-permit/new"
+                  : isNumberPlate
+                  ? `/dashboard/apply/number-plate/new?type=${NUMBER_PLATE_QUERY_TYPE[application.application_type] || "new"}`
+                  : isVehicleParticulars
+                  ? "/dashboard/apply/vehicle-particulars/new"
+                  : "/dashboard/apply?type=renewal"
+              }
               className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" }}
             >
               <RefreshCw className="h-4 w-4" />
-              {isTinted ? "Apply again" : "Apply for renewal"}
+              {isVehicleCentric ? "Apply again" : "Apply for renewal"}
             </Link>
           </div>
         </div>

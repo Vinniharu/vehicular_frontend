@@ -22,6 +22,10 @@ export const STATUS_META = {
   staff_final_review: { label: "Final review", tone: "warning" },
   in_review: { label: "Final review", tone: "warning" },
   in_process: { label: "In process", tone: "info" },
+  // vehicle_particulars bundle-level statuses only — item-level detail
+  // lives in ParticularsItemsSummary, not here.
+  released_to_agents: { label: "Released to agents", tone: "success" },
+  in_progress: { label: "Agents working on it", tone: "success" },
   ready_for_pickup: { label: "Ready for pickup", tone: "success" },
   awaiting_customer: { label: "Ready — confirm receipt", tone: "success" },
   completed: { label: "Completed", tone: "success" },
@@ -110,10 +114,40 @@ const TINTED_STATUS_DESCRIPTIONS = {
   completed: "Tinted glass permit application finished and closed.",
 };
 
+// number_plate_* shares tinted_permit's exact status machine shape — same
+// override, plate-specific wording.
+const NUMBER_PLATE_STATUS_DESCRIPTIONS = {
+  ready_for_pickup: "Number plate ready for pickup.",
+  awaiting_customer: "Plate ready; please confirm receipt upon pickup.",
+  completed: "Number plate application finished and closed.",
+};
+
+export function isNumberPlateType(applicationType) {
+  return Boolean(applicationType) && applicationType.startsWith("number_plate_");
+}
+
+// vehicle_particulars is a bundle — its own small status set (see
+// VEHICLE_PARTICULARS_TRANSITIONS, app/modules/driver_licence/
+// status_machine.py) has no biometrics/driving-school leg like tinted_permit/
+// number_plate, but also no "routed"/"agent_assigned" (per-item routing is
+// invisible at the bundle level — see ParticularsItemsSummary instead).
+const PARTICULARS_STATUS_DESCRIPTIONS = {
+  staff_review: "Staff are reviewing your request before it's released to agents.",
+  released_to_agents: "Released to eligible agents — waiting for them to accept each document.",
+  in_progress: "Agents are working on your documents.",
+  awaiting_customer: "All documents are ready — please confirm receipt below.",
+  completed: "Your vehicle particulars renewal is finished and closed.",
+  staff_rejected: "Your request was rejected — review the reason below and edit your details to reapply.",
+  expired: "One or more documents have expired — apply for a new renewal.",
+};
+
 // staff_review is the one status whose description actually differs by
 // application type: only fresh applications go through driving-school
 // assignment during staff review, renewal/reissue/IDP don't.
 export function getStatusDescription(status, applicationType) {
+  if (applicationType === "vehicle_particulars" && PARTICULARS_STATUS_DESCRIPTIONS[status]) {
+    return PARTICULARS_STATUS_DESCRIPTIONS[status];
+  }
   if (status === "staff_review") {
     return applicationType === "fresh"
       ? "Verifying background details & assigning driving school."
@@ -121,6 +155,9 @@ export function getStatusDescription(status, applicationType) {
   }
   if (applicationType === "tinted_permit" && TINTED_STATUS_DESCRIPTIONS[status]) {
     return TINTED_STATUS_DESCRIPTIONS[status];
+  }
+  if (isNumberPlateType(applicationType) && NUMBER_PLATE_STATUS_DESCRIPTIONS[status]) {
+    return NUMBER_PLATE_STATUS_DESCRIPTIONS[status];
   }
   return STATUS_DESCRIPTIONS[status] || "";
 }
@@ -186,13 +223,50 @@ const NEXT_STEP_TINTED = {
   expired: "Your permit has expired — please submit a new application.",
 };
 
+// number_plate_* shares tinted_permit's exact sequence — same map, plate
+// wording.
+const NEXT_STEP_NUMBER_PLATE = {
+  submitted: "Your application is waiting for staff to review it.",
+  staff_review: "Staff are checking your documents now.",
+  routed: "Your application has been sent to an available agent.",
+  agent_accepted: "An agent has accepted and is processing your plate.",
+  agent_assigned: "An agent is processing your plate.",
+  agent_completed: "Processing is complete — staff are doing a final review.",
+  staff_final_review: "Staff are doing a final review before your plate is dispatched.",
+  awaiting_customer: "Your plate is ready — please confirm you've received it below.",
+  completed: "Your plate is ready.",
+  needs_correction: "One of your documents needs a re-upload — see below.",
+  expired: "Your plate application has expired — please submit a new application.",
+};
+
+// Mirrors VEHICLE_PARTICULARS_TRANSITIONS — the hard front gate means
+// "submitted" never implies "about to be routed" the way it does for every
+// other type, so this copy is deliberately explicit about staff review
+// being a real, required step before release to agents.
+const NEXT_STEP_PARTICULARS = {
+  submitted: "We're waiting on your documents and payment before staff can review it.",
+  staff_review: "Staff are reviewing your request before it's released to agents.",
+  released_to_agents: "Released to eligible agents — waiting for them to accept each document.",
+  in_progress: "Agents are working on your documents — see each one's status below.",
+  awaiting_customer: "All documents are ready — please confirm you've received them below.",
+  completed: "Your vehicle particulars renewal is finished.",
+  expired: "One or more documents have expired — apply for a new renewal.",
+};
+
 export function getNextStepCopy(application) {
   const status = application.status;
   const type = application.application_type;
   if (status === "staff_rejected") {
     return "This application was rejected — review the reason below and edit your details to reapply.";
   }
-  const map = type === "tinted_permit" ? NEXT_STEP_TINTED : type === "fresh" ? NEXT_STEP_FRESH : NEXT_STEP_NON_FRESH;
+  if (type === "vehicle_particulars") {
+    return NEXT_STEP_PARTICULARS[status] || "We'll update this as your request moves forward.";
+  }
+  const map = type === "tinted_permit"
+    ? NEXT_STEP_TINTED
+    : isNumberPlateType(type)
+    ? NEXT_STEP_NUMBER_PLATE
+    : type === "fresh" ? NEXT_STEP_FRESH : NEXT_STEP_NON_FRESH;
   return map[status] || "We'll update this as your application moves forward.";
 }
 
@@ -220,10 +294,19 @@ const STAGE_ORDER_TINTED = [
   "agent_completed", "staff_final_review", "awaiting_customer", "completed",
 ];
 
+// Mirrors VEHICLE_PARTICULARS_TRANSITIONS exactly — "released_to_agents"/
+// "in_progress" replace "routed"/"agent_accepted" since routing is per-item,
+// not per-bundle.
+const STAGE_ORDER_PARTICULARS = [
+  "submitted", "staff_review", "released_to_agents", "in_progress", "awaiting_customer", "completed",
+];
+
 export function getStageProgress(status, applicationType) {
   if (status === "completed") return 1;
   if (status === "staff_rejected" || status === "failed") return 0;
-  const order = applicationType === "tinted_permit"
+  const order = applicationType === "vehicle_particulars"
+    ? STAGE_ORDER_PARTICULARS
+    : applicationType === "tinted_permit" || isNumberPlateType(applicationType)
     ? STAGE_ORDER_TINTED
     : applicationType === "fresh" ? STAGE_ORDER_FRESH : STAGE_ORDER_OTHER;
   const idx = order.indexOf(status);
