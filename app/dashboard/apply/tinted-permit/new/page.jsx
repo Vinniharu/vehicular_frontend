@@ -21,6 +21,7 @@ import {
   payFromWalletEndpoint,
   getWallet,
   getDriverLicenceFeeSchedule,
+  getTintedPermitEligibility,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
@@ -183,6 +184,8 @@ export default function TintedPermitNewApplicationPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
+  // { eligible, reason: "in_flight" | "not_due" | null, current_expiry_date, eligible_from_date }
+  const [eligibility, setEligibility] = useState(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -209,6 +212,16 @@ export default function TintedPermitNewApplicationPage() {
       }
     );
   }, []);
+
+  // Eligibility is per-vehicle — re-fetch whenever the selected vehicle
+  // changes, including right after "Add another vehicle" picks a brand-new
+  // one with no history at all (always eligible).
+  useEffect(() => {
+    if (!selectedVehicleId) return;
+    getTintedPermitEligibility(selectedVehicleId).then((res) => {
+      if (res.data) setEligibility(res.data);
+    });
+  }, [selectedVehicleId]);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
   const displayFeeKobo = feeKobo ?? TOTAL_FEE_KOBO;
@@ -242,6 +255,7 @@ export default function TintedPermitNewApplicationPage() {
     const errors = {};
     if (n === 1) {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
+      else if (eligibility && !eligibility.eligible) errors.vehicle = "This vehicle isn't eligible for a new tinted permit request right now — see above.";
     }
     if (n === 2) {
       const trimmedNin = nin.trim();
@@ -448,6 +462,16 @@ export default function TintedPermitNewApplicationPage() {
               >
                 <Plus className="h-3.5 w-3.5" /> Add another vehicle
               </button>
+            </div>
+          )}
+
+          {eligibility && !eligibility.eligible && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] text-amber-800">
+              {eligibility.reason === "in_flight"
+                ? "This vehicle already has a tinted permit request in progress — check your existing requests."
+                : eligibility.eligible_from_date
+                ? `This vehicle's tinted permit isn't due for renewal yet — eligible from ${new Date(eligibility.eligible_from_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}.`
+                : "This vehicle isn't due for tinted permit renewal yet."}
             </div>
           )}
 

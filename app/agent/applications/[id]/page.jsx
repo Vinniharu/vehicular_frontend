@@ -321,7 +321,8 @@ export default function AgentApplicationDetailPage() {
       }
       const isFresh = application.application_type === "fresh";
       const isTinted = application.application_type === "tinted_permit";
-      const requiresCredentialFields = isFresh || isTinted;
+      const isRenewalOrReissueLocal = ["renewal", "reissue", "international_permit"].includes(application.application_type);
+      const requiresCredentialFields = isFresh || isTinted || isRenewalOrReissueLocal;
       if (requiresCredentialFields && (!licenceNumberInput.trim() || !licenceExpiryInput)) {
         setActionError(isTinted ? "Permit number and expiry date are required for the finished document." : "Licence number and expiry date are required for the permanent card.");
         setActionLoading(false);
@@ -833,7 +834,7 @@ export default function AgentApplicationDetailPage() {
                     }}
                   />
                 </div>
-                {(isFreshApp || isTintedPermit) && (
+                {(isFreshApp || isTintedPermit || isRenewalOrReissue) && (
                   <>
                     <div>
                       <label className={fieldLabel}>{isTintedPermit ? "Permit number *" : "Licence number *"}</label>

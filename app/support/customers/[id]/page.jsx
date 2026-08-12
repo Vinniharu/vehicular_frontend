@@ -18,6 +18,8 @@ import {
   FileText,
   Receipt,
   Eye,
+  Archive,
+  ChevronRight,
 } from "lucide-react";
 import { getSupportCustomer } from "@/lib/api";
 
@@ -131,6 +133,18 @@ export default function SupportCustomerDetailPage() {
           <p className="text-2xl font-bold text-slate-900">{formatNaira(customer.wallet_balance_kobo)}</p>
         </div>
       </div>
+
+      {/* Document archive link */}
+      <Link
+        href={`/support/documents?tab=archive&customer_id=${customer.id}`}
+        className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <Archive className="h-4 w-4 text-[#28A745]" />
+          <span className="text-[13px] font-semibold text-slate-700">View this customer's document archive</span>
+        </div>
+        <ChevronRight className="h-4 w-4 text-slate-400" />
+      </Link>
 
       {/* Applications */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">

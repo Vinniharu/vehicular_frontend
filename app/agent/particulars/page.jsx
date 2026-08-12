@@ -61,6 +61,7 @@ export default function AgentParticularsJobsPage() {
 
   const [uploadingItemId, setUploadingItemId] = useState(null);
   const [uploadFileNames, setUploadFileNames] = useState({});
+  const [expiryByItemId, setExpiryByItemId] = useState({});
 
   const loadData = async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -105,6 +106,12 @@ export default function AgentParticularsJobsPage() {
 
   const handleUploadFinal = async (item, file) => {
     if (!file) return;
+    const requiresExpiry = item.document_type !== "proof_of_ownership";
+    const expiryDate = expiryByItemId[item.id];
+    if (requiresExpiry && !expiryDate) {
+      setNotice({ type: "error", message: "Enter the document's expiry date before uploading." });
+      return;
+    }
     setUploadingItemId(item.id);
     setNotice(null);
     setUploadFileNames((prev) => ({ ...prev, [item.id]: file.name }));
@@ -114,7 +121,10 @@ export default function AgentParticularsJobsPage() {
       setNotice({ type: "error", message: uploadError || "Upload failed. Please try again." });
       return;
     }
-    const res = await uploadParticularsItemFinal(item.id, { file_url: data.file_url });
+    const res = await uploadParticularsItemFinal(item.id, {
+      file_url: data.file_url,
+      expiry_date: requiresExpiry ? expiryDate : undefined,
+    });
     setUploadingItemId(null);
     if (res.error) {
       setNotice({ type: "error", message: res.error });
@@ -270,27 +280,43 @@ export default function AgentParticularsJobsPage() {
                 )}
 
                 {(item.status === "agent_accepted" || item.status === "rejected") && (
-                  <label className="mt-3.5 flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3.5 transition-all hover:border-[#28A745]">
-                    {uploadingItemId === item.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" style={{ color: BRAND }} />
-                    ) : (
-                      <Upload className="h-4 w-4" style={{ color: BRAND }} />
+                  <div className="mt-3.5 space-y-2.5">
+                    {item.document_type !== "proof_of_ownership" && (
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Document expiry date
+                        </label>
+                        <input
+                          type="date"
+                          value={expiryByItemId[item.id] || ""}
+                          onChange={(e) => setExpiryByItemId((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                          disabled={uploadingItemId === item.id}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-900 outline-none focus:border-[#28A745] focus:ring-2 focus:ring-[#28A745]/15"
+                        />
+                      </div>
                     )}
-                    <span className="text-[12.5px] font-semibold text-slate-700">
-                      {uploadingItemId === item.id
-                        ? "Uploading…"
-                        : item.status === "rejected"
-                        ? "Re-upload finished document"
-                        : "Upload finished document"}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      disabled={uploadingItemId === item.id}
-                      onChange={(e) => handleUploadFinal(item, e.target.files?.[0])}
-                      className="hidden"
-                    />
-                  </label>
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3.5 transition-all hover:border-[#28A745]">
+                      {uploadingItemId === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" style={{ color: BRAND }} />
+                      ) : (
+                        <Upload className="h-4 w-4" style={{ color: BRAND }} />
+                      )}
+                      <span className="text-[12.5px] font-semibold text-slate-700">
+                        {uploadingItemId === item.id
+                          ? "Uploading…"
+                          : item.status === "rejected"
+                          ? "Re-upload finished document"
+                          : "Upload finished document"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        disabled={uploadingItemId === item.id}
+                        onChange={(e) => handleUploadFinal(item, e.target.files?.[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
             );

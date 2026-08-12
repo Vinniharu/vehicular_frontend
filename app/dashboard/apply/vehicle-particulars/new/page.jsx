@@ -19,13 +19,13 @@ import {
   uploadApplicationFile,
   payFromWalletEndpoint,
   getWallet,
-  getParticularsItemPricing,
+  getVehicleParticularsEligibility,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
-import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/app/dashboard/_shared/apply-helpers";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -209,7 +209,8 @@ export default function VehicleParticularsNewApplicationPage() {
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
 
-  const [prices, setPrices] = useState(null); // { [document_type]: amount_kobo | null }
+  // { [document_type]: { amount_kobo, eligible, reason, current_expiry_date, eligible_from_date } }
+  const [eligibility, setEligibility] = useState(null);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [isCommercialUse, setIsCommercialUse] = useState(false);
   const [evidenceByDocType, setEvidenceByDocType] = useState({}); // { [evidence_doc_type]: { fileName, url } }
@@ -223,8 +224,8 @@ export default function VehicleParticularsNewApplicationPage() {
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    Promise.all([getReferenceStates(), listVehicles(), getWallet(), getParticularsItemPricing()]).then(
-      ([statesRes, vehiclesRes, walletRes, pricesRes]) => {
+    Promise.all([getReferenceStates(), listVehicles(), getWallet()]).then(
+      ([statesRes, vehiclesRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (vehiclesRes.data) {
           setVehicles(vehiclesRes.data);
@@ -234,13 +235,24 @@ export default function VehicleParticularsNewApplicationPage() {
           setAddingVehicle(true);
         }
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-        if (pricesRes.data?.prices) {
-          setPrices(Object.fromEntries(pricesRes.data.prices.map((p) => [p.document_type, p.amount_kobo])));
-        }
         setLoadingVehicles(false);
       }
     );
   }, []);
+
+  // Eligibility is per-vehicle (a document's renewal history belongs to the
+  // vehicle it's for), so it's re-fetched whenever the selected vehicle
+  // changes — including right after "Add another vehicle" picks a brand-new
+  // one with no history at all, which is always fully eligible (assuming
+  // priced).
+  useEffect(() => {
+    if (!selectedVehicleId) return;
+    getVehicleParticularsEligibility(selectedVehicleId).then((res) => {
+      if (res.data?.items) {
+        setEligibility(Object.fromEntries(res.data.items.map((i) => [i.document_type, i])));
+      }
+    });
+  }, [selectedVehicleId]);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
 
@@ -249,9 +261,9 @@ export default function VehicleParticularsNewApplicationPage() {
   const availableDocTypes = DOCUMENT_TYPES.filter((d) => !d.commercialOnly || isCommercialUse);
 
   const totalKobo = useMemo(() => {
-    if (!prices) return 0;
-    return selectedTypes.reduce((sum, dt) => sum + (prices[dt] || 0), 0);
-  }, [prices, selectedTypes]);
+    if (!eligibility) return 0;
+    return selectedTypes.reduce((sum, dt) => sum + (eligibility[dt]?.amount_kobo || 0), 0);
+  }, [eligibility, selectedTypes]);
 
   // Union of evidence slots across every selected document type, deduped by
   // doc_type — a shared requirement (e.g. owner_id_evidence) shows once, not
@@ -303,8 +315,8 @@ export default function VehicleParticularsNewApplicationPage() {
     }
     if (n === 2) {
       if (selectedTypes.length === 0) errors.documents = "Pick at least one document to renew.";
-      const unpriced = selectedTypes.filter((dt) => !prices?.[dt]);
-      if (unpriced.length > 0) errors.documents = "One of your selected documents isn't available yet — remove it to continue.";
+      const ineligible = selectedTypes.filter((dt) => !eligibility?.[dt]?.eligible);
+      if (ineligible.length > 0) errors.documents = "One of your selected documents isn't available to renew right now — remove it to continue.";
     }
     if (n === 3) {
       const allUploaded = evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
@@ -326,7 +338,7 @@ export default function VehicleParticularsNewApplicationPage() {
   const canSubmit =
     selectedVehicleId &&
     selectedTypes.length > 0 &&
-    selectedTypes.every((dt) => prices?.[dt]) &&
+    selectedTypes.every((dt) => eligibility?.[dt]?.eligible) &&
     evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
 
   const handleSubmit = async () => {
@@ -597,14 +609,15 @@ export default function VehicleParticularsNewApplicationPage() {
 
           <div className="space-y-2.5">
             {availableDocTypes.map((doc) => {
-              const priceKobo = prices?.[doc.document_type];
-              const isPriced = priceKobo != null;
+              const docEligibility = eligibility?.[doc.document_type];
+              const priceKobo = docEligibility?.amount_kobo;
+              const isEligible = !!docEligibility?.eligible;
               const isSelected = selectedTypes.includes(doc.document_type);
               return (
                 <button
                   key={doc.document_type}
                   type="button"
-                  disabled={!isPriced}
+                  disabled={!isEligible}
                   onClick={() => toggleDocType(doc.document_type)}
                   className="flex w-full items-start justify-between gap-3 rounded-xl border-2 p-3.5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ borderColor: isSelected ? BRAND : "#e2e8f0", background: isSelected ? BRAND_TINT : "#fff" }}
@@ -612,10 +625,10 @@ export default function VehicleParticularsNewApplicationPage() {
                   <div className="min-w-0">
                     <p className="text-[13.5px] font-semibold text-[#111111]">{doc.title}</p>
                     <p className="mt-0.5 text-[12px] text-slate-500">{doc.desc}</p>
-                    {!isPriced && <p className="mt-1 text-[11px] font-semibold text-amber-600">Not yet available for renewal</p>}
+                    <IneligibilityNotice eligibility={docEligibility} />
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    {isPriced && <span className="text-[13px] font-bold text-[#111111]">{koboToNaira(priceKobo)}</span>}
+                    {priceKobo != null && <span className="text-[13px] font-bold text-[#111111]">{koboToNaira(priceKobo)}</span>}
                     {isSelected && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: BRAND }} />}
                   </div>
                 </button>
@@ -667,7 +680,7 @@ export default function VehicleParticularsNewApplicationPage() {
               {selectedTypes.map((dt) => (
                 <div key={dt} className="flex items-center justify-between py-2.5 text-[13px]">
                   <span className="text-slate-500">{DOC_TYPE_BY_KEY[dt]?.title}</span>
-                  <span className="font-semibold text-[#111111]">{koboToNaira(prices?.[dt] || 0)}</span>
+                  <span className="font-semibold text-[#111111]">{koboToNaira(eligibility?.[dt]?.amount_kobo || 0)}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between py-2.5 text-[13px]">

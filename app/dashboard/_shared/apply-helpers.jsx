@@ -15,6 +15,19 @@ export function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// Mirrors the 30-day eligibility-cap window used everywhere else
+// (PARTICULARS_RENEWAL_WINDOW_DAYS in app/core/payment_helpers.py) so
+// "renews soon" here lines up with when a renewal actually opens up.
+export const RENEWAL_WINDOW_DAYS = 30;
+
+export function freshnessMeta(expiryDate) {
+  if (!expiryDate) return null;
+  const diffDays = Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { label: "Expired", tone: "danger" };
+  if (diffDays <= RENEWAL_WINDOW_DAYS) return { label: "Renews soon", tone: "warning" };
+  return { label: "Valid", tone: "success" };
+}
+
 export const errInputClass = (hasError) =>
   hasError ? "border-red-400 focus:border-red-400 focus:ring-red-400/15" : "";
 
@@ -67,6 +80,37 @@ export function paymentStatusMeta(app) {
   if (s === "success" || s === "paid") return { label: "Paid", tone: "success", needsRetry: false };
   if (s === "abandoned" || s === "failed") return { label: "Payment Failed / Retry", tone: "danger", needsRetry: true };
   return { label: "Payment Due", tone: "warning", needsRetry: false };
+}
+
+// Renders the reason a document/application type tile is disabled in an
+// eligibility-gated picker (vehicle-particulars' document picker, the DL
+// wizard's type picker). "unpriced" reuses the original vehicle_particulars
+// copy verbatim; "in_flight"/"not_due"/"already_has_licence" are the
+// renewal-history reasons shared across every eligibility check this
+// session added (get_particulars_item_eligibility/get_tinted_permit_eligibility/
+// get_dl_family_eligibility, app/core/payment_helpers.py on the backend).
+export function IneligibilityNotice({ eligibility }) {
+  if (!eligibility || eligibility.eligible) return null;
+  if (eligibility.reason === "unpriced") {
+    return <p className="mt-1 text-[11px] font-semibold text-amber-600">Not yet available for renewal</p>;
+  }
+  if (eligibility.reason === "in_flight") {
+    return <p className="mt-1 text-[11px] font-semibold text-amber-600">Already in progress — check your existing requests</p>;
+  }
+  if (eligibility.reason === "already_has_licence") {
+    return <p className="mt-1 text-[11px] font-semibold text-amber-600">You already have a licence — try Renewal or Reissue instead</p>;
+  }
+  if (eligibility.reason === "not_due") {
+    const from = eligibility.eligible_from_date
+      ? new Date(eligibility.eligible_from_date).toLocaleDateString("en-NG", { dateStyle: "medium" })
+      : null;
+    return (
+      <p className="mt-1 text-[11px] font-semibold text-amber-600">
+        {from ? `Renews from ${from}` : "Not due for renewal yet"}
+      </p>
+    );
+  }
+  return null;
 }
 
 /* Segmented step progress bar, shared by the DL wizard and the tinted-permit form */
