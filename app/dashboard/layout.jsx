@@ -47,7 +47,7 @@ const NAV_ITEMS = [
   {
     label: "Applications",
     icon: FileText,
-    desc: "Driver's licence, tinted permit, number plate & vehicle particulars",
+    desc: "Browse all applications",
     children: [
       { label: "Driver's Licence", href: "/dashboard/apply", icon: FileText },
       { label: "Tinted Permit", href: "/dashboard/apply/tinted-permit", icon: Sun },
