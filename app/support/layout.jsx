@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   LayoutDashboard,
   FileText,
+  FileClock,
   MapPinOff,
   MapPin,
   MessageCircle,
@@ -35,6 +36,7 @@ const SUPPORT_NAV = [
     section: "Applications",
     items: [
       { label: "All applications", href: "/support/applications", icon: FileText },
+      { label: "Expiring documents", href: "/support/documents", icon: FileClock },
       { label: "Unassigned", href: "/support/unassigned", icon: MapPinOff },
       { label: "LGA coverage", href: "/support/lga-coverage", icon: MapPin },
     ],

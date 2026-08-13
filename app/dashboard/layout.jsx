@@ -14,6 +14,7 @@ import {
   Hash,
   Wallet,
   Gift,
+  FileCheck2,
   Settings,
   ChevronRight,
   Bell,
@@ -53,6 +54,13 @@ const NAV_ITEMS = [
       { label: "Number Plate", href: "/dashboard/apply/number-plate", icon: Hash },
       { label: "Vehicle Particulars", href: "/dashboard/apply/vehicle-particulars", icon: FileText },
     ],
+  },
+  {
+    label: "My Documents",
+    href: "/dashboard/documents",
+    icon: FileCheck2,
+    exact: true,
+    desc: "All your approved licences & documents",
   },
   {
     label: "Wallet",

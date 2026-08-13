@@ -39,6 +39,7 @@ import {
   payFromWalletEndpoint,
   getWallet,
   resolveMediaUrl,
+  getDriverLicenceEligibility,
 } from "@/lib/api";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
@@ -57,6 +58,7 @@ import {
   isApplicationPaid,
   paymentStatusMeta,
   StepProgress,
+  IneligibilityNotice,
 } from "@/app/dashboard/_shared/apply-helpers";
 
 const BRAND = colors.primary.DEFAULT;
@@ -249,6 +251,34 @@ export default function ApplyPage() {
   // string (e.g. { old_driver_licence: { fileName, url } }).
   const [renewalDocs, setRenewalDocs] = useState({});
   const [oldLicenceNumber, setOldLicenceNumber] = useState("");
+  // { [application_type]: { eligible, reason, current_expiry_date, eligible_from_date } }
+  const [eligibilityByType, setEligibilityByType] = useState({});
+
+  useEffect(() => {
+    // Computed from the URL directly (not the applicationType state
+    // variable) — a separate effect below also sets applicationType from
+    // this same ?type= param, and reading state here would race it: both
+    // effects' closures capture applicationType as it was at the initial
+    // render ("fresh"), regardless of which effect's async callback
+    // actually resolves first.
+    const typeParam = searchParams.get("type");
+    const initialType = ["fresh", "renewal", "reissue"].includes(typeParam) ? typeParam : "fresh";
+    getDriverLicenceEligibility().then((res) => {
+      if (res.data?.items) {
+        const byType = Object.fromEntries(res.data.items.map((i) => [i.application_type, i]));
+        setEligibilityByType(byType);
+        // If the intended initial type is ineligible (most commonly:
+        // "fresh" default, customer already has a licence), don't leave
+        // them stuck on a disabled tile with no obvious next step — jump
+        // to the first type that IS eligible.
+        if (byType[initialType]?.eligible === false) {
+          const firstEligible = APPLICATION_TYPES.find((t) => byType[t.value]?.eligible !== false);
+          if (firstEligible) setApplicationType(firstEligible.value);
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     Promise.all([authGetMe(), getReferenceStates(), getMyApplications(), getWallet()]).then(
@@ -359,6 +389,7 @@ export default function ApplyPage() {
   const validateStep = (n) => {
     const errors = {};
     if (n === 1) {
+      if (eligibilityByType[applicationType]?.eligible === false) errors.applicationType = "This application type isn't available for you right now — see above.";
       if (applicationType !== "international_permit" && !validityPeriod) errors.validityPeriod = "Select a validity period.";
       if (applicationType === "fresh" && !licenceClass) errors.licenceClass = "Select a licence class.";
     }
@@ -1172,12 +1203,15 @@ export default function ApplyPage() {
             <div className="space-y-2.5">
               {APPLICATION_TYPES.map((t) => {
                 const active = applicationType === t.value;
+                const typeEligibility = eligibilityByType[t.value];
+                const disabled = typeEligibility?.eligible === false;
                 return (
                   <button
                     key={t.value}
                     type="button"
+                    disabled={disabled}
                     onClick={() => setApplicationType(t.value)}
-                    className="flex w-full items-start gap-3.5 rounded-xl border-2 p-4 text-left transition-all"
+                    className="flex w-full items-start gap-3.5 rounded-xl border-2 p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60"
                     style={{
                       borderColor: active ? BRAND : "#e2e8f0",
                       background: active ? BRAND_TINT : "#fff",
@@ -1192,11 +1226,13 @@ export default function ApplyPage() {
                     <div>
                       <p className="text-[14px] font-semibold text-[#111111]">{t.label}</p>
                       <p className="mt-0.5 text-[12.5px] text-slate-500">{t.desc}</p>
+                      <IneligibilityNotice eligibility={typeEligibility} />
                     </div>
                   </button>
                 );
               })}
             </div>
+            <FieldError message={fieldErrors.applicationType} />
 
             {applicationType === "fresh" && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] text-amber-800">
