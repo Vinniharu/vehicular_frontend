@@ -26,6 +26,7 @@ import {
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/app/dashboard/_shared/apply-helpers";
+import { VEHICLE_CATEGORY_OPTIONS, HACKNEY_ELIGIBLE_CATEGORY_VALUES } from "@/lib/constants/vehicleCategories";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -204,7 +205,7 @@ export default function VehicleParticularsNewApplicationPage() {
   const [addingVehicle, setAddingVehicle] = useState(false);
 
   const [vehicleForm, setVehicleForm] = useState({
-    plate_number: "", make: "", model: "", colour: "", state_id: "",
+    plate_number: "", make: "", model: "", colour: "", state_id: "", vehicle_category: "",
   });
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
@@ -212,7 +213,6 @@ export default function VehicleParticularsNewApplicationPage() {
   // { [document_type]: { amount_kobo, eligible, reason, current_expiry_date, eligible_from_date } }
   const [eligibility, setEligibility] = useState(null);
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [isCommercialUse, setIsCommercialUse] = useState(false);
   const [evidenceByDocType, setEvidenceByDocType] = useState({}); // { [evidence_doc_type]: { fileName, url } }
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -257,8 +257,10 @@ export default function VehicleParticularsNewApplicationPage() {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
 
   // Only document types the customer can currently pick: priced, and not
-  // hackney unless the commercial-use toggle is on.
-  const availableDocTypes = DOCUMENT_TYPES.filter((d) => !d.commercialOnly || isCommercialUse);
+  // hackney unless the selected vehicle's category is hackney-eligible.
+  const availableDocTypes = DOCUMENT_TYPES.filter(
+    (d) => !d.commercialOnly || HACKNEY_ELIGIBLE_CATEGORY_VALUES.includes(selectedVehicle?.vehicle_category)
+  );
 
   const totalKobo = useMemo(() => {
     if (!eligibility) return 0;
@@ -280,6 +282,14 @@ export default function VehicleParticularsNewApplicationPage() {
     return Array.from(slotsByDocType.values());
   }, [selectedTypes]);
 
+  // If the selected vehicle changes to one that isn't hackney-eligible,
+  // drop any already-selected hackney_permit item.
+  useEffect(() => {
+    if (!HACKNEY_ELIGIBLE_CATEGORY_VALUES.includes(selectedVehicle?.vehicle_category)) {
+      setSelectedTypes((prev) => prev.filter((t) => t !== "hackney_permit"));
+    }
+  }, [selectedVehicle?.vehicle_category]);
+
   const toggleDocType = (dt) => {
     setSelectedTypes((prev) => (prev.includes(dt) ? prev.filter((t) => t !== dt) : [...prev, dt]));
   };
@@ -291,6 +301,7 @@ export default function VehicleParticularsNewApplicationPage() {
     if (!vehicleForm.model.trim()) errors.model = "Model is required.";
     if (!vehicleForm.colour.trim()) errors.colour = "Colour is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
+    if (!vehicleForm.vehicle_category) errors.vehicle_category = "Select the vehicle's category — it determines the price.";
     if (Object.keys(errors).length > 0) {
       setVehicleFieldErrors(errors);
       return;
@@ -363,7 +374,6 @@ export default function VehicleParticularsNewApplicationPage() {
     });
     const res = await submitVehicleParticularsApplication({
       vehicle_id: selectedVehicleId,
-      is_commercial_use: isCommercialUse,
       items,
     });
     setSubmitting(false);
@@ -570,6 +580,18 @@ export default function VehicleParticularsNewApplicationPage() {
                   </select>
                   <FieldError message={vehicleFieldErrors.state_id} />
                 </div>
+                <div>
+                  <label className={label}>Vehicle category</label>
+                  <select
+                    className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`}
+                    value={vehicleForm.vehicle_category}
+                    onChange={(e) => setVehicleForm((f) => ({ ...f, vehicle_category: e.target.value }))}
+                  >
+                    <option value="">Select category</option>
+                    {VEHICLE_CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                  <FieldError message={vehicleFieldErrors.vehicle_category} />
+                </div>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={handleCreateVehicle} disabled={creatingVehicle} className={btnPrimary} style={{ background: BRAND }}>
@@ -592,20 +614,6 @@ export default function VehicleParticularsNewApplicationPage() {
           <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
             <FileCheck2 className="h-4 w-4" style={{ color: BRAND }} /> Which documents need renewing?
           </h2>
-
-          <label className="mb-3 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <input
-              type="checkbox"
-              checked={isCommercialUse}
-              onChange={(e) => {
-                setIsCommercialUse(e.target.checked);
-                if (!e.target.checked) setSelectedTypes((prev) => prev.filter((t) => t !== "hackney_permit"));
-              }}
-              className="h-4 w-4"
-              style={{ accentColor: BRAND }}
-            />
-            <span className="text-[12.5px] font-semibold text-slate-700">This vehicle is used commercially (carries passengers)</span>
-          </label>
 
           <div className="space-y-2.5">
             {availableDocTypes.map((doc) => {

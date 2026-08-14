@@ -38,8 +38,6 @@ import {
   getAdminRelocationRequests,
   approveAgentRelocation,
   rejectAgentRelocation,
-  updateAgentCommission,
-  bulkUpdateAgentCommission,
   getReferenceStates,
   getReferenceLgas,
   adminUpdateAgentEligibility,
@@ -127,20 +125,6 @@ export default function AdminPage() {
 
   const [selectedAgentDetail, setSelectedAgentDetail] = useState(null);
   const [loadingAgentDetail, setLoadingAgentDetail] = useState(false);
-  
-  // null = no row being edited; "flat" = the fallback field; or an
-  // application_type value (fresh/renewal/reissue/international_permit)
-  // for one of the per-type rows. Only one row is editable at a time,
-  // matching the single-field UX this panel already had before per-type
-  // support was added.
-  const [editingCommissionType, setEditingCommissionType] = useState(null);
-  const [updatingCommission, setUpdatingCommission] = useState(false);
-  const [customCommissionVal, setCustomCommissionVal] = useState("");
-
-  const [bulkCommissionOpen, setBulkCommissionOpen] = useState(false);
-  const [bulkCommissionVal, setBulkCommissionVal] = useState("");
-  const [bulkCommissionType, setBulkCommissionType] = useState(""); // "" = all types (legacy flat override)
-  const [applyingBulkCommission, setApplyingBulkCommission] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState("staff");
@@ -271,7 +255,6 @@ export default function AdminPage() {
   const handleViewAgent = async (agent) => {
     setSelectedAgentDetail(agent);
     setLoadingAgentDetail(true);
-    setEditingCommissionType(null);
     setEditingEligibility(false);
     const res = await adminGetAgent(agent.id);
     if (res.data) {
@@ -282,18 +265,6 @@ export default function AdminPage() {
       );
     }
     setLoadingAgentDetail(false);
-  };
-
-  // type === "flat" edits the legacy all-types fallback; any other value is
-  // one of APPLICATION_TYPE_OPTIONS' `value`s, editing that type's entry in
-  // custom_commission_by_type.
-  const startEditingCommission = (type) => {
-    const profile = selectedAgentDetail?.agent_profile;
-    const currentKobo = type === "flat"
-      ? profile?.custom_commission_kobo
-      : profile?.custom_commission_by_type?.[type];
-    setCustomCommissionVal(currentKobo !== null && currentKobo !== undefined ? (currentKobo / 100).toString() : "");
-    setEditingCommissionType(type);
   };
 
   const handleSaveEligibility = async () => {
@@ -314,73 +285,6 @@ export default function AdminPage() {
         : a));
       setEditingEligibility(false);
       showToast("success", "Agent's allowed application types updated.");
-    }
-  };
-
-  const handleSaveCommission = async () => {
-    setUpdatingCommission(true);
-    let val = null;
-    if (customCommissionVal !== "") {
-      val = Math.round(parseFloat(customCommissionVal) * 100);
-    }
-    const isFlat = editingCommissionType === "flat";
-    const res = await updateAgentCommission(selectedAgentDetail.id, val, isFlat ? null : editingCommissionType);
-    setUpdatingCommission(false);
-    if (res.error) {
-      showToast("error", "Could not update agent commission.");
-    } else {
-      const applyUpdate = (profile) => {
-        if (isFlat) return { ...profile, custom_commission_kobo: val };
-        const byType = { ...(profile.custom_commission_by_type || {}) };
-        if (val === null) delete byType[editingCommissionType];
-        else byType[editingCommissionType] = val;
-        return { ...profile, custom_commission_by_type: byType };
-      };
-      setSelectedAgentDetail({
-        ...selectedAgentDetail,
-        agent_profile: applyUpdate(selectedAgentDetail.agent_profile),
-      });
-      setAgentsList((list) => list.map((a) => a.id === selectedAgentDetail.id
-        ? { ...a, agent_profile: applyUpdate(a.agent_profile) }
-        : a));
-      setEditingCommissionType(null);
-      showToast("success", "Agent commission updated.");
-    }
-  };
-
-  const handleApplyBulkCommission = async () => {
-    let val = null;
-    if (bulkCommissionVal !== "") {
-      val = Math.round(parseFloat(bulkCommissionVal) * 100);
-    }
-    const isAllTypes = bulkCommissionType === "";
-    const typeLabel = isAllTypes ? "all types (legacy flat override)" : APPLICATION_TYPE_OPTIONS.find((o) => o.value === bulkCommissionType)?.label;
-    const label = val === null
-      ? `reset every agent's ${typeLabel} commission to the system default`
-      : `set every agent's ${typeLabel} commission to ${koboToNaira(val)}`;
-    const warning = isAllTypes
-      ? "overwriting any individual overrides already in place"
-      : "individual flat overrides and other application types are left untouched";
-    if (!window.confirm(`This will ${label}, ${warning}. Continue?`)) return;
-    setApplyingBulkCommission(true);
-    const res = await bulkUpdateAgentCommission(val, isAllTypes ? null : bulkCommissionType);
-    setApplyingBulkCommission(false);
-    if (res.error) {
-      showToast("error", "Could not update commission for all agents.");
-    } else {
-      setAgentsList((list) => list.map((a) => {
-        if (isAllTypes) {
-          return { ...a, agent_profile: { ...a.agent_profile, custom_commission_kobo: val } };
-        }
-        const byType = { ...(a.agent_profile?.custom_commission_by_type || {}) };
-        if (val === null) delete byType[bulkCommissionType];
-        else byType[bulkCommissionType] = val;
-        return { ...a, agent_profile: { ...a.agent_profile, custom_commission_by_type: byType } };
-      }));
-      setBulkCommissionOpen(false);
-      setBulkCommissionVal("");
-      setBulkCommissionType("");
-      showToast("success", `Commission updated for ${res.data?.updated_count ?? "all"} agents.`);
     }
   };
 
@@ -513,16 +417,6 @@ export default function AdminPage() {
             ))}
           </div>
           <div className="flex items-center gap-2.5">
-            {activeTab === "agents" && (
-              <button
-                type="button"
-                onClick={() => { setBulkCommissionVal(""); setBulkCommissionType(""); setBulkCommissionOpen(true); }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#28A745] bg-[#28A745]/5 border border-[#28A745]/20 hover:bg-[#28A745]/10 transition-colors whitespace-nowrap"
-              >
-                <Wallet className="h-3.5 w-3.5" />
-                Set Commission for All Agents
-              </button>
-            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
@@ -699,7 +593,6 @@ export default function AdminPage() {
                     <th className="py-3 px-5 font-semibold">Assigned Office</th>
                     <th className="py-3 px-5 font-semibold">Settlement &amp; Wallet</th>
                     <th className="py-3 px-5 font-semibold">Capabilities</th>
-                    <th className="py-3 px-5 font-semibold">Commission</th>
                     <th className="py-3 px-5 font-semibold">Status</th>
                     <th className="py-3 px-5 text-right font-semibold">Action</th>
                   </tr>
@@ -764,13 +657,6 @@ export default function AdminPage() {
                               </span>
                             ))}
                           </div>
-                        </td>
-                        <td className="py-3.5 px-5">
-                          {profile.custom_commission_kobo !== null && profile.custom_commission_kobo !== undefined ? (
-                            <span className="text-[12.5px] font-semibold text-slate-900">{koboToNaira(profile.custom_commission_kobo)}</span>
-                          ) : (
-                            <span className="text-[12px] text-slate-400 italic">Default</span>
-                          )}
                         </td>
                         <td className="py-3.5 px-5">
                           <StatusBadge active={agent.is_active} />
@@ -1213,91 +1099,6 @@ export default function AdminPage() {
 
                 <div className="space-y-4">
                   <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100">
-                    Commission Override
-                  </h4>
-                  <div className="space-y-3 text-[13px]">
-                    {APPLICATION_TYPE_OPTIONS.map((opt) => {
-                      const rowVal = selectedAgentDetail.agent_profile?.custom_commission_by_type?.[opt.value];
-                      const isEditingRow = editingCommissionType === opt.value;
-                      return (
-                        <div key={opt.value} className="flex items-center justify-between gap-3">
-                          <span className="text-slate-500 shrink-0">{opt.label}:</span>
-                          {!isEditingRow ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-slate-900">
-                                {rowVal !== null && rowVal !== undefined
-                                  ? `₦${(rowVal / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                  : "System Default"}
-                              </span>
-                              <button onClick={() => startEditingCommission(opt.value)} className="text-[#28A745] hover:text-[#218838]">
-                                <Pencil className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              <div className="relative">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]">₦</span>
-                                <input
-                                  type="number"
-                                  autoFocus
-                                  value={customCommissionVal}
-                                  onChange={(e) => setCustomCommissionVal(e.target.value)}
-                                  className="w-28 pl-5 pr-2 py-1 rounded bg-slate-50 border border-slate-200 text-[12px] focus:border-[#28A745] focus:outline-none"
-                                  placeholder="Default"
-                                />
-                              </div>
-                              <button onClick={handleSaveCommission} disabled={updatingCommission} className="px-2 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
-                                {updatingCommission ? "…" : "Save"}
-                              </button>
-                              <button onClick={() => setEditingCommissionType(null)} disabled={updatingCommission} className="px-2 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-dashed border-slate-200">
-                      <span className="text-slate-500 shrink-0">Fallback (all other types):</span>
-                      {editingCommissionType !== "flat" ? (
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-900">
-                            {selectedAgentDetail.agent_profile?.custom_commission_kobo !== null && selectedAgentDetail.agent_profile?.custom_commission_kobo !== undefined
-                              ? `₦${(selectedAgentDetail.agent_profile.custom_commission_kobo / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : "System Default"}
-                          </span>
-                          <button onClick={() => startEditingCommission("flat")} className="text-[#28A745] hover:text-[#218838]">
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <div className="relative">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]">₦</span>
-                            <input
-                              type="number"
-                              autoFocus
-                              value={customCommissionVal}
-                              onChange={(e) => setCustomCommissionVal(e.target.value)}
-                              className="w-28 pl-5 pr-2 py-1 rounded bg-slate-50 border border-slate-200 text-[12px] focus:border-[#28A745] focus:outline-none"
-                              placeholder="Default"
-                            />
-                          </div>
-                          <button onClick={handleSaveCommission} disabled={updatingCommission} className="px-2 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
-                            {updatingCommission ? "…" : "Save"}
-                          </button>
-                          <button onClick={() => setEditingCommissionType(null)} disabled={updatingCommission} className="px-2 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
-                            ✕
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100">
                     User Contact &amp; Metadata
                   </h4>
                   <div className="space-y-2.5 text-[13px]">
@@ -1374,74 +1175,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ─── Bulk Commission Modal ─── */}
-      {bulkCommissionOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#28A745]/10 text-[#28A745]">
-                <Wallet className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-[17px] font-bold text-slate-900">Set Commission for All Agents</h3>
-                <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
-                  Applies one commission to every VIO field agent's next completed job. Choose
-                  "All types" to overwrite the legacy flat override (existing behavior), or pick a
-                  specific application type to set just that type without touching flat overrides
-                  or other types.
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              <div>
-                <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Application Type</label>
-                <select
-                  value={bulkCommissionType}
-                  onChange={(e) => setBulkCommissionType(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[14px] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-                >
-                  <option value="">All types (legacy flat override)</option>
-                  {APPLICATION_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Commission Amount (₦)</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[14px]">₦</span>
-                  <input
-                    type="number"
-                    value={bulkCommissionVal}
-                    onChange={(e) => setBulkCommissionVal(e.target.value)}
-                    placeholder="e.g. 2000 (leave empty to reset to system default)"
-                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[14px] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="pt-5 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setBulkCommissionOpen(false)}
-                disabled={applyingBulkCommission}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:scale-[0.98] disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleApplyBulkCommission}
-                disabled={applyingBulkCommission}
-                className="flex-1 rounded-xl px-4 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-70"
-                style={{ background: "#28A745" }}
-              >
-                {applyingBulkCommission ? "Applying..." : "Apply to All Agents"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

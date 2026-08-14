@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Settings,
   Tag,
+  HandCoins,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -44,6 +45,7 @@ const ADMIN_NAV = [
     items: [
       { label: "Revenue", href: "/admin/revenue", icon: Wallet, desc: "Inflow, platform profit, agent payouts, and transactions" },
       { label: "Pricing", href: "/admin/pricing", icon: Tag, desc: "Set prices for every service in the catalogue" },
+      { label: "Compensation", href: "/admin/compensation", icon: HandCoins, desc: "Set agent compensation, globally or per agent" },
     ],
   },
   {

@@ -120,9 +120,6 @@ export default function AccountsTable({ role, title, description }) {
       allowed_application_types: account.agent_profile?.allowed_application_types?.length
         ? account.agent_profile.allowed_application_types
         : APPLICATION_TYPE_OPTIONS,
-      custom_commission_kobo: account.agent_profile?.custom_commission_kobo != null
-        ? String(account.agent_profile.custom_commission_kobo / 100)
-        : "",
     });
     setSelectedStateId(account.agent_profile?.state_id ? String(account.agent_profile.state_id) : "");
     setSelectedLgaId(account.agent_profile?.lga_id ? String(account.agent_profile.lga_id) : "");
@@ -180,9 +177,6 @@ export default function AccountsTable({ role, title, description }) {
         agentUpdates.state_id = parseInt(selectedStateId, 10);
         agentUpdates.lga_id = parseInt(selectedLgaId, 10);
       }
-      agentUpdates.custom_commission_kobo = editForm.custom_commission_kobo !== ""
-        ? Math.round(parseFloat(editForm.custom_commission_kobo) * 100)
-        : null;
 
       const agentRes = await superAdminUpdateAgentProfile(editTarget.id, agentUpdates);
       if (agentRes.error) {
@@ -474,19 +468,6 @@ export default function AccountsTable({ role, title, description }) {
                     <p className="mt-1.5 text-[11px] text-slate-400">
                       Uncheck a type to prevent this agent from being offered that kind of application. All checked = unrestricted.
                     </p>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Custom Commission (₦)</label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]">₦</span>
-                      <input
-                        type="number"
-                        value={editForm.custom_commission_kobo}
-                        onChange={(e) => setEditForm((p) => ({ ...p, custom_commission_kobo: e.target.value }))}
-                        placeholder="Leave empty for system default"
-                        className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[13.5px] focus:border-[#28A745] focus:outline-none"
-                      />
-                    </div>
                   </div>
                 </div>
               )}
