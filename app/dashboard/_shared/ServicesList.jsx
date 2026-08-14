@@ -194,33 +194,29 @@ export function CategoryChip({ label, count, active, onClick }) {
 }
 
 export function CtaBadge({ service, feeKobo }) {
-  const cta = service.cta || { type: "badge", value: "Coming soon" };
-
-  // A live price — whether from the driver-licence/tinted-permit fee
-  // schedule or an admin-set price for an otherwise-placeholder service —
-  // always wins over the static cta.type in _data.js. This is what makes a
-  // "Coming soon"/"Quote on request" service automatically flip to a real
-  // price the moment an admin sets one via /admin/pricing, with no
-  // _data.js edit required.
-  if (feeKobo != null) {
-    return (
-      <span className="rounded-full px-3 py-1.5 text-[12px] font-bold whitespace-nowrap" style={{ background: "#F0FDF4", color: BRAND }}>
-        From {koboToNaira(feeKobo)}
-      </span>
-    );
-  }
-
-  if (cta.type === "resolved_price") {
+  // Only a "live" service's price display can resolve to a real "From ₦X" —
+  // an admin-set service_prices row for a "coming_soon"/"off_sale" entry is
+  // informational at most and must never imply that entry is purchasable
+  // (that would silently contradict the deliberate off-sale/coming-soon
+  // status). Status is the source of truth here, not price presence.
+  if (service.status === "live") {
+    if (feeKobo != null) {
+      return (
+        <span className="rounded-full px-3 py-1.5 text-[12px] font-bold whitespace-nowrap" style={{ background: "#F0FDF4", color: BRAND }}>
+          From {koboToNaira(feeKobo)}
+        </span>
+      );
+    }
     return <span className="text-[11px] font-semibold text-[#7A7A7A]">Loading…</span>;
   }
 
-  if (cta.type === "quote_on_request") {
+  if (service.status === "off_sale") {
     return (
       <span
         className="rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap"
         style={{ background: "#FFF7ED", color: "#C2410C" }}
       >
-        Quote on request
+        Off sale
       </span>
     );
   }
@@ -230,7 +226,7 @@ export function CtaBadge({ service, feeKobo }) {
       className="rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap"
       style={{ background: "#F4F1E9", color: "#7A7A7A" }}
     >
-      {cta.value || "Coming soon"}
+      Coming soon
     </span>
   );
 }

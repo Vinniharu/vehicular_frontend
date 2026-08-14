@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle2, AlertCircle, Pencil, X, Save, Loader2, ChevronDown } from "lucide-react";
 import { getAdminPricing, updateAdminPricing, getVehicleCategoryPricing, updateVehicleCategoryPricing } from "@/lib/api";
-import { SERVICES } from "@/app/services/_data";
+import { SERVICES, DARK_SERVICES } from "@/app/services/_data";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 
 const BRAND = "#28A745";
@@ -36,7 +36,11 @@ const DL_ROWS = [
 // services so it doesn't also show up as a single flat marketing price.
 // vehicle-particulars is excluded too, for the same reason — its own
 // multi-row (price + agent compensation, per document type) section below.
-const OTHER_SERVICES = SERVICES.filter((s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars"].includes(s.slug));
+// Admin still needs to price "dark" (customer-hidden) services too — they
+// still have service_prices rows, just no customer-facing listing right now.
+const OTHER_SERVICES = [...SERVICES, ...DARK_SERVICES].filter(
+  (s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars"].includes(s.slug)
+);
 
 // Vehicle Particulars — 5 document types, each independently priced. This
 // is now the FALLBACK price only (used when a vehicle has no category, or

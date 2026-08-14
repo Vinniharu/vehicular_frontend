@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ArrowLeft, ChevronRight } from "lucide-react";
 import { SERVICES, getChild } from "../../_data";
+import { ServiceCta, ServiceStatusPill } from "../../_status";
 
 export function generateStaticParams() {
   const params = [];
@@ -51,22 +52,18 @@ export default async function ServiceChildPage({ params }) {
       {/* Hero */}
       <section className="px-5 md:px-8 pt-8 pb-14">
         <div className="mx-auto max-w-3xl">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-            <Icon className="h-6 w-6" />
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
+              <Icon className="h-6 w-6" />
+            </span>
+            <ServiceStatusPill status={child.status} />
+          </div>
           <h1 className="mt-5 font-display text-[28px] sm:text-[34px] font-medium leading-tight text-[#111111]">
             {child.title}
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[#111111]/65">{child.blurb}</p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center gap-2 rounded-xl text-[14px] font-semibold text-white"
-              style={{ background: "#28A745", padding: "11px 24px" }}
-            >
-              Get started
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <ServiceCta status={child.status} />
             <Link
               href={`/services/${service.slug}`}
               className="inline-flex items-center gap-2 rounded-xl text-[14px] font-semibold text-[#111111]"
@@ -95,7 +92,10 @@ export default async function ServiceChildPage({ params }) {
                   style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
                 >
                   <div>
-                    <h3 className="font-display text-[15.5px] font-medium leading-tight text-[#111111]">{sibling.title}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-display text-[15.5px] font-medium leading-tight text-[#111111]">{sibling.title}</h3>
+                      <ServiceStatusPill status={sibling.status} />
+                    </div>
                     <p className="mt-2 text-[13px] leading-relaxed text-[#111111]/60">{sibling.blurb}</p>
                   </div>
                   <span className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#28A745]">

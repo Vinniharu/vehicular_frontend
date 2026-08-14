@@ -21,7 +21,14 @@ import {
 } from "@/lib/api";
 
 const CAPABILITY_OPTIONS = ["driver_licence", "roadworthiness"];
-const APPLICATION_TYPE_OPTIONS = ["fresh", "renewal", "reissue", "international_permit", "tinted_permit"];
+// Must mirror the complete 11-key list in app/admin/people/page.jsx's
+// APPLICATION_TYPE_OPTIONS — this list was previously missing number_plate
+// and all 5 vehicle_particulars document types, which meant "unrestricted"
+// here (all boxes checked) silently excluded those 6 types.
+const APPLICATION_TYPE_OPTIONS = [
+  "fresh", "renewal", "reissue", "international_permit", "tinted_permit", "number_plate",
+  "vehicle_licence", "road_worthiness", "proof_of_ownership", "insurance_third_party", "hackney_permit",
+];
 
 function StatusBadge({ active }) {
   return active ? (

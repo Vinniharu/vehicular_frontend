@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SERVICES } from "./_data";
+import { ServiceStatusPill } from "./_status";
 
 export const metadata = {
   title: "Services | Vehiculars",
@@ -37,9 +38,12 @@ export default function ServicesHubPage() {
                 style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
               >
                 <div>
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-                    <Icon className="h-5 w-5" />
-                  </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <ServiceStatusPill status={service.status} />
+                  </div>
                   <h2 className="mt-4 font-display text-[18px] font-medium leading-tight text-[#111111]">
                     {service.title}
                   </h2>
