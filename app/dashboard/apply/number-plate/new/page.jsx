@@ -19,13 +19,14 @@ import {
   uploadApplicationFile,
   payFromWalletEndpoint,
   getWallet,
-  getDriverLicenceFeeSchedule,
+  getNumberPlateFee,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS } from "@/lib/constants/vehicleCategories";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -53,8 +54,6 @@ const PLATE_TYPES = {
     requiresExistingPlate: true,
   },
 };
-
-const COMMERCIAL_SURCHARGE_KOBO = 2_000_000;
 
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 
@@ -201,12 +200,11 @@ export default function NumberPlateNewApplicationPage() {
   const [addingVehicle, setAddingVehicle] = useState(false);
 
   const [vehicleForm, setVehicleForm] = useState({
-    plate_number: "", make: "", model: "", colour: "", year: "", chassis_number: "", engine_number: "", state_id: "",
+    plate_number: "", make: "", model: "", colour: "", year: "", chassis_number: "", engine_number: "", state_id: "", vehicle_category: "",
   });
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
 
-  const [useType, setUseType] = useState("private");
   const [selectedStateId, setSelectedStateId] = useState("");
   const [previousOwnerDetails, setPreviousOwnerDetails] = useState("");
   const [docs, setDocs] = useState({});
@@ -222,8 +220,8 @@ export default function NumberPlateNewApplicationPage() {
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    Promise.all([getReferenceStates(), listVehicles(), getWallet(), getDriverLicenceFeeSchedule()]).then(
-      ([statesRes, vehiclesRes, walletRes, feeRes]) => {
+    Promise.all([getReferenceStates(), listVehicles(), getWallet()]).then(
+      ([statesRes, vehiclesRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (vehiclesRes.data) {
           setVehicles(vehiclesRes.data);
@@ -233,8 +231,6 @@ export default function NumberPlateNewApplicationPage() {
           setAddingVehicle(true);
         }
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-        const price = feeRes.data?.prices?.find((p) => p.application_type === plan.application_type)?.amount_kobo;
-        if (price != null) setFeeKobo(price);
         setLoadingVehicles(false);
       }
     );
@@ -242,8 +238,23 @@ export default function NumberPlateNewApplicationPage() {
   }, []);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
-  const baseFeeKobo = feeKobo ?? plan.fallbackFeeKobo;
-  const estimatedFeeKobo = useType === "commercial" ? baseFeeKobo + COMMERCIAL_SURCHARGE_KOBO : baseFeeKobo;
+  const estimatedFeeKobo = feeKobo ?? plan.fallbackFeeKobo;
+
+  // Live, vehicle-category-aware price -- refetched whenever the selected
+  // vehicle or registration state changes (the two inputs the backend
+  // actually prices from). Falls back to plan.fallbackFeeKobo (set above)
+  // until both are chosen.
+  useEffect(() => {
+    if (!selectedVehicleId || !selectedStateId) return;
+    getNumberPlateFee({
+      application_type: plan.application_type,
+      vehicle_id: selectedVehicleId,
+      state_id: Number(selectedStateId),
+    }).then((res) => {
+      if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVehicleId, selectedStateId]);
 
   const handleCreateVehicle = async () => {
     const errors = {};
@@ -257,6 +268,7 @@ export default function NumberPlateNewApplicationPage() {
     if (!vehicleForm.model.trim()) errors.model = "Model is required.";
     if (!vehicleForm.colour.trim()) errors.colour = "Colour is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
+    if (!vehicleForm.vehicle_category) errors.vehicle_category = "Select the vehicle's category — it determines the price.";
     if (Object.keys(errors).length > 0) {
       setVehicleFieldErrors(errors);
       return;
@@ -334,7 +346,6 @@ export default function NumberPlateNewApplicationPage() {
       application_type: plan.application_type,
       vehicle_id: selectedVehicleId,
       state_id: Number(selectedStateId),
-      use_type: useType,
       previous_owner_details: isChangeOfOwnership ? previousOwnerDetails : undefined,
       documents: docSlots.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
     });
@@ -453,7 +464,7 @@ export default function NumberPlateNewApplicationPage() {
         </p>
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
           <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-          <p className="text-[12.5px] text-slate-600">Estimated total: {koboToNaira(estimatedFeeKobo)}{useType === "commercial" ? " (includes commercial-use surcharge)" : ""}</p>
+          <p className="text-[12.5px] text-slate-600">Estimated total: {koboToNaira(estimatedFeeKobo)}</p>
         </div>
       </div>
 
@@ -542,6 +553,18 @@ export default function NumberPlateNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.colour} />
                 </div>
                 <div>
+                  <label className={label}>Vehicle category</label>
+                  <select
+                    className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`}
+                    value={vehicleForm.vehicle_category}
+                    onChange={(e) => setVehicleForm((f) => ({ ...f, vehicle_category: e.target.value }))}
+                  >
+                    <option value="">Select category</option>
+                    {VEHICLE_CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                  <FieldError message={vehicleFieldErrors.vehicle_category} />
+                </div>
+                <div>
                   <label className={label}>Year <span className="font-normal text-slate-400">(optional)</span></label>
                   <input
                     type="number"
@@ -595,31 +618,11 @@ export default function NumberPlateNewApplicationPage() {
         </section>
       )}
 
-      {/* Step 2 — Use type & state */}
+      {/* Step 2 — Location */}
       {step === 2 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Use type &amp; location</h2>
+          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Location</h2>
           <div className="space-y-4">
-            <div>
-              <label className={label}>Use type</label>
-              <div className="mt-1.5 grid grid-cols-2 gap-2.5">
-                {["private", "commercial"].map((t) => {
-                  const active = useType === t;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setUseType(t)}
-                      className="rounded-xl border-2 p-3.5 text-left transition-all"
-                      style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
-                    >
-                      <p className="text-[13.5px] font-semibold capitalize text-[#111111]">{t}</p>
-                      {t === "commercial" && <p className="mt-0.5 text-[11.5px] text-slate-500">+{koboToNaira(COMMERCIAL_SURCHARGE_KOBO)} surcharge</p>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
             <div>
               <label className={label}>State to register this plate in</label>
               <select
@@ -631,6 +634,9 @@ export default function NumberPlateNewApplicationPage() {
                 {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <FieldError message={fieldErrors.state} />
+              <p className="mt-1.5 text-[11.5px] text-slate-500">
+                Price is based on {selectedVehicle?.vehicle_category ? VEHICLE_CATEGORY_LABELS[selectedVehicle.vehicle_category] : "your vehicle's category"} and this state.
+              </p>
             </div>
           </div>
         </section>
@@ -687,8 +693,10 @@ export default function NumberPlateNewApplicationPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Use type</span>
-                <span className="font-semibold capitalize text-[#111111]">{useType}</span>
+                <span className="text-slate-500">Vehicle category</span>
+                <span className="font-semibold text-[#111111]">
+                  {selectedVehicle?.vehicle_category ? VEHICLE_CATEGORY_LABELS[selectedVehicle.vehicle_category] : "—"}
+                </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">State</span>

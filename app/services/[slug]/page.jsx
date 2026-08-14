@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ChevronRight, Check } from "lucide-react";
 import { SERVICES, getService } from "../_data";
+import { ServiceCta, ServiceStatusPill } from "../_status";
 
 export function generateStaticParams() {
   return SERVICES.map((service) => ({ slug: service.slug }));
@@ -40,23 +41,19 @@ export default async function ServicePage({ params }) {
       {/* Hero */}
       <section className="px-5 md:px-8 pt-8 pb-10">
         <div className="mx-auto max-w-4xl">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-            <Icon className="h-6 w-6" />
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
+              <Icon className="h-6 w-6" />
+            </span>
+            <ServiceStatusPill status={service.status} />
+          </div>
           <h1 className="mt-5 font-display text-[30px] sm:text-[38px] font-medium leading-tight text-[#111111]">
             {service.title}
           </h1>
           <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-[#111111]/65">{service.tagline}</p>
           <p className="mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#111111]/55">{service.intro}</p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center gap-2 rounded-xl text-[14px] font-semibold text-white"
-              style={{ background: "#28A745", padding: "11px 24px" }}
-            >
-              Get started
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <ServiceCta status={service.status} />
             {service.pricingNote && (
               <span className="text-[13px] text-[#111111]/55">{service.pricingNote}</span>
             )}
@@ -128,7 +125,10 @@ export default async function ServicePage({ params }) {
                   style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
                 >
                   <div>
-                    <h3 className="font-display text-[16px] font-medium leading-tight text-[#111111]">{child.title}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-display text-[16px] font-medium leading-tight text-[#111111]">{child.title}</h3>
+                      <ServiceStatusPill status={child.status} />
+                    </div>
                     <p className="mt-2 text-[13px] leading-relaxed text-[#111111]/60">{child.blurb}</p>
                   </div>
                   <span className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#28A745]">

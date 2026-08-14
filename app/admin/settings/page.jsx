@@ -5,18 +5,10 @@ import {
   User, Mail, Phone, CheckCircle2, AlertCircle, Pencil, X, Save,
   KeyRound, Eye, EyeOff, Loader2,
 } from "lucide-react";
-import { authGetMe, authUpdateProfile, authChangePassword, getCachedUser, getAdminSettings, updateAdminSettings } from "@/lib/api";
+import { authGetMe, authUpdateProfile, authChangePassword, getCachedUser } from "@/lib/api";
 
 const BRAND = "#28A745";
 const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
-
-const APPLICATION_TYPE_OPTIONS = [
-  { value: "fresh", label: "Fresh" },
-  { value: "renewal", label: "Renewal" },
-  { value: "reissue", label: "Reissue" },
-  { value: "international_permit", label: "International Permit" },
-  { value: "number_plate", label: "Number Plate" },
-];
 
 export default function AdminSettingsPage() {
   const [user, setUser] = useState(() => getCachedUser());
@@ -34,17 +26,6 @@ export default function AdminSettingsPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
 
-  const [systemSettings, setSystemSettings] = useState(null);
-  const [editingSettings, setEditingSettings] = useState(false);
-  const [updatingSettings, setUpdatingSettings] = useState(false);
-  const [globalCommissionKobo, setGlobalCommissionKobo] = useState("");
-  // Keyed by application_type value -> naira string (mirrors globalCommissionKobo's
-  // shape). Always holds all 4 keys (possibly "") so a save always sends the
-  // complete dict, matching the backend's wholesale-replace PATCH semantics.
-  const [byTypeCommission, setByTypeCommission] = useState(() =>
-    Object.fromEntries(APPLICATION_TYPE_OPTIONS.map((o) => [o.value, ""]))
-  );
-
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -54,31 +35,9 @@ export default function AdminSettingsPage() {
         setProfileName(res.data.name || "");
         setProfilePhone(res.data.phone || "");
       }
-    });
-    getAdminSettings().then((res) => {
-      if (res.data) {
-        setSystemSettings(res.data);
-        if (res.data.default_agent_commission_kobo !== null && res.data.default_agent_commission_kobo !== undefined) {
-          setGlobalCommissionKobo((res.data.default_agent_commission_kobo / 100).toString());
-        } else {
-          setGlobalCommissionKobo("");
-        }
-        seedByTypeCommission(res.data.default_commission_by_type);
-      }
       setLoading(false);
     });
   }, []);
-
-  const seedByTypeCommission = (byType) => {
-    setByTypeCommission(
-      Object.fromEntries(
-        APPLICATION_TYPE_OPTIONS.map((o) => {
-          const kobo = byType?.[o.value];
-          return [o.value, kobo !== null && kobo !== undefined ? (kobo / 100).toString() : ""];
-        })
-      )
-    );
-  };
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -138,43 +97,6 @@ export default function AdminSettingsPage() {
       setConfirmNewPassword("");
       showToast("success", "Your password has been changed successfully.");
     }
-  };
-
-  const handleSaveSettings = async (e) => {
-    e.preventDefault();
-    setUpdatingSettings(true);
-    let val = null;
-    if (globalCommissionKobo !== "") {
-      val = Math.round(parseFloat(globalCommissionKobo) * 100);
-    }
-    const default_commission_by_type = Object.fromEntries(
-      Object.entries(byTypeCommission)
-        .filter(([, v]) => v !== "")
-        .map(([type, v]) => [type, Math.round(parseFloat(v) * 100)])
-    );
-    const res = await updateAdminSettings({
-      default_agent_commission_kobo: val,
-      default_commission_by_type,
-    });
-    setUpdatingSettings(false);
-    if (res.error) {
-      showToast("error", "Could not save system settings.");
-    } else if (res.data) {
-      setSystemSettings(res.data);
-      seedByTypeCommission(res.data.default_commission_by_type);
-      setEditingSettings(false);
-      showToast("success", "System settings updated successfully.");
-    }
-  };
-
-  const handleCancelSettings = () => {
-    if (systemSettings?.default_agent_commission_kobo !== null && systemSettings?.default_agent_commission_kobo !== undefined) {
-      setGlobalCommissionKobo((systemSettings.default_agent_commission_kobo / 100).toString());
-    } else {
-      setGlobalCommissionKobo("");
-    }
-    seedByTypeCommission(systemSettings?.default_commission_by_type);
-    setEditingSettings(false);
   };
 
   if (loading && !user) {
@@ -313,72 +235,6 @@ export default function AdminSettingsPage() {
             </button>
           </div>
         </form>
-      </div>
-
-      {/* System Settings Section */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden mt-8">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold text-[#111111]">System Settings</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Configure global application parameters.</p>
-          </div>
-          {!editingSettings ? (
-            <button type="button" onClick={() => setEditingSettings(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-          ) : (
-            <div className="flex items-center gap-3">
-              <button type="button" onClick={handleSaveSettings} disabled={updatingSettings} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
-                {updatingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
-              </button>
-              <button type="button" onClick={handleCancelSettings} disabled={updatingSettings} className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]">Cancel</button>
-            </div>
-          )}
-        </div>
-        <div className="px-6 sm:px-8 py-6 max-w-lg space-y-6">
-          <div className="space-y-4">
-            <p className="text-sm font-medium text-slate-700">Global Commission by Application Type (₦)</p>
-            {APPLICATION_TYPE_OPTIONS.map((opt) => (
-              <div key={opt.value}>
-                <label className="block text-xs font-medium text-slate-500 mb-1">{opt.label}</label>
-                {editingSettings ? (
-                  <input
-                    type="number"
-                    value={byTypeCommission[opt.value]}
-                    onChange={(e) => setByTypeCommission((prev) => ({ ...prev, [opt.value]: e.target.value }))}
-                    className={inputCls}
-                    placeholder="Leave empty to use the fallback below"
-                  />
-                ) : (
-                  <p className="text-[15px] font-medium text-slate-800">
-                    {systemSettings?.default_commission_by_type?.[opt.value] !== null && systemSettings?.default_commission_by_type?.[opt.value] !== undefined
-                      ? `₦${(systemSettings.default_commission_by_type[opt.value] / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                      : "Uses fallback"}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="pt-4 border-t border-dashed border-slate-200">
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Fallback Commission (₦)</label>
-            {editingSettings ? (
-              <input
-                type="number"
-                value={globalCommissionKobo}
-                onChange={(e) => setGlobalCommissionKobo(e.target.value)}
-                className={inputCls}
-                placeholder="e.g. 1500 (Leave empty for default)"
-              />
-            ) : (
-              <p className="text-[15px] font-medium text-slate-800">
-                {systemSettings?.default_agent_commission_kobo !== null && systemSettings?.default_agent_commission_kobo !== undefined
-                  ? `₦${(systemSettings.default_agent_commission_kobo / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : "Default"}
-              </p>
-            )}
-            <p className="text-xs text-slate-500 mt-1.5">Used for any application type not set above, unless a specific agent has their own commission override.</p>
-          </div>
-        </div>
       </div>
     </div>
   );
