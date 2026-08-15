@@ -197,6 +197,8 @@ export default function ApplyPage() {
   const [lgas, setLgas] = useState([]);
   const [existingApplications, setExistingApplications] = useState([]);
   const [loadingExisting, setLoadingExisting] = useState(true);
+  const [sortBy, setSortBy] = useState("updated_at");
+  const didMountSort = useRef(false);
 
   const [view, setView] = useState("list"); // "list" | "form"
   const [selectedAppDetail, setSelectedAppDetail] = useState(null);
@@ -280,8 +282,20 @@ export default function ApplyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Refetches only when the sort choice changes (skips the initial mount,
+  // which the effect below already handles as part of its combined fetch).
   useEffect(() => {
-    Promise.all([authGetMe(), getReferenceStates(), getMyApplications(), getWallet()]).then(
+    if (!didMountSort.current) {
+      didMountSort.current = true;
+      return;
+    }
+    getMyApplications({ sort: sortBy }).then((res) => {
+      if (res.data) setExistingApplications(res.data.filter((a) => a.application_type !== "tinted_permit"));
+    });
+  }, [sortBy]);
+
+  useEffect(() => {
+    Promise.all([authGetMe(), getReferenceStates(), getMyApplications({ sort: sortBy }), getWallet()]).then(
       ([meRes, statesRes, appsRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (appsRes.data) setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
@@ -458,7 +472,7 @@ export default function ApplyPage() {
         ? `Paid ${koboToNaira(amountKobo)} from your wallet — application fully paid!`
         : `Paid ${koboToNaira(amountKobo)} from your wallet. ${koboToNaira(res.data?.remaining_kobo || 0)} still remaining.`
     );
-    const [appsRes, walletRes] = await Promise.all([getMyApplications(), getWallet()]);
+    const [appsRes, walletRes] = await Promise.all([getMyApplications({ sort: sortBy }), getWallet()]);
     if (appsRes.data) {
       setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
       if (successApp?.id === appId) {
@@ -683,18 +697,31 @@ export default function ApplyPage() {
               Track progress, handle payment, and see what's next for each one.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              resetForm();
-              setView("form");
-            }}
-            className={btnPrimary}
-            style={{ background: BRAND }}
-          >
-            <Plus className="h-4 w-4" />
-            New application
-          </button>
+          <div className="flex items-center gap-2.5">
+            {totalApps > 0 && (
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-xl border border-[#E5E5E5] bg-white px-3 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+              >
+                <option value="updated_at">Recently updated</option>
+                <option value="id">ID number</option>
+                <option value="name">Applicant name</option>
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                setView("form");
+              }}
+              className={btnPrimary}
+              style={{ background: BRAND }}
+            >
+              <Plus className="h-4 w-4" />
+              New application
+            </button>
+          </div>
         </div>
 
         {/* Summary strip — one card, hairline dividers, not three boxes */}

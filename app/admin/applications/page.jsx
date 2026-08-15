@@ -84,6 +84,7 @@ export default function AdminApplicationsPage() {
 
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [sortBy, setSortBy] = useState("updated_at");
 
   const [selected, setSelected] = useState(null);
 
@@ -95,6 +96,7 @@ export default function AdminApplicationsPage() {
       page_size: pageSize,
       status: statusFilter || undefined,
       application_type: typeFilter || undefined,
+      sort: sortBy,
     });
     if (res.error) {
       setError(res.error);
@@ -110,7 +112,7 @@ export default function AdminApplicationsPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, typeFilter]);
+  }, [page, statusFilter, typeFilter, sortBy]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -195,6 +197,15 @@ export default function AdminApplicationsPage() {
           {Object.keys(STATUS_TONE).map((s) => (
             <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
           ))}
+        </select>
+        <select
+          value={sortBy}
+          onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+        >
+          <option value="updated_at">Recently updated</option>
+          <option value="id">ID number</option>
+          <option value="name">Applicant name</option>
         </select>
       </div>
 
