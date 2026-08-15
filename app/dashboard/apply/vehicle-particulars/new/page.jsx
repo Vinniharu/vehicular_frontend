@@ -294,6 +294,18 @@ export default function VehicleParticularsNewApplicationPage() {
     setSelectedTypes((prev) => (prev.includes(dt) ? prev.filter((t) => t !== dt) : [...prev, dt]));
   };
 
+  // Only ever selects/clears document types the customer can actually pick
+  // right now (priced, eligible, and hackney-gated by category) — never
+  // force-selects a disabled card.
+  const eligibleDocTypes = availableDocTypes
+    .filter((d) => eligibility?.[d.document_type]?.eligible)
+    .map((d) => d.document_type);
+  const allEligibleSelected = eligibleDocTypes.length > 0 && eligibleDocTypes.every((dt) => selectedTypes.includes(dt));
+
+  const toggleSelectAll = () => {
+    setSelectedTypes(allEligibleSelected ? [] : eligibleDocTypes);
+  };
+
   const handleCreateVehicle = async () => {
     const errors = {};
     if (!vehicleForm.plate_number.trim()) errors.plate_number = "Plate number is required.";
@@ -611,9 +623,21 @@ export default function VehicleParticularsNewApplicationPage() {
       {/* Step 2 — Pick documents */}
       {step === 2 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
-            <FileCheck2 className="h-4 w-4" style={{ color: BRAND }} /> Which documents need renewing?
-          </h2>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+              <FileCheck2 className="h-4 w-4" style={{ color: BRAND }} /> Which documents need renewing?
+            </h2>
+            {eligibleDocTypes.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="shrink-0 text-[12.5px] font-semibold hover:underline"
+                style={{ color: BRAND }}
+              >
+                {allEligibleSelected ? "Clear all" : "Select all"}
+              </button>
+            )}
+          </div>
 
           <div className="space-y-2.5">
             {availableDocTypes.map((doc) => {
