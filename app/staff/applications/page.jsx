@@ -97,16 +97,17 @@ function StaffApplicationsQueueInner() {
   const currentUser = useMemo(() => getCachedUser(), []);
 
   // Filters & Search — initial tab can be deep-linked via ?tab=
-  const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "all");
+  const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "unclaimed");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("updated_at");
 
-  const loadData = async (isRefresh = false) => {
+  const loadData = async (isRefresh = false, sort = sortBy) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
 
-    const res = await getStaffQueue({ page: 1, page_size: 100 });
+    const res = await getStaffQueue({ page: 1, page_size: 100, sort });
     if (res.error) {
       setError(res.error);
     } else if (Array.isArray(res.data?.items)) {
@@ -117,8 +118,9 @@ function StaffApplicationsQueueInner() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(false, sortBy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy]);
 
   const handleClaim = async (e, appId) => {
     e.stopPropagation();
@@ -243,6 +245,16 @@ function StaffApplicationsQueueInner() {
           <option value="number_plate_replacement">Number Plate — Replacement</option>
           <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
           <option value="vehicle_particulars">Vehicle Particulars</option>
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+        >
+          <option value="updated_at">Recently updated</option>
+          <option value="id">ID number</option>
+          <option value="name">Applicant name</option>
         </select>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">

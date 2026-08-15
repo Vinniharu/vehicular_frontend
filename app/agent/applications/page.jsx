@@ -31,11 +31,12 @@ export default function AgentApplicationsPage() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [sortBy, setSortBy] = useState("updated_at");
 
-  const loadData = async (isRefresh = false) => {
+  const loadData = async (isRefresh = false, sort = sortBy) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
-    const res = await getAgentApplications();
+    const res = await getAgentApplications({ sort });
     if (res.error) setError(res.error);
     else if (Array.isArray(res.data)) setApplications(res.data);
     setLoading(false);
@@ -43,8 +44,9 @@ export default function AgentApplicationsPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(false, sortBy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy]);
 
   const counts = useMemo(() => {
     return Object.fromEntries(
@@ -108,6 +110,16 @@ export default function AgentApplicationsPage() {
             </button>
           )}
         </div>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+        >
+          <option value="updated_at">Recently updated</option>
+          <option value="id">ID number</option>
+          <option value="name">Applicant name</option>
+        </select>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
           {[

@@ -17,6 +17,12 @@ export default function sitemap() {
       priority: 0.9,
     },
     {
+      url: `${BASE_URL}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
       url: `${BASE_URL}/auth/login`,
       lastModified: new Date(),
       changeFrequency: "monthly",
