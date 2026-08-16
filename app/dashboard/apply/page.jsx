@@ -40,6 +40,7 @@ import {
   getWallet,
   resolveMediaUrl,
   getDriverLicenceEligibility,
+  getDriverLicenceFeeSchedule,
 } from "@/lib/api";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
@@ -107,15 +108,19 @@ const NAME_RE = /^[A-Za-z' -]{2,50}$/;
 const NIN_RE = /^\d{11}$/;
 const MIN_APPLICANT_AGE = 18;
 
-// Mirrors the backend's FEE_SCHEDULE (app/core/payment_helpers.py) — only
-// used for the pre-submission cost preview, before an application exists
-// and a real payment_options response is available. Everywhere else in this
+// Hardcoded last-resort mirror of the backend's fallback fee schedule
+// (app/core/payment_helpers.py _FALLBACK_FEE_SCHEDULE) — only used for the
+// pre-submission cost preview when the live, state-aware GET
+// /applications/driver-licence/fee-schedule call (liveFeeSchedule, fetched
+// on selectedState change) hasn't resolved yet. Everywhere else in this
 // app, amounts come straight from the backend.
 const FEE_SCHEDULE_KOBO = {
   fresh: { "3 years": 3867500, "5 years": 4577500 },
   renewal: { "3 years": 3000000, "5 years": 3500000 },
 };
-function estimateFeeKobo(appType, period) {
+function estimateFeeKobo(appType, period, liveFeeSchedule) {
+  const live = liveFeeSchedule?.find((p) => p.application_type === appType && p.validity_period === period);
+  if (live?.amount_kobo != null) return live.amount_kobo;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
@@ -222,6 +227,7 @@ export default function ApplyPage() {
   const [applicationType, setApplicationType] = useState("fresh");
   const [licenceClass, setLicenceClass] = useState("");
   const [validityPeriod, setValidityPeriod] = useState("");
+  const [liveFeeSchedule, setLiveFeeSchedule] = useState(null);
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -371,6 +377,15 @@ export default function ApplyPage() {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedState]);
+
+  // Live, state-aware pre-submission price preview — replaces the hardcoded
+  // FEE_SCHEDULE_KOBO estimate once a state is selected, so the review-step
+  // figure matches what submission will actually charge (per-state pricing).
+  useEffect(() => {
+    getDriverLicenceFeeSchedule(selectedState ? { state_id: parseInt(selectedState, 10) } : {}).then((res) => {
+      if (res.data?.prices) setLiveFeeSchedule(res.data.prices);
+    });
   }, [selectedState]);
 
   useEffect(() => {
@@ -779,7 +794,7 @@ export default function ApplyPage() {
               const payOpts = app.payment_options;
               const isPaid = isApplicationPaid(app);
               const payMeta = paymentStatusMeta(app);
-              const amountKobo = payOpts?.amount_kobo || estimateFeeKobo(app.application_type, app.validity_period);
+              const amountKobo = payOpts?.amount_kobo || estimateFeeKobo(app.application_type, app.validity_period, liveFeeSchedule);
               const remainingKobo = payOpts?.remaining_kobo ?? amountKobo;
 
               return (
@@ -934,7 +949,7 @@ export default function ApplyPage() {
                             {paymentStatusMeta(selectedAppDetail).needsRetry ? "Payment Failed / Retry Required" : "Service Fee Payment Due"}
                           </h4>
                           <span className="font-mono text-[14px] font-bold text-[#111111]">
-                            {koboToNaira(selectedAppDetail.payment_options?.remaining_kobo ?? selectedAppDetail.payment_options?.amount_kobo ?? estimateFeeKobo(selectedAppDetail.application_type, selectedAppDetail.validity_period))} left
+                            {koboToNaira(selectedAppDetail.payment_options?.remaining_kobo ?? selectedAppDetail.payment_options?.amount_kobo ?? estimateFeeKobo(selectedAppDetail.application_type, selectedAppDetail.validity_period, liveFeeSchedule))} left
                           </span>
                         </div>
                         <p className="mt-1 text-[12.5px] text-slate-600 leading-relaxed">
@@ -944,7 +959,7 @@ export default function ApplyPage() {
                         </p>
                         <div className="mt-3 space-y-2.5">
                           <PartialPayControls
-                            remainingKobo={selectedAppDetail.payment_options?.remaining_kobo ?? selectedAppDetail.payment_options?.amount_kobo ?? estimateFeeKobo(selectedAppDetail.application_type, selectedAppDetail.validity_period)}
+                            remainingKobo={selectedAppDetail.payment_options?.remaining_kobo ?? selectedAppDetail.payment_options?.amount_kobo ?? estimateFeeKobo(selectedAppDetail.application_type, selectedAppDetail.validity_period, liveFeeSchedule)}
                             walletBalanceKobo={walletBalance}
                             payingWallet={payingFromWallet === selectedAppDetail.id}
                             onPay={(amt) => handlePayFromWallet(selectedAppDetail.id, amt)}
@@ -1702,7 +1717,7 @@ export default function ApplyPage() {
             >
               <Info className="mt-0.5 h-4 w-4 shrink-0" style={{ color: BRAND }} />
               <span>
-                After you submit, a payment of <strong>{koboToNaira(estimateFeeKobo(applicationType, validityPeriod))}</strong> will
+                After you submit, a payment of <strong>{koboToNaira(estimateFeeKobo(applicationType, validityPeriod, liveFeeSchedule))}</strong> will
                 be generated — pay by card, bank transfer, or straight from your Vehiculars wallet.
               </span>
             </div>
