@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, AlertCircle, Pencil, X, Save, Loader2, ChevronDown } from "lucide-react";
-import { getAdminPricing, updateAdminPricing, getVehicleCategoryPricing, updateVehicleCategoryPricing } from "@/lib/api";
+import { CheckCircle2, AlertCircle, Pencil, X, Save, Loader2, ChevronDown, Trash2, Copy, Globe2 } from "lucide-react";
+import {
+  getAdminPricing, updateAdminPricing,
+  deleteDlFeeScheduleRow, deleteServicePriceRow, deleteParticularsItemPriceRow,
+  getAdminVehicleCategoryPricing, updateAdminVehicleCategoryPricing, deleteAdminVehicleCategoryPriceRow,
+  clonePricing, getReferenceStates,
+} from "@/lib/api";
 import { SERVICES, DARK_SERVICES } from "@/app/services/_data";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
+import Modal from "@/app/dashboard/_shared/Modal";
 
 const BRAND = "#28A745";
 const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
+const smallInputCls = "w-full rounded-lg px-3 py-2 text-[13px] bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
 
 // Driver's Licence and Tinted Permit already have their own dedicated apply
 // flow — the "Other Services" section below covers everything else in the
@@ -20,34 +27,25 @@ const DL_ROWS = [
   { key: "renewal:5 years", application_type: "renewal", validity_period: "5 years", label: "Renewal — 5 years (Reissue uses this price too)" },
   { key: "international_permit:null", application_type: "international_permit", validity_period: null, label: "International Permit" },
   { key: "tinted_permit:null", application_type: "tinted_permit", validity_period: null, label: "Tinted Glass Permit" },
-  { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New (standard states)" },
-  { key: "number_plate_new:FCT", application_type: "number_plate_new", validity_period: "FCT", label: "Number Plate — New (FCT)" },
-  { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement (standard states)" },
-  { key: "number_plate_replacement:FCT", application_type: "number_plate_replacement", validity_period: "FCT", label: "Number Plate — Replacement (FCT)" },
-  { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership (standard states)" },
-  { key: "number_plate_change_of_ownership:FCT", application_type: "number_plate_change_of_ownership", validity_period: "FCT", label: "Number Plate — Change of Ownership (FCT)" },
+  { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New (standard tier)" },
+  { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement (standard tier)" },
+  { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership (standard tier)" },
 ];
-// number_plate_commercial_surcharge is retired — vehicle-category pricing
-// (below) replaces the private/commercial surcharge mechanism entirely.
-// The FCT rows above are unaffected — FCT is a separate, state-driven axis.
-
-// Number Plate has its own real multi-row pricing above (base x FCT x
-// service-type) — excluded here alongside the other two dedicated-flow
-// services so it doesn't also show up as a single flat marketing price.
-// vehicle-particulars is excluded too, for the same reason — its own
-// multi-row (price + agent compensation, per document type) section below.
-// Admin still needs to price "dark" (customer-hidden) services too — they
-// still have service_prices rows, just no customer-facing listing right now.
+// Number Plate & Vehicle Particulars have their own real category-priced
+// grid below — excluded here alongside Driver's Licence/Tinted Permit so
+// they don't also show up as a single flat marketing price. Admin still
+// needs to price "dark" (customer-hidden) services too — they still have
+// service_prices rows, just no customer-facing listing right now.
 const OTHER_SERVICES = [...SERVICES, ...DARK_SERVICES].filter(
   (s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars"].includes(s.slug)
 );
 
 // Vehicle Particulars — 5 document types, each independently priced. This
-// is now the FALLBACK price only (used when a vehicle has no category, or
-// its category has no price set in the Vehicle Category Pricing section
-// below) — agent compensation lives entirely on the Compensation page now,
-// never here. Unset blocks that document from being selectable in the
-// customer wizard until an admin prices it (at least at this fallback tier).
+// is the FALLBACK price only (used when a vehicle has no category, or its
+// category has no price set in the Vehicle Category Pricing section below)
+// — agent compensation lives entirely on the Compensation page, never here.
+// Unset blocks that document from being selectable in the customer wizard
+// until an admin prices it (at least at this fallback tier).
 const PARTICULARS_ROWS = [
   { document_type: "vehicle_licence", label: "Vehicle Licence" },
   { document_type: "road_worthiness", label: "Road Worthiness Certificate" },
@@ -70,63 +68,401 @@ const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "number_plate_change_of_ownership", label: "Number Plate — Change of Ownership" },
 ];
 
+// The 8 shared financing fields (app/models/pricing.py PriceExtrasMixin) —
+// purely admin-configurable data, not read by any checkout/payment code.
+// "kobo" fields are edited/displayed in naira like Amount; "percent"/"int"
+// fields are edited as plain numbers.
+const FINANCING_FIELDS_META = [
+  { key: "financing_amount_kobo", label: "Financing Amount (₦)", type: "kobo" },
+  { key: "interest_percent", label: "Interest (%)", type: "percent" },
+  { key: "initial_deposit_amount_kobo", label: "Initial Deposit Amount (₦)", type: "kobo" },
+  { key: "initial_deposit_percent", label: "Initial Deposit (%)", type: "percent" },
+  { key: "duration_days", label: "Duration (Days)", type: "int" },
+  { key: "price_lock_percent", label: "Price Lock (%)", type: "percent" },
+  { key: "va_price_kobo", label: "VA Price (₦)", type: "kobo" },
+  { key: "va_duration", label: "VA Duration (Days)", type: "int" },
+];
+
 function keyFor(application_type, validity_period) {
   return `${application_type}:${validity_period ?? "null"}`;
 }
 
-export default function AdminPricingPage() {
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+function nairaFmt(nairaStr) {
+  return `₦${Number(nairaStr).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Converts one API price item (DLFeeScheduleItem / ServicePriceItem /
+// ParticularsItemPriceItem / AdminVehicleCategoryPriceItem — all share the
+// PriceFinancingFields + is_active/priority/is_override shape) into the
+// flat string-keyed row state every input in this page is controlled by.
+function rowStateFromApiItem(item) {
+  return {
+    amount: item.amount_kobo != null ? (item.amount_kobo / 100).toString() : "",
+    priority: String(item.priority ?? 0),
+    is_active: item.is_active !== false,
+    is_override: !!item.is_override,
+    financing_amount_kobo: item.financing_amount_kobo != null ? (item.financing_amount_kobo / 100).toString() : "",
+    interest_percent: item.interest_percent != null ? String(item.interest_percent) : "",
+    initial_deposit_amount_kobo: item.initial_deposit_amount_kobo != null ? (item.initial_deposit_amount_kobo / 100).toString() : "",
+    initial_deposit_percent: item.initial_deposit_percent != null ? String(item.initial_deposit_percent) : "",
+    duration_days: item.duration_days != null ? String(item.duration_days) : "",
+    price_lock_percent: item.price_lock_percent != null ? String(item.price_lock_percent) : "",
+    va_price_kobo: item.va_price_kobo != null ? (item.va_price_kobo / 100).toString() : "",
+    va_duration: item.va_duration != null ? String(item.va_duration) : "",
+  };
+}
+
+function financingPayload(row) {
+  return {
+    financing_amount_kobo: row.financing_amount_kobo ? Math.round(parseFloat(row.financing_amount_kobo) * 100) : null,
+    interest_percent: row.interest_percent !== "" && row.interest_percent != null ? parseFloat(row.interest_percent) : null,
+    initial_deposit_amount_kobo: row.initial_deposit_amount_kobo ? Math.round(parseFloat(row.initial_deposit_amount_kobo) * 100) : null,
+    initial_deposit_percent: row.initial_deposit_percent !== "" && row.initial_deposit_percent != null ? parseFloat(row.initial_deposit_percent) : null,
+    duration_days: row.duration_days !== "" && row.duration_days != null ? parseInt(row.duration_days, 10) : null,
+    price_lock_percent: row.price_lock_percent !== "" && row.price_lock_percent != null ? parseFloat(row.price_lock_percent) : null,
+    va_price_kobo: row.va_price_kobo ? Math.round(parseFloat(row.va_price_kobo) * 100) : null,
+    va_duration: row.va_duration !== "" && row.va_duration != null ? parseInt(row.va_duration, 10) : null,
+    is_active: row.is_active !== false,
+    priority: row.priority !== "" && row.priority != null ? (parseInt(row.priority, 10) || 0) : 0,
+  };
+}
+
+function useToast() {
   const [toast, setToast] = useState(null);
-
-  const [dlPricesRaw, setDlPricesRaw] = useState(null); // last-loaded server state, for Cancel
-  const [servicePricesRaw, setServicePricesRaw] = useState(null);
-  const [particularsPricesRaw, setParticularsPricesRaw] = useState(null);
-
-  // Both keyed by row key -> naira string ("" = not set, only valid for
-  // Other Services rows — DL rows must always resolve to a real number).
-  const [dlNaira, setDlNaira] = useState({});
-  const [serviceNaira, setServiceNaira] = useState({});
-  // Keyed by document_type -> naira string, optional ("" = not set).
-  const [particularsPriceNaira, setParticularsPriceNaira] = useState({});
-
-  const showToast = (type, msg) => {
+  const show = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4500);
   };
+  return [toast, show, () => setToast(null)];
+}
 
-  const seedFromResponse = (data) => {
-    setDlPricesRaw(data.dl_fee_schedule);
-    setServicePricesRaw(data.service_prices);
-    setParticularsPricesRaw(data.particulars_item_prices);
-    setDlNaira(
-      Object.fromEntries(
-        data.dl_fee_schedule.map((r) => [keyFor(r.application_type, r.validity_period), (r.amount_kobo / 100).toString()])
-      )
-    );
-    setServiceNaira(
-      Object.fromEntries(
-        data.service_prices.map((r) => [r.slug, r.amount_kobo != null ? (r.amount_kobo / 100).toString() : ""])
-      )
-    );
-    setParticularsPriceNaira(
-      Object.fromEntries(
-        (data.particulars_item_prices || []).map((r) => [r.document_type, r.amount_kobo != null ? (r.amount_kobo / 100).toString() : ""])
-      )
-    );
-  };
+function Toast({ toast, onClose }) {
+  if (!toast) return null;
+  return (
+    <div className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"}`}>
+      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
+        {toast.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-[#111111]">{toast.type === "success" ? "Saved" : "Error"}</p>
+        <p className="mt-0.5 text-[12.5px] text-slate-500 leading-relaxed">{toast.msg}</p>
+      </div>
+      <button type="button" onClick={onClose} className="ml-1 shrink-0 text-slate-400 hover:text-slate-600">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+// One dense card per price row — Amount + Priority always visible; the 8
+// financing fields expand while editing. Shared by every section below
+// (DL & Permits, Vehicle Particulars, Other Services, Vehicle Category grid)
+// so all four pricing tables get an identical editing surface.
+function PriceRowCard({ label, row, onChange, editing, amountPlaceholder = "Not set", amountRequired = false, onDelete, isGeneralScope }) {
+  const set = (field, value) => onChange({ ...row, [field]: value });
+  return (
+    <div className="rounded-xl border border-[#E5E5E5] p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-800">{label}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {row.is_override && (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                State override
+              </span>
+            )}
+            {row.is_override && !row.is_active && (
+              <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                Inactive — general price applies
+              </span>
+            )}
+            {!row.is_override && !row.is_active && (
+              <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                Inactive — fallback price applies
+              </span>
+            )}
+          </div>
+        </div>
+        {editing && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => set("is_active", !row.is_active)}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${row.is_active ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-100 border-slate-200 text-slate-500"}`}
+            >
+              {row.is_active ? "Active" : "Inactive"}
+            </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="text-slate-400 hover:text-red-600 transition-colors"
+                title={isGeneralScope ? "Delete general price (removes fallback for everyone)" : "Delete override (reverts to general price)"}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="col-span-2 sm:col-span-1">
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">Amount (₦)</label>
+          {editing ? (
+            <input
+              type="number" min={amountRequired ? "1" : "0"} value={row.amount} placeholder={amountPlaceholder}
+              onChange={(e) => set("amount", e.target.value)} className={smallInputCls}
+            />
+          ) : (
+            <p className="text-[14px] font-semibold text-slate-800">{row.amount ? nairaFmt(row.amount) : amountPlaceholder}</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">Priority</label>
+          {editing ? (
+            <input type="number" value={row.priority} onChange={(e) => set("priority", e.target.value)} className={smallInputCls} />
+          ) : (
+            <p className="text-[14px] text-slate-600">{row.priority}</p>
+          )}
+        </div>
+      </div>
+
+      {editing && (
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Financing details</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {FINANCING_FIELDS_META.map((f) => (
+              <div key={f.key}>
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">{f.label}</label>
+                <input type="number" value={row[f.key]} onChange={(e) => set(f.key, e.target.value)} placeholder="—" className={smallInputCls} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StateSelectorBar({ states, selectedStateId, setSelectedStateId, onOpenClone }) {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E5E5] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#28A745]/10 text-[#28A745]">
+          <Globe2 className="h-4.5 w-4.5" />
+        </div>
+        <div className="min-w-0">
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">Pricing scope</label>
+          <select
+            value={selectedStateId}
+            onChange={(e) => setSelectedStateId(e.target.value)}
+            className="appearance-none bg-transparent text-sm font-semibold text-[#111111] focus:outline-none pr-6"
+          >
+            <option value="">General (all states)</option>
+            {states.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpenClone}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
+      >
+        <Copy className="h-3.5 w-3.5" /> Clone services
+      </button>
+    </div>
+  );
+}
+
+function CloneServicesModal({ open, onClose, states, defaultTargetStateId, onCloned }) {
+  const [sourceStateId, setSourceStateId] = useState("");
+  const [targetStateId, setTargetStateId] = useState(defaultTargetStateId || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    getAdminPricing().then((res) => {
-      if (res.data) seedFromResponse(res.data);
-      setLoading(false);
+    if (open) {
+      setSourceStateId("");
+      setTargetStateId(defaultTargetStateId || "");
+      setError(null);
+    }
+  }, [open, defaultTargetStateId]);
+
+  const handleClone = async () => {
+    if (!targetStateId) {
+      setError("Choose a target state.");
+      return;
+    }
+    if ((sourceStateId || null) === (targetStateId || null)) {
+      setError("Source and target must be different.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const res = await clonePricing({
+      source_state_id: sourceStateId ? parseInt(sourceStateId, 10) : null,
+      target_state_id: parseInt(targetStateId, 10),
+    });
+    setSaving(false);
+    if (res.error) {
+      setError("Could not clone pricing. Please try again.");
+      return;
+    }
+    onCloned(res.data, parseInt(targetStateId, 10));
+  };
+
+  return (
+    <Modal open={open} onOpenChange={(v) => !v && onClose()} title="Clone services">
+      <div className="w-[min(92vw,26rem)] rounded-2xl bg-white p-6 shadow-2xl">
+        <h3 className="text-base font-semibold text-[#111111]">Clone services</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Copy every price row — amount, financing fields, status, and priority — from one pricing scope into another.
+        </p>
+
+        <div className="mt-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">From</label>
+            <select value={sourceStateId} onChange={(e) => setSourceStateId(e.target.value)} className={inputCls}>
+              <option value="">General (all states)</option>
+              {states.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">To</label>
+            <select value={targetStateId} onChange={(e) => setTargetStateId(e.target.value)} className={inputCls}>
+              <option value="">Select a state…</option>
+              {states.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {error && <p className="mt-3 text-[12.5px] text-red-600">{error}</p>}
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button type="button" onClick={onClose} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleClone}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="h-4 w-4" />} Clone
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+export default function AdminPricingPage() {
+  const [states, setStates] = useState([]);
+  const [selectedStateId, setSelectedStateId] = useState(""); // "" = General
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    getReferenceStates().then((res) => {
+      if (res.data) setStates(res.data);
     });
   }, []);
 
+  const stateIdNum = selectedStateId ? parseInt(selectedStateId, 10) : null;
+
+  const handleCloned = (data, targetStateId) => {
+    setCloneOpen(false);
+    if (targetStateId === stateIdNum) {
+      setReloadKey((k) => k + 1);
+    } else {
+      setSelectedStateId(String(targetStateId));
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-12 max-w-5xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1
+            className="text-[28px] tracking-tight text-[#111111]"
+            style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
+          >
+            Pricing
+          </h1>
+          <p className="text-sm text-[#7A7A7A] mt-1">
+            Set the price for every service in the catalogue — optionally overridden per state.
+          </p>
+        </div>
+      </div>
+
+      <StateSelectorBar
+        states={states}
+        selectedStateId={selectedStateId}
+        setSelectedStateId={setSelectedStateId}
+        onOpenClone={() => setCloneOpen(true)}
+      />
+
+      <MainPricingSection stateId={stateIdNum} reloadKey={reloadKey} />
+      <VehicleCategoryPricingSection stateId={stateIdNum} reloadKey={reloadKey} />
+
+      <CloneServicesModal
+        open={cloneOpen}
+        onClose={() => setCloneOpen(false)}
+        states={states}
+        defaultTargetStateId={selectedStateId}
+        onCloned={handleCloned}
+      />
+    </div>
+  );
+}
+
+// Driver's Licence & Permits, Vehicle Particulars fallback, and Other
+// Services all share one GET/PATCH /admin/pricing cycle on the backend
+// (app/routers/admin.py), so they stay one section here too — three
+// collapsible accordions inside a single load/edit/save flow.
+function MainPricingSection({ stateId, reloadKey }) {
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toast, showToast, closeToast] = useToast();
+  const [openAccordion, setOpenAccordion] = useState("dl");
+
+  const [dlRows, setDlRows] = useState({});
+  const [particularsRows, setParticularsRows] = useState({});
+  const [serviceRows, setServiceRows] = useState({});
+
+  const seedFromResponse = (data) => {
+    setDlRows(Object.fromEntries(
+      (data.dl_fee_schedule || []).map((r) => [keyFor(r.application_type, r.validity_period), rowStateFromApiItem(r)])
+    ));
+    setParticularsRows(Object.fromEntries(
+      (data.particulars_item_prices || []).map((r) => [r.document_type, rowStateFromApiItem(r)])
+    ));
+    setServiceRows(Object.fromEntries(
+      (data.service_prices || []).map((r) => [r.slug, rowStateFromApiItem(r)])
+    ));
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    setEditing(false);
+    getAdminPricing(stateId).then((res) => {
+      if (res.data) seedFromResponse(res.data);
+      setLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateId, reloadKey]);
+
   const handleSave = async () => {
     for (const row of DL_ROWS) {
-      const val = dlNaira[row.key];
+      const val = dlRows[row.key]?.amount;
       if (!val || isNaN(parseFloat(val)) || parseFloat(val) <= 0) {
         showToast("error", `Enter a valid price for ${row.label}.`);
         return;
@@ -137,20 +473,27 @@ export default function AdminPricingPage() {
     const dl_fee_schedule = DL_ROWS.map((row) => ({
       application_type: row.application_type,
       validity_period: row.validity_period,
-      amount_kobo: Math.round(parseFloat(dlNaira[row.key]) * 100),
+      amount_kobo: Math.round(parseFloat(dlRows[row.key].amount) * 100),
+      ...financingPayload(dlRows[row.key]),
     }));
-    const service_prices = Object.fromEntries(
-      OTHER_SERVICES.map((s) => [
-        s.slug,
-        serviceNaira[s.slug] ? Math.round(parseFloat(serviceNaira[s.slug]) * 100) : null,
-      ])
-    );
-    const particulars_item_prices = PARTICULARS_ROWS.map((row) => ({
-      document_type: row.document_type,
-      amount_kobo: particularsPriceNaira[row.document_type] ? Math.round(parseFloat(particularsPriceNaira[row.document_type]) * 100) : null,
-    }));
+    const service_prices = OTHER_SERVICES.map((s) => {
+      const row = serviceRows[s.slug] || {};
+      return {
+        slug: s.slug,
+        amount_kobo: row.amount ? Math.round(parseFloat(row.amount) * 100) : null,
+        ...financingPayload(row),
+      };
+    });
+    const particulars_item_prices = PARTICULARS_ROWS.map((row) => {
+      const r = particularsRows[row.document_type] || {};
+      return {
+        document_type: row.document_type,
+        amount_kobo: r.amount ? Math.round(parseFloat(r.amount) * 100) : null,
+        ...financingPayload(r),
+      };
+    });
 
-    const res = await updateAdminPricing({ dl_fee_schedule, service_prices, particulars_item_prices });
+    const res = await updateAdminPricing({ dl_fee_schedule, service_prices, particulars_item_prices, state_id: stateId });
     setSaving(false);
     if (res.error) {
       showToast("error", "Could not save pricing changes.");
@@ -162,48 +505,137 @@ export default function AdminPricingPage() {
   };
 
   const handleCancel = () => {
-    if (dlPricesRaw && servicePricesRaw) {
-      seedFromResponse({ dl_fee_schedule: dlPricesRaw, service_prices: servicePricesRaw, particulars_item_prices: particularsPricesRaw || [] });
-    }
+    setLoading(true);
+    getAdminPricing(stateId).then((res) => {
+      if (res.data) seedFromResponse(res.data);
+      setLoading(false);
+    });
     setEditing(false);
+  };
+
+  const handleDeleteDl = async (row) => {
+    const isGeneral = stateId == null;
+    const confirmMsg = isGeneral
+      ? `Delete the general price for "${row.label}"? Every state without its own override will lose its fallback price.`
+      : `Remove this state's override for "${row.label}"? It will revert to the general price.`;
+    if (!window.confirm(confirmMsg)) return;
+    const res = await deleteDlFeeScheduleRow({ application_type: row.application_type, validity_period: row.validity_period, state_id: stateId });
+    if (res.error) {
+      showToast("error", res.status === 404 ? "Already using the fallback price." : "Could not delete this price.");
+      return;
+    }
+    seedFromResponse(res.data);
+    showToast("success", "Price deleted.");
+  };
+
+  const handleDeleteParticulars = async (documentType, label) => {
+    const isGeneral = stateId == null;
+    const confirmMsg = isGeneral
+      ? `Delete the general price for "${label}"? Every state without its own override will lose its fallback price.`
+      : `Remove this state's override for "${label}"? It will revert to the general price.`;
+    if (!window.confirm(confirmMsg)) return;
+    const res = await deleteParticularsItemPriceRow({ document_type: documentType, state_id: stateId });
+    if (res.error) {
+      showToast("error", res.status === 404 ? "Already using the fallback price." : "Could not delete this price.");
+      return;
+    }
+    seedFromResponse(res.data);
+    showToast("success", "Price deleted.");
+  };
+
+  const handleDeleteService = async (slug, label) => {
+    const isGeneral = stateId == null;
+    const confirmMsg = isGeneral
+      ? `Delete the general price for "${label}"? Every state without its own override will lose its fallback price.`
+      : `Remove this state's override for "${label}"? It will revert to the general price.`;
+    if (!window.confirm(confirmMsg)) return;
+    const res = await deleteServicePriceRow({ slug, state_id: stateId });
+    if (res.error) {
+      showToast("error", res.status === 404 ? "Already using the fallback price." : "Could not delete this price.");
+      return;
+    }
+    seedFromResponse(res.data);
+    showToast("success", "Price deleted.");
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center gap-3">
+      <div className="bg-white rounded-2xl border border-[#E5E5E5] px-6 sm:px-8 py-10 flex items-center justify-center gap-3">
         <Loader2 className="h-5 w-5 animate-spin" style={{ color: BRAND }} />
         <p className="text-sm text-slate-500">Loading pricing...</p>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6 pb-12 max-w-4xl">
-      {toast && (
-        <div className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"}`}>
-          <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-            {toast.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-[#111111]">{toast.type === "success" ? "Saved" : "Error"}</p>
-            <p className="mt-0.5 text-[12.5px] text-slate-500 leading-relaxed">{toast.msg}</p>
-          </div>
-          <button type="button" onClick={() => setToast(null)} className="ml-1 shrink-0 text-slate-400 hover:text-slate-600">
-            <X className="h-4 w-4" />
-          </button>
+  const accordions = [
+    {
+      id: "dl",
+      title: "Driver's Licence & Permits",
+      subtitle: "These prices drive real checkout charges and the agent commission split.",
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {DL_ROWS.map((row) => (
+            <PriceRowCard
+              key={row.key}
+              label={row.label}
+              row={dlRows[row.key] || rowStateFromApiItem({})}
+              onChange={(next) => setDlRows((prev) => ({ ...prev, [row.key]: next }))}
+              editing={editing}
+              amountRequired
+              onDelete={editing ? () => handleDeleteDl(row) : null}
+              isGeneralScope={stateId == null}
+            />
+          ))}
         </div>
-      )}
+      ),
+    },
+    {
+      id: "particulars",
+      title: "Vehicle Particulars",
+      subtitle: "Fallback price per document — used for vehicles with no category, or categories with no price set below.",
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {PARTICULARS_ROWS.map((row) => (
+            <PriceRowCard
+              key={row.document_type}
+              label={row.label}
+              row={particularsRows[row.document_type] || rowStateFromApiItem({})}
+              onChange={(next) => setParticularsRows((prev) => ({ ...prev, [row.document_type]: next }))}
+              editing={editing}
+              onDelete={editing ? () => handleDeleteParticulars(row.document_type, row.label) : null}
+              isGeneralScope={stateId == null}
+            />
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: "other",
+      title: "Other Services",
+      subtitle: 'Purely informational — leave blank to keep showing "Coming soon" / "Quote on request".',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {OTHER_SERVICES.map((s) => (
+            <PriceRowCard
+              key={s.slug}
+              label={s.title}
+              row={serviceRows[s.slug] || rowStateFromApiItem({})}
+              onChange={(next) => setServiceRows((prev) => ({ ...prev, [s.slug]: next }))}
+              editing={editing}
+              onDelete={editing ? () => handleDeleteService(s.slug, s.title) : null}
+              isGeneralScope={stateId == null}
+            />
+          ))}
+        </div>
+      ),
+    },
+  ];
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1
-            className="text-[28px] tracking-tight text-[#111111]"
-            style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-          >
-            Pricing
-          </h1>
-          <p className="text-sm text-[#7A7A7A] mt-1">Set the price for every service in the catalogue.</p>
-        </div>
+  return (
+    <div className="space-y-4">
+      <Toast toast={toast} onClose={closeToast} />
+
+      <div className="flex items-center justify-end gap-3">
         {!editing ? (
           <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors shrink-0">
             <Pencil className="h-3.5 w-3.5" /> Edit prices
@@ -218,154 +650,79 @@ export default function AdminPricingPage() {
         )}
       </div>
 
-      {/* Driver's Licence & Permits */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100">
-          <h2 className="font-display text-base font-semibold text-[#111111]">Driver's Licence &amp; Permits</h2>
-          <p className="text-sm text-slate-500 mt-0.5">These prices drive real checkout charges and the agent commission split.</p>
-        </div>
-        <div className="px-6 sm:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {DL_ROWS.map((row) => (
-            <div key={row.key}>
-              <label className="block text-xs font-medium text-slate-500 mb-1">{row.label}</label>
-              {editing ? (
-                <input
-                  type="number"
-                  min="1"
-                  value={dlNaira[row.key] ?? ""}
-                  onChange={(e) => setDlNaira((prev) => ({ ...prev, [row.key]: e.target.value }))}
-                  className={inputCls}
-                />
-              ) : (
-                <p className="text-[15px] font-medium text-slate-800">
-                  {dlNaira[row.key] ? `₦${Number(dlNaira[row.key]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Vehicle Particulars */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100">
-          <h2 className="font-display text-base font-semibold text-[#111111]">Vehicle Particulars</h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Fallback price per document — used for vehicles with no category, or categories with no price set below.
-            Leave blank to keep a document unavailable for renewal. Agent compensation is set on the{" "}
-            <a href="/admin/compensation" className="underline hover:no-underline">Compensation</a> page, not here.
-          </p>
-        </div>
-        <div className="px-6 sm:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {PARTICULARS_ROWS.map((row) => (
-            <div key={row.document_type}>
-              <label className="block text-xs font-medium text-slate-500 mb-1">{row.label}</label>
-              {editing ? (
-                <input
-                  type="number"
-                  min="1"
-                  value={particularsPriceNaira[row.document_type] ?? ""}
-                  onChange={(e) => setParticularsPriceNaira((prev) => ({ ...prev, [row.document_type]: e.target.value }))}
-                  placeholder="Not set"
-                  className={inputCls}
-                />
-              ) : (
-                <p className="text-[15px] font-medium text-slate-800">
-                  {particularsPriceNaira[row.document_type] ? `₦${Number(particularsPriceNaira[row.document_type]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not set"}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <VehicleCategoryPricingSection />
-
-      {/* Other Services */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100">
-          <h2 className="font-display text-base font-semibold text-[#111111]">Other Services</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Purely informational — leave blank to keep showing "Coming soon" / "Quote on request".</p>
-        </div>
-        <div className="px-6 sm:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {OTHER_SERVICES.map((s) => (
-            <div key={s.slug}>
-              <label className="block text-xs font-medium text-slate-500 mb-1">{s.title}</label>
-              {editing ? (
-                <input
-                  type="number"
-                  min="1"
-                  value={serviceNaira[s.slug] ?? ""}
-                  onChange={(e) => setServiceNaira((prev) => ({ ...prev, [s.slug]: e.target.value }))}
-                  placeholder="Not set"
-                  className={inputCls}
-                />
-              ) : (
-                <p className="text-[15px] font-medium text-slate-800">
-                  {serviceNaira[s.slug] ? `₦${Number(serviceNaira[s.slug]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not set"}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      {accordions.map(({ id, title, subtitle, content }) => {
+        const isOpen = openAccordion === id;
+        return (
+          <div key={id} className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setOpenAccordion(isOpen ? null : id)}
+              className="w-full flex items-center justify-between px-6 sm:px-8 py-5 text-left hover:bg-slate-50 transition-colors"
+            >
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#111111]">{title}</h2>
+                <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
+              </div>
+              <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+            {isOpen && <div className="px-6 sm:px-8 pb-6 border-t border-slate-100 pt-6">{content}</div>}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // Self-contained: 96 cells (8 services x 12 categories) is a lot of state
-// to fold into the page's main save flow, so this has its own load/edit/
-// save cycle against the dedicated /admin/pricing/vehicle-categories
-// endpoint. One collapsible panel per service keeps 96 inputs navigable.
-function VehicleCategoryPricingSection() {
+// to fold into MainPricingSection's save flow, so this keeps its own
+// load/edit/save cycle against the dedicated /admin/pricing/vehicle-categories
+// endpoint. One collapsible panel per service keeps 96 cards navigable.
+function VehicleCategoryPricingSection({ stateId, reloadKey }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast, showToast, closeToast] = useToast();
   const [openService, setOpenService] = useState(null);
-  const [pricesRaw, setPricesRaw] = useState(null);
-  // Keyed by "service_key:category" -> naira string.
-  const [naira, setNaira] = useState({});
+  const [rows, setRows] = useState({});
 
   const cellKey = (service_key, vehicle_category) => `${service_key}:${vehicle_category}`;
 
   const seedFromResponse = (prices) => {
-    setPricesRaw(prices);
-    setNaira(
-      Object.fromEntries(
-        prices.map((r) => [cellKey(r.service_key, r.vehicle_category), r.amount_kobo != null ? (r.amount_kobo / 100).toString() : ""])
-      )
-    );
+    setRows(Object.fromEntries(
+      prices.map((r) => [cellKey(r.service_key, r.vehicle_category), rowStateFromApiItem(r)])
+    ));
   };
 
   useEffect(() => {
-    getVehicleCategoryPricing().then((res) => {
+    setLoading(true);
+    setEditing(false);
+    getAdminVehicleCategoryPricing(stateId).then((res) => {
       if (res.data) seedFromResponse(res.data.prices);
       setLoading(false);
     });
-  }, []);
-
-  const showToast = (type, msg) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 4500);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateId, reloadKey]);
 
   const handleSave = async () => {
     const prices = [];
     for (const { service_key } of VEHICLE_CATEGORY_SERVICES) {
       for (const { value: vehicle_category } of VEHICLE_CATEGORY_OPTIONS) {
         const key = cellKey(service_key, vehicle_category);
-        const val = naira[key];
-        if (!val || isNaN(parseFloat(val)) || parseFloat(val) <= 0) {
+        const row = rows[key] || rowStateFromApiItem({});
+        if (!row.amount || isNaN(parseFloat(row.amount)) || parseFloat(row.amount) <= 0) {
           showToast("error", "Every category cell needs a valid price before saving.");
           return;
         }
-        prices.push({ service_key, vehicle_category, amount_kobo: Math.round(parseFloat(val) * 100) });
+        prices.push({
+          service_key, vehicle_category,
+          amount_kobo: Math.round(parseFloat(row.amount) * 100),
+          ...financingPayload(row),
+        });
       }
     }
 
     setSaving(true);
-    const res = await updateVehicleCategoryPricing(prices);
+    const res = await updateAdminVehicleCategoryPricing(prices, stateId);
     setSaving(false);
     if (res.error) {
       showToast("error", "Could not save vehicle category pricing.");
@@ -377,8 +734,27 @@ function VehicleCategoryPricingSection() {
   };
 
   const handleCancel = () => {
-    if (pricesRaw) seedFromResponse(pricesRaw);
+    setLoading(true);
+    getAdminVehicleCategoryPricing(stateId).then((res) => {
+      if (res.data) seedFromResponse(res.data.prices);
+      setLoading(false);
+    });
     setEditing(false);
+  };
+
+  const handleDelete = async (service_key, vehicle_category, label) => {
+    const isGeneral = stateId == null;
+    const confirmMsg = isGeneral
+      ? `Delete the general price for "${label}"? Every state without its own override will lose its fallback price.`
+      : `Remove this state's override for "${label}"? It will revert to the general price.`;
+    if (!window.confirm(confirmMsg)) return;
+    const res = await deleteAdminVehicleCategoryPriceRow({ service_key, vehicle_category, state_id: stateId });
+    if (res.error) {
+      showToast("error", res.status === 404 ? "Already using the fallback price." : "Could not delete this price.");
+      return;
+    }
+    seedFromResponse(res.data.prices);
+    showToast("success", "Price deleted.");
   };
 
   if (loading) {
@@ -392,20 +768,7 @@ function VehicleCategoryPricingSection() {
 
   return (
     <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-      {toast && (
-        <div className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"}`}>
-          <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-            {toast.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-[#111111]">{toast.type === "success" ? "Saved" : "Error"}</p>
-            <p className="mt-0.5 text-[12.5px] text-slate-500 leading-relaxed">{toast.msg}</p>
-          </div>
-          <button type="button" onClick={() => setToast(null)} className="ml-1 shrink-0 text-slate-400 hover:text-slate-600">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+      <Toast toast={toast} onClose={closeToast} />
 
       <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
         <div>
@@ -442,27 +805,20 @@ function VehicleCategoryPricingSection() {
                 <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </button>
               {isOpen && (
-                <div className="px-6 sm:px-8 pb-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="px-6 sm:px-8 pb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {VEHICLE_CATEGORY_OPTIONS.map(({ value: vehicle_category, label: categoryLabel }) => {
                     const key = cellKey(service_key, vehicle_category);
                     return (
-                      <div key={key}>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">{categoryLabel}</label>
-                        {editing ? (
-                          <input
-                            type="number"
-                            min="1"
-                            value={naira[key] ?? ""}
-                            onChange={(e) => setNaira((prev) => ({ ...prev, [key]: e.target.value }))}
-                            placeholder="Not set"
-                            className={inputCls}
-                          />
-                        ) : (
-                          <p className="text-[15px] font-medium text-slate-800">
-                            {naira[key] ? `₦${Number(naira[key]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not set"}
-                          </p>
-                        )}
-                      </div>
+                      <PriceRowCard
+                        key={key}
+                        label={categoryLabel}
+                        row={rows[key] || rowStateFromApiItem({})}
+                        onChange={(next) => setRows((prev) => ({ ...prev, [key]: next }))}
+                        editing={editing}
+                        amountRequired
+                        onDelete={editing ? () => handleDelete(service_key, vehicle_category, categoryLabel) : null}
+                        isGeneralScope={stateId == null}
+                      />
                     );
                   })}
                 </div>

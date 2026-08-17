@@ -10,7 +10,7 @@ import { GREEN, INK, INK_CARD, PAPER, INK_SOFT } from "@/app/components/landing/
 import { SERVICES } from "@/app/services/_data";
 import { ServiceStatusPill } from "@/app/services/_status";
 import PricingCalculator from "@/app/components/pricing/PricingCalculator";
-import { getDriverLicenceFeeSchedule, getVehicleCategoryPricing } from "@/lib/api";
+import { getDriverLicenceFeeSchedule, getVehicleCategoryPricing, getReferenceStates } from "@/lib/api";
 
 const CALCULABLE_SLUGS = new Set(["drivers-licence", "number-plate", "vehicle-particulars", "tinted-permit"]);
 
@@ -108,14 +108,24 @@ export default function PricingPage() {
   const [feeSchedule, setFeeSchedule] = useState([]);
   const [vehicleCategoryPrices, setVehicleCategoryPrices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [states, setStates] = useState([]);
+  const [selectedStateId, setSelectedStateId] = useState(""); // "" = General (all states)
 
   useEffect(() => {
-    Promise.all([getDriverLicenceFeeSchedule(), getVehicleCategoryPricing()]).then(([feeRes, categoryRes]) => {
+    getReferenceStates().then((res) => {
+      if (res.data) setStates(res.data);
+    });
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const stateId = selectedStateId || undefined;
+    Promise.all([getDriverLicenceFeeSchedule({ state_id: stateId }), getVehicleCategoryPricing(stateId)]).then(([feeRes, categoryRes]) => {
       if (feeRes.data?.prices) setFeeSchedule(feeRes.data.prices);
       if (categoryRes.data?.prices) setVehicleCategoryPrices(categoryRes.data.prices);
       setLoading(false);
     });
-  }, []);
+  }, [selectedStateId]);
 
   return (
     <div>
@@ -132,6 +142,31 @@ export default function PricingPage() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed" style={{ color: INK_SOFT }}>
             Pick a service below to configure it and get a live price — pulled straight from what we actually charge, updated the moment we change it.
+          </p>
+        </div>
+      </section>
+
+      <section className="px-5 pb-4 md:px-8">
+        <div className="mx-auto max-w-2xl">
+          <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>
+            State
+          </label>
+          <select
+            value={selectedStateId}
+            onChange={(e) => {
+              setExpandedSlug(null);
+              setSelectedStateId(e.target.value);
+            }}
+            className="w-full max-w-xs rounded-xl border bg-white px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-emerald-400"
+            style={{ borderColor: "rgba(255,255,255,0.12)" }}
+          >
+            <option value="">General (all states)</option>
+            {states.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-[11.5px]" style={{ color: INK_SOFT }}>
+            Some services are priced differently in certain states — pick yours to see the exact price.
           </p>
         </div>
       </section>
