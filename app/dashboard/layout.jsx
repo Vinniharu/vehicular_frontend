@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Bell,
   Search,
+  Wrench,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -61,6 +62,13 @@ const NAV_ITEMS = [
     icon: FileCheck2,
     exact: true,
     desc: "All your approved licences & documents",
+  },
+  {
+    label: "Spare Parts",
+    href: "/dashboard/spare-parts",
+    icon: Wrench,
+    exact: false,
+    desc: "Request parts, review dealer bids, track orders",
   },
   {
     label: "Wallet",
@@ -113,6 +121,7 @@ export default function DashboardLayout({ children }) {
       if (cached.role === "staff") { router.push("/staff"); return; }
       if (cached.role === "agent") { router.push("/agent"); return; }
       if (cached.role === "super_admin") { router.push("/super-admin"); return; }
+      if (cached.role === "dealer") { router.push("/dealer"); return; }
       setUser(cached);
       setLoading(false);
     }
@@ -126,6 +135,7 @@ export default function DashboardLayout({ children }) {
         if (res.data.role === "staff") { router.push("/staff"); return; }
         if (res.data.role === "agent") { router.push("/agent"); return; }
         if (res.data.role === "super_admin") { router.push("/super-admin"); return; }
+        if (res.data.role === "dealer") { router.push("/dealer"); return; }
         setUser(res.data);
         setLoading(false);
       } else if (!cached) {
