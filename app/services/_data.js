@@ -376,6 +376,32 @@ export const SERVICES = [
     ],
     children: null,
   },
+  {
+    slug: "spare-parts",
+    icon: Wrench,
+    category: "Marketplace",
+    status: "live",
+    title: "Genuine Spare Parts",
+    tagline: "Post the part you need. Verified dealers bid. You pick — funds are held in escrow until you confirm.",
+    intro:
+      "Vehiculars is the technology that connects you to vetted spare-parts dealers nationwide. We verify every dealer, hold your money safely until you confirm the part, and mediate any dispute. Collection and any delivery are arranged directly between you and the dealer.",
+    whatsIncluded: [
+      "Requests matched to vetted dealers in your category and market",
+      "Photo proof and dealer rating on every bid",
+      "Escrow — your money is held until you confirm the part",
+      "Dispute mediation if anything goes wrong",
+    ],
+    whatYouBring: ["Your vehicle's make, model, and year", "Chassis (VIN) — for accurate part matching", "Part name, photo, or part number if you have it"],
+    pricingNote:
+      "Quote depends on the specific part, brand, and origin (OEM vs aftermarket). Vehiculars does not handle logistics — collection or any delivery is between you and the dealer.",
+    howItWorks: [
+      { title: "Post the request", desc: "Part photo + vehicle details." },
+      { title: "Dealers bid", desc: "Matched, vetted dealers send bids with photo proof." },
+      { title: "You pick & pay", desc: "Choose the best bid — funds are held in escrow." },
+      { title: "Collect & confirm", desc: "Arrange pick-up with the dealer, then confirm to release payment." },
+    ],
+    children: null,
+  },
 ];
 
 /**
@@ -389,32 +415,6 @@ export const SERVICES = [
  * which reads [...SERVICES, ...DARK_SERVICES].
  */
 export const DARK_SERVICES = [
-  {
-    slug: "spare-parts",
-    icon: Wrench,
-    category: "Marketplace",
-    status: "dark",
-    title: "Genuine Spare Parts",
-    tagline: "Post the part you need. Verified dealers bid. You pick — and arrange collection directly with them.",
-    intro:
-      "Vehiculars is the technology that connects you to vetted spare-parts dealers nationwide. We verify every dealer, hold your money safely until you confirm the part, and mediate any dispute. Collection and any delivery are arranged directly between you and the dealer.",
-    whatsIncluded: [
-      "Blind bids from verified dealers nationwide",
-      "Photo proof on every bid",
-      "Escrow — your money is held until you confirm the part",
-      "Dispute mediation if anything goes wrong",
-    ],
-    whatYouBring: ["Your vehicle's make, model, and year", "Chassis (VIN) — for accurate part matching", "Part name, photo, or part number if you have it"],
-    pricingNote:
-      "Quote depends on the specific part, brand, and origin (OEM vs aftermarket). Vehiculars does not handle logistics — collection or any delivery is between you and the dealer.",
-    howItWorks: [
-      { title: "Post the request", desc: "Part photo + vehicle details." },
-      { title: "Dealers bid", desc: "Verified dealers send blind bids with photo proof." },
-      { title: "You pick & pay", desc: "Choose the best bid — funds are held in escrow." },
-      { title: "Collect & confirm", desc: "Arrange pick-up with the dealer, then confirm to release payment." },
-    ],
-    children: null,
-  },
   {
     slug: "find-a-technician",
     icon: UserCheck,

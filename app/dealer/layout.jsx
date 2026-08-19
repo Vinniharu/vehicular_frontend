@@ -4,160 +4,99 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  ShieldCheck,
   LogOut,
   Menu,
   X,
   ChevronRight,
-  AlertCircle,
   Loader2,
-  Key,
-  Info,
   LayoutDashboard,
-  FileText,
-  Settings,
-  Handshake,
-  Scale,
+  ClipboardList,
+  Package,
+  Wallet,
+  Landmark,
 } from "lucide-react";
-import { getToken, removeToken, getCachedUser, setCachedUser, authGetMe, authSetPassword } from "@/lib/api";
+import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
 
 const BRAND = "#28A745";
 
-const STAFF_NAV = [
+const DEALER_NAV = [
   {
     section: "Overview",
     items: [
-      { label: "Dashboard", href: "/staff", icon: LayoutDashboard },
+      { label: "Matched Requests", href: "/dealer", icon: LayoutDashboard, exact: true },
     ],
   },
   {
-    section: "Applications",
+    section: "Work",
     items: [
-      { label: "Review queue", href: "/staff/applications", icon: ShieldCheck },
+      { label: "My Bids & Orders", href: "/dealer/orders", icon: Package, exact: false },
     ],
   },
   {
-    section: "Spare Parts",
+    section: "Payouts",
     items: [
-      { label: "Dealer vetting", href: "/staff/spare-parts/dealers", icon: Handshake },
-      { label: "Disputes", href: "/staff/spare-parts/disputes", icon: Scale },
-    ],
-  },
-  {
-    section: "Account",
-    items: [
-      { label: "Settings", href: "/staff/settings", icon: Settings },
+      { label: "Wallet", href: "/dealer/wallet", icon: Wallet, exact: false },
+      { label: "Bank Account", href: "/dealer/bank-account", icon: Landmark, exact: false },
     ],
   },
 ];
 
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60";
-const inputBase =
-  "w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-[13.5px] text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
-const fieldLabel = "block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5";
+// Routes a not-yet-authenticated dealer must be able to reach: the login
+// page itself and the public application form.
+const PUBLIC_ROUTES = ["/dealer/login", "/dealer/apply"];
 
-export default function StaffLayout({ children }) {
+export default function DealerLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isLoginRoute = pathname === "/staff/login";
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passSubmitting, setPassSubmitting] = useState(false);
-  const [passError, setPassError] = useState(null);
-  const [passSuccess, setPassSuccess] = useState(null);
-
   useEffect(() => {
-    // The login page manages its own auth state — this guard has no
-    // business running on it (see app/admin/layout.jsx for the full
-    // rationale, identical here).
-    if (isLoginRoute) return;
+    if (isPublicRoute) return;
 
     const token = getToken();
     if (!token) {
-      router.push("/staff/login");
+      router.push("/dealer/login");
       return;
     }
 
     const cached = getCachedUser();
     if (cached) {
-      if (cached.role !== "staff" && cached.role !== "admin") {
-        router.push("/staff/login");
+      if (cached.role !== "dealer") {
+        router.push("/dealer/login");
         return;
       }
       setUser(cached);
-      if (cached.must_change_password) setShowPasswordModal(true);
       setLoading(false);
     }
 
     authGetMe().then((res) => {
       if (res.error && res.status === 401) {
         removeToken();
-        router.push("/staff/login");
+        router.push("/dealer/login");
       } else if (res.data) {
-        if (res.data.role !== "staff" && res.data.role !== "admin") {
-          router.push("/staff/login");
+        if (res.data.role !== "dealer") {
+          router.push("/dealer/login");
           return;
         }
         setUser(res.data);
-        setShowPasswordModal(!!res.data.must_change_password);
         setLoading(false);
       } else if (!cached) {
         setLoading(false);
       }
     });
-  }, [router, isLoginRoute]);
+  }, [router, isPublicRoute]);
 
   const handleLogout = () => {
     removeToken();
-    router.push("/staff/login");
+    router.push("/dealer/login");
   };
 
-  const handlePasswordChangeSubmit = async (e) => {
-    e.preventDefault();
-    setPassError(null);
-    setPassSuccess(null);
-
-    if (!newPassword || newPassword.length < 6) {
-      setPassError("New password must be at least 6 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPassError("Passwords don't match.");
-      return;
-    }
-
-    setPassSubmitting(true);
-    const res = await authSetPassword({ new_password: newPassword });
-    setPassSubmitting(false);
-
-    if (res.error) {
-      setPassError(res.error);
-      return;
-    }
-
-    setPassSuccess("Password updated.");
-    if (user) {
-      const updatedUser = { ...user, must_change_password: false };
-      setUser(updatedUser);
-      setCachedUser(updatedUser);
-    }
-    setTimeout(() => {
-      setShowPasswordModal(false);
-      setNewPassword("");
-      setConfirmPassword("");
-      setPassSuccess(null);
-    }, 1000);
-  };
-
-  if (isLoginRoute) {
+  if (isPublicRoute) {
     return children;
   }
 
@@ -172,7 +111,7 @@ export default function StaffLayout({ children }) {
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    : "SO";
+    : "DL";
 
   return (
     <div className="flex min-h-screen bg-[#f5f5f7]">
@@ -184,14 +123,14 @@ export default function StaffLayout({ children }) {
             <div>
               <p className="text-[15px] font-bold leading-none tracking-tight text-white">Vehiculars</p>
               <p className="mt-[3px] text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: BRAND }}>
-                Staff
+                Dealer
               </p>
             </div>
           </div>
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-          {STAFF_NAV.map((group) => (
+          {DEALER_NAV.map((group) => (
             <div key={group.section}>
               <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 {group.section}
@@ -199,7 +138,7 @@ export default function StaffLayout({ children }) {
               <div className="space-y-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const active = item.href === "/staff" ? pathname === "/staff" : pathname.startsWith(item.href);
+                  const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.href}
@@ -230,7 +169,7 @@ export default function StaffLayout({ children }) {
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-bold leading-tight text-white">{user?.name || "Staff"}</p>
+              <p className="truncate text-[13px] font-bold leading-tight text-white">{user?.name || "Dealer"}</p>
               <p className="truncate text-[11px] text-slate-400">{user?.email || ""}</p>
             </div>
             <button
@@ -249,7 +188,7 @@ export default function StaffLayout({ children }) {
       <div className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.06] bg-[#111111] px-4 lg:hidden">
         <div className="flex items-center gap-2.5">
           <img src="/logo.png" alt="Vehiculars" className="h-7 w-7 object-contain" />
-          <span className="text-[15px] font-bold tracking-tight text-white">Vehiculars Staff</span>
+          <span className="text-[15px] font-bold tracking-tight text-white">Vehiculars Dealer</span>
         </div>
         <button
           type="button"
@@ -263,9 +202,9 @@ export default function StaffLayout({ children }) {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 flex flex-col bg-black/60 pt-16 backdrop-blur-sm lg:hidden">
           <div className="space-y-4 border-b border-white/10 bg-[#111111] p-5 shadow-2xl">
-            {STAFF_NAV.flatMap((g) => g.items).map((item) => {
+            {DEALER_NAV.flatMap((g) => g.items).map((item) => {
               const Icon = item.icon;
-              const active = item.href === "/staff" ? pathname === "/staff" : pathname.startsWith(item.href);
+              const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
@@ -288,7 +227,7 @@ export default function StaffLayout({ children }) {
                   {initials}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[13px] font-bold text-white">{user?.name || "Staff"}</p>
+                  <p className="truncate text-[13px] font-bold text-white">{user?.name || "Dealer"}</p>
                   <p className="truncate text-[11px] text-slate-400">{user?.email}</p>
                 </div>
               </div>
@@ -308,74 +247,6 @@ export default function StaffLayout({ children }) {
       <main className="flex min-h-screen flex-1 flex-col pt-16 lg:pl-64 lg:pt-0">
         <div className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
-
-      {/* Password change modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-start gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                <Key className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-[17px] font-bold text-slate-900">Set a new password</h3>
-                <p className="mt-0.5 text-[12.5px] text-slate-500">
-                  Your account was created with a temporary password. Set your own before continuing.
-                </p>
-              </div>
-            </div>
-
-            {passError && (
-              <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-[12.5px] text-red-700 ring-1 ring-inset ring-red-200">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                {passError}
-              </div>
-            )}
-            {passSuccess && (
-              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-[12.5px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                {passSuccess}
-              </div>
-            )}
-
-            <form onSubmit={handlePasswordChangeSubmit} className="space-y-4">
-              <div>
-                <label className={fieldLabel}>New password (min. 6 characters)</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter a new password"
-                  required
-                  disabled={passSubmitting || !!passSuccess}
-                  className={inputBase}
-                />
-              </div>
-              <div>
-                <label className={fieldLabel}>Confirm password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter the new password"
-                  required
-                  disabled={passSubmitting || !!passSuccess}
-                  className={inputBase}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={passSubmitting || !!passSuccess}
-                className={`${btnPrimary} w-full`}
-                style={{ background: BRAND }}
-              >
-                {passSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {passSubmitting ? "Updating…" : "Update password"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
