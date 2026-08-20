@@ -17,7 +17,8 @@ import {
   Settings,
   Tag,
   HandCoins,
-  Wrench,
+  MessageCircle,
+  MapPin,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -33,6 +34,8 @@ const ADMIN_NAV = [
     section: "Operations",
     items: [
       { label: "Applications", href: "/admin/applications", icon: ClipboardList, desc: "Every application in the system and who's handling it" },
+      { label: "Tickets", href: "/admin/tickets", icon: MessageCircle, desc: "Every support conversation and who's handling it" },
+      { label: "RWX Bays", href: "/admin/rwx/bays", icon: MapPin, desc: "Inspection bay locations, slot capacity, and assigned agents" },
     ],
   },
   {
@@ -47,7 +50,6 @@ const ADMIN_NAV = [
       { label: "Revenue", href: "/admin/revenue", icon: Wallet, desc: "Inflow, platform profit, agent payouts, and transactions" },
       { label: "Pricing", href: "/admin/pricing", icon: Tag, desc: "Set prices for every service in the catalogue" },
       { label: "Compensation", href: "/admin/compensation", icon: HandCoins, desc: "Set agent compensation, globally or per agent" },
-      { label: "Spare Parts", href: "/admin/spare-parts", icon: Wrench, desc: "Commitment fee and category management" },
     ],
   },
   {

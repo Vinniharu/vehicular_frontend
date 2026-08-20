@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -24,6 +24,7 @@ import {
   Send,
   Image as ImageIcon,
   Trash2,
+  Download,
 } from "lucide-react";
 import {
   getApplication,
@@ -38,10 +39,17 @@ import {
   getReferenceLgas,
   resolveMediaUrl,
   getVehicle,
+  confirmRwxCertificateReceipt,
+  downloadRwxCertificatePdf,
+  getRwxBaysByState,
+  getRwxBayAvailability,
+  rescheduleRoadworthinessApplication,
+  submitRoadworthinessApplication,
 } from "@/lib/api";
 import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
 import { getNextStepCopy } from "@/app/dashboard/_shared/status-config";
 import { btnPrimary, btnSecondary, inputBase, label as fieldLabel } from "@/app/dashboard/_shared/ui";
 import { colors } from "@/lib/design-tokens";
@@ -526,7 +534,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={fieldLabel}>Date of birth *</label>
-                  <input type="date" name="date_of_birth" value={form.date_of_birth} onChange={handleChange} required className={inputBase} />
+                  <DateOfBirthInput value={form.date_of_birth} onChange={(iso) => setForm((p) => ({ ...p, date_of_birth: iso }))} />
                 </div>
                 <div>
                   <label className={fieldLabel}>Gender *</label>
@@ -1137,6 +1145,364 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
   );
 }
 
+// RWX's own "return to fix a detail" resubmission — staff sent the booking
+// back to staff_rejected (e.g. the bay/slot picked no longer works), and
+// since the customer already paid, this picks a fresh bay/slot/date and
+// resubmits via POST .../roadworthiness-express/reschedule (staff_rejected
+// -> paid, no second charge) rather than the generic reapplyApplication
+// endpoint, which has no bay/slot fields at all.
+function todayIsoRwx() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function RwxRescheduleModal({ application, onClose, onSuccess }) {
+  const [states, setStates] = useState([]);
+  const [stateId, setStateId] = useState("");
+  const [bays, setBays] = useState([]);
+  const [loadingBays, setLoadingBays] = useState(false);
+  const [bayId, setBayId] = useState(null);
+  const [bookingDate, setBookingDate] = useState(todayIsoRwx());
+  const [availability, setAvailability] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [slotId, setSlotId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getReferenceStates().then((res) => { if (res.data) setStates(res.data); });
+  }, []);
+
+  useEffect(() => {
+    if (!stateId) { setBays([]); setBayId(null); return; }
+    setLoadingBays(true);
+    getRwxBaysByState(stateId).then((res) => {
+      setBays(res.data?.items || []);
+      setBayId(null);
+      setLoadingBays(false);
+    });
+  }, [stateId]);
+
+  useEffect(() => {
+    if (!bayId || !bookingDate) { setAvailability(null); return; }
+    setLoadingAvailability(true);
+    setSlotId(null);
+    getRwxBayAvailability(bayId, bookingDate).then((res) => {
+      setAvailability(res.data?.slots || []);
+      setLoadingAvailability(false);
+    });
+  }, [bayId, bookingDate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!bayId || !bookingDate || !slotId) {
+      setError("Pick a bay, date, and time slot to continue.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const res = await rescheduleRoadworthinessApplication(application.id, {
+      bay_id: bayId, slot_template_id: slotId, booking_date: bookingDate,
+    });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSuccess(res.data);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#111111]">Pick a new bay &amp; slot</h2>
+            <p className="mt-0.5 text-[12.5px] text-slate-500">
+              Booking #{application.id} — no need to pay again, your original payment stays valid.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className={fieldLabel}>State</label>
+              <select value={stateId} onChange={(e) => setStateId(e.target.value)} className={`${inputBase} appearance-none pr-8`}>
+                <option value="">Select state</option>
+                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={fieldLabel}>Date</label>
+              <input type="date" min={todayIsoRwx()} value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} className={inputBase} />
+            </div>
+          </div>
+
+          {stateId && (
+            <div>
+              <label className={fieldLabel}>Bay</label>
+              {loadingBays ? (
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
+              ) : bays.length === 0 ? (
+                <p className="py-2 text-[12.5px] text-slate-400">No bays in this state yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bays.map((bay) => {
+                    const active = bayId === bay.id;
+                    return (
+                      <button
+                        key={bay.id}
+                        type="button"
+                        onClick={() => setBayId(bay.id)}
+                        className="flex w-full items-center justify-between rounded-xl border-2 p-3.5 text-left transition-all"
+                        style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
+                      >
+                        <div>
+                          <p className="text-[13.5px] font-semibold text-[#111111]">{bay.name}</p>
+                          <p className="text-[12px] text-slate-500">{bay.address}</p>
+                        </div>
+                        {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: "#28A745" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {bayId && (
+            <div>
+              <label className={fieldLabel}>Time slot</label>
+              {loadingAvailability ? (
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
+              ) : !availability || availability.length === 0 ? (
+                <p className="py-2 text-[12.5px] text-slate-400">No slots configured for this bay.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {availability.map((slot) => {
+                    const active = slotId === slot.slot_template_id;
+                    const full = slot.remaining <= 0;
+                    return (
+                      <button
+                        key={slot.slot_template_id}
+                        type="button"
+                        disabled={full}
+                        onClick={() => setSlotId(slot.slot_template_id)}
+                        className="rounded-xl border-2 p-3 text-center transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
+                      >
+                        <p className="text-[12.5px] font-semibold text-[#111111]">{slot.label}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </form>
+
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+          <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: "#28A745" }}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {submitting ? "Rescheduling…" : "Confirm new slot"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Books the free re-inspection within the 7-day window after a fail —
+// same bay/slot picker as RwxRescheduleModal, but this creates a BRAND NEW
+// application (POST /applications/roadworthiness-express with
+// prior_application_id set), not an update to the failed one. The backend
+// silently falls through to a normal paid booking if the window has
+// lapsed by submit time, so this doesn't duplicate that eligibility check.
+function RwxFreeRebookModal({ application, onClose, onSuccess }) {
+  const [states, setStates] = useState([]);
+  const [stateId, setStateId] = useState("");
+  const [bays, setBays] = useState([]);
+  const [loadingBays, setLoadingBays] = useState(false);
+  const [bayId, setBayId] = useState(null);
+  const [bookingDate, setBookingDate] = useState(todayIsoRwx());
+  const [availability, setAvailability] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [slotId, setSlotId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getReferenceStates().then((res) => { if (res.data) setStates(res.data); });
+  }, []);
+
+  useEffect(() => {
+    if (!stateId) { setBays([]); setBayId(null); return; }
+    setLoadingBays(true);
+    getRwxBaysByState(stateId).then((res) => {
+      setBays(res.data?.items || []);
+      setBayId(null);
+      setLoadingBays(false);
+    });
+  }, [stateId]);
+
+  useEffect(() => {
+    if (!bayId || !bookingDate) { setAvailability(null); return; }
+    setLoadingAvailability(true);
+    setSlotId(null);
+    getRwxBayAvailability(bayId, bookingDate).then((res) => {
+      setAvailability(res.data?.slots || []);
+      setLoadingAvailability(false);
+    });
+  }, [bayId, bookingDate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!bayId || !bookingDate || !slotId) {
+      setError("Pick a bay, date, and time slot to continue.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const res = await submitRoadworthinessApplication({
+      vehicle_id: application.vehicle_id,
+      bay_id: bayId,
+      slot_template_id: slotId,
+      booking_date: bookingDate,
+      prior_application_id: application.id,
+    });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSuccess(res.data);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#111111]">Rebook your free re-inspection</h2>
+            <p className="mt-0.5 text-[12.5px] text-slate-500">
+              Pick a fresh bay &amp; slot for booking #{application.id} — no charge.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className={fieldLabel}>State</label>
+              <select value={stateId} onChange={(e) => setStateId(e.target.value)} className={`${inputBase} appearance-none pr-8`}>
+                <option value="">Select state</option>
+                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={fieldLabel}>Date</label>
+              <input type="date" min={todayIsoRwx()} value={bookingDate} onChange={(e) => setBookingDate(e.target.value)} className={inputBase} />
+            </div>
+          </div>
+
+          {stateId && (
+            <div>
+              <label className={fieldLabel}>Bay</label>
+              {loadingBays ? (
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
+              ) : bays.length === 0 ? (
+                <p className="py-2 text-[12.5px] text-slate-400">No bays in this state yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bays.map((bay) => {
+                    const active = bayId === bay.id;
+                    return (
+                      <button
+                        key={bay.id}
+                        type="button"
+                        onClick={() => setBayId(bay.id)}
+                        className="flex w-full items-center justify-between rounded-xl border-2 p-3.5 text-left transition-all"
+                        style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
+                      >
+                        <div>
+                          <p className="text-[13.5px] font-semibold text-[#111111]">{bay.name}</p>
+                          <p className="text-[12px] text-slate-500">{bay.address}</p>
+                        </div>
+                        {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: "#28A745" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {bayId && (
+            <div>
+              <label className={fieldLabel}>Time slot</label>
+              {loadingAvailability ? (
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
+              ) : !availability || availability.length === 0 ? (
+                <p className="py-2 text-[12.5px] text-slate-400">No slots configured for this bay.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {availability.map((slot) => {
+                    const active = slotId === slot.slot_template_id;
+                    const full = slot.remaining <= 0;
+                    return (
+                      <button
+                        key={slot.slot_template_id}
+                        type="button"
+                        disabled={full}
+                        onClick={() => setSlotId(slot.slot_template_id)}
+                        className="rounded-xl border-2 p-3 text-center transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
+                      >
+                        <p className="text-[12.5px] font-semibold text-[#111111]">{slot.label}</p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </form>
+
+        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+          <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: "#28A745" }}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {submitting ? "Booking…" : "Confirm free re-inspection"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // vehicle_particulars correction payload — unlike the fixed per-type doc
 // list every other reapply modal uses, the evidence slots here are the
 // UNION of whatever the bundle's own items actually require (deduped by
@@ -1271,6 +1637,7 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
    ────────────────────────────────────────────── */
 export default function CustomerApplicationDetailsPage() {
   const params = useParams();
+  const router = useRouter();
   const appId = params?.id ? Number(params.id) : null;
 
   const [application, setApplication] = useState(null);
@@ -1294,10 +1661,39 @@ export default function CustomerApplicationDetailsPage() {
   const [showTintedReapplyModal, setShowTintedReapplyModal] = useState(false);
   const [showNumberPlateReapplyModal, setShowNumberPlateReapplyModal] = useState(false);
   const [showParticularsReapplyModal, setShowParticularsReapplyModal] = useState(false);
+  const [showRwxRescheduleModal, setShowRwxRescheduleModal] = useState(false);
+  const [showRwxFreeRebookModal, setShowRwxFreeRebookModal] = useState(false);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [vehicle, setVehicle] = useState(null);
 
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
+
+  const [confirmingReceipt, setConfirmingReceipt] = useState(false);
+  const [downloadingCert, setDownloadingCert] = useState(false);
+
+  const handleConfirmRwxReceipt = async () => {
+    if (!application) return;
+    setConfirmingReceipt(true);
+    const res = await confirmRwxCertificateReceipt(application.id);
+    setConfirmingReceipt(false);
+    if (res.error) {
+      setNotice({ type: "error", message: res.error });
+      return;
+    }
+    setNotice({ type: "success", message: "Thanks — your roadworthiness booking is now complete." });
+    await loadData(true);
+  };
+
+  const handleDownloadRwxCertificate = async () => {
+    if (!application) return;
+    setDownloadingCert(true);
+    try {
+      await downloadRwxCertificatePdf(application.id);
+    } catch (e) {
+      setNotice({ type: "error", message: e.message || "Could not download the certificate." });
+    }
+    setDownloadingCert(false);
+  };
 
   const handleCustomerFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -1421,6 +1817,17 @@ export default function CustomerApplicationDetailsPage() {
     await loadData(true);
   };
 
+  const handleRwxRescheduleSuccess = async (updated) => {
+    setShowRwxRescheduleModal(false);
+    setNotice({ type: "success", message: "Booking rescheduled — no charge, it's now back under staff review." });
+    await loadData(true);
+  };
+
+  const handleRwxFreeRebookSuccess = (newApplication) => {
+    setShowRwxFreeRebookModal(false);
+    router.push(`/dashboard/apply/${newApplication.id}`);
+  };
+
   /* ── Loading / error states ── */
   if (loading) {
     return (
@@ -1445,16 +1852,24 @@ export default function CustomerApplicationDetailsPage() {
     );
   }
 
-  const isPaid = ["paid", "success"].includes(application.payment_status) || ["paid", "success"].includes(application.payment_options?.payment_status);
-  const isPaymentFailed = application.payment_status === "failed" || application.payment_options?.payment_status === "failed";
+  const isTinted = application.application_type === "tinted_permit";
+  const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
+  const isVehicleParticulars = application.application_type === "vehicle_particulars";
+  const isRwx = application.application_type === "roadworthiness_express";
+  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars || isRwx;
+  // A free re-inspection booking (see the "Rebook free" flow) is created
+  // directly at status="paid" with NO Payment row at all — it was never
+  // charged, so application.payment_options is null and payment_status
+  // reads "unpaid". Without this override, isPaid would be false and the
+  // page would show a payment-collection block quoting an unrelated
+  // fallback fee for a booking the customer already isn't being billed for.
+  const isFreeRwxRebook = isRwx && !!application.rwx_detail?.prior_application_id && !application.payment_options;
+  const isPaid = isFreeRwxRebook || ["paid", "success"].includes(application.payment_status) || ["paid", "success"].includes(application.payment_options?.payment_status);
+  const isPaymentFailed = !isFreeRwxRebook && (application.payment_status === "failed" || application.payment_options?.payment_status === "failed");
   const amountKobo = application.payment_options?.amount_kobo || estimateFeeKobo(application.application_type, application.validity_period);
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
   const checkoutUrl = application.payment_options?.checkout_url;
-  const isTinted = application.application_type === "tinted_permit";
-  const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
-  const isVehicleParticulars = application.application_type === "vehicle_particulars";
-  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars;
   const isRejected = application.status === "staff_rejected";
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
@@ -1509,15 +1924,29 @@ export default function CustomerApplicationDetailsPage() {
           onSuccess={handleReapplySuccess}
         />
       )}
+      {showRwxRescheduleModal && (
+        <RwxRescheduleModal
+          application={application}
+          onClose={() => setShowRwxRescheduleModal(false)}
+          onSuccess={handleRwxRescheduleSuccess}
+        />
+      )}
+      {showRwxFreeRebookModal && (
+        <RwxFreeRebookModal
+          application={application}
+          onClose={() => setShowRwxFreeRebookModal(false)}
+          onSuccess={handleRwxFreeRebookSuccess}
+        />
+      )}
 
       {/* Header */}
       <div>
         <Link
-          href={isTinted ? "/dashboard/apply/tinted-permit" : isNumberPlate ? "/dashboard/apply/number-plate" : isVehicleParticulars ? "/dashboard/apply/vehicle-particulars" : "/dashboard/apply"}
+          href={isTinted ? "/dashboard/apply/tinted-permit" : isNumberPlate ? "/dashboard/apply/number-plate" : isVehicleParticulars ? "/dashboard/apply/vehicle-particulars" : isRwx ? "/dashboard/apply" : "/dashboard/apply"}
           className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {isTinted ? "My tinted permit applications" : isNumberPlate ? "My number plate applications" : isVehicleParticulars ? "My vehicle particulars renewals" : "My applications"}
+          {isTinted ? "My tinted permit applications" : isNumberPlate ? "My number plate applications" : isVehicleParticulars ? "My vehicle particulars renewals" : isRwx ? "My roadworthiness bookings" : "My applications"}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -1525,7 +1954,7 @@ export default function CustomerApplicationDetailsPage() {
               className="text-[24px] tracking-tight text-[#111111]"
               style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
             >
-              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
+              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} />
             <span className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
@@ -1636,33 +2065,42 @@ export default function CustomerApplicationDetailsPage() {
                   </div>
                 ) : (
                   <p className={`mt-1.5 text-[13px] leading-relaxed ${isRejected ? "text-red-700/80" : "text-amber-700/80"}`}>
-                    {isRejected
+                    {isRwx
+                      ? (isRejected ? "Your booking needs a new bay or time slot — no need to pay again, your original payment stays valid." : "Your inspection is being redone by the agent — nothing for you to do right now.")
+                      : isRejected
                       ? "Your application was reviewed and rejected. Please correct your details and reapply."
                       : "Your assigned agent flagged an issue with one of your documents. Re-upload it to continue."}
                   </p>
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (isTinted) setShowTintedReapplyModal(true);
-                else if (isNumberPlate) setShowNumberPlateReapplyModal(true);
-                else if (isVehicleParticulars) setShowParticularsReapplyModal(true);
-                else setShowReapplyModal(true);
-              }}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] sm:mt-0"
-              style={{ background: isRejected ? "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
-            >
-              <Edit3 className="h-4 w-4" />
-              {isRejected ? "Edit & Reapply" : "Fix & Resubmit"}
-            </button>
+            {(!isRwx || (isRwx && isRejected)) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isRwx) setShowRwxRescheduleModal(true);
+                  else if (isTinted) setShowTintedReapplyModal(true);
+                  else if (isNumberPlate) setShowNumberPlateReapplyModal(true);
+                  else if (isVehicleParticulars) setShowParticularsReapplyModal(true);
+                  else setShowReapplyModal(true);
+                }}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] sm:mt-0"
+                style={{ background: isRejected ? "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
+              >
+                <Edit3 className="h-4 w-4" />
+                {isRwx ? "Pick new bay & slot" : isRejected ? "Edit & Reapply" : "Fix & Resubmit"}
+              </button>
+            )}
           </div>
-          <p className={`mt-3 text-[11.5px] pl-14 ${isRejected ? "text-red-500/80" : "text-amber-600/80"}`}>
-            {isRejected
-              ? "Correcting your details creates a fresh submission under staff review — your application ID stays the same."
-              : "Resubmitting sends this straight back to your assigned agent — your application ID stays the same."}
-          </p>
+          {(!isRwx || (isRwx && isRejected)) && (
+            <p className={`mt-3 text-[11.5px] pl-14 ${isRejected ? "text-red-500/80" : "text-amber-600/80"}`}>
+              {isRwx
+                ? "Rescheduling sends this straight back to staff for a quick re-check — no second charge."
+                : isRejected
+                ? "Correcting your details creates a fresh submission under staff review — your application ID stays the same."
+                : "Resubmitting sends this straight back to your assigned agent — your application ID stays the same."}
+            </p>
+          )}
         </div>
       )}
 
@@ -1761,7 +2199,7 @@ export default function CustomerApplicationDetailsPage() {
       )}
 
       {/* ── AWAITING RECEIPT BANNER (passive — staff now confirms receipt, not the customer) ── */}
-      {awaitingCustomer && (
+      {awaitingCustomer && !isRwx && (
         <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
@@ -1778,6 +2216,102 @@ export default function CustomerApplicationDetailsPage() {
         </div>
       )}
 
+      {/* ── RWX CERTIFICATE CARD — unlike every other type, RWX has the
+          CUSTOMER confirm receipt directly (POST .../roadworthiness-express/
+          confirm-receipt), not staff. Only reachable once staff's final
+          review approve path minted certificate_token on a roadworthy
+          verdict — see app/routers/staff.py's final_review is_rwx branch. ── */}
+      {isRwx && (awaitingCustomer || application.status === "completed") && application.rwx_detail?.certificate_token && (
+        <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[15px] font-bold text-emerald-900">Your vehicle is roadworthy — certificate issued</h3>
+              <p className="mt-1 text-[13px] leading-relaxed text-emerald-700/90">
+                Valid until{" "}
+                {application.rwx_detail.certificate_expiry
+                  ? new Date(application.rwx_detail.certificate_expiry).toLocaleDateString("en-NG", { dateStyle: "medium" })
+                  : "—"}
+                . Certificate code:{" "}
+                <span className="font-mono">{application.rwx_detail.certificate_token}</span>
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleDownloadRwxCertificate}
+                  disabled={downloadingCert}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2.5 text-[13px] font-bold text-emerald-800 shadow-sm transition-all hover:bg-emerald-50 disabled:opacity-60"
+                >
+                  {downloadingCert ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {downloadingCert ? "Downloading…" : "Download certificate"}
+                </button>
+                {awaitingCustomer && (
+                  <button
+                    type="button"
+                    onClick={handleConfirmRwxReceipt}
+                    disabled={confirmingReceipt}
+                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                    style={{ background: BRAND }}
+                  >
+                    {confirmingReceipt ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {confirmingReceipt ? "Confirming…" : "Confirm receipt"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RWX FAIL CARD — free re-inspection window ── */}
+      {isRwx && application.status === "failed" && (() => {
+        const windowOpen = application.rwx_detail?.free_reinspection_expires_at
+          && new Date(application.rwx_detail.free_reinspection_expires_at) > new Date();
+        return (
+          <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-amber-900">Your vehicle did not pass inspection</h3>
+                  <p className="mt-1 text-[13px] leading-relaxed text-amber-700/90">
+                    {windowOpen
+                      ? <>You have a free re-inspection available until{" "}
+                          <strong>{new Date(application.rwx_detail.free_reinspection_expires_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}</strong>
+                          — pick a new bay and slot below, no charge.</>
+                      : "The free re-inspection window has closed — book a new inspection to try again."}
+                  </p>
+                </div>
+              </div>
+              {windowOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setShowRwxFreeRebookModal(true)}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+                  style={{ background: BRAND }}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Rebook free
+                </button>
+              ) : (
+                <Link
+                  href="/dashboard/apply/roadworthiness-express/new"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+                  style={{ background: BRAND }}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Book new inspection
+                </Link>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Payment details (skip if rejected) */}
       {!isRejected && !needsCorrection && (
         isPaid ? (
@@ -1787,9 +2321,11 @@ export default function CustomerApplicationDetailsPage() {
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-[#111111]">Payment successful</h3>
+                <h3 className="text-[15px] font-bold text-[#111111]">{isFreeRwxRebook ? "Free re-inspection — no charge" : "Payment successful"}</h3>
                 <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
-                  You have paid <strong className="font-mono text-[#111111]">{koboToNaira(amountKobo)}</strong> for this application.
+                  {isFreeRwxRebook
+                    ? "This re-sitting is free within your 7-day window — nothing to pay."
+                    : <>You have paid <strong className="font-mono text-[#111111]">{koboToNaira(amountKobo)}</strong> for this application.</>}
                 </p>
               </div>
             </div>

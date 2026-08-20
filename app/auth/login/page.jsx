@@ -98,14 +98,6 @@ function LoginForm() {
         setTimeout(() => {
           router.push(dest);
         }, 500);
-      } else if (userRole === "dealer") {
-        // A dealer signing in here (rather than on dealer.vehiculars.com's
-        // own branded login) is still routed correctly — /dealer/layout.jsx
-        // handles the actual role guard for everything under /dealer.
-        setSuccessMsg("Login successful.");
-        setTimeout(() => {
-          router.push("/dealer");
-        }, 500);
       } else {
         const dest = targetRedirect && !targetRedirect.startsWith("/admin") && !targetRedirect.startsWith("/staff") ? targetRedirect : "/dashboard";
         setSuccessMsg("Login successful.");

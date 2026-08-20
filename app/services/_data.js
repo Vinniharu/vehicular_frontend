@@ -22,8 +22,6 @@ import {
   ShieldCheck,
   Sun,
   Ship,
-  Wrench,
-  UserCheck,
   Gift,
   GraduationCap,
 } from "lucide-react";
@@ -266,7 +264,9 @@ export const SERVICES = [
     slug: "roadworthiness-express",
     icon: ShieldCheck,
     category: "Fast-track & logistics",
-    status: "coming_soon",
+    status: "live",
+    applyHref: "/dashboard/apply/roadworthiness-express/new",
+    feeScheduleType: "roadworthiness_express",
     title: "Roadworthiness Express (RWX)",
     tagline: "Same-day roadworthiness certificate at a Vehiculars bay — distinct from the standard road worthiness renewal in Vehicle Particulars.",
     intro:
@@ -376,66 +376,22 @@ export const SERVICES = [
     ],
     children: null,
   },
-  {
-    slug: "spare-parts",
-    icon: Wrench,
-    category: "Marketplace",
-    status: "live",
-    title: "Genuine Spare Parts",
-    tagline: "Post the part you need. Verified dealers bid. You pick — funds are held in escrow until you confirm.",
-    intro:
-      "Vehiculars is the technology that connects you to vetted spare-parts dealers nationwide. We verify every dealer, hold your money safely until you confirm the part, and mediate any dispute. Collection and any delivery are arranged directly between you and the dealer.",
-    whatsIncluded: [
-      "Requests matched to vetted dealers in your category and market",
-      "Photo proof and dealer rating on every bid",
-      "Escrow — your money is held until you confirm the part",
-      "Dispute mediation if anything goes wrong",
-    ],
-    whatYouBring: ["Your vehicle's make, model, and year", "Chassis (VIN) — for accurate part matching", "Part name, photo, or part number if you have it"],
-    pricingNote:
-      "Quote depends on the specific part, brand, and origin (OEM vs aftermarket). Vehiculars does not handle logistics — collection or any delivery is between you and the dealer.",
-    howItWorks: [
-      { title: "Post the request", desc: "Part photo + vehicle details." },
-      { title: "Dealers bid", desc: "Matched, vetted dealers send bids with photo proof." },
-      { title: "You pick & pay", desc: "Choose the best bid — funds are held in escrow." },
-      { title: "Collect & confirm", desc: "Arrange pick-up with the dealer, then confirm to release payment." },
-    ],
-    children: null,
-  },
 ];
 
 /**
  * Intermediary services — Vehiculars connects, a third party delivers.
- * Both switched off ("dark") while the core lines above are finished:
+ * Switched off ("dark") while the core lines above are finished:
  * deliberately excluded from SERVICES (and therefore from every
  * customer-facing listing AND from generateStaticParams, so their detail
  * pages 404) but kept here, fully defined, so re-enabling later is a
  * one-line move back into SERVICES rather than a rebuild. Admin pricing
  * still needs to see these — see OTHER_SERVICES in admin/pricing/page.jsx,
- * which reads [...SERVICES, ...DARK_SERVICES].
+ * which reads [...SERVICES, ...DARK_SERVICES]. Currently empty —
+ * "find-a-technician" and "spare-parts" were both removed from the project
+ * entirely (spare-parts spun out to a separate standalone project;
+ * find-a-technician was never built beyond this catalog entry).
  */
-export const DARK_SERVICES = [
-  {
-    slug: "find-a-technician",
-    icon: UserCheck,
-    category: "Marketplace",
-    status: "dark",
-    title: "Find a Trusted Technician",
-    tagline: "Connect with mechanics, auto-electricians, and panel beaters that real customers have recommended.",
-    intro:
-      "We don't dispatch random hands — we connect you to technicians who've been recommended by other customers. A small connection fee, and you get vetted contact details plus an introduction.",
-    whatsIncluded: ["Vetted technician contact details", "Warm introduction and context", "Visibility into past customer reviews"],
-    whatYouBring: ["What's wrong with the vehicle (or what you need fixed)", "Your location", "Your vehicle's make and model"],
-    pricingNote: "Connection fee only — actual repair cost is settled directly with the technician.",
-    howItWorks: [
-      { title: "Describe what you need", desc: "Mechanic, AC, body work, electrical — whatever it is." },
-      { title: "Pay the connection fee", desc: "One-time, regardless of how much the actual repair costs." },
-      { title: "Get matched", desc: "We introduce you to a vetted technician near you." },
-      { title: "Work with them directly", desc: "You negotiate and pay the technician separately." },
-    ],
-    children: null,
-  },
-];
+export const DARK_SERVICES = [];
 
 export function getService(slug) {
   return SERVICES.find((s) => s.slug === slug) || null;

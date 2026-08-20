@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   Copy,
   Check,
+  CheckCircle2,
   Building2,
   AlertCircle,
   RefreshCw,
@@ -18,7 +19,9 @@ import {
   ArrowRight,
   Loader2,
   Calendar,
+  Clock,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getWallet, depositIntoWalletInitialize, verifyWalletDeposit, getWalletTransactions, activateWallet } from "@/lib/api";
 import { btnPrimary, btnSecondary, inputBase, fieldLabel } from "@/app/dashboard/_shared/ui";
@@ -102,15 +105,15 @@ export default function WalletPage() {
           // Don't strip the reference from the URL on failure — a page
           // refresh should be able to retry rather than permanently losing
           // the only copy of it.
-          setNotice({ type: "error", message: res.error || "Couldn't confirm this deposit yet. Refresh this page to retry." });
+          setNotice({ type: "pending", message: res.error || "Couldn't confirm this deposit yet. Refresh this page to retry." });
         } else {
           const outcome = res.data?.status;
           if (outcome === "success") {
             setNotice({ type: "success", message: "Deposit confirmed — your wallet has been credited." });
           } else if (outcome === "failed") {
-            setNotice({ type: "error", message: "This deposit didn't go through. No funds were added." });
+            setNotice({ type: "failed", message: "This deposit didn't go through. No funds were added." });
           } else {
-            setNotice({ type: "error", message: "Still waiting on confirmation from Monnify — use \"Check status\" on this transaction shortly." });
+            setNotice({ type: "pending", message: "Still waiting on confirmation from Monnify — use \"Check status\" on this transaction shortly." });
           }
           loadData();
           router.replace(pathname, { scroll: false });
@@ -146,9 +149,9 @@ export default function WalletPage() {
     if (outcome === "success") {
       setNotice({ type: "success", message: "Deposit confirmed — your wallet has been credited." });
     } else if (outcome === "failed") {
-      setNotice({ type: "error", message: "This deposit didn't go through. No funds were added." });
+      setNotice({ type: "failed", message: "This deposit didn't go through. No funds were added." });
     } else {
-      setNotice({ type: "error", message: "Still pending — Monnify hasn't confirmed this one yet. Try again shortly." });
+      setNotice({ type: "pending", message: "Still pending — Monnify hasn't confirmed this one yet. Try again shortly." });
     }
     await loadData();
   };
@@ -215,15 +218,42 @@ export default function WalletPage() {
 
       {notice && (
         <div
-          className={`flex items-start gap-2.5 rounded-xl p-3.5 text-[13px] font-medium ring-1 ring-inset ${
-            notice.type === "error" ? "bg-red-50 text-red-700 ring-red-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200"
+          className={`rounded-2xl p-4 ring-1 ring-inset ${
+            notice.type === "success"
+              ? "bg-emerald-50 ring-emerald-200"
+              : notice.type === "failed"
+              ? "bg-red-50 ring-red-200"
+              : "bg-amber-50 ring-amber-200"
           }`}
         >
-          {notice.type === "error" ? <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> : <Check className="h-4 w-4 shrink-0 mt-0.5" />}
-          <span className="flex-1">{notice.message}</span>
-          <button type="button" onClick={() => setNotice(null)} className="shrink-0 text-current opacity-60 hover:opacity-100">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-start gap-2.5">
+            {notice.type === "success" ? (
+              <CheckCircle2 className="h-4.5 w-4.5 shrink-0 mt-0.5 text-emerald-700" />
+            ) : notice.type === "failed" ? (
+              <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-red-600" />
+            ) : (
+              <Clock className="h-4.5 w-4.5 shrink-0 mt-0.5 text-amber-600" />
+            )}
+            <span
+              className={`flex-1 text-[13px] font-semibold ${
+                notice.type === "success" ? "text-emerald-800" : notice.type === "failed" ? "text-red-700" : "text-amber-800"
+              }`}
+            >
+              {notice.message}
+            </span>
+            <button type="button" onClick={() => setNotice(null)} className="shrink-0 text-current opacity-60 hover:opacity-100">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3.5 pl-7">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12.5px] font-semibold text-white transition-all active:scale-[0.98]"
+              style={{ background: BRAND }}
+            >
+              Return to dashboard
+            </Link>
+          </div>
         </div>
       )}
 

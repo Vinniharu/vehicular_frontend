@@ -10,7 +10,6 @@ const HOST_PREFIX: Record<string, string> = {
   agent: "/agent",
   staff: "/staff",
   support: "/support",
-  dealer: "/dealer",
 };
 
 export function proxy(request: NextRequest) {

@@ -273,42 +273,4 @@ export const SHOWCASES = {
     ],
   },
 
-  /* ─────────────────────── Spare Parts ─────────────────────── */
-  spare_parts: {
-    screens: [
-      {
-        kind: "list",
-        eyebrow: "Genuine Spare Parts",
-        title: "VIN-matched parts",
-        rows: [
-          { title: "Brake pads (Front & Rear)", sub: "OEM Akebono · Lexus RX350 2019", right: "₦65,000" },
-          { title: "Oil filter + Cabin filter", sub: "Genuine Toyota / Lexus part", right: "₦18,500" },
-          { title: "Fitment verification check", sub: "Double-checked against VIN #JTH...", right: "Included" },
-        ],
-      },
-      {
-        kind: "tracker",
-        title: "Parts Delivery — Order #SP-9012",
-        meta: "2 items · Express dispatch",
-        stages: ["Order placed", "VIN check", "Packed", "Out for delivery", "Delivered"],
-        currentStage: 3,
-        progressPct: 80,
-        agent: { initial: "R", line1: "Rider out for delivery", line2: "ETA today · 4:30 PM" },
-      },
-      {
-        kind: "certificate",
-        eyebrow: "Delivered & Verified",
-        title: "Parts received",
-        docTitle: "Genuine Parts Guarantee Card",
-        docMeta: "30-day return window if uninstalled",
-        footer: "Vehiculars Parts Network",
-        bigStat: { value: "100%", label: "VIN fitment accuracy rate" },
-      },
-    ],
-    cards: [
-      { kind: "check", title: "VIN match confirmed", sub: "Parts double-checked against chassis number" },
-      { kind: "ring", label: "Dispatch speed", value: 100, big: "Today" },
-      { kind: "bell", title: "Rider nearby", sub: "Arriving at your location in ~15 mins" },
-    ],
-  },
 };

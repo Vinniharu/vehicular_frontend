@@ -16,8 +16,10 @@ import {
   Phone,
   Mail,
   MapPin,
+  Pencil,
+  CheckCircle2,
 } from "lucide-react";
-import { adminGetApplications } from "@/lib/api";
+import { adminGetApplications, adminGetStaff, adminGetAgents, adminReassignStaff, adminReassignAgent } from "@/lib/api";
 
 const STATUS_TONE = {
   submitted: "bg-sky-50 text-sky-700 ring-sky-200",
@@ -87,6 +89,70 @@ export default function AdminApplicationsPage() {
   const [sortBy, setSortBy] = useState("updated_at");
 
   const [selected, setSelected] = useState(null);
+  const [toast, setToast] = useState(null);
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const [staffOptions, setStaffOptions] = useState([]);
+  const [agentOptions, setAgentOptions] = useState([]);
+  const [optionsLoaded, setOptionsLoaded] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(false);
+  const [editingAgent, setEditingAgent] = useState(false);
+  const [pendingStaffId, setPendingStaffId] = useState("");
+  const [pendingAgentId, setPendingAgentId] = useState("");
+  const [reassigning, setReassigning] = useState(false);
+
+  useEffect(() => {
+    if (!selected || optionsLoaded) return;
+    (async () => {
+      const [staffRes, agentRes] = await Promise.all([adminGetStaff(), adminGetAgents()]);
+      if (staffRes.data) setStaffOptions(staffRes.data);
+      if (agentRes.data) setAgentOptions(agentRes.data);
+      setOptionsLoaded(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
+  useEffect(() => {
+    setEditingStaff(false);
+    setEditingAgent(false);
+    setPendingStaffId(selected?.staff_id ? String(selected.staff_id) : "");
+    setPendingAgentId("");
+  }, [selected?.id]);
+
+  const applyReassignResult = (updated) => {
+    setSelected(updated);
+    setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+  };
+
+  const handleSaveStaff = async () => {
+    setReassigning(true);
+    const res = await adminReassignStaff(selected.id, pendingStaffId ? Number(pendingStaffId) : null);
+    setReassigning(false);
+    if (res.error) {
+      showToast("error", res.error);
+      return;
+    }
+    applyReassignResult(res.data);
+    setEditingStaff(false);
+    showToast("success", "Staff assignment updated.");
+  };
+
+  const handleSaveAgent = async () => {
+    if (!pendingAgentId) return;
+    setReassigning(true);
+    const res = await adminReassignAgent(selected.id, Number(pendingAgentId));
+    setReassigning(false);
+    if (res.error) {
+      showToast("error", res.error);
+      return;
+    }
+    applyReassignResult(res.data);
+    setEditingAgent(false);
+    showToast("success", "Agent assignment updated.");
+  };
 
   const loadData = async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -130,6 +196,23 @@ export default function AdminApplicationsPage() {
 
   return (
     <div className="space-y-6 pb-16">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 pl-4 pr-5 py-3.5 rounded-xl shadow-xl border text-[13px] font-medium max-w-sm transition-all ${
+          toast.type === "success"
+            ? "bg-white border-emerald-200 text-slate-800"
+            : "bg-white border-red-200 text-slate-800"
+        }`}>
+          {toast.type === "success"
+            ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-[#28A745]" />
+            : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />}
+          <span className="flex-1 leading-snug">{toast.msg}</span>
+          <button type="button" onClick={() => setToast(null)} className="ml-1 text-slate-400 hover:text-slate-600 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -343,8 +426,36 @@ export default function AdminApplicationsPage() {
               </div>
 
               <div>
-                <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Assigned staff</h4>
-                {selected.assigned_staff ? (
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Assigned staff</h4>
+                  {!editingStaff && (
+                    <button onClick={() => setEditingStaff(true)} className="flex items-center gap-1 rounded bg-[#28A745]/5 px-2 py-0.5 text-[11px] text-[#28A745] hover:text-[#218838]">
+                      <Pencil className="h-3 w-3" /> Reassign
+                    </button>
+                  )}
+                </div>
+                {editingStaff ? (
+                  <div className="space-y-2">
+                    <select
+                      value={pendingStaffId}
+                      onChange={(e) => setPendingStaffId(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-800 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {staffOptions.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleSaveStaff} disabled={reassigning} className="rounded-lg bg-[#28A745] px-3 py-1.5 text-[11.5px] font-semibold text-white disabled:opacity-70">
+                        {reassigning ? "Saving…" : "Save"}
+                      </button>
+                      <button onClick={() => setEditingStaff(false)} disabled={reassigning} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11.5px] font-medium text-slate-600">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : selected.assigned_staff ? (
                   <div className="rounded-xl border border-[#28A745]/20 bg-[#E9F7EC] p-3.5 space-y-1.5">
                     <p className="flex items-center gap-1.5 text-[13.5px] font-bold text-slate-900">
                       <UserCheck className="h-3.5 w-3.5 text-[#166B2C]" /> {selected.assigned_staff.name}
@@ -362,8 +473,40 @@ export default function AdminApplicationsPage() {
               </div>
 
               <div>
-                <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Assigned agent</h4>
-                {selected.assigned_agent ? (
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Assigned agent</h4>
+                  {!editingAgent && (
+                    <button onClick={() => setEditingAgent(true)} className="flex items-center gap-1 rounded bg-[#28A745]/5 px-2 py-0.5 text-[11px] text-[#28A745] hover:text-[#218838]">
+                      <Pencil className="h-3 w-3" /> Reassign
+                    </button>
+                  )}
+                </div>
+                {editingAgent ? (
+                  <div className="space-y-2">
+                    <select
+                      value={pendingAgentId}
+                      onChange={(e) => setPendingAgentId(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-800 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+                    >
+                      <option value="">Select an agent…</option>
+                      {agentOptions
+                        .filter((a) => a.agent_profile?.id)
+                        .map((a) => (
+                          <option key={a.agent_profile.id} value={a.agent_profile.id}>
+                            {a.name} — {a.agent_profile.vio_office || "no VIO office"}
+                          </option>
+                        ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleSaveAgent} disabled={reassigning || !pendingAgentId} className="rounded-lg bg-[#28A745] px-3 py-1.5 text-[11.5px] font-semibold text-white disabled:opacity-70">
+                        {reassigning ? "Saving…" : "Save"}
+                      </button>
+                      <button onClick={() => setEditingAgent(false)} disabled={reassigning} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11.5px] font-medium text-slate-600">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : selected.assigned_agent ? (
                   <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-1.5">
                     <p className="flex items-center gap-1.5 text-[13.5px] font-bold text-slate-900">
                       <Building2 className="h-3.5 w-3.5 text-slate-500" /> {selected.assigned_agent.name}

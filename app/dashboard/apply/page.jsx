@@ -46,6 +46,7 @@ import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
+import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
 import { getStatusDescription } from "@/app/dashboard/_shared/status-config";
 import { btnPrimary, btnSecondary, btnGhost, inputBase, label } from "@/app/dashboard/_shared/ui";
 import Modal from "@/app/dashboard/_shared/Modal";
@@ -1393,9 +1394,7 @@ export default function ApplyPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Date of birth <span className="text-red-400">*</span></label>
-                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)}
-                  max={new Date(Date.now() - MIN_APPLICANT_AGE * 365.25 * 86400000).toISOString().split("T")[0]}
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.dob)}`} />
+                <DateOfBirthInput value={dob} onChange={setDob} hasError={!!fieldErrors.dob} />
                 <FieldError message={fieldErrors.dob} />
               </div>
               <div>

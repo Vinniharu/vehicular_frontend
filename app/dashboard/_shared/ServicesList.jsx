@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Search, ArrowRight } from "lucide-react";
 import { SERVICES } from "@/app/services/_data";
-import { getDriverLicenceFeeSchedule, getServicePricing, getParticularsItemPricing } from "@/lib/api";
+import { getDriverLicenceFeeSchedule, getServicePricing, getParticularsItemPricing, getVehicleCategoryPricing } from "@/lib/api";
 import { colors } from "@/lib/design-tokens";
 
 const BRAND = colors.primary.DEFAULT;
@@ -25,12 +25,13 @@ export default function ServicesList({ showSearch = true }) {
   const [feeSchedule, setFeeSchedule] = useState(null);
   const [servicePrices, setServicePrices] = useState(null);
   const [particularsPrices, setParticularsPrices] = useState(null);
+  const [vehicleCategoryPrices, setVehicleCategoryPrices] = useState(null);
 
   useEffect(() => {
     getDriverLicenceFeeSchedule().then((res) => {
       if (res.data?.prices) setFeeSchedule(res.data.prices);
     });
-    // Admin-set prices for the marketing-only services (RWX, port clearing,
+    // Admin-set prices for the marketing-only services (RWX, DriveConnect,
     // etc.) — separate endpoint from the driver-licence/tinted-permit fee
     // schedule above, since those two drive real checkout amounts and these
     // are purely informational until an admin sets one via /admin/pricing.
@@ -41,6 +42,12 @@ export default function ServicesList({ showSearch = true }) {
     // each independently nullable) — doesn't fit either shape above.
     getParticularsItemPricing().then((res) => {
       if (res.data?.prices) setParticularsPrices(res.data.prices);
+    });
+    // Roadworthiness Express prices per vehicle category x use (see
+    // VEHICLE_CATEGORY_PRICED_SERVICE_KEYS, app/core/payment_helpers.py) —
+    // the public 108-cell grid, filtered client-side to just the RWX rows.
+    getVehicleCategoryPricing().then((res) => {
+      if (res.data?.prices) setVehicleCategoryPrices(res.data.prices);
     });
   }, []);
 
@@ -82,11 +89,23 @@ export default function ServicesList({ showSearch = true }) {
     return Math.min(...priced.map((p) => p.amount_kobo));
   }, [particularsPrices]);
 
+  // "From ₦X" on the RWX card resolves to the cheapest of the 12 category
+  // cells — same "cheapest tier" pattern as the cards above, null (falls
+  // back to a plain "Book now" CTA with no price) until an admin has
+  // priced at least one category.
+  const rwxMinKobo = useMemo(() => {
+    if (!vehicleCategoryPrices) return null;
+    const priced = vehicleCategoryPrices.filter((p) => p.service_key === "roadworthiness_express" && p.amount_kobo != null);
+    if (priced.length === 0) return null;
+    return Math.min(...priced.map((p) => p.amount_kobo));
+  }, [vehicleCategoryPrices]);
+
   const feeByScheduleType = {
     drivers_licence: driversLicenceMinKobo,
     tinted_permit: tintedPermitFeeKobo,
     number_plate: numberPlateMinKobo,
     vehicle_particulars: particularsMinKobo,
+    roadworthiness_express: rwxMinKobo,
   };
 
   const servicePriceBySlug = useMemo(() => {

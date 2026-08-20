@@ -9,7 +9,6 @@ import {
   Sun,
   Zap,
   BadgeCheck,
-  Ship,
   Gift,
   CheckCircle2,
 } from "lucide-react";
@@ -28,7 +27,6 @@ const HOMEPAGE_COPY_BY_SLUG = {
   "roadworthiness-express": { label: "Roadworthiness express", benefit: "Certified in 48 hours, no queues.", icon: ShieldCheck },
   "tinted-permit": { label: "Tinted permit", benefit: "Police-approved permit on your phone.", icon: Sun },
   "vehicle-verification": { label: "Vehicle verification & inspection", benefit: "Confirm papers, ownership, and condition are clean.", icon: BadgeCheck },
-  "port-clearing": { label: "Port clearing", benefit: "Firm, all-in customs clearing quote.", icon: Ship },
   "driveconnect": { label: "DriveConnect lessons", benefit: "Learn to drive with vetted instructors.", icon: GraduationCap },
   "sponsor-a-service": { label: "Sponsor a service", benefit: "Pay for someone else's vehicle service.", icon: Gift },
 };
@@ -43,8 +41,8 @@ export const SERVICE_LINKS = SERVICE_ITEMS.map(({ slug, label }) => ({ slug, lab
 
 // Only a subset of services have a live in-app showcase configured (see
 // showcase-configs.js) — this asymmetry is real, not a bug. pre_purchase_
-// inspection and spare_parts were dropped: the former merged into vehicle-
-// verification (no distinct target anymore), the latter is dark/hidden.
+// inspection was dropped (merged into vehicle-verification — no distinct
+// target anymore); spare_parts was removed from the project entirely.
 export const SHOWCASE_TABS = [
   { id: "vehicle_particulars", label: "Particulars Renewal" },
   { id: "drivers_licence", label: "Driver's Licence" },
@@ -72,18 +70,15 @@ export const HOW_STEPS = [
   },
 ];
 
-// Stage 03 ("Stay running" — spare parts + find a technician) is dropped
-// for now: both services are dark/hidden while the core lines finish, so a
-// stage entirely pointing at unreachable pages would be worse than no stage
-// at all. Reinstate it (and renumber) alongside those two services going
-// live again.
+// Stage 03 ("Stay running" — spare parts + find a technician) is dropped:
+// both were removed from the project entirely, so a stage pointing at
+// unreachable pages would be worse than no stage at all.
 export const LIFECYCLE_STAGES = [
   {
     stage: "01", icon: ShoppingCart, title: "Buy right",
     blurb: "Don't inherit someone else's problem. Verify before you pay.",
     items: [
       { href: "/services/vehicle-verification", label: "Vehicle verification & inspection" },
-      { href: "/services/port-clearing", label: "Port clearing" },
     ],
   },
   {
@@ -115,10 +110,9 @@ export const LIFECYCLE_STAGES = [
 ];
 
 export const FAQ_ITEMS = [
-  { q: "What does Vehiculars actually do?", a: "We handle everything your car needs — renewals, inspections, driver's licence, number plates, tinted permits, genuine spare parts, repairs, port clearing and pre-purchase verification. One app, one team, from the day you buy to the day you sell." },
+  { q: "What does Vehiculars actually do?", a: "We handle everything your car needs — renewals, inspections, driver's licence, number plates, tinted permits, and pre-purchase verification. One app, one team, from the day you buy to the day you sell." },
   { q: "Where do you operate?", a: "Nationwide — every state in Nigeria. Requests are submitted online from anywhere, and physical items (like plates, licences and permits) are delivered back to you." },
-  { q: "How long does a renewal take?", a: "Most vehicle particulars and roadworthiness renewals are completed within 48 hours of submission. Driver's licence depends on biometrics scheduling. Spare parts ship within 24–72 hours depending on the item." },
-  { q: "Are the spare parts really genuine?", a: "Yes. We source from vetted vendors and check fitment against your VIN, make, model and year before shipping. If a part doesn't fit, we replace it free." },
+  { q: "How long does a renewal take?", a: "Most vehicle particulars and roadworthiness renewals are completed within 48 hours of submission. Driver's licence depends on biometrics scheduling." },
   { q: "Is my information safe?", a: "Yes. Documents are handled by vetted agents, encrypted in transit, and never shared with third parties. We're FRSC and NPF compliant." },
   { q: "Can I pay in instalments?", a: "Yes. Easy Installment is available on every service — pay any amount from the minimum deposit today, settle the rest before we deliver." },
   { q: "What if my application is rejected?", a: "If your application is rejected for reasons outside your control, we refund the full processing fee. You'll always know why upfront." },
