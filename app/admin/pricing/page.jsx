@@ -54,9 +54,13 @@ const PARTICULARS_ROWS = [
   { document_type: "hackney_permit", label: "Hackney Permit" },
 ];
 
-// The 8 services priced by vehicle category (the 5 particulars document
-// types above + the 3 number-plate types) — mirrors
-// VEHICLE_CATEGORY_PRICED_SERVICE_KEYS on the backend.
+// The 9 services priced by vehicle category (the 5 particulars document
+// types above + the 3 number-plate types + Roadworthiness Express) —
+// mirrors VEHICLE_CATEGORY_PRICED_SERVICE_KEYS on the backend. Note
+// "road_worthiness" below is the unrelated existing Vehicle Particulars
+// renewal-upload flow, NOT Roadworthiness Express — see
+// app/core/reference_helpers.py's RWX_APPLICATION_TYPES for the collision
+// history; "roadworthiness_express" is deliberately a visibly distinct key.
 const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "vehicle_licence", label: "Vehicle Licence" },
   { service_key: "road_worthiness", label: "Road Worthiness Certificate" },
@@ -66,17 +70,20 @@ const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "number_plate_new", label: "Number Plate — New" },
   { service_key: "number_plate_replacement", label: "Number Plate — Replacement" },
   { service_key: "number_plate_change_of_ownership", label: "Number Plate — Change of Ownership" },
+  { service_key: "roadworthiness_express", label: "Roadworthiness Express" },
 ];
 
 // The 8 shared financing fields (app/models/pricing.py PriceExtrasMixin) —
 // purely admin-configurable data, not read by any checkout/payment code.
 // "kobo" fields are edited/displayed in naira like Amount; "percent"/"int"
 // fields are edited as plain numbers.
+// initial_deposit_percent is deliberately NOT here — it's promoted to the
+// always-visible basic row (alongside Amount/Priority) below, not the
+// expandable advanced panel.
 const FINANCING_FIELDS_META = [
   { key: "financing_amount_kobo", label: "Financing Amount (₦)", type: "kobo" },
   { key: "interest_percent", label: "Interest (%)", type: "percent" },
   { key: "initial_deposit_amount_kobo", label: "Initial Deposit Amount (₦)", type: "kobo" },
-  { key: "initial_deposit_percent", label: "Initial Deposit (%)", type: "percent" },
   { key: "duration_days", label: "Duration (Days)", type: "int" },
   { key: "price_lock_percent", label: "Price Lock (%)", type: "percent" },
   { key: "va_price_kobo", label: "VA Price (₦)", type: "kobo" },
@@ -104,7 +111,7 @@ function rowStateFromApiItem(item) {
     financing_amount_kobo: item.financing_amount_kobo != null ? (item.financing_amount_kobo / 100).toString() : "",
     interest_percent: item.interest_percent != null ? String(item.interest_percent) : "",
     initial_deposit_amount_kobo: item.initial_deposit_amount_kobo != null ? (item.initial_deposit_amount_kobo / 100).toString() : "",
-    initial_deposit_percent: item.initial_deposit_percent != null ? String(item.initial_deposit_percent) : "",
+    initial_deposit_percent: item.initial_deposit_percent != null ? String(item.initial_deposit_percent) : "10",
     duration_days: item.duration_days != null ? String(item.duration_days) : "",
     price_lock_percent: item.price_lock_percent != null ? String(item.price_lock_percent) : "",
     va_price_kobo: item.va_price_kobo != null ? (item.va_price_kobo / 100).toString() : "",
@@ -154,7 +161,8 @@ function Toast({ toast, onClose }) {
   );
 }
 
-// One dense card per price row — Amount + Priority always visible; the 8
+// One dense card per price row — the basic format (Amount, Initial
+// Deposit %, Priority) is always visible; the 7 remaining advanced
 // financing fields expand while editing. Shared by every section below
 // (DL & Permits, Vehicle Particulars, Other Services, Vehicle Category grid)
 // so all four pricing tables get an identical editing surface.
@@ -216,6 +224,17 @@ function PriceRowCard({ label, row, onChange, editing, amountPlaceholder = "Not 
             />
           ) : (
             <p className="text-[14px] font-semibold text-slate-800">{row.amount ? nairaFmt(row.amount) : amountPlaceholder}</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">Initial Deposit (%)</label>
+          {editing ? (
+            <input
+              type="number" min="0" max="100" value={row.initial_deposit_percent} placeholder="10"
+              onChange={(e) => set("initial_deposit_percent", e.target.value)} className={smallInputCls}
+            />
+          ) : (
+            <p className="text-[14px] text-slate-600">{row.initial_deposit_percent || "10"}%</p>
           )}
         </div>
         <div>

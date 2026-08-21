@@ -28,6 +28,7 @@ const CAPABILITY_OPTIONS = ["driver_licence", "roadworthiness"];
 const APPLICATION_TYPE_OPTIONS = [
   "fresh", "renewal", "reissue", "international_permit", "tinted_permit", "number_plate",
   "vehicle_licence", "road_worthiness", "proof_of_ownership", "insurance_third_party", "hackney_permit",
+  "roadworthiness_express",
 ];
 
 function StatusBadge({ active }) {

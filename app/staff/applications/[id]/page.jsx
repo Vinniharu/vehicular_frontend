@@ -221,7 +221,7 @@ export default function StaffApplicationDetailsPage() {
 
   useEffect(() => {
     if (!application) return;
-    if ((application.application_type === "tinted_permit" || application.application_type?.startsWith("number_plate_") || application.application_type === "vehicle_particulars") && application.vehicle_id) {
+    if ((application.application_type === "tinted_permit" || application.application_type?.startsWith("number_plate_") || application.application_type === "vehicle_particulars" || application.application_type === "roadworthiness_express") && application.vehicle_id) {
       getVehicle(application.vehicle_id).then((res) => {
         if (res.data) setVehicle(res.data);
       });
@@ -580,7 +580,7 @@ export default function StaffApplicationDetailsPage() {
             </button>
           )}
 
-          {application.assigned_staff && application.status === "awaiting_customer" && (
+          {application.assigned_staff && application.status === "awaiting_customer" && application.application_type !== "roadworthiness_express" && (
             <>
               <button onClick={() => openModal("push-to-customer")} className={btnSecondary}>
                 <Send className="h-4 w-4" /> Record dispatch
@@ -589,6 +589,12 @@ export default function StaffApplicationDetailsPage() {
                 <CheckCircle2 className="h-4 w-4" /> Mark as received
               </button>
             </>
+          )}
+
+          {application.status === "awaiting_customer" && application.application_type === "roadworthiness_express" && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-3.5 py-2.5 text-[12.5px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">
+              <Info className="h-3.5 w-3.5 text-slate-400" /> Certificate issued — waiting on the customer to confirm receipt.
+            </span>
           )}
         </div>
       </div>
@@ -676,6 +682,51 @@ export default function StaffApplicationDetailsPage() {
               <div className="col-span-2 sm:col-span-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous owner</span>
                 <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Roadworthiness Express — bay/slot booking summary. Genuinely new
+          shape (bay location + time slot), not reusing the vehicle-centric
+          card above since RWX's key details are the appointment, not
+          use_type/justification. */}
+      {application.application_type === "roadworthiness_express" && application.rwx_detail && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Booking</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Bay</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.rwx_detail.bay?.name || "—"}</span>
+              <span className="block text-[12px] text-slate-500">{application.rwx_detail.bay?.address}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+                {application.rwx_detail.booking_date ? new Date(application.rwx_detail.booking_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Time slot</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.rwx_detail.slot?.label || "—"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle category</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.rwx_detail.vehicle_category?.replace(/_/g, " ")}</span>
+            </div>
+            {vehicle && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.make} {vehicle.model} — {vehicle.plate_number}</span>
+              </div>
+            )}
+            {application.rwx_detail.overall_verdict && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Inspection verdict</span>
+                <span className={`mt-1 block text-[13.5px] font-bold capitalize ${application.rwx_detail.overall_verdict === "roadworthy" ? "text-emerald-600" : "text-red-600"}`}>
+                  {application.rwx_detail.overall_verdict.replace(/_/g, " ")}
+                </span>
               </div>
             )}
           </div>
@@ -1421,7 +1472,62 @@ export default function StaffApplicationDetailsPage() {
               </div>
             )}
 
-            {modalType === "final-review" && (
+            {modalType === "final-review" && application.application_type === "roadworthiness_express" && (
+              <div className="space-y-3.5">
+                <p className="text-[12.5px] text-slate-500">
+                  This is an <strong className="text-slate-800">integrity check</strong> — confirm every
+                  item below was recorded properly with a matching photo, not a re-decision of pass/fail
+                  (the agent's overall verdict is{" "}
+                  <strong className={application.rwx_detail?.overall_verdict === "roadworthy" ? "text-emerald-600" : "text-red-600"}>
+                    {application.rwx_detail?.overall_verdict?.replace(/_/g, " ") || "—"}
+                  </strong>
+                  ). Approving issues a certificate on a roadworthy verdict, or records the fail with a
+                  7-day free re-inspection window. Rejecting sends it back to the agent to redo — use
+                  this only if the submission itself looks wrong (mismatched photos, obviously
+                  incomplete), not because you disagree with the verdict.
+                </p>
+                <div className="space-y-2">
+                  {(application.rwx_checklist_items || []).map((item) => (
+                    <div key={item.item_key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div>
+                        <p className="text-[12.5px] font-semibold text-slate-800 capitalize">{item.item_key.replace(/_/g, " ")}</p>
+                        {item.notes && <p className="text-[11px] text-slate-500">{item.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${item.result === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          {item.result || "—"}
+                        </span>
+                        {item.evidence_url && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(item.evidence_url)); }}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
+                          >
+                            <ImageIcon className="h-3 w-3" /> Photo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label className={fieldLabel}>Decision</label>
+                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
+                  <textarea
+                    rows={3}
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder={decisionInput === "rejected" ? "e.g. Tyre photo doesn't match the vehicle on file." : "e.g. All items verified against the photos."}
+                    className={inputBase}
+                  />
+                </div>
+              </div>
+            )}
+
+            {modalType === "final-review" && application.application_type !== "roadworthiness_express" && (
               <div className="space-y-3.5">
                 <p className="text-[12.5px] text-slate-500">
                   Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : application.application_type?.startsWith("number_plate_") ? "the number plate" : "the permanent licence card"}) checks out. Approving moves

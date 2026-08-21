@@ -55,6 +55,7 @@ const APPLICATION_TYPE_OPTIONS = [
   { value: "proof_of_ownership", label: "Vehicle Particulars — Proof of Ownership" },
   { value: "insurance_third_party", label: "Vehicle Particulars — Third-Party Insurance" },
   { value: "hackney_permit", label: "Vehicle Particulars — Hackney Permit" },
+  { value: "roadworthiness_express", label: "Roadworthiness Express" },
 ];
 
 /* ─── Helpers ─── */

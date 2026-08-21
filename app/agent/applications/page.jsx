@@ -168,10 +168,11 @@ export default function AgentApplicationsPage() {
         ) : (
           filteredApps.map((app) => {
             const id = app.raw_id ?? app.id;
+            const detailHref = app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` : `/agent/applications/${id}`;
             return (
               <div
                 key={id}
-                onClick={() => router.push(`/agent/applications/${id}`)}
+                onClick={() => router.push(detailHref)}
                 className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#28A745]/60 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
                 <div className="space-y-2.5">

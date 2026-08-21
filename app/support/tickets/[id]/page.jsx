@@ -66,6 +66,14 @@ export default function SupportTicketThreadPage() {
   const isUnclaimed = !ticket?.claimed_by_id;
   const canReply = isMine && ticket?.status === "open";
 
+  // Written on every successful load/poll while this page is mounted, so
+  // the layout-level SupportChatNotifier's independent poll reads this
+  // ticket as already caught up instead of firing a redundant toast for a
+  // conversation the agent is actively looking at.
+  const markSeen = useCallback(() => {
+    if (user?.id) localStorage.setItem(`support_ticket_last_seen_${user.id}_${ticketId}`, String(Date.now()));
+  }, [user?.id, ticketId]);
+
   const loadTicket = useCallback(async () => {
     const [ticketRes, messagesRes] = await Promise.all([
       getSupportTicket(ticketId),
@@ -76,9 +84,10 @@ export default function SupportTicketThreadPage() {
     } else {
       setTicket(ticketRes.data);
       if (messagesRes.data) setMessages(messagesRes.data.items || []);
+      markSeen();
     }
     setLoading(false);
-  }, [ticketId]);
+  }, [ticketId, markSeen]);
 
   useEffect(() => {
     loadTicket();
@@ -104,6 +113,7 @@ export default function SupportTicketThreadPage() {
       const res = await getSupportTicketMessages(ticketId);
       if (!cancelled && res.data) {
         setMessages(res.data.items || []);
+        markSeen();
         if (nearBottom) {
           requestAnimationFrame(() => {
             if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -121,7 +131,7 @@ export default function SupportTicketThreadPage() {
       clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticketId, ticket?.status, ticket?.claimed_by_id]);
+  }, [ticketId, ticket?.status, ticket?.claimed_by_id, markSeen]);
 
   const handleClaim = async () => {
     setClaiming(true);

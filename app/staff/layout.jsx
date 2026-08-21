@@ -16,8 +16,7 @@ import {
   LayoutDashboard,
   FileText,
   Settings,
-  Handshake,
-  Scale,
+  MapPin,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, setCachedUser, authGetMe, authSetPassword } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -35,13 +34,7 @@ const STAFF_NAV = [
     section: "Applications",
     items: [
       { label: "Review queue", href: "/staff/applications", icon: ShieldCheck },
-    ],
-  },
-  {
-    section: "Spare Parts",
-    items: [
-      { label: "Dealer vetting", href: "/staff/spare-parts/dealers", icon: Handshake },
-      { label: "Disputes", href: "/staff/spare-parts/disputes", icon: Scale },
+      { label: "RWX day queue", href: "/staff/rwx/queue", icon: MapPin },
     ],
   },
   {

@@ -137,13 +137,19 @@ function PaymentSuccessContent() {
             Your payment attempt didn't go through. No charge was completed — you can retry by card or pay bit by bit from your wallet.
           </p>
           {detailsCard}
-          <div className="mt-8 border-t border-slate-100 pt-5 text-center">
+          <div className="mt-8 space-y-3 border-t border-slate-100 pt-5 text-center">
+            <Link
+              href="/dashboard"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98]"
+              style={{ background: BRAND }}
+            >
+              Return to dashboard
+            </Link>
             <Link
               href={applicationHref}
-              className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold transition-colors hover:opacity-80"
-              style={{ color: BRAND }}
+              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-700"
             >
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
               Return to application to retry
             </Link>
           </div>
@@ -164,24 +170,33 @@ function PaymentSuccessContent() {
             We haven't received confirmation from Monnify yet. If you just completed checkout, this can take a moment — check back shortly.
           </p>
           {detailsCard}
-          <div className="mt-8 flex items-center justify-center gap-4 border-t border-slate-100 pt-5">
+          <div className="mt-8 space-y-3 border-t border-slate-100 pt-5">
             <button
               type="button"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+              className="mx-auto inline-flex items-center gap-1.5 text-[13.5px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
               style={{ color: BRAND }}
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               {refreshing ? "Checking…" : "Check again"}
             </button>
-            <Link
-              href={applicationHref}
-              className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-slate-600 transition-colors hover:text-slate-900"
-            >
-              Return to application
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="flex items-center justify-center gap-4 pt-1 text-center">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition-all active:scale-[0.98]"
+                style={{ background: BRAND }}
+              >
+                Return to dashboard
+              </Link>
+              <Link
+                href={applicationHref}
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-700"
+              >
+                Return to application
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -202,13 +217,19 @@ function PaymentSuccessContent() {
           Your application fee has been verified and processed. Your {isTinted ? "tinted permit" : "driver's licence"} application is now moving to priority processing.
         </p>
         {detailsCard}
-        <div className="mt-8 border-t border-slate-100 pt-5 text-center">
+        <div className="mt-8 space-y-3 border-t border-slate-100 pt-5 text-center">
+          <Link
+            href="/dashboard"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98]"
+            style={{ background: BRAND }}
+          >
+            Return to dashboard
+          </Link>
           <Link
             href={applicationHref}
-            className="inline-flex items-center gap-1.5 text-[13.5px] font-semibold transition-colors hover:opacity-80"
-            style={{ color: BRAND }}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-700"
           >
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-3.5 w-3.5" />
             Return to application
           </Link>
         </div>

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, setCachedUser, authGetMe, authSetPassword } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
+import { useSupportChatNotifications } from "./_shared/SupportChatNotifier";
 
 const BRAND = "#28A745";
 
@@ -66,6 +67,7 @@ export default function SupportLayout({ children }) {
   const pathname = usePathname();
   const isLoginRoute = pathname === "/support/login";
   useAutoLogout();
+  const unreadTicketCount = useSupportChatNotifications();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -212,7 +214,14 @@ export default function SupportLayout({ children }) {
                     >
                       <Icon className="h-4 w-4 shrink-0" style={{ color: active ? "#34d399" : "#64748b" }} />
                       <span className="truncate">{item.label}</span>
-                      {active && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
+                      {item.href === "/support/tickets" && unreadTicketCount > 0 && (
+                        <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10.5px] font-bold text-white">
+                          {unreadTicketCount > 9 ? "9+" : unreadTicketCount}
+                        </span>
+                      )}
+                      {active && !(item.href === "/support/tickets" && unreadTicketCount > 0) && (
+                        <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />
+                      )}
                     </Link>
                   );
                 })}
@@ -279,6 +288,11 @@ export default function SupportLayout({ children }) {
                 >
                   <Icon className="h-5 w-5" />
                   {item.label}
+                  {item.href === "/support/tickets" && unreadTicketCount > 0 && (
+                    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10.5px] font-bold text-white">
+                      {unreadTicketCount > 9 ? "9+" : unreadTicketCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

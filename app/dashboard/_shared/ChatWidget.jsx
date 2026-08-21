@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, X, Send, Paperclip, Loader2 } from "lucide-react";
 import { getMyChatThread, sendCustomerChatMessage, uploadApplicationFile, getCachedUser } from "@/lib/api";
 import ChatBubble from "@/app/components/design/ChatBubble";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
 const ACTIVE_POLL_MS = 4000;
 const IDLE_POLL_MS = 30000;
@@ -15,10 +16,11 @@ function lastSeenKey(userId) {
 
 export default function ChatWidget() {
   const user = getCachedUser();
+  const pushToast = useToast();
   const [open, setOpen] = useState(false);
   const [ticket, setTicket] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [unread, setUnread] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(null);
@@ -46,16 +48,28 @@ export default function ChatWidget() {
       setTicket(data.ticket || null);
       setMessages(data.messages || []);
 
-      const lastMessage = (data.messages || [])[data.messages.length - 1];
+      const msgs = data.messages || [];
+      const lastMessage = msgs[msgs.length - 1];
       const lastSeenAt = Number(localStorage.getItem(lastSeenKey(user?.id)) || 0);
-      const isFromOther = lastMessage && lastMessage.sender_role !== "customer";
-      const lastMessageAt = lastMessage?.created_at ? new Date(lastMessage.created_at).getTime() : 0;
 
       if (openRef.current) {
+        const lastMessageAt = lastMessage?.created_at ? new Date(lastMessage.created_at).getTime() : 0;
         if (lastMessage) localStorage.setItem(lastSeenKey(user?.id), String(lastMessageAt));
-        setUnread(false);
+        setUnreadCount(0);
       } else {
-        setUnread(Boolean(isFromOther && lastMessageAt > lastSeenAt));
+        const newUnreadCount = msgs.filter(
+          (m) => m.sender_role !== "customer" && m.created_at && new Date(m.created_at).getTime() > lastSeenAt
+        ).length;
+        setUnreadCount((prev) => {
+          if (newUnreadCount > 0 && prev === 0) {
+            pushToast({
+              title: "New message from support",
+              body: lastMessage?.body || "Tap to view your conversation.",
+              onClick: handleOpen,
+            });
+          }
+          return newUnreadCount;
+        });
       }
 
       if (scrollToBottom) {
@@ -64,7 +78,8 @@ export default function ChatWidget() {
         });
       }
     },
-    [user?.id]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.id, pushToast]
   );
 
   // Continuous polling while the widget is mounted — runs regardless of
@@ -100,7 +115,7 @@ export default function ChatWidget() {
 
   const handleOpen = () => {
     setOpen(true);
-    setUnread(false);
+    setUnreadCount(0);
     const lastMessage = messages[messages.length - 1];
     if (lastMessage?.created_at) {
       localStorage.setItem(lastSeenKey(user?.id), String(new Date(lastMessage.created_at).getTime()));
@@ -159,8 +174,10 @@ export default function ChatWidget() {
         aria-label="Open live chat"
       >
         <MessageCircle className="h-6 w-6" />
-        {unread && (
-          <span className="absolute right-1 top-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10.5px] font-bold text-white ring-2 ring-white">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
         )}
       </button>
     );

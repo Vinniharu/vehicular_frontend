@@ -28,6 +28,13 @@ function StatusBadge({ status }) {
   );
 }
 
+const TABS = [
+  { key: "mine", label: "My queue", scope: undefined, status: undefined },
+  { key: "open", label: "Open", scope: "all", status: "open" },
+  { key: "closed", label: "Closed", scope: "all", status: "closed" },
+  { key: "unassigned", label: "Unassigned", scope: "unassigned", status: undefined },
+];
+
 export default function SupportTicketsPage() {
   const router = useRouter();
   const user = getCachedUser();
@@ -36,11 +43,13 @@ export default function SupportTicketsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [actingOn, setActingOn] = useState(null);
+  const [activeTab, setActiveTab] = useState("mine");
 
   const loadData = async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
-    const res = await getSupportTickets({ page_size: 50 });
+    const tab = TABS.find((t) => t.key === activeTab) || TABS[0];
+    const res = await getSupportTickets({ scope: tab.scope, status: tab.status, page_size: 50 });
     if (res.error) setError(res.error);
     else if (res.data) setItems(res.data.items || []);
     setLoading(false);
@@ -49,7 +58,8 @@ export default function SupportTicketsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const handleClaim = async (ticket) => {
     setActingOn(ticket.id);
@@ -90,6 +100,23 @@ export default function SupportTicketsPage() {
             <span>{refreshing ? "Syncing…" : "Refresh"}</span>
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`rounded-full px-4 py-2 text-[12.5px] font-semibold transition-colors ${
+              activeTab === tab.key
+                ? "bg-[#28A745] text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {error && (
