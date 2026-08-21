@@ -45,6 +45,7 @@ import {
   sendAgentSupportChatMessage,
   uploadApplicationFile,
   addApplicationDocument,
+  submitVehicleVerificationChecklist,
 } from "@/lib/api";
 import { statusMeta, StatusBadge } from "../../_status";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
@@ -198,6 +199,204 @@ function UploadField({ fileName, hasValue, onChange }) {
         {hasValue ? "Replace" : "Upload"}
         <input type="file" accept="image/*,.pdf" onChange={(e) => onChange(e.target.files?.[0])} className="hidden" />
       </label>
+    </div>
+  );
+}
+
+const REGISTRY_EVIDENCE_DOC_TYPE = "vv_registry_evidence";
+const CUSTOMS_EVIDENCE_DOC_TYPE = "vv_customs_evidence";
+
+const CUSTOMS_VERDICT_OPTIONS = [
+  { value: "legitimate_complete", label: "Legitimate and complete" },
+  { value: "incomplete", label: "Incomplete" },
+  { value: "fraudulent", label: "Fraudulent" },
+  { value: "cannot_verify", label: "Cannot verify" },
+];
+const REGISTRATION_VERDICT_OPTIONS = [
+  { value: "clear", label: "Clear — no issues found" },
+  { value: "flagged", label: "Flagged — see notes" },
+  { value: "cannot_verify", label: "Cannot verify" },
+];
+
+// Vehicle Verification's agent flow is a single checklist submission (one
+// overall verdict + evidence), not the DL biodata/capture-appointment shape
+// the rest of this page is built around — kept as its own compact
+// self-contained view rather than threading `isVehicleVerification`
+// branches through every DL-specific section below.
+function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc }) {
+  const detail = application.verification_detail || {};
+  const isCustomsDuty = detail.check_type === "customs_duty";
+  const evidenceDocType = isCustomsDuty ? CUSTOMS_EVIDENCE_DOC_TYPE : REGISTRY_EVIDENCE_DOC_TYPE;
+  const existingEvidence = (application.documents || []).find((d) => d.doc_type === evidenceDocType);
+
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [evidenceUrl, setEvidenceUrl] = useState(existingEvidence?.file_url || null);
+  const [isRegistered, setIsRegistered] = useState(null);
+  const [reportedStolen, setReportedStolen] = useState(null);
+  const [hasFines, setHasFines] = useState(null);
+  const [fineDetails, setFineDetails] = useState("");
+  const [verdict, setVerdict] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const canEdit = application.status === "agent_accepted";
+
+  const handleEvidenceUpload = async (file) => {
+    if (!file) return;
+    setUploadingEvidence(true);
+    setError(null);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    if (uploadError || !data?.file_url) {
+      setUploadingEvidence(false);
+      setError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    const res = await addApplicationDocument(application.id, { doc_type: evidenceDocType, file_url: data.file_url });
+    setUploadingEvidence(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setEvidenceUrl(data.file_url);
+  };
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!evidenceUrl) {
+      setError("Upload your evidence before submitting.");
+      return;
+    }
+    if (!verdict) {
+      setError("Select an overall verdict before submitting.");
+      return;
+    }
+    if (!isCustomsDuty && (isRegistered === null || reportedStolen === null || hasFines === null)) {
+      setError("Answer all three registry questions before submitting.");
+      return;
+    }
+    setSubmitting(true);
+    const res = await submitVehicleVerificationChecklist(application.id, {
+      is_registered: isCustomsDuty ? undefined : isRegistered,
+      reported_stolen: isCustomsDuty ? undefined : reportedStolen,
+      has_fines: isCustomsDuty ? undefined : hasFines,
+      fine_details: !isCustomsDuty && hasFines ? fineDetails.trim() || undefined : undefined,
+      verdict,
+      notes: notes.trim() || undefined,
+    });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSubmitted();
+  };
+
+  const BoolToggle = ({ value, onChange, trueLabel = "Yes", falseLabel = "No" }) => (
+    <div className="flex gap-2">
+      <button type="button" onClick={() => onChange(true)} className={`rounded-lg border-2 px-3 py-1.5 text-[12.5px] font-semibold transition-all ${value === true ? "border-red-400 bg-red-50 text-red-700" : "border-slate-200 text-slate-500"}`}>{trueLabel}</button>
+      <button type="button" onClick={() => onChange(false)} className={`rounded-lg border-2 px-3 py-1.5 text-[12.5px] font-semibold transition-all ${value === false ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500"}`}>{falseLabel}</button>
+    </div>
+  );
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-5 pb-16">
+      <Link href="/agent/applications" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
+        <ArrowLeft className="h-3.5 w-3.5" /> My applications
+      </Link>
+
+      <Section title="Vehicle Verification" icon={BadgeCheck}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Check type" value={detail.check_type?.replace(/_/g, " ")} capitalize />
+          <Field label="Make / Model" value={`${detail.make || ""} ${detail.model || ""}`.trim()} />
+          <Field label="Plate number" value={detail.plate_number} mono />
+          <Field label="Year / Colour" value={[detail.year, detail.colour].filter(Boolean).join(" / ")} />
+          <Field label="Reason" value={detail.reason?.replace(/_/g, " ")} capitalize />
+          {detail.chassis_number && <Field label="Chassis / VIN" value={detail.chassis_number} mono />}
+        </div>
+        {isCustomsDuty && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            {(application.documents || []).filter((d) => d.doc_type === "customs_duty_certificate").map((d, i) => (
+              <button key={i} type="button" onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(d.file_url)); }} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold hover:underline" style={{ color: BRAND }}>
+                View customer's duty certificate <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {!canEdit && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-800">
+          {application.status === "agent_completed" ? "Checklist already submitted — awaiting staff confirmation." : `This job is at status "${application.status}" and can't be edited here.`}
+        </div>
+      )}
+
+      <Section title="Evidence" icon={ImageIcon}>
+        <p className="mb-3 text-[12.5px] text-slate-500">
+          {isCustomsDuty ? "Attach a screenshot/photo of your customs records verification." : "Attach a screenshot/photo of your registry check."}
+        </p>
+        {evidenceUrl ? (
+          <button type="button" onClick={() => onViewDoc(resolveMediaUrl(evidenceUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
+            <ImageIcon className="h-3.5 w-3.5" /> Evidence attached — view
+          </button>
+        ) : canEdit ? (
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
+            {uploadingEvidence ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploadingEvidence ? "Uploading…" : "Click to upload"}
+            <input type="file" accept="image/*,application/pdf" disabled={uploadingEvidence} onChange={(e) => handleEvidenceUpload(e.target.files?.[0])} className="hidden" />
+          </label>
+        ) : (
+          <p className="text-[12.5px] text-slate-400">No evidence attached.</p>
+        )}
+      </Section>
+
+      {!isCustomsDuty && (
+        <Section title="Registry check">
+          <div className="space-y-3.5">
+            <div>
+              <p className={fieldLabel}>Is it registered?</p>
+              <BoolToggle value={isRegistered} onChange={canEdit ? setIsRegistered : () => {}} />
+            </div>
+            <div>
+              <p className={fieldLabel}>Reported stolen?</p>
+              <BoolToggle value={reportedStolen} onChange={canEdit ? setReportedStolen : () => {}} />
+            </div>
+            <div>
+              <p className={fieldLabel}>Outstanding fines?</p>
+              <BoolToggle value={hasFines} onChange={canEdit ? setHasFines : () => {}} />
+              {hasFines && (
+                <textarea rows={2} value={fineDetails} onChange={(e) => setFineDetails(e.target.value)} placeholder="Fine details" disabled={!canEdit} className={`${inputBase} mt-2`} />
+              )}
+            </div>
+          </div>
+        </Section>
+      )}
+
+      <Section title="Overall verdict">
+        <div className="space-y-2">
+          {(isCustomsDuty ? CUSTOMS_VERDICT_OPTIONS : REGISTRATION_VERDICT_OPTIONS).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              disabled={!canEdit}
+              onClick={() => setVerdict(opt.value)}
+              className={`flex w-full items-center justify-between rounded-xl border-2 px-3.5 py-2.5 text-left text-[13px] font-semibold transition-all disabled:opacity-60 ${verdict === opt.value ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600"}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" disabled={!canEdit} className={`${inputBase} mt-3`} />
+      </Section>
+
+      {error && <p className="text-[13px] font-medium text-red-600">{error}</p>}
+
+      {canEdit && (
+        <button type="button" onClick={handleSubmit} disabled={submitting} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
+          {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {submitting ? "Submitting…" : "Submit checklist"}
+        </button>
+      )}
     </div>
   );
 }
@@ -428,6 +627,22 @@ export default function AgentApplicationDetailPage() {
           Back to my applications
         </Link>
       </div>
+    );
+  }
+
+  if (application.application_type?.startsWith("vehicle_verification_")) {
+    return (
+      <>
+        <DocumentPreviewModal isOpen={!!previewDocUrl} onClose={() => setPreviewDocUrl(null)} fileUrl={previewDocUrl} />
+        <VehicleVerificationChecklist
+          application={application}
+          onViewDoc={setPreviewDocUrl}
+          onSubmitted={async () => {
+            setNotice({ type: "success", message: "Checklist submitted — awaiting staff confirmation." });
+            await loadDetail(true);
+          }}
+        />
+      </>
     );
   }
 

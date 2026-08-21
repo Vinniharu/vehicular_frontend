@@ -136,7 +136,7 @@ export default function SupportCustomerDetailPage() {
 
       {/* Document archive link */}
       <Link
-        href={`/support/documents?tab=archive&customer_id=${customer.id}`}
+        href={`/support/customers/${customer.id}/documents`}
         className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-2.5">
