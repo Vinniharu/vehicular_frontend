@@ -13,7 +13,7 @@ const PAPER_BORDER = colors.paper.border;
 
 // Matches the category taxonomy assigned to each entry in
 // app/services/_data.js — order here controls section/chip order on screen.
-export const CATEGORIES = ["Vehicle particulars", "Other documents", "Number plates", "Fast-track & logistics", "Marketplace"];
+export const CATEGORIES = ["Vehicle particulars", "Other documents", "Number plates", "Fast-track & logistics"];
 
 export function koboToNaira(kobo) {
   return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 });
