@@ -733,6 +733,34 @@ export default function StaffApplicationDetailsPage() {
         </div>
       )}
 
+      {application.application_type?.startsWith("vehicle_verification_") && application.verification_detail && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Verification</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Check type</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.verification_detail.check_type?.replace(/_/g, " ")}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.verification_detail.make} {application.verification_detail.model} — {application.verification_detail.plate_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Reason</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.verification_detail.reason?.replace(/_/g, " ")}</span>
+            </div>
+            {application.verification_detail.verdict && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Verdict</span>
+                <span className={`mt-1 block text-[13.5px] font-bold capitalize ${["clear", "legitimate_complete"].includes(application.verification_detail.verdict) ? "text-emerald-600" : "text-red-600"}`}>
+                  {application.verification_detail.verdict.replace(/_/g, " ")}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Particulars documents — per-item final review, independent of the
           bundle's own status. Only "agent_completed" items are actionable;
           approving/rejecting one never touches or blocks its siblings. */}
@@ -1527,7 +1555,57 @@ export default function StaffApplicationDetailsPage() {
               </div>
             )}
 
-            {modalType === "final-review" && application.application_type !== "roadworthiness_express" && (
+            {modalType === "final-review" && application.application_type?.startsWith("vehicle_verification_") && (
+              <div className="space-y-3.5">
+                <p className="text-[12.5px] text-slate-500">
+                  Confirm the agent's evidence actually supports their verdict before releasing it —
+                  the released verdict is{" "}
+                  <strong className={["clear", "legitimate_complete"].includes(application.verification_detail?.verdict) ? "text-emerald-600" : "text-red-600"}>
+                    {application.verification_detail?.verdict?.replace(/_/g, " ") || "—"}
+                  </strong>
+                  . Approving publishes it (customer gets a shareable verification code and report).
+                  Rejecting sends it back to the agent to redo.
+                </p>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 space-y-1.5 text-[12.5px]">
+                  <p><span className="font-semibold text-slate-500">Vehicle:</span> {application.verification_detail?.make} {application.verification_detail?.model} — {application.verification_detail?.plate_number}</p>
+                  {application.verification_detail?.check_type === "registration_history" ? (
+                    <>
+                      <p><span className="font-semibold text-slate-500">Registered:</span> {application.verification_detail?.is_registered ? "Yes" : "No"}</p>
+                      <p><span className="font-semibold text-slate-500">Reported stolen:</span> {application.verification_detail?.reported_stolen ? "Yes" : "No"}</p>
+                      <p><span className="font-semibold text-slate-500">Outstanding fines:</span> {application.verification_detail?.has_fines ? "Yes" : "No"}</p>
+                      {application.verification_detail?.fine_details && <p><span className="font-semibold text-slate-500">Fine details:</span> {application.verification_detail.fine_details}</p>}
+                    </>
+                  ) : null}
+                  {application.verification_detail?.notes && <p><span className="font-semibold text-slate-500">Agent notes:</span> {application.verification_detail.notes}</p>}
+                </div>
+                {(application.documents || []).filter((d) => d.doc_type === "vv_registry_evidence" || d.doc_type === "vv_customs_evidence" || d.doc_type === "customs_duty_certificate").map((d, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(d.file_url)); }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-100"
+                  >
+                    <ImageIcon className="h-3 w-3" /> View {d.doc_type.replace(/_/g, " ")}
+                  </button>
+                ))}
+                <div>
+                  <label className={fieldLabel}>Decision</label>
+                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
+                  <textarea
+                    rows={3}
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder={decisionInput === "rejected" ? "e.g. Evidence screenshot doesn't match the plate on file." : "e.g. Evidence verified against the recorded verdict."}
+                    className={inputBase}
+                  />
+                </div>
+              </div>
+            )}
+
+            {modalType === "final-review" && application.application_type !== "roadworthiness_express" && !application.application_type?.startsWith("vehicle_verification_") && (
               <div className="space-y-3.5">
                 <p className="text-[12.5px] text-slate-500">
                   Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : application.application_type?.startsWith("number_plate_") ? "the number plate" : "the permanent licence card"}) checks out. Approving moves

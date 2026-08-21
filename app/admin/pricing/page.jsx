@@ -30,6 +30,8 @@ const DL_ROWS = [
   { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New (standard tier)" },
   { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement (standard tier)" },
   { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership (standard tier)" },
+  { key: "vehicle_verification_registration_history:null", application_type: "vehicle_verification_registration_history", validity_period: null, label: "Vehicle Verification — Registration History" },
+  { key: "vehicle_verification_customs_duty:null", application_type: "vehicle_verification_customs_duty", validity_period: null, label: "Vehicle Verification — Customs Duty" },
 ];
 // Number Plate & Vehicle Particulars have their own real category-priced
 // grid below — excluded here alongside Driver's Licence/Tinted Permit so
@@ -71,23 +73,6 @@ const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "number_plate_replacement", label: "Number Plate — Replacement" },
   { service_key: "number_plate_change_of_ownership", label: "Number Plate — Change of Ownership" },
   { service_key: "roadworthiness_express", label: "Roadworthiness Express" },
-];
-
-// The 8 shared financing fields (app/models/pricing.py PriceExtrasMixin) —
-// purely admin-configurable data, not read by any checkout/payment code.
-// "kobo" fields are edited/displayed in naira like Amount; "percent"/"int"
-// fields are edited as plain numbers.
-// initial_deposit_percent is deliberately NOT here — it's promoted to the
-// always-visible basic row (alongside Amount/Priority) below, not the
-// expandable advanced panel.
-const FINANCING_FIELDS_META = [
-  { key: "financing_amount_kobo", label: "Financing Amount (₦)", type: "kobo" },
-  { key: "interest_percent", label: "Interest (%)", type: "percent" },
-  { key: "initial_deposit_amount_kobo", label: "Initial Deposit Amount (₦)", type: "kobo" },
-  { key: "duration_days", label: "Duration (Days)", type: "int" },
-  { key: "price_lock_percent", label: "Price Lock (%)", type: "percent" },
-  { key: "va_price_kobo", label: "VA Price (₦)", type: "kobo" },
-  { key: "va_duration", label: "VA Duration (Days)", type: "int" },
 ];
 
 function keyFor(application_type, validity_period) {
@@ -161,11 +146,16 @@ function Toast({ toast, onClose }) {
   );
 }
 
-// One dense card per price row — the basic format (Amount, Initial
-// Deposit %, Priority) is always visible; the 7 remaining advanced
-// financing fields expand while editing. Shared by every section below
-// (DL & Permits, Vehicle Particulars, Other Services, Vehicle Category grid)
-// so all four pricing tables get an identical editing surface.
+// One dense card per price row — deliberately just two fields, Amount and
+// Initial Deposit %. Priority and the 7 financing-detail fields
+// (app/models/pricing.py PriceExtrasMixin) used to be editable here too,
+// but nothing in checkout/payment ever reads them and they only added
+// noise — removed from the UI. Their values aren't touched server-side
+// (see admin.py's _apply_extras), so any row an admin set them on before
+// keeps that value; this form just never edits it again. Shared by every
+// section below (DL & Permits, Vehicle Particulars, Other Services,
+// Vehicle Category grid) so all four pricing tables get an identical
+// editing surface.
 function PriceRowCard({ label, row, onChange, editing, amountPlaceholder = "Not set", amountRequired = false, onDelete, isGeneralScope }) {
   const set = (field, value) => onChange({ ...row, [field]: value });
   return (
@@ -214,8 +204,8 @@ function PriceRowCard({ label, row, onChange, editing, amountPlaceholder = "Not 
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="col-span-2 sm:col-span-1">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
           <label className="block text-[11px] font-medium text-slate-500 mb-1">Amount (₦)</label>
           {editing ? (
             <input
@@ -237,29 +227,7 @@ function PriceRowCard({ label, row, onChange, editing, amountPlaceholder = "Not 
             <p className="text-[14px] text-slate-600">{row.initial_deposit_percent || "10"}%</p>
           )}
         </div>
-        <div>
-          <label className="block text-[11px] font-medium text-slate-500 mb-1">Priority</label>
-          {editing ? (
-            <input type="number" value={row.priority} onChange={(e) => set("priority", e.target.value)} className={smallInputCls} />
-          ) : (
-            <p className="text-[14px] text-slate-600">{row.priority}</p>
-          )}
-        </div>
       </div>
-
-      {editing && (
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Financing details</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {FINANCING_FIELDS_META.map((f) => (
-              <div key={f.key}>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">{f.label}</label>
-                <input type="number" value={row[f.key]} onChange={(e) => set(f.key, e.target.value)} placeholder="—" className={smallInputCls} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -480,20 +448,17 @@ function MainPricingSection({ stateId, reloadKey }) {
   }, [stateId, reloadKey]);
 
   const handleSave = async () => {
-    for (const row of DL_ROWS) {
-      const val = dlRows[row.key]?.amount;
-      if (!val || isNaN(parseFloat(val)) || parseFloat(val) <= 0) {
-        showToast("error", `Enter a valid price for ${row.label}.`);
-        return;
-      }
-    }
-
+    // A row/cell left blank saves as unset (server defaults it to
+    // DEFAULT_PRICE_KOBO, see app/core/price_resolution.py) rather than
+    // blocking the whole save — an admin pricing 8 of 9 rows today
+    // shouldn't have to fill in the 9th just to save the other 8. An
+    // explicitly-entered non-positive number is still rejected server-side.
     setSaving(true);
     const dl_fee_schedule = DL_ROWS.map((row) => ({
       application_type: row.application_type,
       validity_period: row.validity_period,
-      amount_kobo: Math.round(parseFloat(dlRows[row.key].amount) * 100),
-      ...financingPayload(dlRows[row.key]),
+      amount_kobo: dlRows[row.key]?.amount ? Math.round(parseFloat(dlRows[row.key].amount) * 100) : null,
+      ...financingPayload(dlRows[row.key] || {}),
     }));
     const service_prices = OTHER_SERVICES.map((s) => {
       const row = serviceRows[s.slug] || {};
@@ -723,18 +688,19 @@ function VehicleCategoryPricingSection({ stateId, reloadKey }) {
   }, [stateId, reloadKey]);
 
   const handleSave = async () => {
+    // A blank cell saves as unset (server defaults it to DEFAULT_PRICE_KOBO,
+    // see app/core/price_resolution.py) rather than blocking the whole grid
+    // save — pricing a handful of categories today shouldn't require filling
+    // in all ~108 cells first. An explicitly-entered non-positive number is
+    // still rejected server-side.
     const prices = [];
     for (const { service_key } of VEHICLE_CATEGORY_SERVICES) {
       for (const { value: vehicle_category } of VEHICLE_CATEGORY_OPTIONS) {
         const key = cellKey(service_key, vehicle_category);
         const row = rows[key] || rowStateFromApiItem({});
-        if (!row.amount || isNaN(parseFloat(row.amount)) || parseFloat(row.amount) <= 0) {
-          showToast("error", "Every category cell needs a valid price before saving.");
-          return;
-        }
         prices.push({
           service_key, vehicle_category,
-          amount_kobo: Math.round(parseFloat(row.amount) * 100),
+          amount_kobo: row.amount ? Math.round(parseFloat(row.amount) * 100) : null,
           ...financingPayload(row),
         });
       }
