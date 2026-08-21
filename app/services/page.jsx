@@ -5,7 +5,7 @@ import { ServiceStatusPill } from "./_status";
 
 export const metadata = {
   title: "Services | Vehiculars",
-  description: "Everything your vehicle needs, handled end-to-end and delivered nationwide — driver's licence, number plates, particulars, inspections, spare parts, and more.",
+  description: "Everything your vehicle needs, handled end-to-end and delivered nationwide — driver's licence, number plates, particulars, and inspections.",
 };
 
 export default function ServicesHubPage() {
@@ -20,8 +20,8 @@ export default function ServicesHubPage() {
             Everything your vehicle needs, in one place
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-relaxed text-[#111111]/60">
-            From your first driver's licence to clearing a car at the port — we handle the FRSC,
-            VIO, police, and customs end of it so you don't have to queue.
+            From your first driver's licence to your vehicle particulars — we handle the FRSC,
+            VIO, and police end of it so you don't have to queue.
           </p>
         </div>
       </section>

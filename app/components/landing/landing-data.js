@@ -9,7 +9,6 @@ import {
   Sun,
   Zap,
   BadgeCheck,
-  Gift,
   CheckCircle2,
 } from "lucide-react";
 import { SERVICES } from "@/app/services/_data";
@@ -28,7 +27,6 @@ const HOMEPAGE_COPY_BY_SLUG = {
   "tinted-permit": { label: "Tinted permit", benefit: "Police-approved permit on your phone.", icon: Sun },
   "vehicle-verification": { label: "Vehicle verification & inspection", benefit: "Confirm papers, ownership, and condition are clean.", icon: BadgeCheck },
   "driveconnect": { label: "DriveConnect lessons", benefit: "Learn to drive with vetted instructors.", icon: GraduationCap },
-  "sponsor-a-service": { label: "Sponsor a service", benefit: "Pay for someone else's vehicle service.", icon: Gift },
 };
 
 export const SERVICE_ITEMS = Object.entries(HOMEPAGE_COPY_BY_SLUG)
@@ -104,7 +102,6 @@ export const LIFECYCLE_STAGES = [
     blurb: "Run 3 vehicles or 300. Upload once — we watch every expiry, every driver.",
     items: [
       { href: "/fleet", label: "Fleet dashboard" },
-      { href: "/services/sponsor-a-service", label: "Sponsor a service" },
     ],
   },
 ];
