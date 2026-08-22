@@ -466,7 +466,7 @@ export default function StaffApplicationDetailsPage() {
             </Link>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900">
-                {application.first_name} {application.last_name}
+                {application.applicant_details?.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}
               </h1>
               <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
                 #{application.id}
@@ -922,7 +922,9 @@ export default function StaffApplicationDetailsPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full Name</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.first_name} {application.middle_name} {application.last_name}</span>
+                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
+                  {application.applicant_details?.account_name || `${application.first_name || ""} ${application.middle_name || ""} ${application.last_name || ""}`.replace(/\s+/g, " ").trim() || "—"}
+                </span>
               </div>
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">DOB</span>
@@ -1374,7 +1376,7 @@ export default function StaffApplicationDetailsPage() {
                 <p className="text-[12.5px] text-slate-500">
                   Confirm identity and NIN checks for{" "}
                   <strong className="text-slate-800">
-                    {application.first_name} {application.last_name}
+                    {application.applicant_details?.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}
                   </strong>
                   .
                 </p>
