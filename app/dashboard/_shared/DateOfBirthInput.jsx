@@ -2,24 +2,17 @@
 
 import { inputBase } from "@/app/dashboard/_shared/ui";
 
-// Three explicitly labeled Day / Month / Year selects, with the month shown
-// by name — this is what actually removes the ambiguity a native
-// `<input type="date">` has: it renders using the browser/OS locale format
-// (e.g. unlabeled MM/DD/YYYY on a US-locale browser) with no visible cue for
-// which segment is the day and which is the month. A labeled "Month: March"
-// dropdown can't be misread the way an unlabeled "03" can.
+// A native date input, plus an explicit, unambiguous preview line below it —
+// the native input alone renders in the browser/OS locale format (e.g.
+// unlabeled MM/DD/YYYY on a US-locale browser), which is easy to misread;
+// the preview line spells the assembled date out in words so there's no
+// ambiguity about what got selected, regardless of locale.
 //
 // Contract: `value` is an ISO "YYYY-MM-DD" string (or ""), `onChange`
-// receives the same — matches what both existing call sites already pass
-// around (apply/page.jsx's `dob` state, apply/[id]/page.jsx's
-// `form.date_of_birth`), so neither site's surrounding state management,
-// age validation, or submit payload needs to change.
-//
-// Day list is a plain 1-31 (not calendar-aware per month/year) — the
-// backend's own date parsing (`_validate_dob_adult`,
-// app/modules/driver_licence/schemas.py) already tolerates this the same
-// way the rest of this codebase's date handling does; this fix's scope is
-// day/month legibility, not full calendar-day validation.
+// receives the same — matches what every call site already passes around
+// (apply/page.jsx's `dob` state, apply/[id]/page.jsx's and
+// support/applications/[id]/page.jsx's `form.date_of_birth`), so none of
+// them need to change.
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -30,59 +23,44 @@ const MIN_AGE_YEARS = 16;
 const MAX_AGE_YEARS = 100;
 
 function parseIso(value) {
-  if (!value) return { day: "", month: "", year: "" };
+  if (!value) return null;
   const [y, m, d] = String(value).split("-");
-  return {
-    day: d ? String(parseInt(d, 10)) : "",
-    month: m ? String(parseInt(m, 10)) : "",
-    year: y || "",
-  };
+  if (!y || !m || !d) return null;
+  return { day: parseInt(d, 10), month: parseInt(m, 10), year: parseInt(y, 10) };
 }
 
-function toIso({ day, month, year }) {
-  if (!day || !month || !year) return "";
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+// Avoids new Date(iso).toISOString() round-tripping, which shifts by a day
+// for any UTC+ timezone (see app/support/documents/page.jsx's
+// toDateInputValue for the same caution) — built from local date parts only.
+function formatDateInputValue(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export default function DateOfBirthInput({ value, onChange, hasError }) {
-  const { day, month, year } = parseIso(value);
-  const currentYear = new Date().getFullYear();
+  const today = new Date();
+  const maxDate = new Date(today.getFullYear() - MIN_AGE_YEARS, today.getMonth(), today.getDate());
+  const minDate = new Date(today.getFullYear() - MAX_AGE_YEARS, today.getMonth(), today.getDate());
 
-  const update = (patch) => {
-    onChange(toIso({ day, month, year, ...patch }));
-  };
-
-  const selectCls = `${inputBase} ${hasError ? "border-red-400 focus:border-red-400 focus:ring-red-400/15" : ""}`;
+  const parsed = parseIso(value);
 
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <div>
-        <label className="block text-[11px] font-medium text-slate-500 mb-1">Day</label>
-        <select className={selectCls} value={day} onChange={(e) => update({ day: e.target.value })}>
-          <option value="">Day</option>
-          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block text-[11px] font-medium text-slate-500 mb-1">Month</label>
-        <select className={selectCls} value={month} onChange={(e) => update({ month: e.target.value })}>
-          <option value="">Month</option>
-          {MONTHS.map((name, i) => (
-            <option key={name} value={i + 1}>{name}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block text-[11px] font-medium text-slate-500 mb-1">Year</label>
-        <select className={selectCls} value={year} onChange={(e) => update({ year: e.target.value })}>
-          <option value="">Year</option>
-          {Array.from({ length: MAX_AGE_YEARS - MIN_AGE_YEARS + 1 }, (_, i) => currentYear - MIN_AGE_YEARS - i).map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-      </div>
+    <div>
+      <input
+        type="date"
+        className={`${inputBase} ${hasError ? "border-red-400 focus:border-red-400 focus:ring-red-400/15" : ""}`}
+        value={value || ""}
+        min={formatDateInputValue(minDate)}
+        max={formatDateInputValue(maxDate)}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {parsed && (
+        <p className="mt-1.5 text-[12px] font-medium text-slate-600">
+          Selected: {parsed.day} {MONTHS[parsed.month - 1]} {parsed.year}
+        </p>
+      )}
     </div>
   );
 }
