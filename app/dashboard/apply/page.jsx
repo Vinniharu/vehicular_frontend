@@ -86,6 +86,15 @@ const APPLICATION_TYPES = [
   { value: "international_permit", label: "International Driver's Permit", desc: "Apply for an international driving permit." },
 ];
 
+// Delivery-timeline copy per application type — shown so the applicant knows
+// what to expect before they submit, not just after.
+const TIMELINE_COPY_BY_TYPE = {
+  fresh: "Processing takes up to 26 working days before your biometric capturing appointment at the FRSC center.",
+  renewal: "Processing takes up to 5 working days.",
+  reissue: "Processing takes up to 5 working days.",
+  international_permit: "Processing takes up to 2 weeks.",
+};
+
 // Standard FRSC licence classes — required for fresh applications so the
 // assigned agent knows what to process (app/schemas/application.py
 // LICENCE_CLASSES enforces the same set server-side).
@@ -1234,6 +1243,11 @@ export default function ApplyPage() {
             {applicationType === "fresh" ? "Fresh application — five short steps." : "Renewal, reissue, or international permit — just a few details."}
           </p>
         </div>
+      </div>
+
+      <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+        <p className="text-[12.5px] text-slate-600">{TIMELINE_COPY_BY_TYPE[applicationType]}</p>
       </div>
 
       <StepProgress steps={activeLabels} current={stepDisplayIndex} />

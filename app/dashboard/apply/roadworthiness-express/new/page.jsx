@@ -97,8 +97,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    Promise.all([getReferenceStates(), listVehicles(), getWallet(), getVehicleCategoryPricing()]).then(
-      ([statesRes, vehiclesRes, walletRes, pricesRes]) => {
+    Promise.all([getReferenceStates(), listVehicles(), getWallet()]).then(
+      ([statesRes, vehiclesRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (vehiclesRes.data) {
           setVehicles(vehiclesRes.data);
@@ -108,11 +108,21 @@ export default function RoadworthinessExpressNewApplicationPage() {
           setAddingVehicle(true);
         }
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-        if (pricesRes.data?.prices) setVehicleCategoryPrices(pricesRes.data.prices);
         setLoadingVehicles(false);
       }
     );
   }, []);
+
+  // RWX is priced per the BAY's state, not the vehicle's (the backend
+  // resolves the charge off bay.state_id at booking time) -- so the price
+  // shown here has to be re-fetched whenever the bay state changes, or it'll
+  // silently keep showing the general-tier price even after a state-specific
+  // override exists. Falls back to the general tier before a state is picked.
+  useEffect(() => {
+    getVehicleCategoryPricing(bayStateId || undefined).then((res) => {
+      if (res.data?.prices) setVehicleCategoryPrices(res.data.prices);
+    });
+  }, [bayStateId]);
 
   useEffect(() => {
     if (!bayStateId) {
