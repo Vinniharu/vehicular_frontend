@@ -10,6 +10,7 @@ import {
   Plus,
   Car,
   Clock,
+  ShieldCheck,
 } from "lucide-react";
 import {
   getReferenceStates,
@@ -21,6 +22,7 @@ import {
   getWallet,
   getNumberPlateFee,
   getApplication,
+  getCachedUser,
   koboToNaira,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
@@ -56,17 +58,52 @@ const PLATE_TYPES = {
 };
 
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
+const NIN_RE = /^\d{11}$/;
+
+// What the Number Plate fee actually covers, end to end — shown to the
+// applicant up front so the price doesn't look like "just a plate."
+const WHATS_COVERED = [
+  "Plate number",
+  "Proof of ownership",
+  "Vehicle License",
+  "Insurance",
+  "Road worthiness",
+  "Police clearance",
+  "Plate number allocation",
+];
+
+const STEP_KEY_LABELS = {
+  vehicle: "Vehicle",
+  location: "Use & location",
+  applicant: "Applicant details",
+  previousOwner: "Previous owner",
+  documents: "Documents",
+  review: "Review & submit",
+};
 
 // Reference-photo guides for each upload box — reuses the same generic
 // placeholder set as the tinted-permit flow (public/placeholder/).
 function getDocSlots(planKey) {
   const base = [
     { doc_type: "vehicle_registration_document", title: "Vehicle Registration Document", hint: "Vehicle particulars or purchase receipt", image: "/placeholder/vehicle.jpeg" },
-    { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Current proof of ownership", image: "/placeholder/proof.jpeg" },
+    { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Purchase receipt, sales agreement, or current proof of ownership", image: "/placeholder/proof.jpeg" },
     { doc_type: "owner_id", title: "Owner's ID", hint: "NIN slip, driver's licence, or international passport", image: "/placeholder/person.jpeg" },
   ];
   if (planKey === "change-of-ownership") {
     base.push({ doc_type: "proof_of_transfer", title: "Proof of Transfer", hint: "Signed transfer/sale document", image: "/placeholder/proof.jpeg" });
+  }
+  // Fresh registration and change of ownership only — replacement doesn't
+  // need a fresh chassis/VIN check or customs paperwork for an already-
+  // registered vehicle.
+  if (planKey === "new" || planKey === "change-of-ownership") {
+    base.push({ doc_type: "vin_sticker_photo", title: "VIN Sticker Photo", hint: "Usually on driver-side door jamb or dashboard", image: "/placeholder/vin.jpeg" });
+    base.push({
+      doc_type: "customs_duty_certificate",
+      title: "Custom Duty",
+      hint: "Optional — if it's a multi-page document, only the first 3 pages are needed",
+      image: "/placeholder/proof.jpeg",
+      optional: true,
+    });
   }
   return base;
 }
@@ -182,14 +219,25 @@ export default function NumberPlateNewApplicationPage() {
   const planKey = PLATE_TYPES[searchParams.get("type")] ? searchParams.get("type") : "new";
   const plan = PLATE_TYPES[planKey];
   const isChangeOfOwnership = planKey === "change-of-ownership";
+  // Fresh registration and change of ownership collect full applicant
+  // identity (tester feedback) — replacement stays a lightweight
+  // vehicle+documents submission for an already-registered plate.
+  const needsApplicantDetails = planKey !== "replacement";
   const docSlots = getDocSlots(planKey);
-  const stepLabels = isChangeOfOwnership
-    ? ["Vehicle", "Use & location", "Previous owner", "Documents", "Review & submit"]
-    : ["Vehicle", "Use & location", "Documents", "Review & submit"];
-  const totalSteps = stepLabels.length;
-  // Step indices shift by one once the extra "Previous owner" step exists.
-  const DOC_STEP = isChangeOfOwnership ? 4 : 3;
-  const REVIEW_STEP = isChangeOfOwnership ? 5 : 4;
+  const requiredDocSlots = docSlots.filter((s) => !s.optional);
+  const stepKeys = [
+    "vehicle",
+    "location",
+    ...(needsApplicantDetails ? ["applicant"] : []),
+    ...(isChangeOfOwnership ? ["previousOwner"] : []),
+    "documents",
+    "review",
+  ];
+  const stepLabels = stepKeys.map((k) => STEP_KEY_LABELS[k]);
+  const totalSteps = stepKeys.length;
+  const stepIndex = (key) => stepKeys.indexOf(key) + 1;
+  const DOC_STEP = stepIndex("documents");
+  const REVIEW_STEP = stepIndex("review");
 
   const [step, setStep] = useState(1);
 
@@ -207,6 +255,13 @@ export default function NumberPlateNewApplicationPage() {
 
   const [selectedStateId, setSelectedStateId] = useState("");
   const [previousOwnerDetails, setPreviousOwnerDetails] = useState("");
+  const [applicantForm, setApplicantForm] = useState(() => {
+    const cachedUser = getCachedUser();
+    return {
+      first_name: "", middle_name: "", last_name: "", residential_address: "",
+      applicant_phone: cachedUser?.phone || "", nin: "", former_registration_number: "",
+    };
+  });
   const [docs, setDocs] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -269,6 +324,9 @@ export default function NumberPlateNewApplicationPage() {
     if (!vehicleForm.colour.trim()) errors.colour = "Colour is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
     if (!vehicleForm.vehicle_category) errors.vehicle_category = "Select the vehicle's category — it determines the price.";
+    if (needsApplicantDetails && !vehicleForm.chassis_number.trim()) {
+      errors.chassis_number = "Chassis/VIN number is required for this application type.";
+    }
     if (Object.keys(errors).length > 0) {
       setVehicleFieldErrors(errors);
       return;
@@ -297,17 +355,28 @@ export default function NumberPlateNewApplicationPage() {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
       else if (plan.requiresExistingPlate && !selectedVehicle?.plate_number) {
         errors.vehicle = "This vehicle has no plate number on file — add its current plate number, or choose 'New Plate' instead.";
+      } else if (needsApplicantDetails && !selectedVehicle?.chassis_number) {
+        errors.vehicle = "This vehicle has no chassis/VIN number on file — add a new vehicle with a chassis number, or update this one.";
       }
     }
     if (n === 2) {
       if (!selectedStateId) errors.state = "Select the state to register this plate in.";
     }
-    if (isChangeOfOwnership && n === 3) {
+    if (n === stepIndex("applicant")) {
+      if (!applicantForm.first_name.trim()) errors.first_name = "First name is required.";
+      if (!applicantForm.last_name.trim()) errors.last_name = "Surname is required.";
+      if (!applicantForm.residential_address.trim()) errors.residential_address = "Address is required.";
+      if (!applicantForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      const trimmedNin = applicantForm.nin.trim();
+      if (!trimmedNin) errors.nin = "NIN is required.";
+      else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+    }
+    if (n === stepIndex("previousOwner")) {
       if (!previousOwnerDetails.trim()) errors.previousOwnerDetails = "Previous owner's details are required.";
     }
     if (n === DOC_STEP) {
-      const allDocsUploaded = docSlots.every((slot) => docs[slot.doc_type]?.url);
-      if (!allDocsUploaded) errors.documents = "Upload every required document to continue.";
+      const allRequiredDocsUploaded = requiredDocSlots.every((slot) => docs[slot.doc_type]?.url);
+      if (!allRequiredDocsUploaded) errors.documents = "Upload every required document to continue.";
     }
     return errors;
   };
@@ -325,12 +394,18 @@ export default function NumberPlateNewApplicationPage() {
   const canSubmit =
     selectedVehicleId &&
     (!plan.requiresExistingPlate || selectedVehicle?.plate_number) &&
+    (!needsApplicantDetails || selectedVehicle?.chassis_number) &&
     selectedStateId &&
+    (!needsApplicantDetails || (
+      applicantForm.first_name.trim() && applicantForm.last_name.trim() &&
+      applicantForm.residential_address.trim() && applicantForm.applicant_phone.trim() &&
+      NIN_RE.test(applicantForm.nin.trim())
+    )) &&
     (!isChangeOfOwnership || previousOwnerDetails.trim()) &&
-    docSlots.every((slot) => docs[slot.doc_type]?.url);
+    requiredDocSlots.every((slot) => docs[slot.doc_type]?.url);
 
   const handleSubmit = async () => {
-    const stepsToCheck = isChangeOfOwnership ? [1, 2, 3, 4] : [1, 2, 3];
+    const stepsToCheck = Array.from({ length: totalSteps - 1 }, (_, i) => i + 1);
     const allErrors = stepsToCheck.reduce((acc, s) => ({ ...acc, ...validateStep(s) }), {});
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
@@ -347,7 +422,14 @@ export default function NumberPlateNewApplicationPage() {
       vehicle_id: selectedVehicleId,
       state_id: Number(selectedStateId),
       previous_owner_details: isChangeOfOwnership ? previousOwnerDetails : undefined,
-      documents: docSlots.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
+      first_name: needsApplicantDetails ? applicantForm.first_name.trim() : undefined,
+      middle_name: needsApplicantDetails ? applicantForm.middle_name.trim() || undefined : undefined,
+      last_name: needsApplicantDetails ? applicantForm.last_name.trim() : undefined,
+      residential_address: needsApplicantDetails ? applicantForm.residential_address.trim() : undefined,
+      applicant_phone: needsApplicantDetails ? applicantForm.applicant_phone.trim() : undefined,
+      nin: needsApplicantDetails ? applicantForm.nin.trim() : undefined,
+      former_registration_number: needsApplicantDetails ? applicantForm.former_registration_number.trim() || undefined : undefined,
+      documents: docSlots.filter((slot) => docs[slot.doc_type]?.url).map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
     });
     setSubmitting(false);
     if (res.error) {
@@ -468,6 +550,20 @@ export default function NumberPlateNewApplicationPage() {
         </div>
       </div>
 
+      <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+        <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+          <ShieldCheck className="h-4 w-4" style={{ color: BRAND }} /> What your payment covers
+        </h2>
+        <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+          {WHATS_COVERED.map((item) => (
+            <li key={item} className="flex items-center gap-2 text-[12.5px] text-slate-600">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: BRAND }} />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <StepProgress steps={stepLabels} current={step} />
 
       {/* Step 1 — Vehicle */}
@@ -587,12 +683,15 @@ export default function NumberPlateNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.state_id} />
                 </div>
                 <div>
-                  <label className={label}>Chassis number <span className="font-normal text-slate-400">(optional)</span></label>
+                  <label className={label}>
+                    Chassis number {needsApplicantDetails ? <span className="text-red-400">*</span> : <span className="font-normal text-slate-400">(optional)</span>}
+                  </label>
                   <input
-                    className={inputBase}
+                    className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.chassis_number)}`}
                     value={vehicleForm.chassis_number}
                     onChange={(e) => setVehicleForm((f) => ({ ...f, chassis_number: e.target.value }))}
                   />
+                  <FieldError message={vehicleFieldErrors.chassis_number} />
                 </div>
                 <div>
                   <label className={label}>Engine number <span className="font-normal text-slate-400">(optional)</span></label>
@@ -642,8 +741,90 @@ export default function NumberPlateNewApplicationPage() {
         </section>
       )}
 
+      {/* Step — Applicant details (fresh registration + change of ownership only) */}
+      {needsApplicantDetails && step === stepIndex("applicant") && (
+        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.first_name)}`}
+                  value={applicantForm.first_name}
+                  onChange={(e) => setApplicantForm((f) => ({ ...f, first_name: e.target.value }))}
+                  placeholder="Ada"
+                />
+                <FieldError message={fieldErrors.first_name} />
+              </div>
+              <div>
+                <label className={label}>Other name <span className="font-normal text-slate-400">(optional)</span></label>
+                <input
+                  className={inputBase}
+                  value={applicantForm.middle_name}
+                  onChange={(e) => setApplicantForm((f) => ({ ...f, middle_name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.last_name)}`}
+                  value={applicantForm.last_name}
+                  onChange={(e) => setApplicantForm((f) => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Obi"
+                />
+                <FieldError message={fieldErrors.last_name} />
+              </div>
+            </div>
+            <div>
+              <label className={label}>Address <span className="text-red-400">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.residential_address)}`}
+                value={applicantForm.residential_address}
+                onChange={(e) => setApplicantForm((f) => ({ ...f, residential_address: e.target.value }))}
+                placeholder="123 Example Street, Lagos"
+              />
+              <FieldError message={fieldErrors.residential_address} />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={label}>Phone number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
+                  value={applicantForm.applicant_phone}
+                  onChange={(e) => setApplicantForm((f) => ({ ...f, applicant_phone: e.target.value }))}
+                />
+                <FieldError message={fieldErrors.applicant_phone} />
+              </div>
+              <div>
+                <label className={label}>NIN <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={11}
+                  className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
+                  value={applicantForm.nin}
+                  onChange={(e) => setApplicantForm((f) => ({ ...f, nin: e.target.value.replace(/\D/g, "") }))}
+                  placeholder="12345678901"
+                />
+                <FieldError message={fieldErrors.nin} />
+              </div>
+            </div>
+            <div>
+              <label className={label}>Former Registration Number <span className="font-normal text-slate-400">(if any)</span></label>
+              <input
+                className={inputBase}
+                value={applicantForm.former_registration_number}
+                onChange={(e) => setApplicantForm((f) => ({ ...f, former_registration_number: e.target.value }))}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Step 3 — Previous owner (change of ownership only) */}
-      {isChangeOfOwnership && step === 3 && (
+      {isChangeOfOwnership && step === stepIndex("previousOwner") && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Previous owner</h2>
           <label className={label}>Previous owner's details</label>
@@ -702,6 +883,14 @@ export default function NumberPlateNewApplicationPage() {
                 <span className="text-slate-500">State</span>
                 <span className="font-semibold text-[#111111]">{states.find((s) => String(s.id) === String(selectedStateId))?.name || "—"}</span>
               </div>
+              {needsApplicantDetails && (
+                <div className="flex items-center justify-between py-2.5 text-[13px]">
+                  <span className="text-slate-500">Applicant</span>
+                  <span className="font-semibold text-[#111111]">
+                    {[applicantForm.first_name, applicantForm.middle_name, applicantForm.last_name].filter(Boolean).join(" ") || "—"}
+                  </span>
+                </div>
+              )}
               {isChangeOfOwnership && previousOwnerDetails.trim() && (
                 <div className="py-2.5 text-[13px]">
                   <span className="block text-slate-500">Previous owner</span>

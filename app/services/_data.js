@@ -108,14 +108,18 @@ export const SERVICES = [
     intro:
       "Number plate jobs are routed to our VIO desk so you don't spend a day at the licensing office. Pick the option that matches what you need.",
     whatsIncluded: [
-      "VIO processing and plate allocation",
-      "Plate production",
-      "Delivered to you nationwide",
-      "Status tracking in your dashboard",
+      "Plate number",
+      "Proof of ownership",
+      "Vehicle License",
+      "Insurance",
+      "Road worthiness",
+      "Police clearance",
+      "Plate number allocation",
     ],
     whatYouBring: [
       "Vehicle particulars (or proof of ownership)",
       "Valid ID (NIN slip or DL)",
+      "Chassis/VIN photo (fresh registration and change of ownership)",
       "For change of ownership: signed transfer documents",
     ],
     pricingNote: null,
