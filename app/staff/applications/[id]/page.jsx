@@ -684,6 +684,12 @@ export default function StaffApplicationDetailsPage() {
                 <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
               </div>
             )}
+            {application.is_fancy_plate && application.fancy_plate_number && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy plate requested</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{application.fancy_plate_number}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -47,7 +47,7 @@ import {
   submitRoadworthinessApplication,
   downloadVehicleVerificationReportPdf,
 } from "@/lib/api";
-import PartialPayControls, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PartialPayControls";
+import PaymentOptions, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PaymentOptions";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
@@ -115,21 +115,31 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "vehicle_photo_side", label: "Vehicle photo — side" },
     { value: "vin_sticker_photo", label: "VIN sticker photo" },
   ],
+  // Fresh registration: exactly a chassis/VIN photo, 3 separate
+  // customs-duty page uploads, and proof of ownership (purchase
+  // receipt/sales agreement) — replaced, not augmented, per the
+  // document-requirements overhaul. Mirrors REQUIRED_DOCS_BY_APPLICATION_TYPE
+  // in app/modules/driver_licence/router.py.
   number_plate_new: [
-    { value: "vehicle_registration_document", label: "Vehicle registration document" },
-    { value: "proof_of_ownership", label: "Proof of ownership" },
-    { value: "owner_id", label: "Owner's ID" },
+    { value: "vin_sticker_photo", label: "VIN sticker photo" },
+    { value: "customs_duty_page_1", label: "Custom duty — page 1" },
+    { value: "customs_duty_page_2", label: "Custom duty — page 2" },
+    { value: "customs_duty_page_3", label: "Custom duty — page 3" },
+    { value: "proof_of_ownership", label: "Purchase receipt / sales agreement" },
   ],
   number_plate_replacement: [
     { value: "vehicle_registration_document", label: "Vehicle registration document" },
     { value: "proof_of_ownership", label: "Proof of ownership" },
     { value: "owner_id", label: "Owner's ID" },
   ],
+  // Same as number_plate_new above, plus the previous owner's particulars.
   number_plate_change_of_ownership: [
-    { value: "vehicle_registration_document", label: "Vehicle registration document" },
-    { value: "proof_of_ownership", label: "Proof of ownership" },
-    { value: "owner_id", label: "Owner's ID" },
-    { value: "proof_of_transfer", label: "Proof of transfer" },
+    { value: "vin_sticker_photo", label: "VIN sticker photo" },
+    { value: "customs_duty_page_1", label: "Custom duty — page 1" },
+    { value: "customs_duty_page_2", label: "Custom duty — page 2" },
+    { value: "customs_duty_page_3", label: "Custom duty — page 3" },
+    { value: "proof_of_ownership", label: "Purchase receipt / sales agreement" },
+    { value: "previous_owner_particulars", label: "Previous owner's particulars" },
   ],
   // Union of every document type's evidence doc_type, deduped — a
   // vehicle_particulars bundle only actually requires the subset backing
@@ -1883,7 +1893,6 @@ export default function CustomerApplicationDetailsPage() {
   const amountKobo = application.payment_options?.amount_kobo || estimateFeeKobo(application.application_type, application.validity_period);
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
-  const checkoutUrl = application.payment_options?.checkout_url;
   const isRejected = application.status === "staff_rejected";
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
@@ -2040,6 +2049,12 @@ export default function CustomerApplicationDetailsPage() {
               <div className="col-span-2 sm:col-span-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous owner</span>
                 <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
+              </div>
+            )}
+            {isNumberPlate && application.is_fancy_plate && application.fancy_plate_number && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy plate requested</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{application.fancy_plate_number}</span>
               </div>
             )}
           </div>
@@ -2386,6 +2401,7 @@ export default function CustomerApplicationDetailsPage() {
                   {isFreeRwxRebook
                     ? "This re-sitting is free within your 7-day window — nothing to pay."
                     : <>You have paid <strong className="font-mono text-[#111111]">{koboToNaira(amountKobo)}</strong> for this application.</>}
+                  {isNumberPlate && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
             </div>
@@ -2404,27 +2420,19 @@ export default function CustomerApplicationDetailsPage() {
               </div>
             </div>
             {amountPaidKobo > 0 && <PaymentProgressBar paidKobo={amountPaidKobo} totalKobo={amountKobo} />}
-            <PartialPayControls
+            <PaymentOptions
               remainingKobo={remainingKobo}
               walletBalanceKobo={walletBalance}
+              amountPaidKobo={amountPaidKobo}
               payingWallet={payingWallet}
-              onPay={handlePayFromWallet}
               payingCard={payingCard}
+              onPayWallet={handlePayFromWallet}
               onPayCard={handlePayPartialByCard}
             />
-            {checkoutUrl ? (
-              <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-fit`}>
-                Pay {koboToNaira(remainingKobo)} with card <ExternalLink className="h-4 w-4" />
-              </a>
-            ) : (
-              <p className="text-[12px] text-slate-500">
-                Card payment is temporarily unavailable right now — pay from your wallet above, or check back shortly.
-              </p>
-            )}
             {walletBalance < Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
-                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay by card above.
+                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Monnify above.
               </p>
             )}
           </div>
@@ -2440,32 +2448,26 @@ export default function CustomerApplicationDetailsPage() {
                 </h3>
                 <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
                   Pay <strong className="font-mono text-[#111111]">{koboToNaira(remainingKobo)}</strong> to move this
-                  application forward — pay it all at once, or bit by bit from your wallet, at least ₦10,000 at a time.
+                  application forward — pay it all at once, or bit by bit
+                  {amountPaidKobo > 0 ? ", any amount" : ", at least ₦10,000 at a time"}.
+                  {isNumberPlate && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
             </div>
             {amountPaidKobo > 0 && <PaymentProgressBar paidKobo={amountPaidKobo} totalKobo={amountKobo} />}
-            <PartialPayControls
+            <PaymentOptions
               remainingKobo={remainingKobo}
               walletBalanceKobo={walletBalance}
+              amountPaidKobo={amountPaidKobo}
               payingWallet={payingWallet}
-              onPay={handlePayFromWallet}
               payingCard={payingCard}
+              onPayWallet={handlePayFromWallet}
               onPayCard={handlePayPartialByCard}
             />
-            {checkoutUrl ? (
-              <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-fit`}>
-                Pay {koboToNaira(remainingKobo)} with card <ExternalLink className="h-4 w-4" />
-              </a>
-            ) : (
-              <p className="text-[12px] text-slate-500">
-                Card payment is temporarily unavailable right now — pay from your wallet above, or check back shortly.
-              </p>
-            )}
             {walletBalance < Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
-                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay by card above.
+                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Monnify above.
               </p>
             )}
           </div>
