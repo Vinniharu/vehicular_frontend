@@ -19,6 +19,7 @@ import {
   HandCoins,
   MessageCircle,
   MapPin,
+  AlertTriangle,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -36,6 +37,7 @@ const ADMIN_NAV = [
       { label: "Applications", href: "/admin/applications", icon: ClipboardList, desc: "Every application in the system and who's handling it" },
       { label: "Tickets", href: "/admin/tickets", icon: MessageCircle, desc: "Every support conversation and who's handling it" },
       { label: "RWX Bays", href: "/admin/rwx/bays", icon: MapPin, desc: "Inspection bay locations, slot capacity, and assigned agents" },
+      { label: "Activity Log", href: "/admin/activity-log", icon: AlertTriangle, desc: "Real-time feed of customer-facing errors and failures" },
     ],
   },
   {
