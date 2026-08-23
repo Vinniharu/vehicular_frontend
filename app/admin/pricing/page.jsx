@@ -30,6 +30,7 @@ const DL_ROWS = [
   { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New (standard tier)" },
   { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement (standard tier)" },
   { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership (standard tier)" },
+  { key: "number_plate_fancy_surcharge:null", application_type: "number_plate_fancy_surcharge", validity_period: null, label: "Number Plate — Fancy Plate Surcharge" },
   { key: "vehicle_verification_registration_history:null", application_type: "vehicle_verification_registration_history", validity_period: null, label: "Vehicle Verification — Registration History" },
   { key: "vehicle_verification_customs_duty:null", application_type: "vehicle_verification_customs_duty", validity_period: null, label: "Vehicle Verification — Customs Duty" },
 ];

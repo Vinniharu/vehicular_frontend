@@ -709,6 +709,11 @@ export default function AgentApplicationDetailPage() {
             <span className="rounded-md border border-slate-200 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
               {(application.application_type || "fresh").replace(/_/g, " ")}
             </span>
+            {isNumberPlate && application.is_fancy_plate && application.fancy_plate_number && (
+              <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-wide text-emerald-700">
+                Fancy plate: {application.fancy_plate_number}
+              </span>
+            )}
           </div>
           <button onClick={() => loadDetail(true)} className={btnSecondary} style={{ padding: "0.55rem 0.9rem" }}>
             {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
