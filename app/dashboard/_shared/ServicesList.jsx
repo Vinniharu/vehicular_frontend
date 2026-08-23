@@ -100,12 +100,40 @@ export default function ServicesList({ showSearch = true }) {
     return Math.min(...priced.map((p) => p.amount_kobo));
   }, [vehicleCategoryPrices]);
 
+  // "From ₦X" on the Vehicle Verification card resolves to the cheapest of
+  // its 2 check-type combos (registration_history / customs_duty) — same
+  // "cheapest tier" pattern as the cards above. Unlike RWX, the backend
+  // always has a fallback figure for these two (see _FALLBACK_FEE_SCHEDULE,
+  // app/core/payment_helpers.py), so once feeSchedule has loaded this
+  // should never legitimately stay null.
+  const vvMinKobo = useMemo(() => {
+    if (!feeSchedule) return null;
+    const vvPrices = feeSchedule.filter((p) => p.application_type?.startsWith("vehicle_verification_"));
+    if (vvPrices.length === 0) return null;
+    return Math.min(...vvPrices.map((p) => p.amount_kobo));
+  }, [feeSchedule]);
+
   const feeByScheduleType = {
     drivers_licence: driversLicenceMinKobo,
     tinted_permit: tintedPermitFeeKobo,
     number_plate: numberPlateMinKobo,
     vehicle_particulars: particularsMinKobo,
     roadworthiness_express: rwxMinKobo,
+    vehicle_verification_registration_history: vvMinKobo,
+  };
+
+  // Whether the underlying fetch for a given feeScheduleType has resolved
+  // yet — feeKobo alone can't distinguish "still loading" from "loaded,
+  // genuinely nothing priced" (RWX/particulars can legitimately have no
+  // price yet), so CtaBadge needs both to show accurate copy instead of a
+  // permanent "Loading…" for a price that will never arrive.
+  const feeLoadedByScheduleType = {
+    drivers_licence: feeSchedule !== null,
+    tinted_permit: feeSchedule !== null,
+    number_plate: feeSchedule !== null,
+    vehicle_particulars: particularsPrices !== null,
+    roadworthiness_express: vehicleCategoryPrices !== null,
+    vehicle_verification_registration_history: feeSchedule !== null,
   };
 
   const servicePriceBySlug = useMemo(() => {
@@ -179,6 +207,7 @@ export default function ServicesList({ showSearch = true }) {
                       ? feeByScheduleType[service.feeScheduleType] ?? null
                       : servicePriceBySlug[service.slug] ?? null
                   }
+                  loaded={service.feeScheduleType ? feeLoadedByScheduleType[service.feeScheduleType] ?? true : servicePrices !== null}
                 />
               ))}
             </div>
@@ -212,7 +241,7 @@ export function CategoryChip({ label, count, active, onClick }) {
   );
 }
 
-export function CtaBadge({ service, feeKobo }) {
+export function CtaBadge({ service, feeKobo, loaded = true }) {
   // Only a "live" service's price display can resolve to a real "From ₦X" —
   // an admin-set service_prices row for a "coming_soon"/"off_sale" entry is
   // informational at most and must never imply that entry is purchasable
@@ -226,7 +255,15 @@ export function CtaBadge({ service, feeKobo }) {
         </span>
       );
     }
-    return <span className="text-[11px] font-semibold text-[#7A7A7A]">Loading…</span>;
+    // feeKobo is null for two genuinely different reasons: the fetch just
+    // hasn't resolved yet (show "Loading…", which will clear), or it
+    // resolved and nothing's priced yet (RWX with no category priced) —
+    // showing "Loading…" forever for the latter is exactly the reported
+    // "stuck on loading" bug, so it must not render the same text.
+    if (!loaded) {
+      return <span className="text-[11px] font-semibold text-[#7A7A7A]">Loading…</span>;
+    }
+    return <span className="text-[11px] font-semibold text-[#7A7A7A]">Book now</span>;
   }
 
   if (service.status === "off_sale") {
@@ -250,7 +287,7 @@ export function CtaBadge({ service, feeKobo }) {
   );
 }
 
-export function ServiceCard({ service, feeKobo }) {
+export function ServiceCard({ service, feeKobo, loaded = true }) {
   const Icon = service.icon;
   // Services with a real apply flow set applyHref explicitly; everything
   // else is informational for now and links to its public marketing page.
@@ -272,7 +309,7 @@ export function ServiceCard({ service, feeKobo }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        <CtaBadge service={service} feeKobo={feeKobo} />
+        <CtaBadge service={service} feeKobo={feeKobo} loaded={loaded} />
         <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-500" />
       </div>
     </Link>

@@ -35,11 +35,19 @@ const DL_ROWS = [
 ];
 // Number Plate & Vehicle Particulars have their own real category-priced
 // grid below — excluded here alongside Driver's Licence/Tinted Permit so
-// they don't also show up as a single flat marketing price. Admin still
-// needs to price "dark" (customer-hidden) services too — they still have
-// service_prices rows, just no customer-facing listing right now.
+// they don't also show up as a single flat marketing price. Vehicle
+// Verification (priced via DL_ROWS above) and Roadworthiness Express
+// (priced via VEHICLE_CATEGORY_SERVICES below) are excluded for the same
+// reason — a service_prices row saved here is never read by anything
+// (the wizards, the DL fee-schedule endpoint, and the vehicle-category
+// grid all read from their own dedicated tables), so leaving them in this
+// list let an admin "successfully" price them here while the customer-
+// facing price stayed unset/null forever — this is the exact bug behind
+// "I set the price but it's stuck on Loading". Admin still needs to price
+// "dark" (customer-hidden) services too — they still have service_prices
+// rows, just no customer-facing listing right now.
 const OTHER_SERVICES = [...SERVICES, ...DARK_SERVICES].filter(
-  (s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars"].includes(s.slug)
+  (s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars", "vehicle-verification", "roadworthiness-express"].includes(s.slug)
 );
 
 // Vehicle Particulars — 5 document types, each independently priced. This
