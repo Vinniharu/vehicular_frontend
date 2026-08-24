@@ -27,12 +27,21 @@ const DL_ROWS = [
   { key: "renewal:5 years", application_type: "renewal", validity_period: "5 years", label: "Renewal — 5 years (Reissue uses this price too)" },
   { key: "international_permit:null", application_type: "international_permit", validity_period: null, label: "International Permit" },
   { key: "tinted_permit:null", application_type: "tinted_permit", validity_period: null, label: "Tinted Glass Permit" },
+  { key: "vehicle_verification_registration_history:null", application_type: "vehicle_verification_registration_history", validity_period: null, label: "Vehicle Verification — Registration History" },
+  { key: "vehicle_verification_customs_duty:null", application_type: "vehicle_verification_customs_duty", validity_period: null, label: "Vehicle Verification — Customs Duty" },
+];
+// Broken out of DL_ROWS into their own accordion/section (see the "dl" vs
+// "number-plate" accordions below) — these used to live inside "Driver's
+// Licence & Permits," a section with no relation to Number Plate, which is
+// why admins couldn't find where to price the fancy-plate surcharge. Still
+// submitted through the exact same dl_fee_schedule PATCH payload as
+// DL_ROWS (see handleSave) — this is purely a visibility/grouping fix, not
+// a data-model change.
+const NUMBER_PLATE_FLAT_ROWS = [
   { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New (standard tier)" },
   { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement (standard tier)" },
   { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership (standard tier)" },
   { key: "number_plate_fancy_surcharge:null", application_type: "number_plate_fancy_surcharge", validity_period: null, label: "Number Plate — Fancy Plate Surcharge" },
-  { key: "vehicle_verification_registration_history:null", application_type: "vehicle_verification_registration_history", validity_period: null, label: "Vehicle Verification — Registration History" },
-  { key: "vehicle_verification_customs_duty:null", application_type: "vehicle_verification_customs_duty", validity_period: null, label: "Vehicle Verification — Customs Duty" },
 ];
 // Number Plate & Vehicle Particulars have their own real category-priced
 // grid below — excluded here alongside Driver's Licence/Tinted Permit so
@@ -463,7 +472,7 @@ function MainPricingSection({ stateId, reloadKey }) {
     // shouldn't have to fill in the 9th just to save the other 8. An
     // explicitly-entered non-positive number is still rejected server-side.
     setSaving(true);
-    const dl_fee_schedule = DL_ROWS.map((row) => ({
+    const dl_fee_schedule = [...DL_ROWS, ...NUMBER_PLATE_FLAT_ROWS].map((row) => ({
       application_type: row.application_type,
       validity_period: row.validity_period,
       amount_kobo: dlRows[row.key]?.amount ? Math.round(parseFloat(dlRows[row.key].amount) * 100) : null,
@@ -568,6 +577,27 @@ function MainPricingSection({ stateId, reloadKey }) {
       content: (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {DL_ROWS.map((row) => (
+            <PriceRowCard
+              key={row.key}
+              label={row.label}
+              row={dlRows[row.key] || rowStateFromApiItem({})}
+              onChange={(next) => setDlRows((prev) => ({ ...prev, [row.key]: next }))}
+              editing={editing}
+              amountRequired
+              onDelete={editing ? () => handleDeleteDl(row) : null}
+              isGeneralScope={stateId == null}
+            />
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: "number-plate",
+      title: "Number Plate — Flat Fees",
+      subtitle: "Standard-tier price used when no vehicle-category price is set below (in Vehicle Category Pricing), plus the fancy-plate add-on.",
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {NUMBER_PLATE_FLAT_ROWS.map((row) => (
             <PriceRowCard
               key={row.key}
               label={row.label}
@@ -769,6 +799,7 @@ function VehicleCategoryPricingSection({ stateId, reloadKey }) {
           <h2 className="font-display text-base font-semibold text-[#111111]">Vehicle Category Pricing</h2>
           <p className="text-sm text-slate-500 mt-0.5">
             Price varies by vehicle category for Number Plate and Vehicle Particulars renewal — set a price for each of the 12 categories per service.
+            Flat fees (standard tier + fancy-plate surcharge) are set above, in Number Plate — Flat Fees.
           </p>
         </div>
         {!editing ? (
