@@ -191,7 +191,7 @@ export default function SupportCustomerDetailPage() {
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-[12.5px] text-slate-600">
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-slate-400" />{a.state_of_residence} / {a.lga}</span>
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-slate-400" />{a.state_of_residence}{a.lga ? ` / ${a.lga}` : ""}</span>
                     </td>
                     <td className="px-4 py-3.5 text-[12px] text-slate-400">
                       {a.created_at ? new Date(a.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "—"}
