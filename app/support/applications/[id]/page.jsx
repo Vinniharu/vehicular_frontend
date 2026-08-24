@@ -299,7 +299,7 @@ export default function SupportApplicationDetailPage() {
           </Link>
           <div className="mt-2 space-y-1.5">
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Mail className="h-3.5 w-3.5" /> {ad.email}</p>
-            <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Phone className="h-3.5 w-3.5" /> {ad.phone}</p>
+            <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Phone className="h-3.5 w-3.5" /> {ad.phone || "—"}</p>
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600">
               <MapPin className="h-3.5 w-3.5" /> {ad.state_of_residence || "—"} / {ad.lga || "—"}
             </p>
