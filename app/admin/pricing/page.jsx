@@ -91,6 +91,7 @@ const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "number_plate_replacement", label: "Number Plate — Replacement" },
   { service_key: "number_plate_change_of_ownership", label: "Number Plate — Change of Ownership" },
   { service_key: "roadworthiness_express", label: "Roadworthiness Express" },
+  { service_key: "central_motor_registry", label: "Electronic Central Motor Registry" },
 ];
 
 function keyFor(application_type, validity_period) {

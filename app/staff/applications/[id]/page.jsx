@@ -1613,7 +1613,42 @@ export default function StaffApplicationDetailsPage() {
               </div>
             )}
 
-            {modalType === "final-review" && application.application_type !== "roadworthiness_express" && !application.application_type?.startsWith("vehicle_verification_") && (
+            {modalType === "final-review" && application.application_type === "central_motor_registry" && (
+              <div className="space-y-3.5">
+                <p className="text-[12.5px] text-slate-500">
+                  Confirm the agent's completion document actually shows the vehicle registered on
+                  the Electronic Central Motor Registry before releasing it. Approving moves the
+                  application to <strong className="text-slate-800">awaiting_customer</strong>.
+                  Rejecting sends it back to the agent to redo.
+                </p>
+                {(application.documents || []).filter((d) => d.doc_type === "central_registry_certificate").map((d, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(d.file_url)); }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-100"
+                  >
+                    <ImageIcon className="h-3 w-3" /> View completion document
+                  </button>
+                ))}
+                <div>
+                  <label className={fieldLabel}>Decision</label>
+                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
+                  <textarea
+                    rows={3}
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder={decisionInput === "rejected" ? "e.g. Document doesn't clearly show the registry entry." : "e.g. Registry document verified against the vehicle."}
+                    className={inputBase}
+                  />
+                </div>
+              </div>
+            )}
+
+            {modalType === "final-review" && application.application_type !== "roadworthiness_express" && !application.application_type?.startsWith("vehicle_verification_") && application.application_type !== "central_motor_registry" && (
               <div className="space-y-3.5">
                 <p className="text-[12.5px] text-slate-500">
                   Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : application.application_type?.startsWith("number_plate_") ? "the number plate" : "the permanent licence card"}) checks out. Approving moves

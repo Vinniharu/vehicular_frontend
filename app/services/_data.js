@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Sun,
   GraduationCap,
+  Landmark,
 } from "lucide-react";
 
 export const SERVICES = [
@@ -258,6 +259,35 @@ export const SERVICES = [
       { title: "Submit vehicle details", desc: "Plate, make, model, year, colour, and your certificate if applicable." },
       { title: "Agent verification", desc: "A Vehiculars agent verifies your submission against available records." },
       { title: "Get your verdict", desc: "A clear pass/flagged result with a code you can share or verify publicly." },
+    ],
+    children: null,
+  },
+  {
+    slug: "central-motor-registry",
+    icon: Landmark,
+    category: "Other documents",
+    status: "live",
+    applyHref: "/dashboard/apply/central-motor-registry/new",
+    feeScheduleType: "central_motor_registry",
+    title: "Electronic Central Motor Registry",
+    tagline: "Register your vehicle on the national motor registry — one document, one flat fee per vehicle category.",
+    intro:
+      "Get your vehicle registered on the Electronic Central Motor Registry. Upload your vehicle licence, provide your NIN and email, and a Vehiculars agent processes the registration end-to-end — no state restriction, so any authorized agent nationwide can pick up the job.",
+    whatsIncluded: [
+      "Registration on the Electronic Central Motor Registry",
+      "Agent-processed, staff-reviewed completion document",
+    ],
+    whatYouBring: [
+      "Vehicle licence document",
+      "NIN",
+      "Email address",
+    ],
+    pricingNote: "Flat fee, based on your vehicle's category — same price for every vehicle in that category.",
+    howItWorks: [
+      { title: "Select your vehicle", desc: "Choose the vehicle to register, and the state you're registering in." },
+      { title: "Submit your details", desc: "Upload your vehicle licence, and provide your NIN and email." },
+      { title: "Agent processing", desc: "An authorized agent anywhere in the country processes your registration." },
+      { title: "Staff review & completion", desc: "Staff reviews the agent's completion document before it's released to you." },
     ],
     children: null,
   },

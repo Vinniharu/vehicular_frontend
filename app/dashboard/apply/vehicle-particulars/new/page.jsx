@@ -4,26 +4,25 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Upload,
   Loader2,
   CheckCircle2,
   Plus,
   Car,
   FileCheck2,
+  Wallet,
 } from "lucide-react";
 import {
   getReferenceStates,
   listVehicles,
   createVehicle,
   submitVehicleParticularsApplication,
-  uploadApplicationFile,
   payFromWalletEndpoint,
   getWallet,
   getVehicleParticularsEligibility,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
-import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
+import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/app/dashboard/_shared/apply-helpers";
 import { VEHICLE_CATEGORY_OPTIONS, HACKNEY_ELIGIBLE_CATEGORY_VALUES } from "@/lib/constants/vehicleCategories";
@@ -87,110 +86,6 @@ const DOCUMENT_TYPES = [
 
 const DOC_TYPE_BY_KEY = Object.fromEntries(DOCUMENT_TYPES.map((d) => [d.document_type, d]));
 
-function UploadSlot({ slot, value, onChange }) {
-  const [dragActive, setDragActive] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  const handleFile = async (file) => {
-    if (!file) return;
-    setError(null);
-    setUploading(true);
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-    const { data, error: uploadError } = await uploadApplicationFile(file);
-    setUploading(false);
-    if (uploadError || !data?.file_url) {
-      setError(uploadError || "Upload failed. Please try again.");
-      return;
-    }
-    onChange({ fileName: file.name, url: data.file_url });
-  };
-
-  const handleRemove = () => {
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    onChange(null);
-  };
-
-  const bgStyle = (url) => ({
-    backgroundImage: url ? `url(${url})` : undefined,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundColor: "#f8fafc",
-  });
-
-  if (!value?.url) {
-    return (
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
-        className="relative flex aspect-[4/3] cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border-2 transition-all"
-        style={{ borderColor: dragActive ? BRAND : "#E5E5E5", ...bgStyle(slot.image) }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/50" />
-        <div className="relative z-[1] p-3.5">
-          <p className="text-[13px] font-semibold text-white drop-shadow-sm">{slot.title}</p>
-          {slot.hint && <p className="mt-0.5 text-[11px] text-white/80 drop-shadow-sm">{slot.hint}</p>}
-        </div>
-        <div className="relative z-[1] p-3.5">
-          <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2.5">
-            <Upload className="h-4 w-4 shrink-0" style={{ color: BRAND }} />
-            <span className="text-[12px] font-semibold text-slate-700">
-              {uploading ? "Uploading…" : "Click or drop a file here"}
-            </span>
-          </div>
-          {error && <p className="mt-1.5 rounded-md bg-red-600/90 px-2 py-1 text-[11px] font-medium text-white">{error}</p>}
-          <p className="mt-1.5 text-[10.5px] text-white/70 drop-shadow-sm">JPG, PNG, WEBP, HEIC, or PDF · up to 10 MB</p>
-        </div>
-        <input
-          type="file"
-          accept="image/*,application/pdf"
-          disabled={uploading}
-          onChange={(e) => handleFile(e.target.files?.[0])}
-          className="hidden"
-        />
-      </label>
-    );
-  }
-
-  return (
-    <div
-      className="relative flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-2xl border-2"
-      style={{ borderColor: BRAND, ...bgStyle(previewUrl) }}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/40" />
-      <div className="relative z-[1] p-3.5">
-        <p className="text-[13px] font-semibold text-white drop-shadow-sm">{slot.title}</p>
-      </div>
-      <div className="relative z-[1] flex items-center justify-between gap-2 p-3.5">
-        <div className="flex min-w-0 items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2.5">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-          <p className="truncate text-[12px] font-semibold text-[#111111]">{value.fileName}</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleRemove}
-          className="shrink-0 rounded-xl bg-white/95 px-3 py-2.5 text-[11px] font-semibold text-red-600 hover:bg-white"
-        >
-          Remove
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function VehicleParticularsNewApplicationPage() {
   const router = useRouter();
@@ -465,12 +360,19 @@ export default function VehicleParticularsNewApplicationPage() {
 
           {!isPaid && payOpts && (
             <div className="mt-5 space-y-2.5 text-left">
-              <PartialPayControls
-                remainingKobo={payOpts.remaining_kobo ?? payOpts.amount_kobo}
-                walletBalanceKobo={walletBalance}
-                payingWallet={payingFromWallet}
-                onPay={handlePayFromWallet}
-              />
+              <p className="text-[11.5px] font-semibold text-slate-500">
+                This service must be paid in full — {koboToNaira(payOpts.remaining_kobo ?? payOpts.amount_kobo)}
+              </p>
+              <button
+                type="button"
+                onClick={() => handlePayFromWallet(payOpts.remaining_kobo ?? payOpts.amount_kobo)}
+                disabled={payingFromWallet}
+                className={`${btnPrimary} w-full`}
+                style={{ background: BRAND }}
+              >
+                {payingFromWallet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                {payingFromWallet ? "Processing…" : "Pay from wallet"}
+              </button>
               {payOpts.checkout_url && (
                 <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
                   Pay by card instead
