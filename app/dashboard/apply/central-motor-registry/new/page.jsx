@@ -8,55 +8,42 @@ import {
   CheckCircle2,
   Plus,
   Car,
-  Clock,
   Wallet,
 } from "lucide-react";
 import {
-  getCachedUser,
   getReferenceStates,
   listVehicles,
   createVehicle,
-  submitDriverLicenceApplication,
+  submitCentralMotorRegistryApplication,
   payFromWalletEndpoint,
   getWallet,
-  getDriverLicenceFeeSchedule,
-  getTintedPermitEligibility,
+  getVehicleCategoryPricing,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
-// Mirrors app/core/payment_helpers.py — fallback only, used while the live
-// fee-schedule fetch (below) hasn't resolved yet or failed.
-const TOTAL_FEE_KOBO = 2_705_000;
+const NIN_RE = /^\d{11}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
+const STEP_LABELS = ["Vehicle", "Your details", "Document", "Review & submit"];
+const DOC_STEP = 3;
+const REVIEW_STEP = 4;
 
-// Reference-photo guides shown as the background of each upload box below.
-// Files live in public/placeholder/ — swap in a different photo for a slot
-// by replacing that file (or point `image` at a new path) any time; a
-// missing file just falls back to a plain background, nothing breaks.
-const DOC_SLOTS = [
-  { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Vehicle particulars or purchase receipt", image: "/placeholder/proof.jpeg" },
-  { doc_type: "vehicle_licence", title: "Vehicle Licence", hint: "Front of your vehicle licence", image: "/placeholder/vehicle.jpeg" },
-  { doc_type: "tinted_passport_photo", title: "Passport Photograph", hint: "Clear photo of your face", image: "/placeholder/person.jpeg" },
-  { doc_type: "vehicle_photo_front", title: "Vehicle Photo — Front", hint: "Full front view of the vehicle", image: "/placeholder/front.jpeg" },
-  { doc_type: "vehicle_photo_back", title: "Vehicle Photo — Back", hint: "Full rear view of the vehicle", image: "/placeholder/back.jpeg" },
-  { doc_type: "vehicle_photo_side", title: "Vehicle Photo — Side", hint: "Full side profile of the vehicle", image: "/placeholder/side.jpeg" },
-  { doc_type: "vin_sticker_photo", title: "VIN Sticker Photo", hint: "Usually on driver-side door jamb or dashboard", image: "/placeholder/vin.jpeg" },
-];
+const DOC_SLOT = {
+  doc_type: "vehicle_licence",
+  title: "Vehicle Licence",
+  hint: "A clear photo or scan of the vehicle licence document",
+  image: "/placeholder/vehicle.jpeg",
+};
 
-const STEP_LABELS = ["Vehicle", "Applicant details", "Documents", "Review & submit"];
-
-export default function TintedPermitNewApplicationPage() {
+export default function CentralMotorRegistryNewApplicationPage() {
   const router = useRouter();
-  const user = getCachedUser();
-
-  const [step, setStep] = useState(1);
 
   const [states, setStates] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -65,20 +52,20 @@ export default function TintedPermitNewApplicationPage() {
   const [addingVehicle, setAddingVehicle] = useState(false);
 
   const [vehicleForm, setVehicleForm] = useState({
-    plate_number: "", make: "", model: "", colour: "", state_id: "",
+    plate_number: "", make: "", model: "", colour: "", year: "", chassis_number: "", engine_number: "", state_id: "", vehicle_category: "",
   });
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
 
+  const [selectedStateId, setSelectedStateId] = useState("");
   const [nin, setNin] = useState("");
-  const [justification, setJustification] = useState("");
-  const [docs, setDocs] = useState({});
+  const [applicantEmail, setApplicantEmail] = useState("");
+  const [doc, setDoc] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
-  // { eligible, reason: "in_flight" | "not_due" | null, current_expiry_date, eligible_from_date }
-  const [eligibility, setEligibility] = useState(null);
 
+  const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successApp, setSuccessApp] = useState(null);
@@ -87,8 +74,8 @@ export default function TintedPermitNewApplicationPage() {
   const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
-    Promise.all([getReferenceStates(), listVehicles(), getWallet(), getDriverLicenceFeeSchedule()]).then(
-      ([statesRes, vehiclesRes, walletRes, feeRes]) => {
+    Promise.all([getReferenceStates(), listVehicles(), getWallet()]).then(
+      ([statesRes, vehiclesRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (vehiclesRes.data) {
           setVehicles(vehiclesRes.data);
@@ -98,41 +85,50 @@ export default function TintedPermitNewApplicationPage() {
           setAddingVehicle(true);
         }
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-        const tintedPrice = feeRes.data?.prices?.find((p) => p.application_type === "tinted_permit")?.amount_kobo;
-        if (tintedPrice != null) setFeeKobo(tintedPrice);
         setLoadingVehicles(false);
       }
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Eligibility is per-vehicle — re-fetch whenever the selected vehicle
-  // changes, including right after "Add another vehicle" picks a brand-new
-  // one with no history at all (always eligible).
-  useEffect(() => {
-    if (!selectedVehicleId) return;
-    getTintedPermitEligibility(selectedVehicleId).then((res) => {
-      if (res.data) setEligibility(res.data);
-    });
-  }, [selectedVehicleId]);
-
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
-  const displayFeeKobo = feeKobo ?? TOTAL_FEE_KOBO;
+
+  // Live category-based quote — reads the same public price grid the
+  // /pricing calculator uses (GET /pricing/vehicle-categories), filtered to
+  // this service and the selected vehicle's category.
+  useEffect(() => {
+    if (!selectedVehicle?.vehicle_category || !selectedStateId) return;
+    getVehicleCategoryPricing(Number(selectedStateId)).then((res) => {
+      const cell = res.data?.prices?.find(
+        (p) => p.service_key === "central_motor_registry" && p.vehicle_category === selectedVehicle.vehicle_category
+      );
+      setFeeKobo(cell?.amount_kobo ?? null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVehicle?.vehicle_category, selectedStateId]);
 
   const handleCreateVehicle = async () => {
     const errors = {};
-    if (!vehicleForm.plate_number.trim()) errors.plate_number = "Plate number is required.";
-    else if (!PLATE_RE.test(vehicleForm.plate_number.trim())) errors.plate_number = "Use 4-15 letters, digits, or hyphens.";
+    if (vehicleForm.plate_number.trim() && !/^[A-Za-z0-9-]{4,15}$/.test(vehicleForm.plate_number.trim())) {
+      errors.plate_number = "Use 4-15 letters, digits, or hyphens, or leave blank.";
+    }
     if (!vehicleForm.make.trim()) errors.make = "Make is required.";
     if (!vehicleForm.model.trim()) errors.model = "Model is required.";
     if (!vehicleForm.colour.trim()) errors.colour = "Colour is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
+    if (!vehicleForm.vehicle_category) errors.vehicle_category = "Select the vehicle's category — it determines the price.";
     if (Object.keys(errors).length > 0) {
       setVehicleFieldErrors(errors);
       return;
     }
     setVehicleFieldErrors({});
     setCreatingVehicle(true);
-    const res = await createVehicle({ ...vehicleForm, state_id: Number(vehicleForm.state_id) });
+    const res = await createVehicle({
+      ...vehicleForm,
+      plate_number: vehicleForm.plate_number.trim() || undefined,
+      year: vehicleForm.year ? Number(vehicleForm.year) : undefined,
+      state_id: Number(vehicleForm.state_id),
+    });
     setCreatingVehicle(false);
     if (res.error) {
       setVehicleFieldErrors({ plate_number: res.error });
@@ -147,16 +143,19 @@ export default function TintedPermitNewApplicationPage() {
     const errors = {};
     if (n === 1) {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
-      else if (eligibility && !eligibility.eligible) errors.vehicle = "This vehicle isn't eligible for a new tinted permit request right now — see above.";
+      else if (!selectedVehicle?.vehicle_category) {
+        errors.vehicle = "This vehicle has no category on file — add a new vehicle with a category, or update this one.";
+      }
     }
     if (n === 2) {
-      const trimmedNin = nin.trim();
-      if (!trimmedNin) errors.nin = "NIN is required.";
-      else if (!/^\d{11}$/.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+      if (!selectedStateId) errors.state = "Select the state to register in.";
+      if (!nin.trim()) errors.nin = "NIN is required.";
+      else if (!NIN_RE.test(nin.trim())) errors.nin = "NIN must be exactly 11 digits.";
+      if (!applicantEmail.trim()) errors.applicant_email = "Email is required.";
+      else if (!EMAIL_RE.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
     }
-    if (n === 3) {
-      const allDocsUploaded = DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
-      if (!allDocsUploaded) errors.documents = "Upload every required document to continue.";
+    if (n === DOC_STEP) {
+      if (!doc?.url) errors.documents = "Upload the vehicle licence document to continue.";
     }
     return errors;
   };
@@ -171,13 +170,17 @@ export default function TintedPermitNewApplicationPage() {
     setStep((s) => Math.min(4, s + 1));
   };
 
-  const canSubmit = selectedVehicleId && /^\d{11}$/.test(nin) && DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
+  const canSubmit =
+    selectedVehicleId && selectedVehicle?.vehicle_category &&
+    selectedStateId && NIN_RE.test(nin.trim()) && EMAIL_RE.test(applicantEmail.trim()) &&
+    !!doc?.url;
 
   const handleSubmit = async () => {
-    const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3) };
+    const stepsToCheck = [1, 2, 3];
+    const allErrors = stepsToCheck.reduce((acc, s) => ({ ...acc, ...validateStep(s) }), {});
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
-      const firstBadStep = [1, 2, 3].find((s) => Object.keys(validateStep(s)).length > 0);
+      const firstBadStep = stepsToCheck.find((s) => Object.keys(validateStep(s)).length > 0);
       if (firstBadStep) setStep(firstBadStep);
       setSubmitError("Please fix the highlighted fields before submitting.");
       return;
@@ -185,12 +188,12 @@ export default function TintedPermitNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
-    const res = await submitDriverLicenceApplication({
-      application_type: "tinted_permit",
+    const res = await submitCentralMotorRegistryApplication({
       vehicle_id: selectedVehicleId,
-      nin,
-      justification: justification || undefined,
-      documents: DOC_SLOTS.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
+      state_id: Number(selectedStateId),
+      nin: nin.trim(),
+      applicant_email: applicantEmail.trim(),
+      vehicle_licence: { doc_type: "vehicle_licence", file_url: doc.url },
     });
     setSubmitting(false);
     if (res.error) {
@@ -198,7 +201,7 @@ export default function TintedPermitNewApplicationPage() {
       return;
     }
     setSuccessApp(res.data);
-    setPayOpts(res.data.payment_options || null);
+    setPayOpts(res.data.payment_options);
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -211,7 +214,7 @@ export default function TintedPermitNewApplicationPage() {
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     if (res.data) {
       if (res.data.is_fully_paid) {
-        router.push("/dashboard/apply/tinted-permit");
+        router.push(`/dashboard/apply/${successApp.id}`);
         return;
       }
       setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
@@ -220,32 +223,19 @@ export default function TintedPermitNewApplicationPage() {
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
-  // "Pay by card" opens Monnify in a new tab (consistent with every other
-  // pay-by-card link in this app) — this tab never gets a callback, so it
-  // has to notice payment completion itself once the customer switches
-  // back, instead of leaving them stranded on this form.
   useEffect(() => {
     if (!successApp || isPaid) return;
     const checkPayment = async () => {
       const res = await getApplication(successApp.id);
       const opts = res.data?.payment_options;
       if (!opts) return;
-      const remaining = opts.remaining_kobo ?? opts.amount_kobo ?? 0;
-      if (remaining <= 0) {
-        router.push("/dashboard/apply/tinted-permit");
-      } else {
-        setPayOpts(opts);
+      setPayOpts(opts);
+      if ((opts.remaining_kobo ?? opts.amount_kobo) <= 0) {
+        router.push(`/dashboard/apply/${successApp.id}`);
       }
     };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") checkPayment();
-    };
-    window.addEventListener("focus", checkPayment);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("focus", checkPayment);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+    const interval = setInterval(checkPayment, 5000);
+    return () => clearInterval(interval);
   }, [successApp, isPaid, router]);
 
   if (successApp) {
@@ -255,9 +245,9 @@ export default function TintedPermitNewApplicationPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
             <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
           </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Tinted permit application submitted</h2>
+          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Application submitted</h2>
           <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            5 working days — proof of process &amp; payment so you can drive freely. 7 working days for the main permit certificate.
+            We'll route this to an authorized agent and keep you updated in your dashboard.
           </p>
 
           <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
@@ -267,15 +257,12 @@ export default function TintedPermitNewApplicationPage() {
             </div>
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? displayFeeKobo)}</span>
+              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? feeKobo ?? 0)}</span>
             </div>
           </div>
 
           {!isPaid && payOpts && (
             <div className="mt-5 space-y-2.5 text-left">
-              <p className="text-[11.5px] font-semibold text-slate-500">
-                This service must be paid in full — {koboToNaira(payOpts.remaining_kobo ?? payOpts.amount_kobo)}
-              </p>
               <button
                 type="button"
                 onClick={() => handlePayFromWallet(payOpts.remaining_kobo ?? payOpts.amount_kobo)}
@@ -294,7 +281,7 @@ export default function TintedPermitNewApplicationPage() {
             </div>
           )}
 
-          <button type="button" onClick={() => router.push("/dashboard/apply/tinted-permit")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={() => router.push("/dashboard/apply")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
             Back to applications
           </button>
         </div>
@@ -304,30 +291,24 @@ export default function TintedPermitNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply/tinted-permit")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/apply")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply for Tinted Permit</h1>
+        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply — Electronic Central Motor Registry</h1>
         <p className="mt-1.5 text-[13.5px] text-slate-500">
-          Upload the documents and vehicle photos below. We'll process your application end-to-end.
+          Register your vehicle on the Electronic Central Motor Registry. One document, one flat fee for your vehicle's category.
         </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">5 working days — proof of process &amp; payment so you can drive freely</p>
+        {feeKobo != null && (
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <p className="text-[12.5px] text-slate-600">Estimated total: {koboToNaira(feeKobo)}</p>
           </div>
-          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">7 working days — main Permit certificate</p>
-          </div>
-        </div>
+        )}
       </div>
 
       <StepProgress steps={STEP_LABELS} current={step} />
 
-      {/* Step 1 — Vehicle */}
       {step === 1 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
@@ -347,7 +328,9 @@ export default function TintedPermitNewApplicationPage() {
                     style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                   >
                     <div>
-                      <p className="text-[13.5px] font-semibold text-[#111111]">{v.make} {v.model} — {v.plate_number}</p>
+                      <p className="text-[13.5px] font-semibold text-[#111111]">
+                        {v.make} {v.model} {v.plate_number ? `— ${v.plate_number}` : "(no plate yet)"}
+                      </p>
                       <p className="text-[12px] text-slate-500">{v.colour} · {v.state}</p>
                     </div>
                     {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: BRAND }} />}
@@ -364,21 +347,11 @@ export default function TintedPermitNewApplicationPage() {
             </div>
           )}
 
-          {eligibility && !eligibility.eligible && (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] text-amber-800">
-              {eligibility.reason === "in_flight"
-                ? "This vehicle already has a tinted permit request in progress — check your existing requests."
-                : eligibility.eligible_from_date
-                ? `This vehicle's tinted permit isn't due for renewal yet — eligible from ${new Date(eligibility.eligible_from_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}.`
-                : "This vehicle isn't due for tinted permit renewal yet."}
-            </div>
-          )}
-
           {(addingVehicle || (!loadingVehicles && vehicles.length === 0)) && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className={label}>Plate number</label>
+                  <label className={label}>Plate number <span className="font-normal text-slate-400">(leave blank if none yet)</span></label>
                   <input
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.plate_number)}`}
                     value={vehicleForm.plate_number}
@@ -416,6 +389,28 @@ export default function TintedPermitNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.colour} />
                 </div>
                 <div>
+                  <label className={label}>Vehicle category</label>
+                  <select
+                    className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`}
+                    value={vehicleForm.vehicle_category}
+                    onChange={(e) => setVehicleForm((f) => ({ ...f, vehicle_category: e.target.value }))}
+                  >
+                    <option value="">Select category</option>
+                    {VEHICLE_CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                  <FieldError message={vehicleFieldErrors.vehicle_category} />
+                </div>
+                <div>
+                  <label className={label}>Year <span className="font-normal text-slate-400">(optional)</span></label>
+                  <input
+                    type="number"
+                    className={inputBase}
+                    value={vehicleForm.year}
+                    onChange={(e) => setVehicleForm((f) => ({ ...f, year: e.target.value }))}
+                    placeholder="e.g. 2021"
+                  />
+                </div>
+                <div>
                   <label className={label}>State</label>
                   <select
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.state_id)}`}
@@ -426,6 +421,14 @@ export default function TintedPermitNewApplicationPage() {
                     {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                   <FieldError message={vehicleFieldErrors.state_id} />
+                </div>
+                <div>
+                  <label className={label}>Chassis number <span className="font-normal text-slate-400">(optional)</span></label>
+                  <input
+                    className={inputBase}
+                    value={vehicleForm.chassis_number}
+                    onChange={(e) => setVehicleForm((f) => ({ ...f, chassis_number: e.target.value }))}
+                  />
                 </div>
               </div>
               <div className="flex gap-2">
@@ -443,60 +446,61 @@ export default function TintedPermitNewApplicationPage() {
         </section>
       )}
 
-      {/* Step 2 — Applicant details */}
       {step === 2 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Your details</h2>
+          <div className="space-y-4">
             <div>
-              <label className={label}>Email address</label>
-              <input className={inputBase} value={user?.email || ""} disabled />
+              <label className={label}>State <span className="text-red-400">*</span></label>
+              <select
+                className={`${inputBase} ${errInputClass(!!fieldErrors.state)}`}
+                value={selectedStateId}
+                onChange={(e) => setSelectedStateId(e.target.value)}
+              >
+                <option value="">Select state</option>
+                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <FieldError message={fieldErrors.state} />
             </div>
             <div>
-              <label className={label}>NIN</label>
+              <label className={label}>NIN <span className="text-red-400">*</span></label>
               <input
-                className={`${inputBase} ${errInputClass(!!fieldErrors.nin)}`}
-                value={nin}
-                onChange={(e) => setNin(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                placeholder="11-digit National Identification Number"
+                type="text"
                 inputMode="numeric"
+                maxLength={11}
+                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
+                value={nin}
+                onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
+                placeholder="12345678901"
               />
               <FieldError message={fieldErrors.nin} />
             </div>
-            <div className="sm:col-span-2">
-              <label className={label}>Justification <span className="font-normal text-slate-400">(optional)</span></label>
-              <textarea
-                className={inputBase}
-                rows={2}
-                value={justification}
-                onChange={(e) => setJustification(e.target.value)}
-                placeholder="Any justification the authority asks for (e.g. medical reason)."
+            <div>
+              <label className={label}>Email <span className="text-red-400">*</span></label>
+              <input
+                type="email"
+                className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                value={applicantEmail}
+                onChange={(e) => setApplicantEmail(e.target.value)}
+                placeholder="you@example.com"
               />
+              <FieldError message={fieldErrors.applicant_email} />
             </div>
           </div>
         </section>
       )}
 
-      {/* Step 3 — Documents & photos */}
-      {step === 3 && (
+      {step === DOC_STEP && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents &amp; photos</h2>
+          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Document</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {DOC_SLOTS.map((slot) => (
-              <UploadSlot
-                key={slot.doc_type}
-                slot={slot}
-                value={docs[slot.doc_type]}
-                onChange={(v) => setDocs((prev) => ({ ...prev, [slot.doc_type]: v }))}
-              />
-            ))}
+            <UploadSlot slot={DOC_SLOT} value={doc} onChange={setDoc} />
           </div>
           <FieldError message={fieldErrors.documents} />
         </section>
       )}
 
-      {/* Step 4 — Review & submit */}
-      {step === 4 && (
+      {step === REVIEW_STEP && (
         <section className="space-y-4">
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your application</h2>
@@ -504,31 +508,31 @@ export default function TintedPermitNewApplicationPage() {
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Vehicle</span>
                 <span className="font-semibold text-[#111111]">
-                  {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} — ${selectedVehicle.plate_number}` : "—"}
+                  {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.plate_number ? ` — ${selectedVehicle.plate_number}` : ""}` : "—"}
                 </span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">State</span>
+                <span className="font-semibold text-[#111111]">{states.find((s) => String(s.id) === String(selectedStateId))?.name || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">NIN</span>
                 <span className="font-mono font-semibold text-[#111111]">{nin || "—"}</span>
               </div>
-              {justification.trim() && (
-                <div className="py-2.5 text-[13px]">
-                  <span className="block text-slate-500">Justification</span>
-                  <span className="mt-1 block text-[#111111]">{justification}</span>
-                </div>
-              )}
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Documents</span>
-                <span className="font-semibold text-[#111111]">
-                  {DOC_SLOTS.filter((s) => docs[s.doc_type]?.url).length} of {DOC_SLOTS.length} uploaded
-                </span>
+                <span className="text-slate-500">Email</span>
+                <span className="font-semibold text-[#111111]">{applicantEmail || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Document</span>
+                <span className="font-semibold text-[#111111]">{doc?.url ? "1 of 1 uploaded" : "0 of 1 uploaded"}</span>
               </div>
             </div>
           </div>
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(displayFeeKobo)}</p>
+            <p className="text-[20px] font-bold text-[#111111]">Total: {feeKobo != null ? koboToNaira(feeKobo) : "—"}</p>
             <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
           </section>
 
@@ -541,7 +545,6 @@ export default function TintedPermitNewApplicationPage() {
         </section>
       )}
 
-      {/* Step navigation */}
       {step < 4 && (
         <div className="flex items-center justify-between gap-3">
           {step > 1 ? (

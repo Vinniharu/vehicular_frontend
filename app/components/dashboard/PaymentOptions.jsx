@@ -39,15 +39,17 @@ export default function PaymentOptions({
   payingCard,
   onPayWallet,
   onPayCard,
+  partialAllowed = true,
 }) {
   const [method, setMethod] = useState("wallet");
   const [choice, setChoice] = useState("full");
   const [amountNaira, setAmountNaira] = useState("");
 
   const minKobo = minPayableKobo(remainingKobo, amountPaidKobo);
-  const amountKobo = choice === "full" ? remainingKobo : Math.round((parseFloat(amountNaira) || 0) * 100);
+  const effectiveChoice = partialAllowed ? choice : "full";
+  const amountKobo = effectiveChoice === "full" ? remainingKobo : Math.round((parseFloat(amountNaira) || 0) * 100);
 
-  const tooLow = choice === "part" && amountKobo > 0 && amountKobo < minKobo;
+  const tooLow = effectiveChoice === "part" && amountKobo > 0 && amountKobo < minKobo;
   const tooHigh = amountKobo > remainingKobo;
   const overBalance = method === "wallet" && amountKobo > walletBalanceKobo;
   const invalid = amountKobo <= 0 || tooLow || tooHigh;
@@ -87,19 +89,21 @@ export default function PaymentOptions({
         </div>
       )}
 
-      <div>
-        <p className="mb-1.5 text-[11.5px] font-semibold text-slate-600">How much?</p>
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-          <button type="button" onClick={() => setChoice("full")} className={segBtn(choice === "full")}>
-            Pay in full
-          </button>
-          <button type="button" onClick={() => setChoice("part")} className={segBtn(choice === "part")}>
-            Pay a part
-          </button>
+      {partialAllowed && (
+        <div>
+          <p className="mb-1.5 text-[11.5px] font-semibold text-slate-600">How much?</p>
+          <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+            <button type="button" onClick={() => setChoice("full")} className={segBtn(choice === "full")}>
+              Pay in full
+            </button>
+            <button type="button" onClick={() => setChoice("part")} className={segBtn(choice === "part")}>
+              Pay a part
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {choice === "part" && (
+      {effectiveChoice === "part" && (
         <div>
           <div className="flex min-w-[140px] items-center rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2.5 focus-within:border-[#28A745] focus-within:ring-2 focus-within:ring-[#28A745]/15">
             <span className="mr-1 text-[13.5px] font-semibold text-slate-500">₦</span>

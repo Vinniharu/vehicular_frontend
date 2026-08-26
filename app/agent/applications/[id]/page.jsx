@@ -46,6 +46,7 @@ import {
   uploadApplicationFile,
   addApplicationDocument,
   submitVehicleVerificationChecklist,
+  completeCentralMotorRegistryApplication,
 } from "@/lib/api";
 import { statusMeta, StatusBadge } from "../../_status";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
@@ -401,6 +402,112 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc }) {
   );
 }
 
+const CENTRAL_REGISTRY_CERTIFICATE_DOC_TYPE = "central_registry_certificate";
+
+// Electronic Central Motor Registry's agent flow is a single completion
+// document, no structured checklist — kept as its own compact
+// self-contained view for the same reason VehicleVerificationChecklist is.
+function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
+  const existingDoc = (application.documents || []).find((d) => d.doc_type === CENTRAL_REGISTRY_CERTIFICATE_DOC_TYPE);
+
+  const [uploading, setUploading] = useState(false);
+  const [fileUrl, setFileUrl] = useState(existingDoc?.file_url || null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const canEdit = application.status === "agent_accepted";
+
+  const handleUpload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setUploading(false);
+    if (uploadError || !data?.file_url) {
+      setError(uploadError || "Upload failed. Please try again.");
+      return;
+    }
+    setFileUrl(data.file_url);
+  };
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!fileUrl) {
+      setError("Upload the completion document before submitting.");
+      return;
+    }
+    setSubmitting(true);
+    const res = await completeCentralMotorRegistryApplication(application.id, { file_url: fileUrl });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    onSubmitted();
+  };
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-5 pb-16">
+      <Link href="/agent/applications" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
+        <ArrowLeft className="h-3.5 w-3.5" /> My applications
+      </Link>
+
+      <Section title="Electronic Central Motor Registry" icon={BadgeCheck}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Vehicle ID" value={application.vehicle_id} mono />
+          <Field label="NIN" value={application.nin} mono />
+          <Field label="Applicant email" value={application.applicant_email} />
+        </div>
+        {(application.documents || []).filter((d) => d.doc_type === "vehicle_licence").map((d, i) => (
+          <button key={i} type="button" onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(d.file_url)); }} className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold hover:underline" style={{ color: BRAND }}>
+            View customer's vehicle licence <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        ))}
+      </Section>
+
+      {!canEdit && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-800">
+          {application.status === "agent_completed" ? "Completion document already submitted — awaiting staff confirmation." : `This job is at status "${application.status}" and can't be edited here.`}
+        </div>
+      )}
+
+      <Section title="Completion document" icon={ImageIcon}>
+        <p className="mb-3 text-[12.5px] text-slate-500">
+          Attach the registry document that confirms this vehicle's Electronic Central Motor Registry entry.
+        </p>
+        {fileUrl ? (
+          <button type="button" onClick={() => onViewDoc(resolveMediaUrl(fileUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
+            <ImageIcon className="h-3.5 w-3.5" /> Document attached — view
+          </button>
+        ) : canEdit ? (
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? "Uploading…" : "Click to upload"}
+            <input type="file" accept="image/*,application/pdf" disabled={uploading} onChange={(e) => handleUpload(e.target.files?.[0])} className="hidden" />
+          </label>
+        ) : (
+          <p className="text-[12.5px] text-slate-400">No document attached.</p>
+        )}
+        {fileUrl && canEdit && (
+          <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:underline">
+            {uploading ? "Uploading…" : "Replace document"}
+            <input type="file" accept="image/*,application/pdf" disabled={uploading} onChange={(e) => handleUpload(e.target.files?.[0])} className="hidden" />
+          </label>
+        )}
+      </Section>
+
+      {error && <p className="text-[13px] font-medium text-red-600">{error}</p>}
+
+      {canEdit && (
+        <button type="button" onClick={handleSubmit} disabled={submitting} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
+          {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {submitting ? "Submitting…" : "Submit completion document"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AgentApplicationDetailPage() {
   const params = useParams();
   const appId = params?.id ? Number(params.id) : null;
@@ -639,6 +746,22 @@ export default function AgentApplicationDetailPage() {
           onViewDoc={setPreviewDocUrl}
           onSubmitted={async () => {
             setNotice({ type: "success", message: "Checklist submitted — awaiting staff confirmation." });
+            await loadDetail(true);
+          }}
+        />
+      </>
+    );
+  }
+
+  if (application.application_type === "central_motor_registry") {
+    return (
+      <>
+        <DocumentPreviewModal isOpen={!!previewDocUrl} onClose={() => setPreviewDocUrl(null)} fileUrl={previewDocUrl} />
+        <CentralMotorRegistryComplete
+          application={application}
+          onViewDoc={setPreviewDocUrl}
+          onSubmitted={async () => {
+            setNotice({ type: "success", message: "Completion document submitted — awaiting staff confirmation." });
             await loadDetail(true);
           }}
         />

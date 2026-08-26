@@ -86,7 +86,7 @@ function estimateFeeKobo(appType, period) {
   // submission time for this type, so this fallback should never actually
   // be reached. 0 (not the renewal bucket below) avoids silently mispricing
   // a bundle display the one time this estimator IS hit before load.
-  if (appType === "vehicle_particulars" || appType?.startsWith("vehicle_verification_")) return 0;
+  if (appType === "vehicle_particulars" || appType?.startsWith("vehicle_verification_") || appType === "central_motor_registry") return 0;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
@@ -128,9 +128,7 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "proof_of_ownership", label: "Purchase receipt / sales agreement" },
   ],
   number_plate_replacement: [
-    { value: "vehicle_registration_document", label: "Vehicle registration document" },
     { value: "proof_of_ownership", label: "Proof of ownership" },
-    { value: "owner_id", label: "Owner's ID" },
   ],
   // Same as number_plate_new above, plus the previous owner's particulars.
   number_plate_change_of_ownership: [
@@ -153,6 +151,9 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "proof_of_ownership_evidence", label: "Proof of ownership" },
     { value: "owner_id_evidence", label: "Owner's ID" },
     { value: "commercial_registration_evidence", label: "Commercial registration evidence" },
+  ],
+  central_motor_registry: [
+    { value: "vehicle_licence", label: "Vehicle licence" },
   ],
 };
 
@@ -1893,6 +1894,7 @@ export default function CustomerApplicationDetailsPage() {
   const amountKobo = application.payment_options?.amount_kobo || estimateFeeKobo(application.application_type, application.validity_period);
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
+  const partialPaymentAllowed = application.payment_options?.partial_payment_allowed ?? true;
   const isRejected = application.status === "staff_rejected";
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
@@ -2415,7 +2417,9 @@ export default function CustomerApplicationDetailsPage() {
               <div>
                 <h3 className="text-[15px] font-bold text-[#111111]">Payment failed</h3>
                 <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
-                  Your payment attempt failed. Pay bit by bit from your wallet below, or retry by card.
+                  Your payment attempt failed. {partialPaymentAllowed
+                    ? "Pay bit by bit from your wallet below, or retry by card."
+                    : "Retry from your wallet below, or by card."}
                 </p>
               </div>
             </div>
@@ -2428,8 +2432,9 @@ export default function CustomerApplicationDetailsPage() {
               payingCard={payingCard}
               onPayWallet={handlePayFromWallet}
               onPayCard={handlePayPartialByCard}
+              partialAllowed={partialPaymentAllowed}
             />
-            {walletBalance < Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) && (
+            {walletBalance < (partialPaymentAllowed ? Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) : remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
                 <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Monnify above.
@@ -2448,8 +2453,10 @@ export default function CustomerApplicationDetailsPage() {
                 </h3>
                 <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
                   Pay <strong className="font-mono text-[#111111]">{koboToNaira(remainingKobo)}</strong> to move this
-                  application forward — pay it all at once, or bit by bit
-                  {amountPaidKobo > 0 ? ", any amount" : ", at least ₦10,000 at a time"}.
+                  application forward
+                  {partialPaymentAllowed
+                    ? ` — pay it all at once, or bit by bit${amountPaidKobo > 0 ? ", any amount" : ", at least ₦10,000 at a time"}.`
+                    : ", in full."}
                   {isNumberPlate && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
@@ -2463,8 +2470,9 @@ export default function CustomerApplicationDetailsPage() {
               payingCard={payingCard}
               onPayWallet={handlePayFromWallet}
               onPayCard={handlePayPartialByCard}
+              partialAllowed={partialPaymentAllowed}
             />
-            {walletBalance < Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) && (
+            {walletBalance < (partialPaymentAllowed ? Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) : remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
                 <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Monnify above.

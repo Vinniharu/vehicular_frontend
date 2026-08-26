@@ -17,7 +17,6 @@ import {
   listVehicles,
   createVehicle,
   submitDriverLicenceApplication,
-  uploadApplicationFile,
   payFromWalletEndpoint,
   getWallet,
   getNumberPlateFee,
@@ -26,6 +25,7 @@ import {
   koboToNaira,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
+import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS } from "@/lib/constants/vehicleCategories";
@@ -61,16 +61,21 @@ const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 const NIN_RE = /^\d{11}$/;
 
 // What the Number Plate fee actually covers, end to end — shown to the
-// applicant up front so the price doesn't look like "just a plate."
-const WHATS_COVERED = [
-  "Plate number",
-  "Proof of ownership",
-  "Vehicle License",
-  "Insurance",
-  "Road worthiness",
-  "Police clearance",
-  "Plate number allocation",
-];
+// applicant up front so the price doesn't look like "just a plate." New/
+// change-of-ownership get the full list; replacement (a lost/damaged-plate
+// reissue, not a fresh registration) only ever produces a plate number.
+function getWhatsCovered(planKey) {
+  if (planKey === "replacement") return ["Plate number"];
+  return [
+    "Plate number",
+    "Proof of ownership",
+    "Vehicle License",
+    "Insurance",
+    "Road worthiness",
+    "Police clearance",
+    "Plate number allocation",
+  ];
+}
 
 const STEP_KEY_LABELS = {
   vehicle: "Vehicle",
@@ -88,14 +93,12 @@ const STEP_KEY_LABELS = {
 // documents (replaced, not augmented, per the document-requirements
 // overhaul) — no vehicle registration document or owner ID, since a fresh
 // registration has no prior registration document to submit. Replacement
-// stays a lightweight vehicle+documents submission for an already-
-// registered plate, unaffected by this overhaul.
+// needs only proof of ownership — a lost/damaged-plate reissue for an
+// already-registered vehicle, per the confirmed simplification.
 function getDocSlots(planKey) {
   if (planKey === "replacement") {
     return [
-      { doc_type: "vehicle_registration_document", title: "Vehicle Registration Document", hint: "Vehicle particulars or purchase receipt", image: "/placeholder/vehicle.jpeg" },
       { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Purchase receipt, sales agreement, or current proof of ownership", image: "/placeholder/proof.jpeg" },
-      { doc_type: "owner_id", title: "Owner's ID", hint: "NIN slip, driver's licence, or international passport", image: "/placeholder/person.jpeg" },
     ];
   }
   const base = [
@@ -109,111 +112,6 @@ function getDocSlots(planKey) {
     base.push({ doc_type: "previous_owner_particulars", title: "Previous Owner's Particulars", hint: "Old particulars/documents from the previous owner", image: "/placeholder/person.jpeg" });
   }
   return base;
-}
-
-function UploadSlot({ slot, value, onChange }) {
-  const [dragActive, setDragActive] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  const handleFile = async (file) => {
-    if (!file) return;
-    setError(null);
-    setUploading(true);
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-    const { data, error: uploadError } = await uploadApplicationFile(file);
-    setUploading(false);
-    if (uploadError || !data?.file_url) {
-      setError(uploadError || "Upload failed. Please try again.");
-      return;
-    }
-    onChange({ fileName: file.name, url: data.file_url });
-  };
-
-  const handleRemove = () => {
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    onChange(null);
-  };
-
-  const bgStyle = (url) => ({
-    backgroundImage: url ? `url(${url})` : undefined,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundColor: "#f8fafc",
-  });
-
-  if (!value?.url) {
-    return (
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFile(e.dataTransfer.files?.[0]); }}
-        className="relative flex aspect-[4/3] cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border-2 transition-all"
-        style={{ borderColor: dragActive ? BRAND : "#E5E5E5", ...bgStyle(slot.image) }}
-      >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/50" />
-        <div className="relative z-[1] p-3.5">
-          <p className="text-[13px] font-semibold text-white drop-shadow-sm">{slot.title}</p>
-          {slot.hint && <p className="mt-0.5 text-[11px] text-white/80 drop-shadow-sm">{slot.hint}</p>}
-        </div>
-        <div className="relative z-[1] p-3.5">
-          <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2.5">
-            <Upload className="h-4 w-4 shrink-0" style={{ color: BRAND }} />
-            <span className="text-[12px] font-semibold text-slate-700">
-              {uploading ? "Uploading…" : "Click or drop a file here"}
-            </span>
-          </div>
-          {error && <p className="mt-1.5 rounded-md bg-red-600/90 px-2 py-1 text-[11px] font-medium text-white">{error}</p>}
-          <p className="mt-1.5 text-[10.5px] text-white/70 drop-shadow-sm">JPG, PNG, WEBP, HEIC, or PDF · up to 10 MB</p>
-        </div>
-        <input
-          type="file"
-          accept="image/*,application/pdf"
-          disabled={uploading}
-          onChange={(e) => handleFile(e.target.files?.[0])}
-          className="hidden"
-        />
-      </label>
-    );
-  }
-
-  return (
-    <div
-      className="relative flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-2xl border-2"
-      style={{ borderColor: BRAND, ...bgStyle(previewUrl) }}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/40" />
-      <div className="relative z-[1] p-3.5">
-        <p className="text-[13px] font-semibold text-white drop-shadow-sm">{slot.title}</p>
-      </div>
-      <div className="relative z-[1] flex items-center justify-between gap-2 p-3.5">
-        <div className="flex min-w-0 items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2.5">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-          <p className="truncate text-[12px] font-semibold text-[#111111]">{value.fileName}</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleRemove}
-          className="shrink-0 rounded-xl bg-white/95 px-3 py-2.5 text-[11px] font-semibold text-red-600 hover:bg-white"
-        >
-          Remove
-        </button>
-      </div>
-    </div>
-  );
 }
 
 export default function NumberPlateNewApplicationPage() {
@@ -592,7 +490,7 @@ export default function NumberPlateNewApplicationPage() {
           <ShieldCheck className="h-4 w-4" style={{ color: BRAND }} /> What your payment covers
         </h2>
         <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-          {WHATS_COVERED.map((item) => (
+          {getWhatsCovered(planKey).map((item) => (
             <li key={item} className="flex items-center gap-2 text-[12.5px] text-slate-600">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: BRAND }} />
               {item}
