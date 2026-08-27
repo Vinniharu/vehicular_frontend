@@ -23,7 +23,7 @@ import {
   uploadApplicationFile,
   payFromWalletEndpoint,
   getWallet,
-  getVehicleCategoryPricing,
+  getServicePricing,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
@@ -74,7 +74,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
 
-  const [vehicleCategoryPrices, setVehicleCategoryPrices] = useState(null);
+  const [servicePrices, setServicePrices] = useState(null);
 
   const [bayStateId, setBayStateId] = useState("");
   const [bays, setBays] = useState([]);
@@ -113,14 +113,15 @@ export default function RoadworthinessExpressNewApplicationPage() {
     );
   }, []);
 
-  // RWX is priced per the BAY's state, not the vehicle's (the backend
-  // resolves the charge off bay.state_id at booking time) -- so the price
-  // shown here has to be re-fetched whenever the bay state changes, or it'll
-  // silently keep showing the general-tier price even after a state-specific
-  // override exists. Falls back to the general tier before a state is picked.
+  // RWX is a flat fee (ServicePrice, not vehicle-category-based) priced per
+  // the BAY's state, not the vehicle's (the backend resolves the charge off
+  // bay.state_id at booking time) -- so the price shown here has to be
+  // re-fetched whenever the bay state changes, or it'll silently keep
+  // showing the general-tier price even after a state-specific override
+  // exists. Falls back to the general tier before a state is picked.
   useEffect(() => {
-    getVehicleCategoryPricing(bayStateId || undefined).then((res) => {
-      if (res.data?.prices) setVehicleCategoryPrices(res.data.prices);
+    getServicePricing(bayStateId || undefined).then((res) => {
+      if (res.data?.prices) setServicePrices(res.data.prices);
     });
   }, [bayStateId]);
 
@@ -154,13 +155,10 @@ export default function RoadworthinessExpressNewApplicationPage() {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
   const selectedBay = bays.find((b) => b.id === selectedBayId) || null;
 
-  const priceKoboForCategory = useMemo(() => {
-    if (!vehicleCategoryPrices || !selectedVehicle?.vehicle_category) return null;
-    const row = vehicleCategoryPrices.find(
-      (p) => p.service_key === "roadworthiness_express" && p.vehicle_category === selectedVehicle.vehicle_category
-    );
-    return row?.amount_kobo ?? null;
-  }, [vehicleCategoryPrices, selectedVehicle]);
+  const rwxFeeKobo = useMemo(() => {
+    if (!servicePrices) return null;
+    return servicePrices.find((p) => p.slug === "roadworthiness-express")?.amount_kobo ?? null;
+  }, [servicePrices]);
 
   const handleBodyTypeChange = (key) => {
     setBodyType(key);
@@ -194,7 +192,6 @@ export default function RoadworthinessExpressNewApplicationPage() {
     if (!vehicleForm.chassis_number.trim()) errors.chassis_number = "Chassis/VIN number is required.";
     if (!vehicleForm.engine_number.trim()) errors.engine_number = "Engine number is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
-    if (!resolvedCategory) errors.vehicle_category = "Select a vehicle type — and private/commercial if it applies.";
     if (Object.keys(errors).length > 0) {
       setVehicleFieldErrors(errors);
       return;
@@ -210,7 +207,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
       chassis_number: vehicleForm.chassis_number,
       engine_number: vehicleForm.engine_number,
       state_id: Number(vehicleForm.state_id),
-      vehicle_category: resolvedCategory,
+      vehicle_category: resolvedCategory || undefined,
     });
     setCreatingVehicle(false);
     if (res.error) {
@@ -226,7 +223,6 @@ export default function RoadworthinessExpressNewApplicationPage() {
     const errors = {};
     if (n === 1) {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
-      else if (!selectedVehicle?.vehicle_category) errors.vehicle = "This vehicle has no category set — add a new vehicle with a category instead.";
     }
     if (n === 2) {
       if (!selectedBayId) errors.bay = "Pick a bay to continue.";
@@ -347,7 +343,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
             </div>
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? priceKoboForCategory ?? 0)}</span>
+              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? rwxFeeKobo ?? 0)}</span>
             </div>
           </div>
 
@@ -365,7 +361,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
               </button>
               {payOpts.checkout_url && (
                 <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Pay by card instead
+                  Card or Transfer
                 </a>
               )}
             </div>
@@ -483,7 +479,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
               </div>
 
               <div>
-                <label className={label}>Vehicle type</label>
+                <label className={label}>Vehicle type <span className="font-normal text-slate-400">(optional)</span></label>
                 <select className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`} value={bodyType} onChange={(e) => handleBodyTypeChange(e.target.value)}>
                   <option value="">Select vehicle type</option>
                   {BODY_TYPES.map((bt) => <option key={bt.key} value={bt.key}>{bt.label}</option>)}
@@ -651,17 +647,17 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            {priceKoboForCategory != null ? (
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(priceKoboForCategory)}</p>
+            {rwxFeeKobo != null ? (
+              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(rwxFeeKobo)}</p>
             ) : (
-              <p className="text-[13px] font-semibold text-amber-700">Not yet priced for this vehicle category — contact support.</p>
+              <p className="text-[13px] font-semibold text-amber-700">Not yet priced — contact support.</p>
             )}
             <p className="mt-1 text-[12px] text-slate-500">Full payment reserves your slot — an unpaid booking doesn't hold your seat.</p>
           </section>
 
           {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
 
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || priceKoboForCategory == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || rwxFeeKobo == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {submitting ? "Booking…" : "Book & continue to payment"}
           </button>

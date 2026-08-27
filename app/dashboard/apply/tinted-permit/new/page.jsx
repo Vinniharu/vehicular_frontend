@@ -41,7 +41,7 @@ const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 // by replacing that file (or point `image` at a new path) any time; a
 // missing file just falls back to a plain background, nothing breaks.
 const DOC_SLOTS = [
-  { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Vehicle particulars or purchase receipt", image: "/placeholder/proof.jpeg" },
+  { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Proof that you own the vehicle", image: "/placeholder/proof.jpeg" },
   { doc_type: "vehicle_licence", title: "Vehicle Licence", hint: "Front of your vehicle licence", image: "/placeholder/vehicle.jpeg" },
   { doc_type: "tinted_passport_photo", title: "Passport Photograph", hint: "Clear photo of your face", image: "/placeholder/person.jpeg" },
   { doc_type: "vehicle_photo_front", title: "Vehicle Photo — Front", hint: "Full front view of the vehicle", image: "/placeholder/front.jpeg" },
@@ -288,7 +288,7 @@ export default function TintedPermitNewApplicationPage() {
               </button>
               {payOpts.checkout_url && (
                 <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Pay by card instead
+                  Card or Transfer
                 </a>
               )}
             </div>

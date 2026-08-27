@@ -375,7 +375,7 @@ export default function VehicleParticularsNewApplicationPage() {
               </button>
               {payOpts.checkout_url && (
                 <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Pay by card instead
+                  Card or Transfer
                 </a>
               )}
             </div>

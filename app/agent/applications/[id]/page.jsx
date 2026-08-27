@@ -404,7 +404,7 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc }) {
 
 const CENTRAL_REGISTRY_CERTIFICATE_DOC_TYPE = "central_registry_certificate";
 
-// Electronic Central Motor Registry's agent flow is a single completion
+// ECMR's agent flow is a single completion
 // document, no structured checklist — kept as its own compact
 // self-contained view for the same reason VehicleVerificationChecklist is.
 function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
@@ -452,7 +452,7 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
         <ArrowLeft className="h-3.5 w-3.5" /> My applications
       </Link>
 
-      <Section title="Electronic Central Motor Registry" icon={BadgeCheck}>
+      <Section title="ECMR" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="Vehicle ID" value={application.vehicle_id} mono />
           <Field label="NIN" value={application.nin} mono />
@@ -473,7 +473,7 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
 
       <Section title="Completion document" icon={ImageIcon}>
         <p className="mb-3 text-[12.5px] text-slate-500">
-          Attach the registry document that confirms this vehicle's Electronic Central Motor Registry entry.
+          Attach the registry document that confirms this vehicle's ECMR entry.
         </p>
         {fileUrl ? (
           <button type="button" onClick={() => onViewDoc(resolveMediaUrl(fileUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
