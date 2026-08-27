@@ -32,18 +32,20 @@ const DL_ROWS = [
 ];
 // Broken out of DL_ROWS into their own accordion/section (see the "dl" vs
 // "number-plate" accordions below) — these used to live inside "Driver's
-// Licence & Permits," a section with no relation to Number Plate, which is
-// why admins couldn't find where to price the fancy-plate surcharge. Still
+// Licence & Permits," a section with no relation to Number Plate. Still
 // submitted through the exact same dl_fee_schedule PATCH payload as
-// DL_ROWS (see handleSave). This is now number-plate's ONLY price (flat,
-// state-aware, no vehicle-category dimension) — it used to be a fallback
-// sitting underneath the vehicle-category grid below, but that layer was
-// removed (one flat fee per plate type, not per category).
+// DL_ROWS (see handleSave). Each row is number-plate's ONLY price for that
+// type (flat, state-aware, no vehicle-category dimension). Fancy Plate is
+// its own standalone type now (number_plate_fancy) — no longer a surcharge
+// added on top of New/Change of Ownership; the old number_plate_fancy_surcharge
+// key is retired (still exists in the backend's fallback schedule for
+// backward compatibility, but deliberately not shown here — same reason
+// number_plate_commercial_surcharge isn't shown either).
 const NUMBER_PLATE_FLAT_ROWS = [
   { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New" },
   { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement" },
   { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership" },
-  { key: "number_plate_fancy_surcharge:null", application_type: "number_plate_fancy_surcharge", validity_period: null, label: "Number Plate — Fancy Plate Surcharge" },
+  { key: "number_plate_fancy:null", application_type: "number_plate_fancy", validity_period: null, label: "Number Plate — Fancy" },
 ];
 // Vehicle Particulars has its own real category-priced grid below —
 // excluded here alongside Driver's Licence/Tinted Permit/Number Plate so it
@@ -599,7 +601,7 @@ function MainPricingSection({ stateId, reloadKey }) {
     {
       id: "number-plate",
       title: "Number Plate — Flat Fees",
-      subtitle: "Standard-tier price used when no vehicle-category price is set below (in Vehicle Category Pricing), plus the fancy-plate add-on.",
+      subtitle: "One flat, state-aware price per plate type — the only price for each, not a fallback under a category grid.",
       content: (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {NUMBER_PLATE_FLAT_ROWS.map((row) => (
@@ -803,8 +805,8 @@ function VehicleCategoryPricingSection({ stateId, reloadKey }) {
         <div>
           <h2 className="font-display text-base font-semibold text-[#111111]">Vehicle Category Pricing</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Price varies by vehicle category for Number Plate and Vehicle Particulars renewal — set a price for each of the 12 categories per service.
-            Flat fees (standard tier + fancy-plate surcharge) are set above, in Number Plate — Flat Fees.
+            Price varies by vehicle category for Vehicle Particulars renewal only — set a price for each of the 12 categories per document type.
+            Number Plate is flat-priced (one price per type, no category dimension) — set above, in Number Plate — Flat Fees.
           </p>
         </div>
         {!editing ? (

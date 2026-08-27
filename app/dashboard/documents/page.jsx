@@ -29,6 +29,7 @@ const LICENCE_TYPE_META = {
   number_plate_new: { category: "Number Plate", label: "Number Plate (New)" },
   number_plate_replacement: { category: "Number Plate", label: "Number Plate (Replacement)" },
   number_plate_change_of_ownership: { category: "Number Plate", label: "Number Plate (Change of Ownership)" },
+  number_plate_fancy: { category: "Number Plate", label: "Number Plate (Fancy)" },
 };
 
 const CATEGORIES = ["Driver's Licence", "Tinted Permit", "International Permit", "Vehicle Particulars", "Number Plate"];

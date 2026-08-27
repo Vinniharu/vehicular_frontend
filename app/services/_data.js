@@ -147,10 +147,10 @@ export const SERVICES = [
       },
       {
         slug: "fancy-custom",
-        status: "off_sale",
+        status: "live",
         title: "Fancy / Custom Number Plate",
         blurb:
-          "Personalised plates that fit your name, business, or anniversary — currently off sale while we finalise the allocation process with VIO.",
+          "Personalised plates that fit your name, business, or anniversary — a fresh registration with the plate number you choose.",
       },
       {
         slug: "change-of-ownership",
@@ -270,7 +270,7 @@ export const SERVICES = [
     applyHref: "/dashboard/apply/central-motor-registry/new",
     feeScheduleType: "central_motor_registry",
     title: "ECMR",
-    tagline: "Register your vehicle on the national motor registry — one document, one flat fee per vehicle category.",
+    tagline: "Register your vehicle on the national motor registry — one document, one flat fee for every vehicle.",
     intro:
       "Get your vehicle registered on the ECMR. Upload your vehicle licence, provide your NIN and email, and a Vehiculars agent processes the registration end-to-end — no state restriction, so any authorized agent nationwide can pick up the job.",
     whatsIncluded: [
@@ -282,7 +282,7 @@ export const SERVICES = [
       "NIN",
       "Email address",
     ],
-    pricingNote: "Flat fee, based on your vehicle's category — same price for every vehicle in that category.",
+    pricingNote: "Flat fee — the same price for every vehicle, based only on the state you register in.",
     howItWorks: [
       { title: "Select your vehicle", desc: "Choose the vehicle to register, and the state you're registering in." },
       { title: "Submit your details", desc: "Upload your vehicle licence, and provide your NIN and email." },

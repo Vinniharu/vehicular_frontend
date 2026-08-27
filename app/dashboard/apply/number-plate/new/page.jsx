@@ -55,6 +55,12 @@ const PLATE_TYPES = {
     fallbackFeeKobo: 12_000_000,
     requiresExistingPlate: true,
   },
+  fancy: {
+    application_type: "number_plate_fancy",
+    title: "Fancy Plate",
+    fallbackFeeKobo: 12_500_000,
+    requiresExistingPlate: false,
+  },
 };
 
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
@@ -163,19 +169,13 @@ export default function NumberPlateNewApplicationPage() {
       applicant_phone: cachedUser?.phone || "", nin: "", former_registration_number: "",
     };
   });
-  // Fancy (custom) plate number -- fresh registration and change of
-  // ownership only, not replacement (you're not choosing a new number when
-  // reissuing an already-registered plate).
-  const [isFancyPlate, setIsFancyPlate] = useState(false);
+  // Requested plate number -- fancy plate only (a standalone plan now, not
+  // a toggle inside new/change-of-ownership).
   const [fancyPlateNumber, setFancyPlateNumber] = useState("");
   const [docs, setDocs] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
-  // Base (non-fancy) fee, fetched alongside feeKobo so the review step can
-  // show the fancy-plate surcharge as its own distinct line item rather
-  // than folding it silently into one opaque total.
-  const [baseFeeKobo, setBaseFeeKobo] = useState(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -203,9 +203,7 @@ export default function NumberPlateNewApplicationPage() {
   }, []);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
-  const estimatedBaseFeeKobo = baseFeeKobo ?? plan.fallbackFeeKobo;
-  const estimatedFeeKobo = isFancyPlate ? (feeKobo ?? estimatedBaseFeeKobo) : estimatedBaseFeeKobo;
-  const fancySurchargeKobo = isFancyPlate && feeKobo != null ? Math.max(0, feeKobo - estimatedBaseFeeKobo) : 0;
+  const estimatedFeeKobo = feeKobo ?? plan.fallbackFeeKobo;
 
   // Live, state-aware flat price (vehicle category no longer affects it) --
   // refetched whenever the selected vehicle or registration state changes.
@@ -217,19 +215,10 @@ export default function NumberPlateNewApplicationPage() {
       vehicle_id: selectedVehicleId,
       state_id: Number(selectedStateId),
     }).then((res) => {
-      if (res.data?.amount_kobo != null) setBaseFeeKobo(res.data.amount_kobo);
-    });
-    if (!isFancyPlate) return;
-    getNumberPlateFee({
-      application_type: plan.application_type,
-      vehicle_id: selectedVehicleId,
-      state_id: Number(selectedStateId),
-      is_fancy_plate: true,
-    }).then((res) => {
       if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVehicleId, selectedStateId, isFancyPlate]);
+  }, [selectedVehicleId, selectedStateId]);
 
   const handleCreateVehicle = async () => {
     const errors = {};
@@ -289,7 +278,7 @@ export default function NumberPlateNewApplicationPage() {
       const trimmedNin = applicantForm.nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
-      if (isFancyPlate) {
+      if (planKey === "fancy") {
         const trimmedFancy = fancyPlateNumber.trim();
         if (!trimmedFancy) errors.fancyPlateNumber = "Enter your requested plate number.";
         else if (trimmedFancy.length > 8) errors.fancyPlateNumber = "Must be at most 8 characters.";
@@ -325,7 +314,7 @@ export default function NumberPlateNewApplicationPage() {
       applicantForm.residential_address.trim() && applicantForm.applicant_phone.trim() &&
       NIN_RE.test(applicantForm.nin.trim())
     )) &&
-    (!isFancyPlate || (fancyPlateNumber.trim() && fancyPlateNumber.trim().length <= 8)) &&
+    (planKey !== "fancy" || (fancyPlateNumber.trim() && fancyPlateNumber.trim().length <= 8)) &&
     (!isChangeOfOwnership || previousOwnerDetails.trim()) &&
     requiredDocSlots.every((slot) => docs[slot.doc_type]?.url);
 
@@ -354,8 +343,7 @@ export default function NumberPlateNewApplicationPage() {
       applicant_phone: needsApplicantDetails ? applicantForm.applicant_phone.trim() : undefined,
       nin: needsApplicantDetails ? applicantForm.nin.trim() : undefined,
       former_registration_number: needsApplicantDetails ? applicantForm.former_registration_number.trim() || undefined : undefined,
-      is_fancy_plate: needsApplicantDetails ? isFancyPlate : undefined,
-      fancy_plate_number: needsApplicantDetails && isFancyPlate ? fancyPlateNumber.trim() : undefined,
+      fancy_plate_number: planKey === "fancy" ? fancyPlateNumber.trim() : undefined,
       documents: docSlots.filter((slot) => docs[slot.doc_type]?.url).map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
     });
     setSubmitting(false);
@@ -430,12 +418,6 @@ export default function NumberPlateNewApplicationPage() {
               <span className="text-slate-500">Reference</span>
               <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
             </div>
-            {isFancyPlate && fancySurchargeKobo > 0 && (
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-slate-500">Fancy plate fee</span>
-                <span className="font-mono font-semibold text-[#111111]">+{koboToNaira(fancySurchargeKobo)}</span>
-              </div>
-            )}
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-slate-500">Total</span>
               <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? estimatedFeeKobo)}</span>
@@ -752,33 +734,19 @@ export default function NumberPlateNewApplicationPage() {
                 onChange={(e) => setApplicantForm((f) => ({ ...f, former_registration_number: e.target.value }))}
               />
             </div>
-            <div className="rounded-xl border border-[#E5E5E5] p-3.5">
-              <label className="flex cursor-pointer items-center justify-between gap-3">
-                <span>
-                  <span className="block text-[13px] font-semibold text-[#111111]">Fancy plate</span>
-                  <span className="block text-[12px] text-slate-500">Request a custom plate number (max 8 characters) for an added fee.</span>
-                </span>
+            {planKey === "fancy" && (
+              <div>
+                <label className={label}>Requested plate number <span className="text-red-400">*</span></label>
                 <input
-                  type="checkbox"
-                  checked={isFancyPlate}
-                  onChange={(e) => setIsFancyPlate(e.target.checked)}
-                  className="h-5 w-5 shrink-0 accent-[#28A745]"
+                  className={`${inputBase} font-mono uppercase ${errInputClass(!!fieldErrors.fancyPlateNumber)}`}
+                  value={fancyPlateNumber}
+                  maxLength={8}
+                  onChange={(e) => setFancyPlateNumber(e.target.value.toUpperCase())}
+                  placeholder="BOSS001"
                 />
-              </label>
-              {isFancyPlate && (
-                <div className="mt-3">
-                  <label className={label}>Requested plate number <span className="text-red-400">*</span></label>
-                  <input
-                    className={`${inputBase} font-mono uppercase ${errInputClass(!!fieldErrors.fancyPlateNumber)}`}
-                    value={fancyPlateNumber}
-                    maxLength={8}
-                    onChange={(e) => setFancyPlateNumber(e.target.value.toUpperCase())}
-                    placeholder="BOSS001"
-                  />
-                  <FieldError message={fieldErrors.fancyPlateNumber} />
-                </div>
-              )}
-            </div>
+                <FieldError message={fieldErrors.fancyPlateNumber} />
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -857,7 +825,7 @@ export default function NumberPlateNewApplicationPage() {
                   <span className="mt-1 block text-[#111111]">{previousOwnerDetails}</span>
                 </div>
               )}
-              {isFancyPlate && fancyPlateNumber.trim() && (
+              {planKey === "fancy" && fancyPlateNumber.trim() && (
                 <div className="flex items-center justify-between py-2.5 text-[13px]">
                   <span className="text-slate-500">Fancy plate number</span>
                   <span className="font-mono font-semibold text-[#111111]">{fancyPlateNumber.trim()}</span>
@@ -874,17 +842,9 @@ export default function NumberPlateNewApplicationPage() {
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-slate-500">{plan.title}</span>
-                <span className="font-semibold text-[#111111]">{koboToNaira(estimatedBaseFeeKobo)}</span>
-              </div>
-              {isFancyPlate && (
-                <div className="flex items-center justify-between text-[13px]">
-                  <span className="text-slate-500">Fancy plate fee</span>
-                  <span className="font-semibold text-[#111111]">+{koboToNaira(fancySurchargeKobo)}</span>
-                </div>
-              )}
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-slate-500">{plan.title}</span>
+              <span className="font-semibold text-[#111111]">{koboToNaira(estimatedFeeKobo)}</span>
             </div>
             <p className="mt-2 text-[20px] font-bold text-[#111111]">Total: {koboToNaira(estimatedFeeKobo)}</p>
             <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
