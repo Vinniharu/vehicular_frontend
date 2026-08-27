@@ -70,6 +70,7 @@ const NUMBER_PLATE_FEE_KOBO = {
   number_plate_new: 10_500_000,
   number_plate_replacement: 10_500_000,
   number_plate_change_of_ownership: 12_000_000,
+  number_plate_fancy: 12_500_000,
 };
 // Maps a real backend application_type back to the ?type= query param the
 // apply/number-plate/new wizard expects (see PLATE_TYPES there).
@@ -77,6 +78,7 @@ const NUMBER_PLATE_QUERY_TYPE = {
   number_plate_new: "new",
   number_plate_replacement: "replacement",
   number_plate_change_of_ownership: "change-of-ownership",
+  number_plate_fancy: "fancy",
 };
 function estimateFeeKobo(appType, period) {
   if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
@@ -129,6 +131,15 @@ const REQUIRED_DOCS_BY_TYPE = {
   ],
   number_plate_replacement: [
     { value: "proof_of_ownership", label: "Proof of ownership" },
+  ],
+  // Fancy/custom plate — a fresh registration in every respect except the
+  // plate number is customer-requested; same documents as number_plate_new.
+  number_plate_fancy: [
+    { value: "vin_sticker_photo", label: "VIN sticker photo" },
+    { value: "customs_duty_page_1", label: "Custom duty — page 1" },
+    { value: "customs_duty_page_2", label: "Custom duty — page 2" },
+    { value: "customs_duty_page_3", label: "Custom duty — page 3" },
+    { value: "proof_of_ownership", label: "Purchase receipt / sales agreement" },
   ],
   // Same as number_plate_new above, plus the previous owner's particulars.
   number_plate_change_of_ownership: [
@@ -2403,7 +2414,7 @@ export default function CustomerApplicationDetailsPage() {
                   {isFreeRwxRebook
                     ? "This re-sitting is free within your 7-day window — nothing to pay."
                     : <>You have paid <strong className="font-mono text-[#111111]">{koboToNaira(amountKobo)}</strong> for this application.</>}
-                  {isNumberPlate && application.is_fancy_plate && " (includes the fancy plate fee)"}
+                  {isNumberPlate && application.application_type !== "number_plate_fancy" && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
             </div>
@@ -2457,7 +2468,7 @@ export default function CustomerApplicationDetailsPage() {
                   {partialPaymentAllowed
                     ? ` — pay it all at once, or bit by bit${amountPaidKobo > 0 ? ", any amount" : ", at least ₦10,000 at a time"}.`
                     : ", in full."}
-                  {isNumberPlate && application.is_fancy_plate && " (includes the fancy plate fee)"}
+                  {isNumberPlate && application.application_type !== "number_plate_fancy" && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
             </div>

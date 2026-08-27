@@ -270,6 +270,7 @@ export default function AdminApplicationsPage() {
           <option value="number_plate_new">Number Plate — New</option>
           <option value="number_plate_replacement">Number Plate — Replacement</option>
           <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
+          <option value="number_plate_fancy">Number Plate — Fancy</option>
         </select>
         <select
           value={statusFilter}

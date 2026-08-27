@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Repeat,
   FileSignature,
+  Sparkles,
 } from "lucide-react";
 import { getMyApplications, getWallet, payFromWalletEndpoint } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
@@ -34,6 +35,7 @@ const PLATE_TYPE_META = {
   number_plate_new: { label: "New plate", fallbackFeeKobo: 10_500_000 },
   number_plate_replacement: { label: "Replacement", fallbackFeeKobo: 10_500_000 },
   number_plate_change_of_ownership: { label: "Change of ownership", fallbackFeeKobo: 12_000_000 },
+  number_plate_fancy: { label: "Fancy plate", fallbackFeeKobo: 12_500_000 },
 };
 
 const PLATE_SERVICE_OPTIONS = [
@@ -54,6 +56,12 @@ const PLATE_SERVICE_OPTIONS = [
     icon: FileSignature,
     title: "Change of ownership",
     desc: "Just bought a used vehicle — transfer ownership and get a fresh plate.",
+  },
+  {
+    type: "fancy",
+    icon: Sparkles,
+    title: "Fancy plate",
+    desc: "Choose your own custom plate number for a fresh registration.",
   },
 ];
 
@@ -136,7 +144,7 @@ export default function NumberPlateApplicationsPage() {
       </div>
 
       {/* Service-type picker */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {PLATE_SERVICE_OPTIONS.map((opt) => {
           const Icon = opt.icon;
           return (

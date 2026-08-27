@@ -30,7 +30,7 @@ const DL_TIERS = ["3 years", "5 years"];
 const NUMBER_PLATE_VARIANTS = [
   { value: "number_plate_new", label: "New Registration" },
   { value: "number_plate_replacement", label: "Replacement" },
-  { value: "fancy_custom", label: "Fancy / Custom Plate", disabled: true, disabledLabel: "Off sale" },
+  { value: "number_plate_fancy", label: "Fancy / Custom Plate" },
   { value: "number_plate_change_of_ownership", label: "Change of Ownership" },
 ];
 
