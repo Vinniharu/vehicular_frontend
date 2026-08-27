@@ -74,7 +74,7 @@ export default function PartialPayControls({ remainingKobo, walletBalanceKobo, p
       </p>
       {tooLow && <p className="mt-1 text-[11.5px] font-medium text-red-600">Minimum payment is {koboToNaira(minKobo)}.</p>}
       {!tooLow && tooHigh && <p className="mt-1 text-[11.5px] font-medium text-red-600">Amount exceeds the remaining balance of {koboToNaira(remainingKobo)}.</p>}
-      {!tooHigh && overBalance && <p className="mt-1 text-[11.5px] font-medium text-red-600">Amount exceeds your wallet balance of {koboToNaira(walletBalanceKobo)} — pay by card instead.</p>}
+      {!tooHigh && overBalance && <p className="mt-1 text-[11.5px] font-medium text-red-600">Amount exceeds your wallet balance of {koboToNaira(walletBalanceKobo)} — Card or Transfer.</p>}
     </div>
   );
 }

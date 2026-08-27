@@ -207,10 +207,9 @@ export default function NumberPlateNewApplicationPage() {
   const estimatedFeeKobo = isFancyPlate ? (feeKobo ?? estimatedBaseFeeKobo) : estimatedBaseFeeKobo;
   const fancySurchargeKobo = isFancyPlate && feeKobo != null ? Math.max(0, feeKobo - estimatedBaseFeeKobo) : 0;
 
-  // Live, vehicle-category-aware price -- refetched whenever the selected
-  // vehicle or registration state changes (the two inputs the backend
-  // actually prices from). Falls back to plan.fallbackFeeKobo (set above)
-  // until both are chosen.
+  // Live, state-aware flat price (vehicle category no longer affects it) --
+  // refetched whenever the selected vehicle or registration state changes.
+  // Falls back to plan.fallbackFeeKobo (set above) until both are chosen.
   useEffect(() => {
     if (!selectedVehicleId || !selectedStateId) return;
     getNumberPlateFee({
@@ -244,7 +243,6 @@ export default function NumberPlateNewApplicationPage() {
     if (!vehicleForm.model.trim()) errors.model = "Model is required.";
     if (!vehicleForm.colour.trim()) errors.colour = "Colour is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
-    if (!vehicleForm.vehicle_category) errors.vehicle_category = "Select the vehicle's category — it determines the price.";
     if (needsApplicantDetails && !vehicleForm.chassis_number.trim()) {
       errors.chassis_number = "Chassis/VIN number is required for this application type.";
     }
@@ -454,7 +452,7 @@ export default function NumberPlateNewApplicationPage() {
               />
               {payOpts.checkout_url && (
                 <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Pay by card instead
+                  Card or Transfer
                 </a>
               )}
             </div>
@@ -584,7 +582,7 @@ export default function NumberPlateNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.colour} />
                 </div>
                 <div>
-                  <label className={label}>Vehicle category</label>
+                  <label className={label}>Vehicle category <span className="font-normal text-slate-400">(optional)</span></label>
                   <select
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`}
                     value={vehicleForm.vehicle_category}
@@ -669,7 +667,7 @@ export default function NumberPlateNewApplicationPage() {
               </select>
               <FieldError message={fieldErrors.state} />
               <p className="mt-1.5 text-[11.5px] text-slate-500">
-                Price is based on {selectedVehicle?.vehicle_category ? VEHICLE_CATEGORY_LABELS[selectedVehicle.vehicle_category] : "your vehicle's category"} and this state.
+                Price is based on this state — the same flat fee for every vehicle.
               </p>
             </div>
           </div>

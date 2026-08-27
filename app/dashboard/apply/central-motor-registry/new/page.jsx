@@ -17,7 +17,7 @@ import {
   submitCentralMotorRegistryApplication,
   payFromWalletEndpoint,
   getWallet,
-  getVehicleCategoryPricing,
+  getServicePricing,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
@@ -93,19 +93,17 @@ export default function CentralMotorRegistryNewApplicationPage() {
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
 
-  // Live category-based quote — reads the same public price grid the
-  // /pricing calculator uses (GET /pricing/vehicle-categories), filtered to
-  // this service and the selected vehicle's category.
+  // Flat, state-aware price (not vehicle-category-based) — reads the same
+  // public flat-price endpoint the /pricing calculator uses (GET
+  // /pricing/services), filtered to this service.
   useEffect(() => {
-    if (!selectedVehicle?.vehicle_category || !selectedStateId) return;
-    getVehicleCategoryPricing(Number(selectedStateId)).then((res) => {
-      const cell = res.data?.prices?.find(
-        (p) => p.service_key === "central_motor_registry" && p.vehicle_category === selectedVehicle.vehicle_category
-      );
-      setFeeKobo(cell?.amount_kobo ?? null);
+    if (!selectedStateId) return;
+    getServicePricing(Number(selectedStateId)).then((res) => {
+      const row = res.data?.prices?.find((p) => p.slug === "central-motor-registry");
+      setFeeKobo(row?.amount_kobo ?? null);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVehicle?.vehicle_category, selectedStateId]);
+  }, [selectedStateId]);
 
   const handleCreateVehicle = async () => {
     const errors = {};
@@ -116,7 +114,6 @@ export default function CentralMotorRegistryNewApplicationPage() {
     if (!vehicleForm.model.trim()) errors.model = "Model is required.";
     if (!vehicleForm.colour.trim()) errors.colour = "Colour is required.";
     if (!vehicleForm.state_id) errors.state_id = "Select a state.";
-    if (!vehicleForm.vehicle_category) errors.vehicle_category = "Select the vehicle's category — it determines the price.";
     if (Object.keys(errors).length > 0) {
       setVehicleFieldErrors(errors);
       return;
@@ -126,6 +123,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     const res = await createVehicle({
       ...vehicleForm,
       plate_number: vehicleForm.plate_number.trim() || undefined,
+      vehicle_category: vehicleForm.vehicle_category || undefined,
       year: vehicleForm.year ? Number(vehicleForm.year) : undefined,
       state_id: Number(vehicleForm.state_id),
     });
@@ -143,9 +141,6 @@ export default function CentralMotorRegistryNewApplicationPage() {
     const errors = {};
     if (n === 1) {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
-      else if (!selectedVehicle?.vehicle_category) {
-        errors.vehicle = "This vehicle has no category on file — add a new vehicle with a category, or update this one.";
-      }
     }
     if (n === 2) {
       if (!selectedStateId) errors.state = "Select the state to register in.";
@@ -171,7 +166,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
   };
 
   const canSubmit =
-    selectedVehicleId && selectedVehicle?.vehicle_category &&
+    selectedVehicleId &&
     selectedStateId && NIN_RE.test(nin.trim()) && EMAIL_RE.test(applicantEmail.trim()) &&
     !!doc?.url;
 
@@ -275,7 +270,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
               </button>
               {payOpts.checkout_url && (
                 <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Pay by card instead
+                  Card or Transfer
                 </a>
               )}
             </div>
@@ -296,9 +291,9 @@ export default function CentralMotorRegistryNewApplicationPage() {
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply — Electronic Central Motor Registry</h1>
+        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply — ECMR</h1>
         <p className="mt-1.5 text-[13.5px] text-slate-500">
-          Register your vehicle on the Electronic Central Motor Registry. One document, one flat fee for your vehicle's category.
+          Register your vehicle on the ECMR. One document, one flat fee — the same for every vehicle.
         </p>
         {feeKobo != null && (
           <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
@@ -389,7 +384,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.colour} />
                 </div>
                 <div>
-                  <label className={label}>Vehicle category</label>
+                  <label className={label}>Vehicle category <span className="font-normal text-slate-400">(optional)</span></label>
                   <select
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`}
                     value={vehicleForm.vehicle_category}

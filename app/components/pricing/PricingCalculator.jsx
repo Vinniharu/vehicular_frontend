@@ -76,11 +76,11 @@ function TotalBar({ total, note }) {
   );
 }
 
-function VehicleCountField({ value, onChange }) {
+function VehicleCountField({ value, onChange, label = "How many vehicles?", hint }) {
   return (
     <div>
       <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>
-        How many vehicles of this category?
+        {label}
       </label>
       <input
         type="number"
@@ -89,9 +89,11 @@ function VehicleCountField({ value, onChange }) {
         onChange={(e) => onChange(Math.max(1, Number(e.target.value) || 1))}
         className={inputCls}
       />
-      <p className="mt-1 text-[11.5px]" style={{ color: INK_SOFT }}>
-        One category applies to every vehicle counted here — for a mix of categories, run the calculator once per category.
-      </p>
+      {hint && (
+        <p className="mt-1 text-[11.5px]" style={{ color: INK_SOFT }}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
@@ -182,18 +184,18 @@ function TintedPermitCalculator({ feeSchedule }) {
   );
 }
 
-function NumberPlateCalculator({ vehicleCategoryPrices }) {
+function NumberPlateCalculator({ feeSchedule }) {
   const [variant, setVariant] = useState("number_plate_new");
-  const [category, setCategory] = useState("");
   const [vehicleCount, setVehicleCount] = useState(1);
 
+  // Flat, state-aware price now (no vehicle-category dimension) — same
+  // feeSchedule lookup shape as TintedPermitCalculator.
   const perVehicle = useMemo(() => {
-    if (!category) return undefined; // undefined = "pick a category", distinct from null = "no price configured"
-    const row = vehicleCategoryPrices.find((p) => p.service_key === variant && p.vehicle_category === category);
+    const row = feeSchedule.find((p) => p.application_type === variant && p.validity_period == null);
     return row ? row.amount_kobo : null;
-  }, [vehicleCategoryPrices, variant, category]);
+  }, [feeSchedule, variant]);
 
-  const total = category && perVehicle != null ? perVehicle * vehicleCount : null;
+  const total = perVehicle != null ? perVehicle * vehicleCount : null;
 
   return (
     <div className="space-y-4">
@@ -215,10 +217,9 @@ function NumberPlateCalculator({ vehicleCategoryPrices }) {
           ))}
         </select>
       </div>
-      <CategorySelect value={category} onChange={setCategory} />
-      {category && <PriceLine label="Price per vehicle" value={perVehicle} />}
+      <PriceLine label="Price per vehicle" value={perVehicle} />
       <VehicleCountField value={vehicleCount} onChange={setVehicleCount} />
-      <TotalBar total={total} note={!category ? "Select a vehicle category to see a price." : null} />
+      <TotalBar total={total} />
     </div>
   );
 }
@@ -304,7 +305,12 @@ function VehicleParticularsCalculator({ vehicleCategoryPrices }) {
         </div>
       </div>
       <CategorySelect value={category} onChange={setCategory} />
-      <VehicleCountField value={vehicleCount} onChange={setVehicleCount} />
+      <VehicleCountField
+        value={vehicleCount}
+        onChange={setVehicleCount}
+        label="How many vehicles of this category?"
+        hint="One category applies to every vehicle counted here — for a mix of categories, run the calculator once per category."
+      />
       <TotalBar total={total} note={!category ? "Select a vehicle category to see prices." : null} />
     </div>
   );

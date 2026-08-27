@@ -269,12 +269,12 @@ export const SERVICES = [
     status: "live",
     applyHref: "/dashboard/apply/central-motor-registry/new",
     feeScheduleType: "central_motor_registry",
-    title: "Electronic Central Motor Registry",
+    title: "ECMR",
     tagline: "Register your vehicle on the national motor registry — one document, one flat fee per vehicle category.",
     intro:
-      "Get your vehicle registered on the Electronic Central Motor Registry. Upload your vehicle licence, provide your NIN and email, and a Vehiculars agent processes the registration end-to-end — no state restriction, so any authorized agent nationwide can pick up the job.",
+      "Get your vehicle registered on the ECMR. Upload your vehicle licence, provide your NIN and email, and a Vehiculars agent processes the registration end-to-end — no state restriction, so any authorized agent nationwide can pick up the job.",
     whatsIncluded: [
-      "Registration on the Electronic Central Motor Registry",
+      "Registration on the ECMR",
       "Agent-processed, staff-reviewed completion document",
     ],
     whatYouBring: [

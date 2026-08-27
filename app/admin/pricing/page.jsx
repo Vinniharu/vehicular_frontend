@@ -35,29 +35,35 @@ const DL_ROWS = [
 // Licence & Permits," a section with no relation to Number Plate, which is
 // why admins couldn't find where to price the fancy-plate surcharge. Still
 // submitted through the exact same dl_fee_schedule PATCH payload as
-// DL_ROWS (see handleSave) — this is purely a visibility/grouping fix, not
-// a data-model change.
+// DL_ROWS (see handleSave). This is now number-plate's ONLY price (flat,
+// state-aware, no vehicle-category dimension) — it used to be a fallback
+// sitting underneath the vehicle-category grid below, but that layer was
+// removed (one flat fee per plate type, not per category).
 const NUMBER_PLATE_FLAT_ROWS = [
-  { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New (standard tier)" },
-  { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement (standard tier)" },
-  { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership (standard tier)" },
+  { key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Number Plate — New" },
+  { key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Number Plate — Replacement" },
+  { key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Number Plate — Change of Ownership" },
   { key: "number_plate_fancy_surcharge:null", application_type: "number_plate_fancy_surcharge", validity_period: null, label: "Number Plate — Fancy Plate Surcharge" },
 ];
-// Number Plate & Vehicle Particulars have their own real category-priced
-// grid below — excluded here alongside Driver's Licence/Tinted Permit so
-// they don't also show up as a single flat marketing price. Vehicle
-// Verification (priced via DL_ROWS above) and Roadworthiness Express
-// (priced via VEHICLE_CATEGORY_SERVICES below) are excluded for the same
-// reason — a service_prices row saved here is never read by anything
-// (the wizards, the DL fee-schedule endpoint, and the vehicle-category
-// grid all read from their own dedicated tables), so leaving them in this
-// list let an admin "successfully" price them here while the customer-
+// Vehicle Particulars has its own real category-priced grid below —
+// excluded here alongside Driver's Licence/Tinted Permit/Number Plate so it
+// doesn't also show up as a single flat marketing price. Vehicle
+// Verification (priced via DL_ROWS above) is excluded for the same reason
+// — a service_prices row saved here is never read by anything (the DL
+// fee-schedule endpoint owns its real price instead), so leaving it in
+// this list let an admin "successfully" price it here while the customer-
 // facing price stayed unset/null forever — this is the exact bug behind
-// "I set the price but it's stuck on Loading". Admin still needs to price
-// "dark" (customer-hidden) services too — they still have service_prices
-// rows, just no customer-facing listing right now.
+// "I set the price but it's stuck on Loading". Roadworthiness Express and
+// ECMR are DELIBERATELY NOT excluded — unlike
+// Vehicle Verification, a service_prices row for either of these IS the
+// real, checkout-authoritative price (get_flat_service_price on the
+// backend), so their cards here are exactly where an admin should price
+// them; they used to be vehicle-category-priced instead (see
+// VEHICLE_CATEGORY_SERVICES below), which is what this section replaces.
+// Admin still needs to price "dark" (customer-hidden) services too — they
+// still have service_prices rows, just no customer-facing listing right now.
 const OTHER_SERVICES = [...SERVICES, ...DARK_SERVICES].filter(
-  (s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars", "vehicle-verification", "roadworthiness-express"].includes(s.slug)
+  (s) => !["drivers-licence", "tinted-permit", "number-plate", "vehicle-particulars", "vehicle-verification"].includes(s.slug)
 );
 
 // Vehicle Particulars — 5 document types, each independently priced. This
@@ -74,24 +80,22 @@ const PARTICULARS_ROWS = [
   { document_type: "hackney_permit", label: "Hackney Permit" },
 ];
 
-// The 9 services priced by vehicle category (the 5 particulars document
-// types above + the 3 number-plate types + Roadworthiness Express) —
+// The 5 vehicle_particulars document types priced by vehicle category —
 // mirrors VEHICLE_CATEGORY_PRICED_SERVICE_KEYS on the backend. Note
 // "road_worthiness" below is the unrelated existing Vehicle Particulars
-// renewal-upload flow, NOT Roadworthiness Express — see
-// app/core/reference_helpers.py's RWX_APPLICATION_TYPES for the collision
-// history; "roadworthiness_express" is deliberately a visibly distinct key.
+// renewal-upload document, not Roadworthiness Express (the fast-track
+// booking service — see app/core/reference_helpers.py's RWX_APPLICATION_TYPES
+// for the naming-collision history). Number Plate, Roadworthiness Express,
+// and ECMR used to be priced here too; each
+// now has one flat price instead (Number Plate under "Number Plate" above,
+// RWX/CMR under "Other Services" below) — one fee per service, not one per
+// vehicle category.
 const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "vehicle_licence", label: "Vehicle Licence" },
   { service_key: "road_worthiness", label: "Road Worthiness Certificate" },
   { service_key: "proof_of_ownership", label: "Proof of Ownership" },
   { service_key: "insurance_third_party", label: "Third-Party Insurance" },
   { service_key: "hackney_permit", label: "Hackney Permit" },
-  { service_key: "number_plate_new", label: "Number Plate — New" },
-  { service_key: "number_plate_replacement", label: "Number Plate — Replacement" },
-  { service_key: "number_plate_change_of_ownership", label: "Number Plate — Change of Ownership" },
-  { service_key: "roadworthiness_express", label: "Roadworthiness Express" },
-  { service_key: "central_motor_registry", label: "Electronic Central Motor Registry" },
 ];
 
 function keyFor(application_type, validity_period) {
@@ -636,7 +640,7 @@ function MainPricingSection({ stateId, reloadKey }) {
     {
       id: "other",
       title: "Other Services",
-      subtitle: 'Purely informational — leave blank to keep showing "Coming soon" / "Quote on request".',
+      subtitle: 'Roadworthiness Express and ECMR are real, chargeable flat prices — leave either blank and checkout blocks with "not yet priced." Every other row here is purely informational — leave blank to keep showing "Coming soon" / "Quote on request".',
       content: (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {OTHER_SERVICES.map((s) => (

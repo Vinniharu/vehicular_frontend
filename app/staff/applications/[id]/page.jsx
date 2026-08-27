@@ -1617,7 +1617,7 @@ export default function StaffApplicationDetailsPage() {
               <div className="space-y-3.5">
                 <p className="text-[12.5px] text-slate-500">
                   Confirm the agent's completion document actually shows the vehicle registered on
-                  the Electronic Central Motor Registry before releasing it. Approving moves the
+                  the ECMR before releasing it. Approving moves the
                   application to <strong className="text-slate-800">awaiting_customer</strong>.
                   Rejecting sends it back to the agent to redo.
                 </p>
