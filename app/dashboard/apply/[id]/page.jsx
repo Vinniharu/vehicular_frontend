@@ -46,6 +46,7 @@ import {
   rescheduleRoadworthinessApplication,
   submitRoadworthinessApplication,
   downloadVehicleVerificationReportPdf,
+  downloadPciReportPdf,
 } from "@/lib/api";
 import PaymentOptions, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PaymentOptions";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
@@ -88,7 +89,7 @@ function estimateFeeKobo(appType, period) {
   // submission time for this type, so this fallback should never actually
   // be reached. 0 (not the renewal bucket below) avoids silently mispricing
   // a bundle display the one time this estimator IS hit before load.
-  if (appType === "vehicle_particulars" || appType?.startsWith("vehicle_verification_") || appType === "central_motor_registry") return 0;
+  if (appType === "vehicle_particulars" || appType?.startsWith("vehicle_verification_") || appType === "central_motor_registry" || appType === "physical_condition_inspection") return 0;
   const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
   return bucket[period] || bucket["5 years"];
 }
@@ -1694,6 +1695,7 @@ export default function CustomerApplicationDetailsPage() {
   const [confirmingReceipt, setConfirmingReceipt] = useState(false);
   const [downloadingCert, setDownloadingCert] = useState(false);
   const [downloadingVvReport, setDownloadingVvReport] = useState(false);
+  const [downloadingPciReport, setDownloadingPciReport] = useState(false);
 
   const handleDownloadVvReport = async () => {
     if (!application) return;
@@ -1704,6 +1706,17 @@ export default function CustomerApplicationDetailsPage() {
       setNotice({ type: "error", message: e.message || "Could not download the report." });
     }
     setDownloadingVvReport(false);
+  };
+
+  const handleDownloadPciReport = async () => {
+    if (!application) return;
+    setDownloadingPciReport(true);
+    try {
+      await downloadPciReportPdf(application.id);
+    } catch (e) {
+      setNotice({ type: "error", message: e.message || "Could not download the report." });
+    }
+    setDownloadingPciReport(false);
   };
 
   const handleConfirmRwxReceipt = async () => {
@@ -1892,6 +1905,7 @@ export default function CustomerApplicationDetailsPage() {
   const isVehicleParticulars = application.application_type === "vehicle_particulars";
   const isRwx = application.application_type === "roadworthiness_express";
   const isVehicleVerification = Boolean(application.application_type?.startsWith("vehicle_verification_"));
+  const isPci = application.application_type === "physical_condition_inspection";
   const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars || isRwx;
   // A free re-inspection booking (see the "Rebook free" flow) is created
   // directly at status="paid" with NO Payment row at all — it was never
@@ -1982,7 +1996,7 @@ export default function CustomerApplicationDetailsPage() {
           className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {isTinted ? "My tinted permit applications" : isNumberPlate ? "My number plate applications" : isVehicleParticulars ? "My vehicle particulars renewals" : isRwx ? "My roadworthiness bookings" : isVehicleVerification ? "My verification checks" : "My applications"}
+          {isTinted ? "My tinted permit applications" : isNumberPlate ? "My number plate applications" : isVehicleParticulars ? "My vehicle particulars renewals" : isRwx ? "My roadworthiness bookings" : isVehicleVerification ? "My verification checks" : isPci ? "My condition inspections" : "My applications"}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -1990,7 +2004,7 @@ export default function CustomerApplicationDetailsPage() {
               className="text-[24px] tracking-tight text-[#111111]"
               style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
             >
-              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
+              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} />
             <span className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
@@ -2118,6 +2132,87 @@ export default function CustomerApplicationDetailsPage() {
               >
                 {downloadingVvReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 {downloadingVvReport ? "Downloading…" : "Download report"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isPci && application.pci_detail && (
+        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Booking details</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Whose vehicle</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.whose_vehicle === "other" ? "Someone else's" : "Mine"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.make} {application.pci_detail.model} — {application.pci_detail.plate_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Category</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.vehicle_category?.replace(/_/g, " ")}</span>
+            </div>
+            <div className="sm:col-span-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Meeting location</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.location_address}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Preferred date</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+                {application.pci_detail.preferred_date ? new Date(application.pci_detail.preferred_date).toLocaleDateString() : "—"}
+                {application.pci_detail.preferred_time ? ` (${application.pci_detail.preferred_time})` : ""}
+              </span>
+            </div>
+            {application.pci_detail.whose_vehicle === "other" && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_name}</span>
+              </div>
+            )}
+          </div>
+
+          {application.pci_detail.verification_token && application.pci_detail.overall_grade && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Graded condition report</span>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[
+                  ["Overall", application.pci_detail.overall_grade],
+                  ["Exterior & body", application.pci_detail.exterior_grade],
+                  ["Engine bay", application.pci_detail.engine_bay_grade],
+                  ["Underbody", application.pci_detail.underbody_grade],
+                  ["Interior", application.pci_detail.interior_grade],
+                  ["Road test", application.pci_detail.road_test_grade],
+                ].map(([sectionLabel, grade]) => (
+                  <span
+                    key={sectionLabel}
+                    className={`rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${
+                      grade === "good" ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                      : grade === "fair" ? "bg-amber-50 text-amber-700 ring-amber-200"
+                      : "bg-red-50 text-red-700 ring-red-200"
+                    }`}
+                  >
+                    {sectionLabel}: {grade?.replace(/_/g, " ") || "—"}
+                  </span>
+                ))}
+              </div>
+              {application.pci_detail.recommendation && (
+                <p className="mt-2 text-[12.5px] font-semibold capitalize text-slate-700">
+                  Recommendation: {application.pci_detail.recommendation.replace(/_/g, " ")}
+                </p>
+              )}
+              {application.pci_detail.summary_notes && (
+                <p className="mt-1.5 text-[12.5px] text-slate-600">{application.pci_detail.summary_notes}</p>
+              )}
+              <button
+                type="button"
+                onClick={handleDownloadPciReport}
+                disabled={downloadingPciReport}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60"
+              >
+                {downloadingPciReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {downloadingPciReport ? "Downloading…" : "Download report"}
               </button>
             </div>
           )}

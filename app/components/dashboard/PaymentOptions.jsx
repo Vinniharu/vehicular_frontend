@@ -41,7 +41,7 @@ export default function PaymentOptions({
   onPayCard,
   partialAllowed = true,
 }) {
-  const [method, setMethod] = useState("wallet");
+  const [method, setMethod] = useState("card");
   const [choice, setChoice] = useState("full");
   const [amountNaira, setAmountNaira] = useState("");
 
@@ -72,11 +72,11 @@ export default function PaymentOptions({
       <div>
         <p className="mb-1.5 text-[11.5px] font-semibold text-slate-600">How would you like to pay?</p>
         <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-          <button type="button" onClick={() => setMethod("wallet")} className={segBtn(method === "wallet")}>
-            Wallet
-          </button>
           <button type="button" onClick={() => setMethod("card")} className={segBtn(method === "card")}>
             Pay with Monnify
+          </button>
+          <button type="button" onClick={() => setMethod("wallet")} className={segBtn(method === "wallet")}>
+            Wallet
           </button>
         </div>
       </div>

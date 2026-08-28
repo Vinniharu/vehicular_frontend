@@ -168,7 +168,10 @@ export default function AgentApplicationsPage() {
         ) : (
           filteredApps.map((app) => {
             const id = app.raw_id ?? app.id;
-            const detailHref = app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` : `/agent/applications/${id}`;
+            const detailHref =
+              app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` :
+              app.application_type === "physical_condition_inspection" ? `/agent/physical-condition-inspection/${id}` :
+              `/agent/applications/${id}`;
             return (
               <div
                 key={id}

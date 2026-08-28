@@ -567,9 +567,15 @@ export default function StaffApplicationDetailsPage() {
           )}
 
           {application.assigned_staff && application.status === "agent_completed" && (
-            <button onClick={() => openModal("final-review")} className={btnPrimary} style={{ background: "#7c3aed" }}>
-              <ShieldCheck className="h-4 w-4" /> Final review
-            </button>
+            application.application_type === "physical_condition_inspection" ? (
+              <Link href={`/staff/physical-condition-inspection/${application.id}`} className={btnPrimary} style={{ background: "#7c3aed" }}>
+                <ShieldCheck className="h-4 w-4" /> Final review
+              </Link>
+            ) : (
+              <button onClick={() => openModal("final-review")} className={btnPrimary} style={{ background: "#7c3aed" }}>
+                <ShieldCheck className="h-4 w-4" /> Final review
+              </button>
+            )
           )}
 
           {application.assigned_staff && application.application_type !== "tinted_permit" &&
@@ -762,6 +768,52 @@ export default function StaffApplicationDetailsPage() {
                   {application.verification_detail.verdict.replace(/_/g, " ")}
                 </span>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {application.application_type === "physical_condition_inspection" && application.pci_detail && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Physical Condition Inspection</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Whose vehicle</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.whose_vehicle === "other" ? "Someone else's" : "Mine"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.make} {application.pci_detail.model} — {application.pci_detail.plate_number}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Category</span>
+              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.vehicle_category?.replace(/_/g, " ")}</span>
+            </div>
+            <div className="sm:col-span-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Meeting location</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.location_address}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Preferred date</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+                {application.pci_detail.preferred_date ? new Date(application.pci_detail.preferred_date).toLocaleDateString() : "—"}
+                {application.pci_detail.preferred_time ? ` (${application.pci_detail.preferred_time})` : ""}
+              </span>
+            </div>
+            {application.pci_detail.whose_vehicle === "other" && (
+              <>
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner name</span>
+                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_name || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner phone</span>
+                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_phone || "—"}</span>
+                  {!application.pci_detail.seller_phone && (
+                    <span className="mt-0.5 block text-[11px] font-semibold text-red-600">Missing — confirm before routing.</span>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
