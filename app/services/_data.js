@@ -23,6 +23,7 @@ import {
   Sun,
   GraduationCap,
   Landmark,
+  Wrench,
 } from "lucide-react";
 
 export const SERVICES = [
@@ -259,6 +260,39 @@ export const SERVICES = [
       { title: "Submit vehicle details", desc: "Plate, make, model, year, colour, and your certificate if applicable." },
       { title: "Agent verification", desc: "A Vehiculars agent verifies your submission against available records." },
       { title: "Get your verdict", desc: "A clear pass/flagged result with a code you can share or verify publicly." },
+    ],
+    children: null,
+  },
+  {
+    slug: "physical-condition-inspection",
+    icon: Wrench,
+    category: "Other documents",
+    status: "live",
+    applyHref: "/dashboard/apply/physical-condition-inspection/new",
+    feeScheduleType: "physical_condition_inspection",
+    title: "Physical Condition Inspection",
+    tagline: "A full mechanical health check before you buy — engine, body, underbody, interior, and a road test, graded and reported.",
+    intro:
+      "A full bumper-to-bumper mechanical inspection — an inspector physically examines the vehicle against a multi-section checklist (exterior & body, engine bay, underbody, interior, and a road test), records the condition of every system with photo/video evidence, and Vehiculars delivers a graded condition report. Ideal before a purchase, or for a periodic health check on a vehicle you already own.",
+    whatsIncluded: [
+      "Exterior & body, engine bay, underbody, interior, and road-test checks",
+      "Photo (and video, for the road test) evidence on every item",
+      "A graded condition report — per-section grades and an overall grade",
+      "A summary and buy/caution/avoid-style recommendation",
+      "A shareable, publicly verifiable code once released",
+    ],
+    whatYouBring: [
+      "Vehicle plate number, make, model, year, and mileage",
+      "Vehicle category (price depends on this)",
+      "Where the inspector should meet you",
+      "Seller/owner contact — if you're inspecting a vehicle you don't yet own",
+    ],
+    pricingNote: "Price depends on the vehicle's category — a truck/bus inspection is more work than a saloon's.",
+    howItWorks: [
+      { title: "Book the inspection", desc: "Vehicle details, category, meeting location, and your preferred date." },
+      { title: "Staff review", desc: "Your booking is reviewed before an inspector is dispatched." },
+      { title: "Inspector visits", desc: "A certified inspector examines the vehicle against the full checklist." },
+      { title: "Get your graded report", desc: "Staff review the findings, then release your graded condition report." },
     ],
     children: null,
   },

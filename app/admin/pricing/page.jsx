@@ -98,6 +98,10 @@ const VEHICLE_CATEGORY_SERVICES = [
   { service_key: "proof_of_ownership", label: "Proof of Ownership" },
   { service_key: "insurance_third_party", label: "Third-Party Insurance" },
   { service_key: "hackney_permit", label: "Hackney Permit" },
+  // Deliberately category-priced (unlike number-plate/RWX/CMR, which were
+  // flattened) — a truck/bus inspection is materially more work than a
+  // saloon's. Do NOT "helpfully" flatten this one.
+  { service_key: "physical_condition_inspection", label: "Physical Condition Inspection" },
 ];
 
 function keyFor(application_type, validity_period) {
@@ -805,7 +809,7 @@ function VehicleCategoryPricingSection({ stateId, reloadKey }) {
         <div>
           <h2 className="font-display text-base font-semibold text-[#111111]">Vehicle Category Pricing</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Price varies by vehicle category for Vehicle Particulars renewal only — set a price for each of the 12 categories per document type.
+            Price varies by vehicle category for Vehicle Particulars renewal and Physical Condition Inspection — set a price for each of the 12 categories per service.
             Number Plate is flat-priced (one price per type, no category dimension) — set above, in Number Plate — Flat Fees.
           </p>
         </div>

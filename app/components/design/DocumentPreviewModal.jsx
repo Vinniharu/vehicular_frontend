@@ -28,7 +28,9 @@ export default function DocumentPreviewModal({ isOpen, onClose, fileUrl }) {
 
   if (!isOpen || !fileUrl) return null;
 
-  const isPdf = fileUrl.toLowerCase().includes(".pdf");
+  const lowerUrl = fileUrl.toLowerCase();
+  const isPdf = lowerUrl.includes(".pdf");
+  const isVideo = [".mp4", ".mov", ".webm", ".m4v"].some((ext) => lowerUrl.includes(ext));
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm sm:p-6 lg:p-8">
@@ -65,6 +67,12 @@ export default function DocumentPreviewModal({ isOpen, onClose, fileUrl }) {
                 src={fileUrl}
                 title="Document Viewer"
                 className="h-full w-full rounded-xl border border-slate-200 bg-white shadow-sm"
+              />
+            ) : isVideo ? (
+              <video
+                src={fileUrl}
+                controls
+                className="max-h-full max-w-full rounded-xl border border-slate-200 bg-black shadow-sm"
               />
             ) : (
               <img

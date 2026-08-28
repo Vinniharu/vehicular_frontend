@@ -271,6 +271,7 @@ export default function AdminApplicationsPage() {
           <option value="number_plate_replacement">Number Plate — Replacement</option>
           <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
           <option value="number_plate_fancy">Number Plate — Fancy</option>
+          <option value="physical_condition_inspection">Physical Condition Inspection</option>
         </select>
         <select
           value={statusFilter}
