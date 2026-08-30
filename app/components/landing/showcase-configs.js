@@ -118,45 +118,6 @@ export const SHOWCASES = {
     ],
   },
 
-  /* ─────────────────────── DriveConnect ─────────────────────── */
-  driveconnect: {
-    screens: [
-      {
-        kind: "status_ring",
-        eyebrow: "DriveConnect",
-        title: "Learn to drive right",
-        sub: "Vetted instructors, dual-control cars, structured syllabus.",
-        ringValue: 85,
-        ringLabel: "Progress",
-        tiles: ["Beginner", "Refresher", "Defensive", "Theory prep", "Test drive", "Schedule"],
-      },
-      {
-        kind: "tracker",
-        title: "Beginner Package — 10 Lessons",
-        meta: "Lesson 6 of 10 · Highway & parking",
-        stages: ["Booked", "Assigned", "In progress", "Test prep", "Graduated"],
-        currentStage: 2,
-        progressPct: 60,
-        agent: { initial: "I", line1: "Instructor Tunde · 4.9 ★", line2: "Next lesson · Sat 8:00 AM" },
-        doc: { line1: "Theory passed", line2: "Score 96% · phase 2 unlocked" },
-      },
-      {
-        kind: "certificate",
-        eyebrow: "Graduated",
-        title: "You're road ready",
-        docTitle: "Certificate of Completion",
-        docMeta: "10/10 practical sessions · Theory 96%",
-        footer: "DriveConnect / FRSC Accredited",
-        bigStat: { value: "First try", label: "Driver's Licence test pass rate" },
-      },
-    ],
-    cards: [
-      { kind: "check", title: "Lesson 6 completed", sub: "Parallel parking & highway entry mastered" },
-      { kind: "ring", label: "Syllabus progress", value: 60, big: "6/10" },
-      { kind: "bell", title: "Next lesson booked", sub: "Tomorrow 8:00 AM · Instructor Tunde" },
-    ],
-  },
-
   /* ─────────────────────── Roadworthiness Express ─────────────────────── */
   rwx_lagos: {
     screens: [
