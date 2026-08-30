@@ -28,6 +28,10 @@
 // Note: DARK_SERVICES (customer-hidden catalog entries) is currently empty
 // — if a dark service is ever added back, it also needs its own entry here;
 // nothing derives this list from the catalog automatically.
+//
+// Sub-service order within each entry is intentionally kept in sync with
+// that service's `children` order in app/services/_data.js — check both
+// when adding/reordering a sub-service.
 export const SERVICE_SECTIONS = [
   {
     slug: "drivers-licence",
@@ -77,14 +81,14 @@ export const SERVICE_SECTIONS = [
         rows: [{ mechanism: "dl", key: "number_plate_replacement:null", application_type: "number_plate_replacement", validity_period: null, label: "Amount", amountRequired: true }],
       },
       {
-        key: "change-of-ownership",
-        label: "Change of Ownership + New Plate",
-        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Amount", amountRequired: true }],
-      },
-      {
         key: "fancy-custom",
         label: "Fancy / Custom Number Plate",
         rows: [{ mechanism: "dl", key: "number_plate_fancy:null", application_type: "number_plate_fancy", validity_period: null, label: "Amount", amountRequired: true }],
+      },
+      {
+        key: "change-of-ownership",
+        label: "Change of Ownership + New Plate",
+        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Amount", amountRequired: true }],
       },
     ],
   },
@@ -106,10 +110,10 @@ export const SERVICE_SECTIONS = [
         categoryGrid: { service_key: "road_worthiness" },
       },
       {
-        key: "proof-of-ownership",
-        label: "Proof of Ownership",
-        rows: [{ mechanism: "particulars", key: "proof_of_ownership", document_type: "proof_of_ownership", label: "Fallback price (all categories)" }],
-        categoryGrid: { service_key: "proof_of_ownership" },
+        key: "hackney-permit",
+        label: "Hackney Permit",
+        rows: [{ mechanism: "particulars", key: "hackney_permit", document_type: "hackney_permit", label: "Fallback price (all categories)" }],
+        categoryGrid: { service_key: "hackney_permit" },
       },
       {
         key: "third-party-insurance",
@@ -118,10 +122,10 @@ export const SERVICE_SECTIONS = [
         categoryGrid: { service_key: "insurance_third_party" },
       },
       {
-        key: "hackney-permit",
-        label: "Hackney Permit",
-        rows: [{ mechanism: "particulars", key: "hackney_permit", document_type: "hackney_permit", label: "Fallback price (all categories)" }],
-        categoryGrid: { service_key: "hackney_permit" },
+        key: "proof-of-ownership",
+        label: "Proof of Ownership",
+        rows: [{ mechanism: "particulars", key: "proof_of_ownership", document_type: "proof_of_ownership", label: "Fallback price (all categories)" }],
+        categoryGrid: { service_key: "proof_of_ownership" },
       },
     ],
   },

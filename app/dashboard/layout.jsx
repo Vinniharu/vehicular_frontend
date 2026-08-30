@@ -10,8 +10,6 @@ import {
   Menu,
   X,
   FileText,
-  Sun,
-  Hash,
   Wallet,
   Gift,
   FileCheck2,
@@ -46,14 +44,10 @@ const NAV_ITEMS = [
   },
   {
     label: "Applications",
+    href: "/dashboard/applications",
     icon: FileText,
-    desc: "Browse all applications",
-    children: [
-      { label: "Driver's Licence", href: "/dashboard/apply", icon: FileText },
-      { label: "Tinted Permit", href: "/dashboard/apply/tinted-permit", icon: Sun },
-      { label: "Number Plate", href: "/dashboard/apply/number-plate", icon: Hash },
-      { label: "Vehicle Particulars", href: "/dashboard/apply/vehicle-particulars", icon: FileText },
-    ],
+    desc: "Track all your applications",
+    matchPrefixes: ["/dashboard/apply"],
   },
   {
     label: "My Documents",
@@ -141,7 +135,7 @@ export default function DashboardLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#F7F7F7]">
+      <div className="min-h-dvh flex flex-col items-center justify-center gap-3 bg-[#F7F7F7]">
         <div className="relative h-10 w-10">
           <div className="absolute inset-0 rounded-full border-2 border-emerald-100" />
           <div className="absolute inset-0 rounded-full border-2 border-t-[#28A745] animate-spin" />
@@ -157,7 +151,7 @@ export default function DashboardLayout({ children }) {
   const firstName = user?.name?.split(" ")[0] || "there";
 
   return (
-    <div className="min-h-screen flex bg-[#F7F7F7] text-[#111111] selection:bg-[#28A745]/20">
+    <div className="min-h-dvh flex bg-[#F7F7F7] text-[#111111] selection:bg-[#28A745]/20">
 
       {/* ══════════════════════════════════════
           SIDEBAR — Desktop
@@ -307,7 +301,7 @@ export default function DashboardLayout({ children }) {
       {/* ══════════════════════════════════════
           MAIN CONTENT
       ══════════════════════════════════════ */}
-      <div className="min-w-0 flex-1 md:pl-[248px] flex flex-col min-h-screen">
+      <div className="min-w-0 flex-1 md:pl-[248px] flex flex-col min-h-dvh">
 
         {/* Desktop top bar */}
         <div className="hidden md:flex items-center justify-between px-8 py-3.5 bg-white/80 backdrop-blur-sm border-b border-[#E5E5E5] sticky top-0 z-20">
