@@ -15,7 +15,6 @@ Vehiculars offers a seamless experience for:
 - **Pre-purchase Inspection:** Comprehensive 150-point check.
 - **Spare Parts & Find a Technician:** Genuine parts and vetted mechanics.
 - **Port Clearing:** Firm, all-in customs clearing quote.
-- **DriveConnect Lessons:** Learn to drive with vetted instructors.
 
 ## Tech Stack
 

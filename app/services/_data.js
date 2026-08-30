@@ -21,7 +21,6 @@ import {
   BadgeCheck,
   ShieldCheck,
   Sun,
-  GraduationCap,
   Landmark,
   Wrench,
 } from "lucide-react";
@@ -371,31 +370,6 @@ export const SERVICES = [
     ],
     children: null,
   },
-  {
-    slug: "driveconnect",
-    icon: GraduationCap,
-    category: "Other documents",
-    status: "coming_soon",
-    title: "DriveConnect — Learn to Drive",
-    tagline: "Vetted instructors, structured lessons, and your fresh driver's licence — all in one package, nationwide.",
-    intro:
-      "DriveConnect pairs you with a certified instructor near you, walks you through the FRSC theory test, and processes your fresh licence at the end. Pick a package, book your first lesson, and we handle the rest.",
-    whatsIncluded: [
-      "Background-checked instructor matched to your location",
-      "Structured lesson plan (theory + practical)",
-      "Free in-app theory test practice (FRSC standard)",
-      "Fresh driver's licence processed at completion",
-    ],
-    whatYouBring: ["Valid NIN", "Recent passport photograph", "Willingness to show up for scheduled lessons"],
-    pricingNote: null,
-    howItWorks: [
-      { title: "Pick a package", desc: "Choose lesson count and schedule." },
-      { title: "Get matched", desc: "We pair you with an instructor nearby." },
-      { title: "Learn and practise", desc: "Lessons logged in the app; theory test included." },
-      { title: "Get your licence", desc: "Fresh DL processed once you've completed the course." },
-    ],
-    children: null,
-  },
 ];
 
 /**
@@ -404,11 +378,12 @@ export const SERVICES = [
  * deliberately excluded from SERVICES (and therefore from every
  * customer-facing listing AND from generateStaticParams, so their detail
  * pages 404) but kept here, fully defined, so re-enabling later is a
- * one-line move back into SERVICES rather than a rebuild. Admin pricing
- * still needs to see these — see OTHER_SERVICES in admin/pricing/page.jsx,
- * which reads [...SERVICES, ...DARK_SERVICES]. Currently empty —
- * "find-a-technician" and "spare-parts" were both removed from the project
- * entirely (spare-parts spun out to a separate standalone project;
+ * one-line move back into SERVICES rather than a rebuild. Admin pricing's
+ * SERVICE_SECTIONS config (admin/pricing/_data/serviceSections.js) is a
+ * static, hand-maintained list rather than derived from this file, so a
+ * re-enabled dark service also needs its own entry added there. Currently
+ * empty — "find-a-technician" and "spare-parts" were both removed from the
+ * project entirely (spare-parts spun out to a separate standalone project;
  * find-a-technician was never built beyond this catalog entry).
  */
 export const DARK_SERVICES = [];

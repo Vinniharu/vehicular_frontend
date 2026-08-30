@@ -26,7 +26,6 @@ const HOMEPAGE_COPY_BY_SLUG = {
   "roadworthiness-express": { label: "Roadworthiness express", benefit: "Certified in 48 hours, no queues.", icon: ShieldCheck },
   "tinted-permit": { label: "Tinted permit", benefit: "Police-approved permit on your phone.", icon: Sun },
   "vehicle-verification": { label: "Vehicle verification & inspection", benefit: "Confirm papers, ownership, and condition are clean.", icon: BadgeCheck },
-  "driveconnect": { label: "DriveConnect lessons", benefit: "Learn to drive with vetted instructors.", icon: GraduationCap },
 };
 
 export const SERVICE_ITEMS = Object.entries(HOMEPAGE_COPY_BY_SLUG)
@@ -40,14 +39,14 @@ export const SERVICE_LINKS = SERVICE_ITEMS.map(({ slug, label }) => ({ slug, lab
 // Only a subset of services have a live in-app showcase configured (see
 // showcase-configs.js) — this asymmetry is real, not a bug. pre_purchase_
 // inspection was dropped (merged into vehicle-verification — no distinct
-// target anymore); spare_parts was removed from the project entirely.
+// target anymore); spare_parts and driveconnect were removed from the
+// project entirely (driveconnect spun out to its own standalone project).
 export const SHOWCASE_TABS = [
   { id: "vehicle_particulars", label: "Particulars Renewal" },
   { id: "drivers_licence", label: "Driver's Licence" },
   { id: "number_plate", label: "Number Plates" },
   { id: "rwx_lagos", label: "Roadworthiness" },
   { id: "tinted_permit", label: "Tinted Permit" },
-  { id: "driveconnect", label: "DriveConnect" },
 ];
 
 export const HOW_STEPS = [
@@ -94,7 +93,6 @@ export const LIFECYCLE_STAGES = [
     blurb: "Learn to drive, get licensed, sharpen your theory — properly.",
     items: [
       { href: "/services/drivers-licence", label: "Driver's licence" },
-      { href: "/services/driveconnect", label: "DriveConnect lessons" },
     ],
   },
   {

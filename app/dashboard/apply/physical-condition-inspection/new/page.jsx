@@ -14,7 +14,7 @@ import {
 import {
   getReferenceStates,
   getReferenceLgas,
-  getVehicleCategoryPricing,
+  getServicePricing,
   submitPhysicalConditionInspectionApplication,
   uploadApplicationFile,
   payFromWalletEndpoint,
@@ -29,7 +29,7 @@ import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 const STEP_LABELS = ["Whose vehicle", "Category & schedule", "Review & pay"];
-const PCI_SERVICE_KEY = "physical_condition_inspection";
+const PCI_SLUG = "physical-condition-inspection";
 
 const REASONS = [
   { value: "pre_purchase", label: "Pre-purchase check" },
@@ -51,7 +51,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
-  const [categoryPrices, setCategoryPrices] = useState(null);
+  const [servicePrices, setServicePrices] = useState(null);
 
   const [wholeVehicle, setWholeVehicle] = useState("mine");
   const [form, setForm] = useState({
@@ -86,8 +86,14 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     getReferenceLgas(form.state_id).then((res) => {
       if (res.data) setLgas(res.data);
     });
-    getVehicleCategoryPricing(form.state_id).then((res) => {
-      if (res.data?.prices) setCategoryPrices(res.data.prices);
+  }, [form.state_id]);
+
+  // Flat, state-tiered price (ServicePrice, not vehicle-category-based) —
+  // same public endpoint RWX/CMR use. Falls back to the general tier before
+  // a state is picked, so a price shows as soon as possible.
+  useEffect(() => {
+    getServicePricing(form.state_id || undefined).then((res) => {
+      if (res.data?.prices) setServicePrices(res.data.prices);
     });
   }, [form.state_id]);
 
@@ -107,12 +113,9 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
   };
 
   const priceKobo = useMemo(() => {
-    if (!categoryPrices || !form.vehicle_category) return null;
-    const row = categoryPrices.find(
-      (p) => p.service_key === PCI_SERVICE_KEY && p.vehicle_category === form.vehicle_category
-    );
-    return row?.amount_kobo ?? null;
-  }, [categoryPrices, form.vehicle_category]);
+    if (!servicePrices) return null;
+    return servicePrices.find((p) => p.slug === PCI_SLUG)?.amount_kobo ?? null;
+  }, [servicePrices]);
 
   const isThirdParty = wholeVehicle === "other";
 
@@ -380,7 +383,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
             <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
               <Wrench className="h-4 w-4" style={{ color: BRAND }} /> Vehicle category
             </h2>
-            <p className="mb-2 text-[12px] text-slate-500">Price depends on the vehicle's category — a truck/bus inspection is more work than a saloon's.</p>
+            <p className="mb-2 text-[12px] text-slate-500">Helps the mechanic know what to expect — the inspection fee is a flat rate and doesn't change with vehicle category.</p>
             <select className={`${inputBase} ${errInputClass(!!fieldErrors.vehicle_category)}`} name="vehicle_category" value={form.vehicle_category} onChange={handleChange}>
               <option value="">Select category</option>
               {VEHICLE_CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -494,7 +497,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
             {priceKobo != null ? (
               <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(priceKobo)}</p>
             ) : (
-              <p className="text-[13px] font-semibold text-amber-700">Not yet priced for this category — contact support.</p>
+              <p className="text-[13px] font-semibold text-amber-700">Not yet priced — contact support.</p>
             )}
           </section>
 

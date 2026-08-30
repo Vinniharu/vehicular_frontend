@@ -30,9 +30,9 @@ export default function ServicesList({ showSearch = true }) {
     getDriverLicenceFeeSchedule().then((res) => {
       if (res.data?.prices) setFeeSchedule(res.data.prices);
     });
-    // Admin-set flat prices — for most of these (DriveConnect, sponsor-a-
-    // service, etc.) purely informational until an admin sets one via
-    // /admin/pricing, but for Roadworthiness Express and Electronic Central
+    // Admin-set flat prices — for most of these (sponsor-a-service, etc.)
+    // purely informational until an admin sets one via /admin/pricing, but
+    // for Roadworthiness Express and Electronic Central
     // Motor Registry this IS the real, checkout-authoritative price
     // (get_flat_service_price, app/core/payment_helpers.py) — both used to
     // be vehicle-category-priced, now one flat fee per service instead.

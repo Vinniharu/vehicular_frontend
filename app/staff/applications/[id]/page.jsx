@@ -22,6 +22,7 @@ import {
   MapPin,
   Info,
   UserCheck,
+  Calendar,
 } from "lucide-react";
 import {
   getStaffApplication,
@@ -42,6 +43,7 @@ import {
   staffAssignAgent,
   staffReleaseParticularsToAgents,
   staffParticularsItemFinalReview,
+  schedulePciVisit,
   getVehicle,
   getCachedUser,
   koboToNaira,
@@ -69,6 +71,8 @@ const STAFF_STATUS = {
   temp_licence_pending_review: { label: "Temp licence — needs review", tone: "warning" },
   temp_licence_issued: { label: "Temp licence issued", tone: "purple" },
   agent_completed: { label: "Awaiting final review", tone: "warning" },
+  visit_scheduled: { label: "Visit scheduled — mechanic working", tone: "purple" },
+  awaiting_mechanic_verdict: { label: "Awaiting reviewing mechanic's verdict", tone: "warning" },
   staff_final_review: { label: "In final review", tone: "warning" },
   ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
   awaiting_customer: { label: "Awaiting customer confirmation", tone: "success" },
@@ -143,6 +147,11 @@ export default function StaffApplicationDetailsPage() {
   const currentUser = getCachedUser();
 
   const [modalType, setModalType] = useState(null); // approve | reject | enroll | upload-cert | route | final-review | push-to-customer | notice
+  // PCI scheduling is a richer form (date/time/regenerate-link/note) than
+  // the generic single-note modalType flow above, so it's a separate
+  // self-contained drawer (same pattern as RwxRescheduleModal) rather than
+  // another modalType branch.
+  const [showPciScheduleDrawer, setShowPciScheduleDrawer] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [noticeMessage, setNoticeMessage] = useState(null);
@@ -421,6 +430,7 @@ export default function StaffApplicationDetailsPage() {
   }
 
   const isVehicleParticulars = application.application_type === "vehicle_particulars";
+  const isPci = application.application_type === "physical_condition_inspection";
 
   // Backend only ever emits "unpaid" | "pending" | "success" | "failed" for
   // payment_status — "paid" is never produced, so only "success" is checked.
@@ -532,6 +542,10 @@ export default function StaffApplicationDetailsPage() {
                 <button onClick={() => openModal("release-particulars")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
                   <Send className="h-4 w-4" /> {isPaid ? "Release to agents" : "Awaiting full payment"}
                 </button>
+              ) : isPci ? (
+                <button onClick={() => setShowPciScheduleDrawer(true)} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
+                  <Calendar className="h-4 w-4" /> {isPaid ? "Schedule visit" : "Awaiting full payment"}
+                </button>
               ) : application.application_type !== "fresh" ? (
                 <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
                   <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || application.state_of_residence || "agent"}` : "Awaiting full payment"}
@@ -567,15 +581,31 @@ export default function StaffApplicationDetailsPage() {
           )}
 
           {application.assigned_staff && application.status === "agent_completed" && (
-            application.application_type === "physical_condition_inspection" ? (
+            <button onClick={() => openModal("final-review")} className={btnPrimary} style={{ background: "#7c3aed" }}>
+              <ShieldCheck className="h-4 w-4" /> Final review
+            </button>
+          )}
+
+          {application.assigned_staff && isPci && application.status === "visit_scheduled" && (
+            <>
               <Link href={`/staff/physical-condition-inspection/${application.id}`} className={btnPrimary} style={{ background: "#7c3aed" }}>
-                <ShieldCheck className="h-4 w-4" /> Final review
+                <ShieldCheck className="h-4 w-4" /> Checklist
               </Link>
-            ) : (
-              <button onClick={() => openModal("final-review")} className={btnPrimary} style={{ background: "#7c3aed" }}>
-                <ShieldCheck className="h-4 w-4" /> Final review
+              <button onClick={() => setShowPciScheduleDrawer(true)} className={btnSecondary}>
+                <Calendar className="h-4 w-4" /> Reschedule
               </button>
-            )
+            </>
+          )}
+
+          {application.assigned_staff && isPci && application.status === "awaiting_mechanic_verdict" && (
+            <>
+              <Link href={`/staff/physical-condition-inspection/${application.id}/verdict`} className={btnPrimary} style={{ background: "#7c3aed" }}>
+                <ShieldCheck className="h-4 w-4" /> Record verdict
+              </Link>
+              <button onClick={() => setShowPciScheduleDrawer(true)} className={btnSecondary}>
+                <Calendar className="h-4 w-4" /> Reopen (need more evidence)
+              </button>
+            </>
           )}
 
           {application.assigned_staff && application.application_type !== "tinted_permit" &&
@@ -810,12 +840,28 @@ export default function StaffApplicationDetailsPage() {
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner phone</span>
                   <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_phone || "—"}</span>
                   {!application.pci_detail.seller_phone && (
-                    <span className="mt-0.5 block text-[11px] font-semibold text-red-600">Missing — confirm before routing.</span>
+                    <span className="mt-0.5 block text-[11px] font-semibold text-red-600">Missing — confirm before scheduling.</span>
                   )}
                 </div>
               </>
             )}
+            {application.pci_detail.confirmed_visit_date && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Confirmed visit</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+                  {new Date(application.pci_detail.confirmed_visit_date).toLocaleDateString()}
+                  {application.pci_detail.confirmed_visit_time ? ` (${application.pci_detail.confirmed_visit_time})` : ""}
+                </span>
+              </div>
+            )}
           </div>
+          {application.pci_detail.verdict && (
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Verdict</span>
+              <p className="mt-1 text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.verdict.replace(/_/g, " ")}</p>
+              {application.pci_detail.report_text && <p className="mt-1 text-[12.5px] text-slate-600">{application.pci_detail.report_text}</p>}
+            </div>
+          )}
         </div>
       )}
 
@@ -1354,6 +1400,20 @@ export default function StaffApplicationDetailsPage() {
                   <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">awaiting_customer</code>.
                 </p>
               )}
+              {application.status === "visit_scheduled" && (
+                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
+                  The field mechanic's link is live — share it over WhatsApp if you haven't already
+                  (visible in the reschedule drawer). Use <strong>Checklist</strong> at the top to watch
+                  items land and confirm completeness once every item is captured.
+                </p>
+              )}
+              {application.status === "awaiting_mechanic_verdict" && (
+                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
+                  Checklist completeness confirmed — the mechanic's link is now closed. Once the senior
+                  reviewing mechanic gives their verdict over WhatsApp, use{" "}
+                  <strong>Record verdict</strong> at the top to release the report to the customer.
+                </p>
+              )}
               {application.status === "expired" && (
                 <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-red-700">
                   This licence's validity period has elapsed. The customer has been prompted to apply
@@ -1847,6 +1907,160 @@ export default function StaffApplicationDetailsPage() {
           </div>
         </div>
       )}
+
+      {showPciScheduleDrawer && (
+        <PciScheduleDrawer
+          application={application}
+          onClose={() => setShowPciScheduleDrawer(false)}
+          onSuccess={async () => {
+            setShowPciScheduleDrawer(false);
+            await loadDetail(true);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Staff confirming/rescheduling/reopening a PCI visit — same visual pattern
+ * as the customer-facing RwxRescheduleModal (app/dashboard/apply/[id]/
+ * page.jsx), but plain date/time controls instead of a bay/slot picker
+ * (PCI has no bays), and legal from three different statuses (first
+ * schedule, reschedule, reopen) rather than one. Deliberately its own
+ * component rather than another modalType branch — this form has more
+ * fields than the shared single-note modal above supports.
+ */
+function PciScheduleDrawer({ application, onClose, onSuccess }) {
+  const isReschedule = application.status === "visit_scheduled";
+  const isReopen = application.status === "awaiting_mechanic_verdict";
+  const detail = application.pci_detail || {};
+
+  const [confirmedDate, setConfirmedDate] = useState(
+    (detail.confirmed_visit_date || detail.preferred_date || "").slice(0, 10)
+  );
+  const [confirmedTime, setConfirmedTime] = useState(detail.confirmed_visit_time || detail.preferred_time || "");
+  const [regenerateLink, setRegenerateLink] = useState(false);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!confirmedDate) {
+      setError("Pick a visit date to continue.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const res = await schedulePciVisit(application.id, {
+      confirmed_date: confirmedDate,
+      confirmed_time: confirmedTime || undefined,
+      regenerate_link: regenerateLink,
+      note: note.trim() || undefined,
+    });
+    setSubmitting(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    if (res.data?.mechanic_link_path) {
+      setResult(res.data);
+      return;
+    }
+    onSuccess();
+  };
+
+  // Already a full URL — the backend builds it from FRONTEND_BASE_URL
+  // (app/routers/staff.py), not a path relative to this app's own origin.
+  const linkUrl = result?.mechanic_link_path || null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={result ? undefined : onClose}>
+      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-[16px] font-bold text-[#111111]">
+              {isReopen ? "Reopen for more evidence" : isReschedule ? "Reschedule visit" : "Schedule visit"}
+            </h2>
+            <p className="mt-0.5 text-[12.5px] text-slate-500">
+              Booking #{application.id} — {isReopen ? "clears the completeness flag and re-opens the mechanic's link." : "share the link with your field mechanic over WhatsApp."}
+            </p>
+          </div>
+          <button onClick={result ? onSuccess : onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {result ? (
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
+              <CheckCircle2 className="h-4.5 w-4.5 shrink-0" /> Visit confirmed. Send this link to the field mechanic over WhatsApp:
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="break-all font-mono text-[12.5px] text-slate-700">{linkUrl}</p>
+              {typeof navigator !== "undefined" && navigator.clipboard && (
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(linkUrl)}
+                  className={`${btnSecondary} mt-3`}
+                >
+                  Copy link
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+            {error && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={fieldLabel}>Visit date</label>
+                <input type="date" value={confirmedDate} onChange={(e) => setConfirmedDate(e.target.value)} className={inputBase} />
+              </div>
+              <div>
+                <label className={fieldLabel}>Visit time (optional)</label>
+                <input type="time" value={confirmedTime} onChange={(e) => setConfirmedTime(e.target.value)} className={inputBase} />
+              </div>
+            </div>
+
+            {!isReopen && (
+              <label className="flex items-center gap-2 text-[12.5px] font-medium text-slate-600">
+                <input type="checkbox" checked={regenerateLink} onChange={(e) => setRegenerateLink(e.target.checked)} className="rounded border-slate-300" />
+                Generate a fresh link {isReschedule ? "(the mechanic's current link stays valid otherwise)" : ""}
+              </label>
+            )}
+
+            <div>
+              <label className={fieldLabel}>Note (optional)</label>
+              <textarea
+                rows={2}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={isReopen ? "e.g. Engine bay photos are too dark, need re-shoots." : "e.g. Customer confirmed this date by phone."}
+                className={inputBase}
+              />
+            </div>
+          </form>
+        )}
+
+        {!result && (
+          <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+            <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+            <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {submitting ? "Saving…" : isReopen ? "Reopen visit" : isReschedule ? "Confirm new date" : "Confirm & get link"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
