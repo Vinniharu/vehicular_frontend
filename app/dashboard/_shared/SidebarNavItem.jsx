@@ -8,25 +8,17 @@ import { colors } from "@/lib/design-tokens";
 
 const BRAND = colors.primary.DEFAULT;
 
-// /dashboard/apply/[id] is a shared detail route for Driver's Licence,
-// Tinted Permit, Number Plate, and Vehicle Particulars applications — path
-// alone can't tell which type a given id belongs to, so the Driver's
-// Licence child claims it by default; the other children only claim their
-// own prefix.
-const NON_DL_APPLY_PREFIXES = ["/dashboard/apply/tinted-permit", "/dashboard/apply/number-plate", "/dashboard/apply/vehicle-particulars"];
-
 export function isChildActive(pathname, child) {
-  if (child.href === "/dashboard/apply") {
-    return (
-      pathname === "/dashboard/apply" ||
-      (pathname.startsWith("/dashboard/apply/") && !NON_DL_APPLY_PREFIXES.some((p) => pathname.startsWith(p)))
-    );
-  }
   return pathname === child.href || pathname.startsWith(child.href + "/");
 }
 
+// matchPrefixes lets a flat (childless) item claim additional path prefixes
+// beyond its own href — e.g. Applications (/dashboard/applications) also
+// wants to highlight while the customer is anywhere under /dashboard/apply
+// (wizards, detail pages), a genuinely different path.
 export function isActive(pathname, item) {
   if (item.children) return item.children.some((c) => isChildActive(pathname, c));
+  if (item.matchPrefixes?.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
   if (item.exact) return pathname === item.href;
   return pathname === item.href || pathname.startsWith(item.href + "/");
 }

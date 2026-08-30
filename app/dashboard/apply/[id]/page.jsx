@@ -1893,7 +1893,7 @@ export default function CustomerApplicationDetailsPage() {
         <AlertCircle className="mx-auto h-9 w-9 text-red-500" />
         <h3 className="text-[17px] font-bold text-[#111111]">Application not found</h3>
         <p className="text-[13px] text-red-700">{error || "We couldn't load this application."}</p>
-        <Link href="/dashboard/apply" className={`${btnSecondary} mx-auto`}>
+        <Link href="/dashboard/applications" className={`${btnSecondary} mx-auto`}>
           <ArrowLeft className="h-4 w-4" />
           Back to my applications
         </Link>
@@ -1993,11 +1993,11 @@ export default function CustomerApplicationDetailsPage() {
       {/* Header */}
       <div>
         <Link
-          href={isTinted ? "/dashboard/apply/tinted-permit" : isNumberPlate ? "/dashboard/apply/number-plate" : isVehicleParticulars ? "/dashboard/apply/vehicle-particulars" : "/dashboard/apply"}
+          href="/dashboard/applications"
           className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {isTinted ? "My tinted permit applications" : isNumberPlate ? "My number plate applications" : isVehicleParticulars ? "My vehicle particulars renewals" : isRwx ? "My roadworthiness bookings" : isVehicleVerification ? "My verification checks" : isPci ? "My condition inspections" : "My applications"}
+          My applications
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">

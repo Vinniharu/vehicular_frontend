@@ -4,29 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
-  XCircle,
   AlertCircle,
   ChevronDown,
   ChevronRight,
   ArrowLeft,
-  FileText,
-  MapPin,
   Info,
   ExternalLink,
   Upload,
   Image as ImageIcon,
-  Wallet,
   Clock,
   X,
-  Eye,
-  Plus,
   Loader2,
-  Calendar,
-  UserCheck,
-  Building,
   Phone,
-  RefreshCw,
-  AlertTriangle,
 } from "lucide-react";
 import {
   getCachedUser,
@@ -38,27 +27,21 @@ import {
   getMyApplications,
   payFromWalletEndpoint,
   getWallet,
-  resolveMediaUrl,
   getDriverLicenceEligibility,
   getDriverLicenceFeeSchedule,
 } from "@/lib/api";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
-import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
-import { getStatusDescription } from "@/app/dashboard/_shared/status-config";
-import { btnPrimary, btnSecondary, btnGhost, inputBase, label } from "@/app/dashboard/_shared/ui";
-import Modal from "@/app/dashboard/_shared/Modal";
+import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { colors } from "@/lib/design-tokens";
 import {
   koboToNaira,
   formatDate,
   errInputClass,
   FieldError,
-  MiniProgressRing,
   isApplicationPaid,
-  paymentStatusMeta,
   StepProgress,
   IneligibilityNotice,
 } from "@/app/dashboard/_shared/apply-helpers";
@@ -212,12 +195,7 @@ export default function ApplyPage() {
   const [lgas, setLgas] = useState([]);
   const [existingApplications, setExistingApplications] = useState([]);
   const [loadingExisting, setLoadingExisting] = useState(true);
-  const [sortBy, setSortBy] = useState("updated_at");
-  const didMountSort = useRef(false);
 
-  const [view, setView] = useState("list"); // "list" | "form"
-  const [selectedAppDetail, setSelectedAppDetail] = useState(null);
-  const [previewDocUrl, setPreviewDocUrl] = useState(null);
   const [payingFromWallet, setPayingFromWallet] = useState(null);
   const payingFromWalletRef = useRef(false);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -298,20 +276,8 @@ export default function ApplyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refetches only when the sort choice changes (skips the initial mount,
-  // which the effect below already handles as part of its combined fetch).
   useEffect(() => {
-    if (!didMountSort.current) {
-      didMountSort.current = true;
-      return;
-    }
-    getMyApplications({ sort: sortBy }).then((res) => {
-      if (res.data) setExistingApplications(res.data.filter((a) => a.application_type !== "tinted_permit"));
-    });
-  }, [sortBy]);
-
-  useEffect(() => {
-    Promise.all([authGetMe(), getReferenceStates(), getMyApplications({ sort: sortBy }), getWallet()]).then(
+    Promise.all([authGetMe(), getReferenceStates(), getMyApplications({ sort: "updated_at" }), getWallet()]).then(
       ([meRes, statesRes, appsRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (appsRes.data) setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
@@ -366,7 +332,6 @@ export default function ApplyPage() {
     const typeParam = searchParams.get("type");
     if (["fresh", "renewal", "reissue"].includes(typeParam)) {
       setApplicationType(typeParam);
-      setView("form");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -497,7 +462,7 @@ export default function ApplyPage() {
         ? `Paid ${koboToNaira(amountKobo)} from your wallet — application fully paid!`
         : `Paid ${koboToNaira(amountKobo)} from your wallet. ${koboToNaira(res.data?.remaining_kobo || 0)} still remaining.`
     );
-    const [appsRes, walletRes] = await Promise.all([getMyApplications({ sort: sortBy }), getWallet()]);
+    const [appsRes, walletRes] = await Promise.all([getMyApplications({ sort: "updated_at" }), getWallet()]);
     if (appsRes.data) {
       setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
       if (successApp?.id === appId) {
@@ -669,10 +634,7 @@ export default function ApplyPage() {
           <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
             <button
               type="button"
-              onClick={() => {
-                setSuccessApp(null);
-                setView("list");
-              }}
+              onClick={() => router.push("/dashboard/applications")}
               className={`${btnPrimary} flex-1`}
               style={{ background: BRAND }}
             >
@@ -694,527 +656,6 @@ export default function ApplyPage() {
     );
   }
 
-  /* ── Applications list ── */
-  if (view === "list") {
-    const totalApps = existingApplications.length;
-    const paidApps = existingApplications.filter(isApplicationPaid).length;
-    const pendingPaymentApps = totalApps - paidApps;
-
-    return (
-      <div className="mx-auto max-w-4xl space-y-8 py-6 pb-20">
-        <DocumentPreviewModal isOpen={!!previewDocUrl} onClose={() => setPreviewDocUrl(null)} fileUrl={previewDocUrl} />
-        {/* Header */}
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Driver's licence
-              </span>
-            </div>
-            <h1
-              className="mt-1.5 text-[30px] tracking-tight text-[#111111]"
-              style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-            >
-              Your applications
-            </h1>
-            <p className="mt-1 text-[13.5px] text-slate-500">
-              Track progress, handle payment, and see what's next for each one.
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            {totalApps > 0 && (
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="rounded-xl border border-[#E5E5E5] bg-white px-3 py-2.5 text-[13px] font-semibold text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-              >
-                <option value="updated_at">Recently updated</option>
-                <option value="id">ID number</option>
-                <option value="name">Applicant name</option>
-              </select>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                resetForm();
-                setView("form");
-              }}
-              className={btnPrimary}
-              style={{ background: BRAND }}
-            >
-              <Plus className="h-4 w-4" />
-              New application
-            </button>
-          </div>
-        </div>
-
-        {/* Summary strip — one card, hairline dividers, not three boxes */}
-        {totalApps > 0 && (
-          <div className="grid grid-cols-1 divide-y divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            <div className="px-5 py-4">
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total</span>
-              <span className="mt-0.5 block text-[22px] font-bold text-[#111111]">{totalApps}</span>
-            </div>
-            <div className="px-5 py-4">
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Paid</span>
-              <span className="mt-0.5 block text-[22px] font-bold text-emerald-600">{paidApps}</span>
-            </div>
-            <div className="px-5 py-4">
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                Awaiting payment
-              </span>
-              <span className="mt-0.5 block text-[22px] font-bold text-amber-600">{pendingPaymentApps}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Applications — card list */}
-        {loadingExisting ? (
-          <div className="space-y-3">
-            {[0, 1].map((i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
-            ))}
-          </div>
-        ) : existingApplications.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white px-8 py-16 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
-              <FileText className="h-7 w-7" />
-            </div>
-            <h3 className="mt-4 text-[16px] font-bold text-[#111111]">No applications yet</h3>
-            <p className="mx-auto mt-1 max-w-xs text-[13px] text-slate-500">
-              Start a fresh, renewal, or reissue application — it takes about five minutes.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                resetForm();
-                setView("form");
-              }}
-              className={`${btnPrimary} mt-5`}
-              style={{ background: BRAND }}
-            >
-              <Plus className="h-4 w-4" />
-              Start application
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {existingApplications.map((app) => {
-              const payOpts = app.payment_options;
-              const isPaid = isApplicationPaid(app);
-              const payMeta = paymentStatusMeta(app);
-              const amountKobo = payOpts?.amount_kobo || estimateFeeKobo(app.application_type, app.validity_period, liveFeeSchedule);
-              const remainingKobo = payOpts?.remaining_kobo ?? amountKobo;
-
-              return (
-                <div
-                  key={app.id}
-                  onClick={() => router.push(`/dashboard/apply/${app.id}`)}
-                  className="cursor-pointer rounded-2xl border border-[#E5E5E5] bg-white p-5 transition-all hover:border-[#28A745]/60 hover:shadow-md group"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 min-w-0">
-                      <MiniProgressRing status={app.status} applicationType={app.application_type} size={40} />
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[15px] font-bold capitalize text-[#111111] group-hover:text-[#28A745] transition-colors">
-                            {app.application_type} application
-                          </span>
-                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
-                            #{app.id}
-                          </span>
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-slate-500">
-                          <span className="inline-flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                            {formatDate(app.created_at)}
-                          </span>
-                          {(app.lga || app.state_of_residence) && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                              {app.lga}{app.state_of_residence ? `, ${app.state_of_residence}` : ""}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2.5">
-                          <StatusBadge status={app.status} size="sm" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 border-t border-slate-100 pt-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      {isPaid ? (
-                        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-700">
-                          <CheckCircle2 className="h-4 w-4" />
-                          Paid {koboToNaira(amountKobo)}
-                        </span>
-                      ) : (
-                        <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold ${payMeta.needsRetry ? "text-red-600" : "text-amber-700"}`}>
-                          {payMeta.needsRetry ? <RefreshCw className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-                          {payMeta.label} ({koboToNaira(remainingKobo)} left)
-                        </span>
-                      )}
-                      {!isPaid && payOpts?.checkout_url && (
-                        <a
-                          href={payOpts.checkout_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={btnGhost}
-                        >
-                          Checkout
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-
-                    {!isPaid && (
-                      <div className="mt-3.5 max-w-md">
-                        <PartialPayControls
-                          remainingKobo={remainingKobo}
-                          walletBalanceKobo={walletBalance}
-                          payingWallet={payingFromWallet === app.id}
-                          onPay={(amt) => handlePayFromWallet(app.id, amt)}
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      {app.status === "expired" && (
-                        <button
-                          type="button"
-                          onClick={() => router.push("/dashboard/apply?type=renewal")}
-                          className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-semibold text-white transition-all active:scale-[0.98]"
-                          style={{ background: "#dc2626" }}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          Renew now
-                        </button>
-                      )}
-                      <button type="button" onClick={() => router.push(`/dashboard/apply/${app.id}`)} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-[#28A745] hover:text-white hover:border-[#28A745] transition-all shadow-sm">
-                        <span>View Full Details & Status</span>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Detail panel */}
-        <Modal
-          open={!!selectedAppDetail}
-          onOpenChange={(open) => { if (!open) setSelectedAppDetail(null); }}
-          title={selectedAppDetail ? `${selectedAppDetail.application_type} application` : "Application details"}
-        >
-          {selectedAppDetail && (
-            <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
-              <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
-                <div>
-                  <h3 className="text-[15px] font-bold capitalize text-[#111111]">
-                    {selectedAppDetail.application_type} application
-                  </h3>
-                  <p className="mt-0.5 font-mono text-[11.5px] text-slate-400">#{selectedAppDetail.id}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAppDetail(null)}
-                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6 p-6">
-                <div className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                  <MiniProgressRing status={selectedAppDetail.status} applicationType={selectedAppDetail.application_type} size={40} />
-                  <div>
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                      Current status
-                    </span>
-                    <div className="mt-1 flex items-center gap-2">
-                      <StatusBadge status={selectedAppDetail.status} />
-                    </div>
-                    {getStatusDescription(selectedAppDetail.status, selectedAppDetail.application_type) && (
-                      <p className="mt-1.5 text-[12.5px] text-slate-600 leading-snug">
-                        {getStatusDescription(selectedAppDetail.status, selectedAppDetail.application_type)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {!isApplicationPaid(selectedAppDetail) && (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                        <Wallet className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="text-[14px] font-bold text-[#111111]">
-                            {paymentStatusMeta(selectedAppDetail).needsRetry ? "Payment Failed / Retry Required" : "Service Fee Payment Due"}
-                          </h4>
-                          <span className="font-mono text-[14px] font-bold text-[#111111]">
-                            {koboToNaira(selectedAppDetail.payment_options?.remaining_kobo ?? selectedAppDetail.payment_options?.amount_kobo ?? estimateFeeKobo(selectedAppDetail.application_type, selectedAppDetail.validity_period, liveFeeSchedule))} left
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[12.5px] text-slate-600 leading-relaxed">
-                          {paymentStatusMeta(selectedAppDetail).needsRetry
-                            ? "Your previous checkout attempt failed or was cancelled. Please retry below to verify fee and trigger VIO processing."
-                            : "Your application has been submitted and is awaiting payment verification before entering staff review or VIO routing."}
-                        </p>
-                        <div className="mt-3 space-y-2.5">
-                          <PartialPayControls
-                            remainingKobo={selectedAppDetail.payment_options?.remaining_kobo ?? selectedAppDetail.payment_options?.amount_kobo ?? estimateFeeKobo(selectedAppDetail.application_type, selectedAppDetail.validity_period, liveFeeSchedule)}
-                            walletBalanceKobo={walletBalance}
-                            payingWallet={payingFromWallet === selectedAppDetail.id}
-                            onPay={(amt) => handlePayFromWallet(selectedAppDetail.id, amt)}
-                          />
-                          {selectedAppDetail.payment_options?.checkout_url && (
-                            <a
-                              href={selectedAppDetail.payment_options.checkout_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-                            >
-                              Pay with card or bank transfer
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedAppDetail.status === "needs_correction" && (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
-                      <div>
-                        <h4 className="text-[13.5px] font-bold text-amber-900">Action Required: Document Correction</h4>
-                        <p className="mt-1 text-[12.5px] text-amber-800 leading-relaxed">
-                          {selectedAppDetail.staff_note || "A processing agent flagged one or more uploaded verification documents. Please re-upload clearer copies below."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(selectedAppDetail.status === "staff_rejected" || selectedAppDetail.status === "failed") && (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
-                      <div>
-                        <h4 className="text-[13.5px] font-bold text-red-900">Application Rejected / Closed</h4>
-                        <p className="mt-1 text-[12.5px] text-red-800 leading-relaxed">
-                          {selectedAppDetail.staff_note || "This application was not approved during internal verification or VIO quality check. Please contact support desk."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedAppDetail.status === "ready_for_pickup" && (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
-                      <div>
-                        <h4 className="text-[13.5px] font-bold text-emerald-900">Ready for Pickup / Delivery</h4>
-                        <p className="mt-1 text-[12.5px] text-emerald-800 leading-relaxed">
-                          {selectedAppDetail.pickup_instructions || "Your physical Driver's Licence card has been printed and verified. Please proceed to your assigned VIO office for collection or check courier dispatch tracking."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedAppDetail.status === "awaiting_customer" && (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
-                    <div className="flex items-start gap-3">
-                      <Info className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
-                      <div>
-                        <h4 className="text-[13.5px] font-bold text-emerald-900">Action Required: Confirm Receipt</h4>
-                        <p className="mt-1 text-[12.5px] text-emerald-800 leading-relaxed">
-                          Your physical card is ready. Once you receive your driver's licence, please confirm receipt to close out this file.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {(selectedAppDetail.assigned_agent || ["agent_assigned", "agent_accepted", "capture_scheduled", "capturing_scheduled", "scheduled", "captured", "capturing_completed", "agent_completed"].includes(selectedAppDetail.status)) && (
-                  <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4.5 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-3 border-b border-slate-100 pb-2.5">
-                      <UserCheck className="h-4 w-4" style={{ color: BRAND }} />
-                      <h4 className="text-[12.5px] font-bold uppercase tracking-wide text-slate-700">
-                        Assigned VIO Processing Agent
-                      </h4>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px]">
-                      <div>
-                        <span className="block text-[11px] font-semibold text-slate-400">Agent Name</span>
-                        <span className="font-semibold text-slate-800">
-                          {selectedAppDetail.assigned_agent?.name || "Assigned Officer"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-[11px] font-semibold text-slate-400">Phone Contact</span>
-                        <span className="font-mono font-medium text-slate-800">
-                          {selectedAppDetail.assigned_agent?.phone || "+234 ••• ••••"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-[11px] font-semibold text-slate-400">VIO Office</span>
-                        <span className="font-semibold text-slate-800">
-                          {selectedAppDetail.assigned_agent?.vio_office || `${selectedAppDetail.lga || "LGA"} VIO Center`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!["ready_for_pickup", "awaiting_customer", "completed"].includes(selectedAppDetail.status) &&
-                  (selectedAppDetail.capture_scheduled_at || ["capture_scheduled", "capturing_scheduled", "captured", "capturing_completed"].includes(selectedAppDetail.status)) && (
-                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4.5 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-3 border-b border-indigo-100 pb-2.5">
-                      <Calendar className="h-4 w-4 text-indigo-600" />
-                      <h4 className="text-[12.5px] font-bold uppercase tracking-wide text-indigo-900">
-                        Biometric Capture Appointment
-                      </h4>
-                    </div>
-                    <div className="space-y-2 text-[13px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Appointment Schedule:</span>
-                        <span className="font-semibold text-indigo-950">
-                          {selectedAppDetail.capture_scheduled_at
-                            ? new Date(selectedAppDetail.capture_scheduled_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })
-                            : "Booked by VIO Agent"}
-                        </span>
-                      </div>
-                      <div className="flex items-start justify-between gap-4">
-                        <span className="text-slate-500 shrink-0">Capture Center:</span>
-                        <span className="font-semibold text-indigo-950 text-right">
-                          {selectedAppDetail.capture_centre_name || selectedAppDetail.assigned_agent?.vio_office || `${selectedAppDetail.lga || "Designated"} FRSC/VIO Capture Center`}
-                        </span>
-                      </div>
-                      {selectedAppDetail.assigned_agent?.name && (
-                        <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-500 shrink-0">Field Agent:</span>
-                          <span className="font-semibold text-indigo-950 text-right">
-                            {selectedAppDetail.assigned_agent.name}
-                            {selectedAppDetail.assigned_agent.phone && ` · ${selectedAppDetail.assigned_agent.phone}`}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {!["ready_for_pickup", "awaiting_customer", "completed"].includes(selectedAppDetail.status) &&
-                  (selectedAppDetail.driving_school || ["driving_school_enrolled", "driving_school_certificate_ready", "driving_school_graduated"].includes(selectedAppDetail.status)) && (
-                  <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4.5 shadow-sm">
-                    <div className="flex items-center gap-2.5 mb-3 border-b border-purple-100 pb-2.5">
-                      <Building className="h-4 w-4 text-purple-600" />
-                      <h4 className="text-[12.5px] font-bold uppercase tracking-wide text-purple-900">
-                        Driving School Enrollment
-                      </h4>
-                    </div>
-                    <div className="space-y-2 text-[13px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Accredited Partner:</span>
-                        <span className="font-semibold text-purple-950">
-                          {selectedAppDetail.driving_school?.name || selectedAppDetail.driving_school_name || "Assigned Driving Academy"}
-                        </span>
-                      </div>
-                      <p className="text-[12.5px] text-purple-800 leading-relaxed pt-1">
-                        {selectedAppDetail.driving_school?.instructions || "Please attend your scheduled training sessions to qualify for certificate issuance before VIO biometric capture."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <h4 className="mb-3 border-b border-slate-100 pb-2 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">
-                    Documents ({selectedAppDetail.documents?.length || 0})
-                  </h4>
-                  {!selectedAppDetail.documents || selectedAppDetail.documents.length === 0 ? (
-                    <p className="text-[13px] text-slate-400">Nothing uploaded yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedAppDetail.documents.map((doc, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-4 w-4 shrink-0" style={{ color: BRAND }} />
-                            <div>
-                              <p className="text-[13px] font-semibold capitalize text-[#111111]">
-                                {doc.doc_type?.replace(/_/g, " ")}
-                              </p>
-                              {doc.uploaded_at && (
-                                <p className="text-[11px] text-slate-400">{formatDate(doc.uploaded_at)}</p>
-                              )}
-                            </div>
-                          </div>
-                          {doc.file_url && (
-                            <button
-                              onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }}
-                              className="inline-flex items-center gap-1 text-[12px] font-semibold hover:underline"
-                              style={{ color: BRAND }}
-                            >
-                              View
-                              <ExternalLink className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h4 className="mb-3 border-b border-slate-100 pb-2 text-[11.5px] font-bold uppercase tracking-wide text-slate-400">
-                    History
-                  </h4>
-                  {!selectedAppDetail.events || selectedAppDetail.events.length === 0 ? (
-                    <p className="text-[13px] text-slate-400">No history recorded yet.</p>
-                  ) : (
-                    <div className="space-y-4 border-l-2 border-slate-100 pl-4">
-                      {selectedAppDetail.events.map((ev, idx) => (
-                        <div key={idx} className="relative">
-                          <div
-                            className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ring-4 ring-white"
-                            style={{ background: BRAND }}
-                          />
-                          <p className="text-[13px] font-semibold text-slate-800">
-                            {ev.note || `Status updated to ${(ev.new_status || ev.status || "").replace(/_/g, " ")}`}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-slate-400">{formatDate(ev.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-                <button type="button" onClick={() => setSelectedAppDetail(null)} className={btnSecondary}>
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </Modal>
-      </div>
-    );
-  }
-
   /* ── Application form ── */
   const activeSteps = applicationType === "fresh" ? [1, 2, 3, 4, 5] : [1, 2, 4, 5];
   const activeLabels = applicationType === "fresh"
@@ -1227,7 +668,7 @@ export default function ApplyPage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setView("list")}
+          onClick={() => router.push("/dashboard/applications")}
           className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
         >
           <ArrowLeft className="h-4 w-4" />

@@ -291,7 +291,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
     const walletRes = await getWallet();
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     if (res.data?.is_fully_paid) {
-      router.push("/dashboard/apply");
+      router.push("/dashboard/applications");
     }
   };
 
@@ -308,7 +308,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
       if (!opts) return;
       const remaining = opts.remaining_kobo ?? opts.amount_kobo ?? 0;
       if (remaining <= 0) {
-        router.push("/dashboard/apply");
+        router.push("/dashboard/applications");
       } else {
         setPayOpts(opts);
       }
@@ -367,7 +367,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
             </div>
           )}
 
-          <button type="button" onClick={() => router.push("/dashboard/apply")} className={`${btnSecondary} mt-6 w-full`}>
+          <button type="button" onClick={() => router.push("/dashboard/applications")} className={`${btnSecondary} mt-6 w-full`}>
             Back to applications
           </button>
         </div>
@@ -377,7 +377,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 

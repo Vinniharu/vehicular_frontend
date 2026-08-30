@@ -276,7 +276,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
             </div>
           )}
 
-          <button type="button" onClick={() => router.push("/dashboard/apply")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={() => router.push("/dashboard/applications")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
             Back to applications
           </button>
         </div>
@@ -286,7 +286,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
