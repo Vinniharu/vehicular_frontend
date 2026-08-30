@@ -58,6 +58,7 @@ import { colors } from "@/lib/design-tokens";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
+const PCI_VERDICT_LABELS = { buy: "Recommended to buy", proceed_with_caution: "Proceed with caution", dont_buy: "Not recommended" };
 
 // Mirrors the backend's FEE_SCHEDULE (app/core/payment_helpers.py) — only
 // used as a fallback while payment_options hasn't loaded yet; the real
@@ -2173,37 +2174,37 @@ export default function CustomerApplicationDetailsPage() {
             )}
           </div>
 
-          {application.pci_detail.verification_token && application.pci_detail.overall_grade && (
+          {application.pci_detail.verification_token && application.pci_detail.verdict && (
             <div className="mt-4 border-t border-slate-100 pt-4">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Graded condition report</span>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {[
-                  ["Overall", application.pci_detail.overall_grade],
-                  ["Exterior & body", application.pci_detail.exterior_grade],
-                  ["Engine bay", application.pci_detail.engine_bay_grade],
-                  ["Underbody", application.pci_detail.underbody_grade],
-                  ["Interior", application.pci_detail.interior_grade],
-                  ["Road test", application.pci_detail.road_test_grade],
-                ].map(([sectionLabel, grade]) => (
-                  <span
-                    key={sectionLabel}
-                    className={`rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${
-                      grade === "good" ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                      : grade === "fair" ? "bg-amber-50 text-amber-700 ring-amber-200"
-                      : "bg-red-50 text-red-700 ring-red-200"
-                    }`}
-                  >
-                    {sectionLabel}: {grade?.replace(/_/g, " ") || "—"}
-                  </span>
-                ))}
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Inspection verdict</span>
+              <div className="mt-2">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1.5 text-[12.5px] font-bold ring-1 ring-inset ${
+                    application.pci_detail.verdict === "buy" ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                    : application.pci_detail.verdict === "proceed_with_caution" ? "bg-amber-50 text-amber-700 ring-amber-200"
+                    : "bg-red-50 text-red-700 ring-red-200"
+                  }`}
+                >
+                  {PCI_VERDICT_LABELS[application.pci_detail.verdict] || application.pci_detail.verdict}
+                </span>
               </div>
-              {application.pci_detail.recommendation && (
-                <p className="mt-2 text-[12.5px] font-semibold capitalize text-slate-700">
-                  Recommendation: {application.pci_detail.recommendation.replace(/_/g, " ")}
-                </p>
+              {application.pci_detail.report_text && (
+                <p className="mt-2.5 whitespace-pre-line text-[12.5px] leading-relaxed text-slate-600">{application.pci_detail.report_text}</p>
               )}
-              {application.pci_detail.summary_notes && (
-                <p className="mt-1.5 text-[12.5px] text-slate-600">{application.pci_detail.summary_notes}</p>
+              {application.pci_detail.report_images?.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {application.pci_detail.report_images.map((img) => (
+                    <button
+                      key={img.id}
+                      type="button"
+                      onClick={() => setPreviewDocUrl(resolveMediaUrl(img.image_url))}
+                      className="overflow-hidden rounded-lg border border-slate-200"
+                      title={img.caption || undefined}
+                    >
+                      <img src={resolveMediaUrl(img.image_url)} alt={img.caption || "Report photo"} className="h-20 w-20 object-cover" />
+                    </button>
+                  ))}
+                </div>
               )}
               <button
                 type="button"

@@ -5,11 +5,12 @@ import { useParams } from "next/navigation";
 import { ShieldCheck, XCircle, Loader2 } from "lucide-react";
 import { getPublicPciVerification } from "@/lib/api";
 
-function gradeBadgeClass(grade) {
-  if (grade === "good") return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-  if (grade === "fair") return "bg-amber-50 text-amber-700 ring-amber-200";
-  return "bg-red-50 text-red-700 ring-red-200";
-}
+const VERDICT_LABELS = { buy: "Recommended to buy", proceed_with_caution: "Proceed with caution", dont_buy: "Not recommended" };
+const VERDICT_CLASS = {
+  buy: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  proceed_with_caution: "bg-amber-50 text-amber-700 ring-amber-200",
+  dont_buy: "bg-red-50 text-red-700 ring-red-200",
+};
 
 export default function PublicPciVerifyPage() {
   const params = useParams();
@@ -63,28 +64,14 @@ export default function PublicPciVerifyPage() {
               Inspected {result.verified_at ? new Date(result.verified_at).toLocaleDateString() : "—"}
             </p>
 
-            <div className="mt-5 space-y-3">
-              <span className={`inline-block rounded-full px-4 py-1.5 text-[13px] font-bold uppercase ring-1 ring-inset ${gradeBadgeClass(result.overall_grade)}`}>
-                Overall: {result.overall_grade?.replace(/_/g, " ") || "—"}
+            <div className="mt-5">
+              <span className={`inline-block rounded-full px-4 py-1.5 text-[13px] font-bold ring-1 ring-inset ${VERDICT_CLASS[result.verdict] || "bg-slate-100 text-slate-600 ring-slate-200"}`}>
+                {VERDICT_LABELS[result.verdict] || result.verdict}
               </span>
-
-              <div className="flex flex-wrap justify-center gap-1.5 pt-1">
-                {[
-                  ["Exterior & body", result.exterior_grade],
-                  ["Engine bay", result.engine_bay_grade],
-                  ["Underbody", result.underbody_grade],
-                  ["Interior", result.interior_grade],
-                  ["Road test", result.road_test_grade],
-                ].filter(([, grade]) => grade).map(([sectionLabel, grade]) => (
-                  <span key={sectionLabel} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${gradeBadgeClass(grade)}`}>
-                    {sectionLabel}: {grade.replace(/_/g, " ")}
-                  </span>
-                ))}
-              </div>
             </div>
 
             <p className="mt-6 text-[11px] leading-relaxed text-slate-400">
-              This confirms a Vehiculars-graded condition inspection was completed for this vehicle. Condition reflects the vehicle at the time of inspection only.
+              This confirms a Vehiculars physical condition inspection was completed for this vehicle. The verdict reflects the vehicle's condition at the time of inspection only — no further detail is shown here; the full report was released to the customer directly.
             </p>
           </div>
         )}
