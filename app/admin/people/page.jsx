@@ -42,21 +42,7 @@ import {
   getReferenceLgas,
   adminUpdateAgentEligibility,
 } from "@/lib/api";
-
-const APPLICATION_TYPE_OPTIONS = [
-  { value: "fresh", label: "Fresh" },
-  { value: "renewal", label: "Renewal" },
-  { value: "reissue", label: "Reissue" },
-  { value: "international_permit", label: "International Permit" },
-  { value: "tinted_permit", label: "Tinted Permit" },
-  { value: "number_plate", label: "Number Plate" },
-  { value: "vehicle_licence", label: "Vehicle Particulars — Vehicle Licence" },
-  { value: "road_worthiness", label: "Vehicle Particulars — Road Worthiness" },
-  { value: "proof_of_ownership", label: "Vehicle Particulars — Proof of Ownership" },
-  { value: "insurance_third_party", label: "Vehicle Particulars — Third-Party Insurance" },
-  { value: "hackney_permit", label: "Vehicle Particulars — Hackney Permit" },
-  { value: "roadworthiness_express", label: "Roadworthiness Express" },
-];
+import { AGENT_APPLICATION_TYPES as APPLICATION_TYPE_OPTIONS } from "@/app/admin/_shared/agent-application-types";
 
 /* ─── Helpers ─── */
 function koboToNaira(kobo) {
@@ -229,7 +215,6 @@ export default function AdminPage() {
         lga: lgaObj?.name || "",
         state_id: parseInt(selectedState, 10),
         lga_id: parseInt(selectedLga, 10),
-        capabilities: ["driver_licence", "roadworthiness"],
         allowed_application_types: isUnrestricted ? null : allowedApplicationTypes,
       });
       setSubmitting(false);
@@ -593,7 +578,6 @@ export default function AdminPage() {
                     <th className="py-3 px-5 font-semibold">Field Agent</th>
                     <th className="py-3 px-5 font-semibold">Assigned Office</th>
                     <th className="py-3 px-5 font-semibold">Settlement &amp; Wallet</th>
-                    <th className="py-3 px-5 font-semibold">Capabilities</th>
                     <th className="py-3 px-5 font-semibold">Status</th>
                     <th className="py-3 px-5 text-right font-semibold">Action</th>
                   </tr>
@@ -645,18 +629,6 @@ export default function AdminPage() {
                               <Wallet className="h-3.5 w-3.5 text-[#28A745] shrink-0" />
                               <span className="font-bold text-slate-900">{koboToNaira(wallet.balance_kobo)}</span>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <div className="flex flex-wrap gap-1 max-w-[160px]">
-                            {(profile.capabilities || ["driver_licence", "roadworthiness"]).map((cap) => (
-                              <span
-                                key={cap}
-                                className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-600 border border-slate-200"
-                              >
-                                {cap.replace(/_/g, " ")}
-                              </span>
-                            ))}
                           </div>
                         </td>
                         <td className="py-3.5 px-5">
@@ -1031,16 +1003,6 @@ export default function AdminPage() {
                     <div className="flex justify-between">
                       <span className="text-slate-500">LGA:</span>
                       <span className="font-semibold text-slate-900">{selectedAgentDetail.agent_profile?.lga || "—"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block mb-1.5">Assigned Capabilities:</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(selectedAgentDetail.agent_profile?.capabilities || ["driver_licence"]).map((c) => (
-                          <span key={c} className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 capitalize">
-                            {c.replace(/_/g, " ")}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1.5">

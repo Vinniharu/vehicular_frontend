@@ -44,13 +44,20 @@ export const TONE_DOT = {
 };
 
 export function statusMeta(status, appType = "") {
-  const isBypass = ["renewal", "reissue", "international_permit"].includes((appType || "").toLowerCase());
+  const normalizedType = (appType || "").toLowerCase();
+  // Biometric capture is a fresh-only concept — every other type (renewal,
+  // reissue, international_permit, tinted_permit, number_plate_*) skips
+  // straight to proof upload after acceptance, so the base "schedule
+  // capture" label from AGENT_STATUS only applies to fresh. Gated positively
+  // on "not fresh" (not on a hardcoded renewal-family list) so this covers
+  // every non-fresh type, including tinted_permit/number_plate_*.
+  const isNotFresh = normalizedType !== "fresh";
   const meta = { ...(AGENT_STATUS[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" }) };
-  
-  if (isBypass && status === "agent_accepted") {
-    meta.label = appType === "international_permit" ? "Accepted — upload document" : "Accepted — upload proof";
+
+  if (isNotFresh && status === "agent_accepted") {
+    meta.label = normalizedType === "international_permit" ? "Accepted — upload document" : "Accepted — upload proof";
   }
-  
+
   return meta;
 }
 
