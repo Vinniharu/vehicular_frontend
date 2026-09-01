@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { INK, GREEN, PAPER } from "../theme";
+import { TRUST_STATS } from "../landing-data";
 
 export default function FinalCta({ isLoggedIn, dashboardHref, dashboardLabel, redirectTo }) {
   return (
@@ -41,11 +42,7 @@ export default function FinalCta({ isLoggedIn, dashboardHref, dashboardLabel, re
           </Link>
         </div>
         <div className="mt-16 flex flex-wrap items-center justify-center gap-8 md:gap-14">
-          {[
-            ["10,000+", "Jobs completed"],
-            ["Nationwide", "Every state, every LGA"],
-            ["48 hrs", "Average turnaround"],
-          ].map(([num, label]) => (
+          {TRUST_STATS.map(([num, label]) => (
             <div key={num} className="text-center">
               <p className="font-display text-2xl md:text-3xl font-medium text-white">{num}</p>
               <p className="mt-1.5 text-[11px] uppercase tracking-widest text-white/35">{label}</p>

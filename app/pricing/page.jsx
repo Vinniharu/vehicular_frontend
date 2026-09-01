@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
@@ -9,13 +9,30 @@ import Footer from "@/app/components/landing/sections/Footer";
 import { GREEN, INK, INK_CARD, PAPER, INK_SOFT } from "@/app/components/landing/theme";
 import { SERVICES } from "@/app/services/_data";
 import { ServiceStatusPill } from "@/app/services/_status";
+import ServiceIcon from "@/app/components/marketing/ServiceIcon";
 import PricingCalculator from "@/app/components/pricing/PricingCalculator";
-import { getDriverLicenceFeeSchedule, getVehicleCategoryPricing, getReferenceStates } from "@/lib/api";
+import { getDriverLicenceFeeSchedule, getVehicleCategoryPricing, getServicePricing, getReferenceStates } from "@/lib/api";
 
 const CALCULABLE_SLUGS = new Set(["drivers-licence", "number-plate", "vehicle-particulars", "tinted-permit"]);
+const FLAT_PRICED_SLUGS = new Set(["physical-condition-inspection", "roadworthiness-express", "central-motor-registry"]);
 
-function ServiceCard({ service, expanded, onToggle, feeSchedule, vehicleCategoryPrices }) {
-  const Icon = service.icon;
+function koboToNaira(kobo) {
+  return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 });
+}
+
+function getPriceDisplay(service, { servicePriceBySlug, vvMinKobo }) {
+  if (service.status !== "live" || CALCULABLE_SLUGS.has(service.slug)) return null;
+  if (service.slug === "vehicle-verification") {
+    return vvMinKobo != null ? `From ${koboToNaira(vvMinKobo)}` : "Contact us";
+  }
+  if (FLAT_PRICED_SLUGS.has(service.slug)) {
+    const kobo = servicePriceBySlug[service.slug];
+    return kobo != null ? koboToNaira(kobo) : "Contact us";
+  }
+  return null;
+}
+
+function ServiceCard({ service, expanded, onToggle, feeSchedule, vehicleCategoryPrices, priceDisplay }) {
   const isCalculable = CALCULABLE_SLUGS.has(service.slug) && service.status === "live";
 
   return (
@@ -27,15 +44,16 @@ function ServiceCard({ service, expanded, onToggle, feeSchedule, vehicleCategory
         style={{ cursor: isCalculable ? "pointer" : "default" }}
       >
         <div className="flex min-w-0 items-center gap-4">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(40, 167, 69,0.15)", color: GREEN }}>
-            <Icon className="h-5 w-5" />
-          </span>
+          <ServiceIcon icon={service.icon} tone="brandStrong" size="lg" />
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-white">{service.title}</p>
             <p className="mt-0.5 truncate text-[12.5px]" style={{ color: INK_SOFT }}>{service.tagline}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
+          {priceDisplay && (
+            <span className="text-[12.5px] font-semibold" style={{ color: GREEN }}>{priceDisplay}</span>
+          )}
           <ServiceStatusPill status={service.status} />
           {isCalculable && (
             <ChevronDown
@@ -107,6 +125,7 @@ export default function PricingPage() {
   const [expandedSlug, setExpandedSlug] = useState(null);
   const [feeSchedule, setFeeSchedule] = useState([]);
   const [vehicleCategoryPrices, setVehicleCategoryPrices] = useState([]);
+  const [servicePrices, setServicePrices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [states, setStates] = useState([]);
   const [selectedStateId, setSelectedStateId] = useState(""); // "" = General (all states)
@@ -120,12 +139,28 @@ export default function PricingPage() {
   useEffect(() => {
     setLoading(true);
     const stateId = selectedStateId || undefined;
-    Promise.all([getDriverLicenceFeeSchedule({ state_id: stateId }), getVehicleCategoryPricing(stateId)]).then(([feeRes, categoryRes]) => {
+    Promise.all([
+      getDriverLicenceFeeSchedule({ state_id: stateId }),
+      getVehicleCategoryPricing(stateId),
+      getServicePricing(stateId),
+    ]).then(([feeRes, categoryRes, serviceRes]) => {
       if (feeRes.data?.prices) setFeeSchedule(feeRes.data.prices);
       if (categoryRes.data?.prices) setVehicleCategoryPrices(categoryRes.data.prices);
+      if (serviceRes.data?.prices) setServicePrices(serviceRes.data.prices);
       setLoading(false);
     });
   }, [selectedStateId]);
+
+  const servicePriceBySlug = useMemo(
+    () => Object.fromEntries(servicePrices.map((p) => [p.slug, p.amount_kobo])),
+    [servicePrices]
+  );
+
+  const vvMinKobo = useMemo(() => {
+    const vvPrices = feeSchedule.filter((p) => p.application_type?.startsWith("vehicle_verification_"));
+    if (vvPrices.length === 0) return null;
+    return Math.min(...vvPrices.map((p) => p.amount_kobo));
+  }, [feeSchedule]);
 
   return (
     <div>
@@ -187,6 +222,7 @@ export default function PricingPage() {
                 onToggle={(slug) => setExpandedSlug((prev) => (prev === slug ? null : slug))}
                 feeSchedule={feeSchedule}
                 vehicleCategoryPrices={vehicleCategoryPrices}
+                priceDisplay={getPriceDisplay(service, { servicePriceBySlug, vvMinKobo })}
               />
             ))
           )}

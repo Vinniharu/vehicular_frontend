@@ -51,7 +51,7 @@ export default function AuthLayout({ children }) {
           </h2>
 
           <p className="mt-5 text-[15px] leading-relaxed text-white/60">
-            Relief from a countdown you didn&apos;t know you were losing. Renewals, roadworthiness inspections, genuine parts, and VIO compliance — managed from a single secure portal across Nigeria.
+            Relief from a countdown you didn&apos;t know you were losing. Renewals, roadworthiness inspections, physical condition checks, and VIO compliance — managed from a single secure portal across Nigeria.
           </p>
 
           <div className="mt-10 space-y-4 pt-8 border-t border-white/[0.08]">

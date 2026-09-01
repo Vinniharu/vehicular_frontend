@@ -40,20 +40,22 @@ function LifecycleCard({ stage }) {
       <p className="mt-2 text-[15px] leading-relaxed" style={{ color: INK_SOFT }}>
         {stage.blurb}
       </p>
-      <ul className="mt-5 space-y-1 border-t pt-4" style={{ borderColor: `${INK}14` }}>
-        {stage.items.map((item) => (
-          <li key={item.href}>
-            <Link
-              href={item.href}
-              className="group/link flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-[14px] font-medium transition-colors duration-150 hover:bg-[#28A745]/5"
-              style={{ color: `${INK}cc` }}
-            >
-              <span>{item.label}</span>
-              <ChevronRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover/link:translate-x-0.5" style={{ color: `${INK}4d` }} />
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {stage.items?.length > 0 && (
+        <ul className="mt-5 space-y-1 border-t pt-4" style={{ borderColor: `${INK}14` }}>
+          {stage.items.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="group/link flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-[14px] font-medium transition-colors duration-150 hover:bg-[#28A745]/5"
+                style={{ color: `${INK}cc` }}
+              >
+                <span>{item.label}</span>
+                <ChevronRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover/link:translate-x-0.5" style={{ color: `${INK}4d` }} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </motion.div>
   );
 }

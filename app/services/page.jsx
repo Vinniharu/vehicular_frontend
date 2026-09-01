@@ -1,7 +1,5 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { SERVICES } from "./_data";
-import { ServiceStatusPill } from "./_status";
+import ServiceCard from "@/app/components/marketing/ServiceCard";
 
 export const metadata = {
   title: "Services | Vehiculars",
@@ -28,34 +26,18 @@ export default function ServicesHubPage() {
 
       <section className="px-5 md:px-8 pb-20">
         <div className="mx-auto max-w-6xl grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map((service) => {
-            const Icon = service.icon;
-            return (
-              <Link
-                key={service.slug}
-                href={`/services/${service.slug}`}
-                className="group flex flex-col justify-between rounded-2xl bg-white p-6 transition-transform duration-200 hover:-translate-y-1"
-                style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <ServiceStatusPill status={service.status} />
-                  </div>
-                  <h2 className="mt-4 font-display text-[18px] font-medium leading-tight text-[#111111]">
-                    {service.title}
-                  </h2>
-                  <p className="mt-2 text-[13.5px] leading-relaxed text-[#111111]/60">{service.tagline}</p>
-                </div>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#28A745]">
-                  View details
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
-                </span>
-              </Link>
-            );
-          })}
+          {SERVICES.map((service) => (
+            <ServiceCard
+              key={service.slug}
+              href={`/services/${service.slug}`}
+              title={service.title}
+              description={service.tagline}
+              icon={service.icon}
+              status={service.status}
+              variant="hub"
+              headingTag="h2"
+            />
+          ))}
         </div>
       </section>
     </div>

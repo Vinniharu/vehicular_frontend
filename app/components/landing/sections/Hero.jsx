@@ -6,6 +6,7 @@ import { ArrowRight, Play } from "lucide-react";
 import StampSeal from "../StampSeal";
 import { HeroPhoneShowcase } from "../HeroPhoneShowcase";
 import { INK, GREEN, GOLD, PAPER } from "../theme";
+import { TRUST_STATS } from "../landing-data";
 
 const containerVariants = {
   hidden: {},
@@ -96,7 +97,7 @@ export default function Hero({ isLoggedIn, dashboardHref, dashboardLabel, redire
             </motion.h1>
 
             <motion.p variants={itemVariants} className="mt-6 lg:mt-7 max-w-lg text-[16px] sm:text-[18px] leading-relaxed text-white/55">
-              Renewals, inspections, genuine parts and more — managed in one place, across Nigeria. Relief from a countdown you didn't know you were losing.
+              Renewals, inspections, licences and permits — managed in one place, across Nigeria. Relief from a countdown you didn't know you were losing.
             </motion.p>
 
             <motion.div variants={itemVariants} className="mt-8 lg:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center md:justify-start gap-3.5 sm:gap-4 w-full">
@@ -119,11 +120,7 @@ export default function Hero({ isLoggedIn, dashboardHref, dashboardLabel, redire
             </motion.div>
 
             <motion.div variants={itemVariants} className="mt-12 lg:mt-14 grid grid-cols-3 items-start justify-items-center md:justify-items-start gap-4 sm:gap-8 lg:gap-12">
-              {[
-                ["40,000+", "Drivers served"],
-                ["Nationwide", "Every state"],
-                ["48 hrs", "Avg. turnaround"],
-              ].map(([num, label]) => (
+              {TRUST_STATS.map(([num, label]) => (
                 <div key={num} className="text-center md:text-left">
                   <p className="font-display text-[22px] sm:text-[26px] font-medium text-white leading-none">{num}</p>
                   <p className="mt-1 text-[11px] uppercase tracking-widest text-white/40">{label}</p>
