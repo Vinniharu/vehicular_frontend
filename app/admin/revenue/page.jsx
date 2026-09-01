@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   RefreshCw,
   TrendingUp,
@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  CalendarRange,
 } from "lucide-react";
 import { adminGetMetricsOverview, adminGetRevenueTransactions, koboToNaira } from "@/lib/api";
 
@@ -17,6 +18,30 @@ function formatDate(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
+
+// Local YYYY-MM-DD (not toISOString, which shifts to UTC and can land on
+// the wrong calendar day for users west of UTC).
+function toDateInputValue(d) {
+  const yr = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${yr}-${mo}-${day}`;
+}
+
+function startOfWeek(d) {
+  const date = new Date(d);
+  const dow = date.getDay(); // 0 = Sunday
+  const diffToMonday = dow === 0 ? -6 : 1 - dow;
+  date.setDate(date.getDate() + diffToMonday);
+  return date;
+}
+
+const DATE_PRESETS = [
+  { label: "Today", range: () => { const t = new Date(); return [t, t]; } },
+  { label: "This Week", range: () => [startOfWeek(new Date()), new Date()] },
+  { label: "This Month", range: () => [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()] },
+  { label: "All Time", range: () => [null, null] },
+];
 
 const PAYMENT_STATUS_STYLES = {
   success: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -55,22 +80,39 @@ export default function AdminRevenuePage() {
   const [pageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Guards against out-of-order responses: rapidly switching date-range
+  // presets can fire two overview/transactions requests where the older one
+  // (e.g. a since-abandoned range) resolves after the newer one, silently
+  // clobbering the correct on-screen figures with stale data.
+  const overviewSeqRef = useRef(0);
+  const txnSeqRef = useRef(0);
+
+  // Inclusive of the whole "to" day — a bare YYYY-MM-DD compared against a
+  // datetime column would otherwise only match up to that day's midnight.
+  const effectiveToDate = toDate ? `${toDate}T23:59:59.999` : undefined;
+
   const loadOverview = async () => {
-    const res = await adminGetMetricsOverview();
-    if (res.data) setOverview(res.data);
+    const seq = ++overviewSeqRef.current;
+    const res = await adminGetMetricsOverview({ from_date: fromDate || undefined, to_date: effectiveToDate });
+    if (res.data && seq === overviewSeqRef.current) setOverview(res.data);
   };
 
   const loadTransactions = async (targetPage = page) => {
+    const seq = ++txnSeqRef.current;
     const res = await adminGetRevenueTransactions({
       page: targetPage,
       page_size: pageSize,
       status: statusFilter || undefined,
       application_type: typeFilter || undefined,
+      from_date: fromDate || undefined,
+      to_date: effectiveToDate,
     });
-    if (res.data) {
+    if (res.data && seq === txnSeqRef.current) {
       setItems(res.data.items || []);
       setTotal(res.data.total || 0);
       setTotalPages(res.data.total_pages || 1);
@@ -85,14 +127,21 @@ export default function AdminRevenuePage() {
 
   useEffect(() => {
     setPage(1);
+    loadOverview();
     loadTransactions(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, fromDate, toDate]);
 
   useEffect(() => {
     loadTransactions(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
+  const applyPreset = (preset) => {
+    const [from, to] = preset.range();
+    setFromDate(from ? toDateInputValue(from) : "");
+    setToDate(to ? toDateInputValue(to) : "");
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -140,6 +189,52 @@ export default function AdminRevenuePage() {
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""} text-slate-500`} />
           Refresh
         </button>
+      </div>
+
+      {/* ─── Date Range ─── */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-1.5 text-slate-400 shrink-0">
+          <CalendarRange className="h-3.5 w-3.5" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide">Date Range</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {DATE_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              className="px-2.5 py-1.5 rounded-lg text-[12px] font-medium border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="px-2.5 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+          />
+          <span className="text-[12px] text-slate-400">to</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+            className="px-2.5 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+          />
+          {(fromDate || toDate) && (
+            <button
+              type="button"
+              onClick={() => { setFromDate(""); setToDate(""); }}
+              className="text-[12px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ─── Stats Row ─── */}
