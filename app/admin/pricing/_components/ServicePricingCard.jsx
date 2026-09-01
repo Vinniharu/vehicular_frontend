@@ -253,6 +253,14 @@ export default function ServicePricingCard({ section }) {
         <div className="divide-y divide-slate-100">
           {section.subServices.map((sub) => {
             const isOpen = openSub === sub.key;
+            // While the card is in edit mode, every sub-panel's fields must
+            // be visible at once — otherwise "Edit" appears to do nothing
+            // (Save/Cancel show up, but no price fields) until the admin
+            // separately clicks each row to expand it, which reads as "I
+            // can't set the price" for whichever document they didn't
+            // happen to click. Read-only browsing still expands one at a
+            // time via isOpen.
+            const isVisible = isOpen || editing;
             return (
               <div key={sub.key}>
                 <button
@@ -261,9 +269,9 @@ export default function ServicePricingCard({ section }) {
                   className="w-full flex items-center justify-between px-6 sm:px-8 py-4 text-left hover:bg-slate-50 transition-colors"
                 >
                   <span className="text-sm font-semibold text-slate-800">{sub.label}</span>
-                  <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${isVisible ? "rotate-180" : ""}`} />
                 </button>
-                {isOpen && (
+                {isVisible && (
                   <div className="px-6 sm:px-8 pb-6 space-y-4">
                     {sub.rows && sub.rows.length > 0 && renderRows(sub.rows, sub.label)}
                     {sub.categoryGrid && renderCategoryGrid(sub.categoryGrid.service_key, sub.label)}
