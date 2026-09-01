@@ -73,6 +73,7 @@ const NUMBER_PLATE_FEE_KOBO = {
   number_plate_replacement: 10_500_000,
   number_plate_change_of_ownership: 12_000_000,
   number_plate_fancy: 12_500_000,
+  number_plate_dealership: 10_500_000,
 };
 // Maps a real backend application_type back to the ?type= query param the
 // apply/number-plate/new wizard expects (see PLATE_TYPES there).
@@ -81,6 +82,7 @@ const NUMBER_PLATE_QUERY_TYPE = {
   number_plate_replacement: "replacement",
   number_plate_change_of_ownership: "change-of-ownership",
   number_plate_fancy: "fancy",
+  number_plate_dealership: "dealership",
 };
 function estimateFeeKobo(appType, period) {
   if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
@@ -151,6 +153,16 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "customs_duty_page_3", label: "Custom duty — page 3" },
     { value: "proof_of_ownership", label: "Purchase receipt / sales agreement" },
     { value: "previous_owner_particulars", label: "Previous owner's particulars" },
+  ],
+  // No vehicle — letterhead/CAC are both optional (never a hard submission
+  // requirement, see the backend's REQUIRED_DOCS_BY_APPLICATION_TYPE), so
+  // this list is just what's available to attach, not what's required.
+  // optional: true overrides the "(required)" suffix the dropdown below
+  // otherwise always appends — every other entry in this table really is a
+  // hard requirement, dealership is the first that isn't.
+  number_plate_dealership: [
+    { value: "company_letterhead", label: "Company letterhead", optional: true },
+    { value: "cac_certificate", label: "CAC certificate", optional: true },
   ],
   // Union of every document type's evidence doc_type, deduped — a
   // vehicle_particulars bundle only actually requires the subset backing
@@ -2089,6 +2101,34 @@ export default function CustomerApplicationDetailsPage() {
         </div>
       )}
 
+      {/* Dealership Plate — no vehicle at all, so this replaces the Vehicle
+          card above (which silently no-ops here since vehicle_id is null). */}
+      {application.application_type === "number_plate_dealership" && (
+        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Dealership</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dealership name</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.dealership_name || "—"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registered company</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.is_registered_company ? "Yes" : "No"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.applicant_email || "—"}</span>
+            </div>
+            {application.residential_address && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Address</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.residential_address}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {isVehicleParticulars && (
         <ParticularsItemsSummary application={application} onViewDoc={setPreviewDocUrl} />
       )}
@@ -2769,7 +2809,7 @@ export default function CustomerApplicationDetailsPage() {
               <select value={docTypeInput} onChange={(e) => setDocTypeInput(e.target.value)}
                 className="rounded-xl border border-[#E5E5E5] bg-slate-50/60 px-3 py-2.5 text-[13px] text-[#111111] outline-none focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15">
                 {REQUIRED_DOCS_BY_TYPE[application.application_type]?.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label} (required)</option>
+                  <option key={d.value} value={d.value}>{d.label} {d.optional ? "(optional)" : "(required)"}</option>
                 ))}
                 <option value="proof_of_identity">Proof of identity</option>
                 <option value="eye_test_certificate">Vision / eye test</option>

@@ -999,6 +999,17 @@ export default function AgentApplicationDetailPage() {
         </div>
       </Section>
 
+      {/* Dealership Plate — no vehicle at all, own identity fields */}
+      {application.application_type === "number_plate_dealership" && (
+        <Section title="Dealership" icon={BadgeCheck}>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Dealership name" value={application.dealership_name} />
+            <Field label="Registered company" value={application.is_registered_company ? "Yes" : "No"} />
+            <Field label="NIN" value={application.nin} mono />
+          </div>
+        </Section>
+      )}
+
       {/* Personal & origin — DL family only, meaningless for vehicle-centric types */}
       {isDlFamily && (
         <Section title="Personal & origin" icon={BadgeCheck}>

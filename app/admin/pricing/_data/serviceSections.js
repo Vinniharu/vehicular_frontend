@@ -67,7 +67,7 @@ export const SERVICE_SECTIONS = [
   },
   {
     slug: "number-plate",
-    title: "Number Plate Services",
+    title: "Number / Dealership Plate Services",
     subtitle: "One flat, state-aware price per plate type — not a fallback under a category grid.",
     subServices: [
       {
@@ -89,6 +89,11 @@ export const SERVICE_SECTIONS = [
         key: "change-of-ownership",
         label: "Change of Ownership + New Plate",
         rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Amount", amountRequired: true }],
+      },
+      {
+        key: "dealership",
+        label: "Dealership Plate",
+        rows: [{ mechanism: "dl", key: "number_plate_dealership:null", application_type: "number_plate_dealership", validity_period: null, label: "Amount", amountRequired: true }],
       },
     ],
   },
