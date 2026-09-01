@@ -11,6 +11,7 @@ import {
   Car,
   Clock,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 import {
   getReferenceStates,
@@ -20,6 +21,7 @@ import {
   payFromWalletEndpoint,
   getWallet,
   getNumberPlateFee,
+  getDriverLicenceFeeSchedule,
   getApplication,
   getCachedUser,
   koboToNaira,
@@ -61,6 +63,15 @@ const PLATE_TYPES = {
     fallbackFeeKobo: 12_500_000,
     requiresExistingPlate: false,
   },
+  dealership: {
+    application_type: "number_plate_dealership",
+    title: "Dealership Plate",
+    fallbackFeeKobo: 10_500_000,
+    requiresExistingPlate: false,
+    // The only plan with no vehicle at all — a plate issued against the
+    // dealership's company identity instead.
+    requiresVehicle: false,
+  },
 };
 
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
@@ -70,8 +81,11 @@ const NIN_RE = /^\d{11}$/;
 // applicant up front so the price doesn't look like "just a plate." New/
 // change-of-ownership get the full list; replacement (a lost/damaged-plate
 // reissue, not a fresh registration) only ever produces a plate number.
+// Dealership plates cover the same plate-number allocation, just against a
+// company identity rather than a specific vehicle.
 function getWhatsCovered(planKey) {
   if (planKey === "replacement") return ["Plate number"];
+  if (planKey === "dealership") return ["Plate number", "Plate number allocation"];
   return [
     "Plate number",
     "Proof of ownership",
@@ -88,6 +102,7 @@ const STEP_KEY_LABELS = {
   location: "Use & location",
   applicant: "Applicant details",
   previousOwner: "Previous owner",
+  dealership: "Dealership details",
   documents: "Documents",
   review: "Review & submit",
 };
@@ -101,7 +116,21 @@ const STEP_KEY_LABELS = {
 // registration has no prior registration document to submit. Replacement
 // needs only proof of ownership — a lost/damaged-plate reissue for an
 // already-registered vehicle, per the confirmed simplification.
-function getDocSlots(planKey) {
+// isRegisteredCompany only matters for the dealership plan — the CAC
+// certificate slot only appears once the customer has said "yes" to being a
+// registered company. Both dealership doc slots are optional regardless
+// (never a hard submission requirement — see DLApplicationCreate's schema
+// comments), so this never affects the required-docs gate.
+function getDocSlots(planKey, isRegisteredCompany) {
+  if (planKey === "dealership") {
+    const slots = [
+      { doc_type: "company_letterhead", title: "Company Letterhead", hint: "Optional — your company's letterhead paper", image: "/placeholder/proof.jpeg", optional: true },
+    ];
+    if (isRegisteredCompany) {
+      slots.push({ doc_type: "cac_certificate", title: "CAC Certificate", hint: "Optional — your company's CAC registration certificate", image: "/placeholder/proof.jpeg", optional: true });
+    }
+    return slots;
+  }
   if (planKey === "replacement") {
     return [
       { doc_type: "proof_of_ownership", title: "Proof of Ownership", hint: "Purchase receipt, sales agreement, or current proof of ownership", image: "/placeholder/proof.jpeg" },
@@ -126,25 +155,15 @@ export default function NumberPlateNewApplicationPage() {
   const planKey = PLATE_TYPES[searchParams.get("type")] ? searchParams.get("type") : "new";
   const plan = PLATE_TYPES[planKey];
   const isChangeOfOwnership = planKey === "change-of-ownership";
+  const isDealership = planKey === "dealership";
+  // Dealership plates are the only plan with no vehicle at all.
+  const requiresVehicle = plan.requiresVehicle !== false;
   // Fresh registration and change of ownership collect full applicant
   // identity (tester feedback) — replacement stays a lightweight
   // vehicle+documents submission for an already-registered plate.
-  const needsApplicantDetails = planKey !== "replacement";
-  const docSlots = getDocSlots(planKey);
-  const requiredDocSlots = docSlots.filter((s) => !s.optional);
-  const stepKeys = [
-    "vehicle",
-    "location",
-    ...(needsApplicantDetails ? ["applicant"] : []),
-    ...(isChangeOfOwnership ? ["previousOwner"] : []),
-    "documents",
-    "review",
-  ];
-  const stepLabels = stepKeys.map((k) => STEP_KEY_LABELS[k]);
-  const totalSteps = stepKeys.length;
-  const stepIndex = (key) => stepKeys.indexOf(key) + 1;
-  const DOC_STEP = stepIndex("documents");
-  const REVIEW_STEP = stepIndex("review");
+  // Dealership has its own dedicated step for its (different) identity
+  // fields, so it's excluded here too.
+  const needsApplicantDetails = planKey !== "replacement" && !isDealership;
 
   const [step, setStep] = useState(1);
 
@@ -172,6 +191,38 @@ export default function NumberPlateNewApplicationPage() {
   // Requested plate number -- fancy plate only (a standalone plan now, not
   // a toggle inside new/change-of-ownership).
   const [fancyPlateNumber, setFancyPlateNumber] = useState("");
+
+  // Dealership only — no vehicle at all, a distinct set of identity fields.
+  // CAC certificate stays optional even when isRegisteredCompany is true
+  // (per the confirmed requirement) — it only controls whether the upload
+  // slot is offered, never a submission requirement.
+  const [isRegisteredCompany, setIsRegisteredCompany] = useState(true);
+  const [dealershipForm, setDealershipForm] = useState(() => {
+    const cachedUser = getCachedUser();
+    return {
+      dealership_name: "", residential_address: "",
+      applicant_phone: cachedUser?.phone || "", applicant_email: cachedUser?.email || "", nin: "",
+    };
+  });
+  const [dealershipPassportPhoto, setDealershipPassportPhoto] = useState("");
+
+  const docSlots = getDocSlots(planKey, isRegisteredCompany);
+  const requiredDocSlots = docSlots.filter((s) => !s.optional);
+  const stepKeys = [
+    ...(requiresVehicle ? ["vehicle"] : []),
+    "location",
+    ...(needsApplicantDetails ? ["applicant"] : []),
+    ...(isChangeOfOwnership ? ["previousOwner"] : []),
+    ...(isDealership ? ["dealership"] : []),
+    "documents",
+    "review",
+  ];
+  const stepLabels = stepKeys.map((k) => STEP_KEY_LABELS[k]);
+  const totalSteps = stepKeys.length;
+  const stepIndex = (key) => stepKeys.indexOf(key) + 1;
+  const DOC_STEP = stepIndex("documents");
+  const REVIEW_STEP = stepIndex("review");
+
   const [docs, setDocs] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -209,6 +260,19 @@ export default function NumberPlateNewApplicationPage() {
   // refetched whenever the selected vehicle or registration state changes.
   // Falls back to plan.fallbackFeeKobo (set above) until both are chosen.
   useEffect(() => {
+    if (isDealership) {
+      // No vehicle to key the fee lookup on — dealership is flat, state-aware
+      // pricing (like tinted permit / RWX), so it's quoted from the same
+      // published fee-schedule the rest of the catalog uses. This is
+      // deliberately NOT the hardcoded fallbackFeeKobo — that's a last-resort
+      // only, so an admin price edit via /admin/pricing is reflected live
+      // here instead of silently diverging from what checkout actually charges.
+      getDriverLicenceFeeSchedule({ state_id: selectedStateId ? Number(selectedStateId) : undefined }).then((res) => {
+        const row = res.data?.prices?.find((p) => p.application_type === "number_plate_dealership");
+        if (row?.amount_kobo != null) setFeeKobo(row.amount_kobo);
+      });
+      return;
+    }
     if (!selectedVehicleId || !selectedStateId) return;
     getNumberPlateFee({
       application_type: plan.application_type,
@@ -218,7 +282,7 @@ export default function NumberPlateNewApplicationPage() {
       if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVehicleId, selectedStateId]);
+  }, [selectedVehicleId, selectedStateId, isDealership]);
 
   const handleCreateVehicle = async () => {
     const errors = {};
@@ -259,7 +323,10 @@ export default function NumberPlateNewApplicationPage() {
 
   const validateStep = (n) => {
     const errors = {};
-    if (n === 1) {
+    // Key-based (not raw step-number) checks — "vehicle" isn't always step
+    // 1 now that dealership omits it entirely, so stepKeys[n-1] is the only
+    // reliable way to know which step is actually being validated.
+    if (stepKeys[n - 1] === "vehicle") {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
       else if (plan.requiresExistingPlate && !selectedVehicle?.plate_number) {
         errors.vehicle = "This vehicle has no plate number on file — add its current plate number, or choose 'New Plate' instead.";
@@ -267,8 +334,18 @@ export default function NumberPlateNewApplicationPage() {
         errors.vehicle = "This vehicle has no chassis/VIN number on file — add a new vehicle with a chassis number, or update this one.";
       }
     }
-    if (n === 2) {
+    if (stepKeys[n - 1] === "location") {
       if (!selectedStateId) errors.state = "Select the state to register this plate in.";
+    }
+    if (stepKeys[n - 1] === "dealership") {
+      if (!dealershipForm.dealership_name.trim()) errors.dealership_name = "Dealership name is required.";
+      if (!dealershipForm.residential_address.trim()) errors.residential_address = "Address is required.";
+      if (!dealershipForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      if (!dealershipForm.applicant_email.trim()) errors.applicant_email = "Email is required.";
+      const trimmedNin = dealershipForm.nin.trim();
+      if (!trimmedNin) errors.nin = "NIN is required.";
+      else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+      if (!dealershipPassportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
     }
     if (n === stepIndex("applicant")) {
       if (!applicantForm.first_name.trim()) errors.first_name = "First name is required.";
@@ -305,7 +382,7 @@ export default function NumberPlateNewApplicationPage() {
   };
 
   const canSubmit =
-    selectedVehicleId &&
+    (!requiresVehicle || selectedVehicleId) &&
     (!plan.requiresExistingPlate || selectedVehicle?.plate_number) &&
     (!needsApplicantDetails || selectedVehicle?.chassis_number) &&
     selectedStateId &&
@@ -316,6 +393,11 @@ export default function NumberPlateNewApplicationPage() {
     )) &&
     (planKey !== "fancy" || (fancyPlateNumber.trim() && fancyPlateNumber.trim().length <= 8)) &&
     (!isChangeOfOwnership || previousOwnerDetails.trim()) &&
+    (!isDealership || (
+      dealershipForm.dealership_name.trim() && dealershipForm.residential_address.trim() &&
+      dealershipForm.applicant_phone.trim() && dealershipForm.applicant_email.trim() &&
+      NIN_RE.test(dealershipForm.nin.trim()) && dealershipPassportPhoto
+    )) &&
     requiredDocSlots.every((slot) => docs[slot.doc_type]?.url);
 
   const handleSubmit = async () => {
@@ -333,17 +415,22 @@ export default function NumberPlateNewApplicationPage() {
     setSubmitting(true);
     const res = await submitDriverLicenceApplication({
       application_type: plan.application_type,
-      vehicle_id: selectedVehicleId,
+      vehicle_id: isDealership ? undefined : selectedVehicleId,
       state_id: Number(selectedStateId),
       previous_owner_details: isChangeOfOwnership ? previousOwnerDetails : undefined,
       first_name: needsApplicantDetails ? applicantForm.first_name.trim() : undefined,
       middle_name: needsApplicantDetails ? applicantForm.middle_name.trim() || undefined : undefined,
       last_name: needsApplicantDetails ? applicantForm.last_name.trim() : undefined,
-      residential_address: needsApplicantDetails ? applicantForm.residential_address.trim() : undefined,
-      applicant_phone: needsApplicantDetails ? applicantForm.applicant_phone.trim() : undefined,
-      nin: needsApplicantDetails ? applicantForm.nin.trim() : undefined,
+      residential_address: isDealership ? dealershipForm.residential_address.trim() : (needsApplicantDetails ? applicantForm.residential_address.trim() : undefined),
+      applicant_phone: isDealership ? dealershipForm.applicant_phone.trim() : (needsApplicantDetails ? applicantForm.applicant_phone.trim() : undefined),
+      nin: isDealership ? dealershipForm.nin.trim() : (needsApplicantDetails ? applicantForm.nin.trim() : undefined),
       former_registration_number: needsApplicantDetails ? applicantForm.former_registration_number.trim() || undefined : undefined,
       fancy_plate_number: planKey === "fancy" ? fancyPlateNumber.trim() : undefined,
+      // Dealership only.
+      applicant_email: isDealership ? dealershipForm.applicant_email.trim() : undefined,
+      dealership_name: isDealership ? dealershipForm.dealership_name.trim() : undefined,
+      is_registered_company: isDealership ? isRegisteredCompany : undefined,
+      passport_photo: isDealership ? dealershipPassportPhoto : undefined,
       documents: docSlots.filter((slot) => docs[slot.doc_type]?.url).map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
     });
     setSubmitting(false);
@@ -481,8 +568,8 @@ export default function NumberPlateNewApplicationPage() {
 
       <StepProgress steps={stepLabels} current={step} />
 
-      {/* Step 1 — Vehicle */}
-      {step === 1 && (
+      {/* Step — Vehicle (omitted entirely for dealership) */}
+      {requiresVehicle && stepKeys[step - 1] === "vehicle" && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
             <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle
@@ -632,8 +719,8 @@ export default function NumberPlateNewApplicationPage() {
         </section>
       )}
 
-      {/* Step 2 — Location */}
-      {step === 2 && (
+      {/* Step — Location */}
+      {stepKeys[step - 1] === "location" && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Location</h2>
           <div className="space-y-4">
@@ -649,8 +736,109 @@ export default function NumberPlateNewApplicationPage() {
               </select>
               <FieldError message={fieldErrors.state} />
               <p className="mt-1.5 text-[11.5px] text-slate-500">
-                Price is based on this state — the same flat fee for every vehicle.
+                Price is based on this state — the same flat fee for every {isDealership ? "dealership" : "vehicle"}.
               </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Step — Dealership details (dealership only) */}
+      {isDealership && step === stepIndex("dealership") && (
+        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <Building2 className="h-4 w-4" style={{ color: BRAND }} /> Dealership details
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className={label}>Is this a registered company?</label>
+              <div className="mt-1.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRegisteredCompany(true)}
+                  className="flex-1 rounded-xl border-2 p-3 text-[13px] font-semibold transition-all"
+                  style={{ borderColor: isRegisteredCompany ? BRAND : "#e2e8f0", background: isRegisteredCompany ? BRAND_TINT : "#fff", color: isRegisteredCompany ? BRAND : "#475569" }}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRegisteredCompany(false)}
+                  className="flex-1 rounded-xl border-2 p-3 text-[13px] font-semibold transition-all"
+                  style={{ borderColor: !isRegisteredCompany ? BRAND : "#e2e8f0", background: !isRegisteredCompany ? BRAND_TINT : "#fff", color: !isRegisteredCompany ? BRAND : "#475569" }}
+                >
+                  No
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11.5px] text-slate-500">
+                {isRegisteredCompany
+                  ? "You'll be able to attach your CAC certificate on the next step — optional."
+                  : "No problem — we'll just need your dealership's details below."}
+              </p>
+            </div>
+            <div>
+              <label className={label}>Dealership name <span className="text-red-400">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.dealership_name)}`}
+                value={dealershipForm.dealership_name}
+                onChange={(e) => setDealershipForm((f) => ({ ...f, dealership_name: e.target.value }))}
+                placeholder="e.g. THE BEATS AUTOS"
+              />
+              <FieldError message={fieldErrors.dealership_name} />
+            </div>
+            <div>
+              <label className={label}>Address <span className="text-red-400">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.residential_address)}`}
+                value={dealershipForm.residential_address}
+                onChange={(e) => setDealershipForm((f) => ({ ...f, residential_address: e.target.value }))}
+                placeholder="e.g. 74 Modupe Young Thomas Estate, Ajah, Lagos, Nigeria"
+              />
+              <FieldError message={fieldErrors.residential_address} />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={label}>Phone number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
+                  value={dealershipForm.applicant_phone}
+                  onChange={(e) => setDealershipForm((f) => ({ ...f, applicant_phone: e.target.value }))}
+                />
+                <FieldError message={fieldErrors.applicant_phone} />
+              </div>
+              <div>
+                <label className={label}>Email <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                  value={dealershipForm.applicant_email}
+                  onChange={(e) => setDealershipForm((f) => ({ ...f, applicant_email: e.target.value }))}
+                />
+                <FieldError message={fieldErrors.applicant_email} />
+              </div>
+            </div>
+            <div>
+              <label className={label}>NIN <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={11}
+                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
+                value={dealershipForm.nin}
+                onChange={(e) => setDealershipForm((f) => ({ ...f, nin: e.target.value.replace(/\D/g, "") }))}
+                placeholder="12345678901"
+              />
+              <FieldError message={fieldErrors.nin} />
+            </div>
+            <div>
+              <label className={label}>Passport photo <span className="text-red-400">*</span></label>
+              <UploadSlot
+                slot={{ doc_type: "passport_photo", title: "Passport photo", hint: "A clear photo of the dealership's contact person" }}
+                value={dealershipPassportPhoto ? { fileName: "Passport photo", url: dealershipPassportPhoto } : null}
+                onChange={(v) => setDealershipPassportPhoto(v?.url || "")}
+              />
+              <FieldError message={fieldErrors.passportPhoto} />
             </div>
           </div>
         </section>
@@ -795,22 +983,38 @@ export default function NumberPlateNewApplicationPage() {
                 <span className="text-slate-500">Service</span>
                 <span className="font-semibold text-[#111111]">{plan.title}</span>
               </div>
-              <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Vehicle</span>
-                <span className="font-semibold text-[#111111]">
-                  {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.plate_number ? ` — ${selectedVehicle.plate_number}` : ""}` : "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Vehicle category</span>
-                <span className="font-semibold text-[#111111]">
-                  {selectedVehicle?.vehicle_category ? VEHICLE_CATEGORY_LABELS[selectedVehicle.vehicle_category] : "—"}
-                </span>
-              </div>
+              {requiresVehicle && (
+                <>
+                  <div className="flex items-center justify-between py-2.5 text-[13px]">
+                    <span className="text-slate-500">Vehicle</span>
+                    <span className="font-semibold text-[#111111]">
+                      {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.plate_number ? ` — ${selectedVehicle.plate_number}` : ""}` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5 text-[13px]">
+                    <span className="text-slate-500">Vehicle category</span>
+                    <span className="font-semibold text-[#111111]">
+                      {selectedVehicle?.vehicle_category ? VEHICLE_CATEGORY_LABELS[selectedVehicle.vehicle_category] : "—"}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">State</span>
                 <span className="font-semibold text-[#111111]">{states.find((s) => String(s.id) === String(selectedStateId))?.name || "—"}</span>
               </div>
+              {isDealership && (
+                <>
+                  <div className="flex items-center justify-between py-2.5 text-[13px]">
+                    <span className="text-slate-500">Dealership</span>
+                    <span className="font-semibold text-[#111111]">{dealershipForm.dealership_name || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5 text-[13px]">
+                    <span className="text-slate-500">Registered company</span>
+                    <span className="font-semibold text-[#111111]">{isRegisteredCompany ? "Yes" : "No"}</span>
+                  </div>
+                </>
+              )}
               {needsApplicantDetails && (
                 <div className="flex items-center justify-between py-2.5 text-[13px]">
                   <span className="text-slate-500">Applicant</span>

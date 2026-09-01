@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Hash, Repeat, FileSignature, Sparkles } from "lucide-react";
+import { Hash, Repeat, FileSignature, Sparkles, Building2 } from "lucide-react";
 import { colors } from "@/lib/design-tokens";
 
 const BRAND = colors.primary.DEFAULT;
@@ -31,6 +31,12 @@ const PLATE_SERVICE_OPTIONS = [
     title: "Fancy plate",
     desc: "Choose your own custom plate number for a fresh registration.",
   },
+  {
+    type: "dealership",
+    icon: Building2,
+    title: "Dealership plate",
+    desc: "For registered dealerships — a plate issued against your company's identity, no vehicle required.",
+  },
 ];
 
 // Existing applications now live on the unified /dashboard/applications
@@ -51,7 +57,7 @@ export default function NumberPlateApplicationsPage() {
           className="mt-1.5 text-[30px] tracking-tight text-[#111111]"
           style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
         >
-          Number plate services
+          Number / dealership plate services
         </h1>
         <p className="mt-1 text-[13.5px] text-slate-500">
           Pick what you need — we'll handle the VIO processing end-to-end.

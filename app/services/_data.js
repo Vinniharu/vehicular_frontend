@@ -103,11 +103,11 @@ export const SERVICES = [
     status: "live",
     applyHref: "/dashboard/apply/number-plate",
     feeScheduleType: "number_plate",
-    title: "Number Plate Services",
+    title: "Number / Dealership Plates",
     tagline:
       "New plates, replacements, and change of ownership — processed by VIO without the queue.",
     intro:
-      "Number plate jobs are routed to our VIO desk so you don't spend a day at the licensing office. Pick the option that matches what you need.",
+      "Number plate jobs are routed to our VIO desk so you don't spend a day at the licensing office. Pick the option that matches what you need. For registered dealerships, we can also issue a plate against your company's identity instead of a specific vehicle — no vehicle details required.",
     whatsIncluded: [
       "Plate number",
       "Proof of ownership",
@@ -158,6 +158,13 @@ export const SERVICES = [
         title: "Change of Ownership + New Plate",
         blurb:
           "Just bought a used vehicle? We handle the ownership transfer at VIO and produce a fresh plate in your name — fully road-legal in your hands.",
+      },
+      {
+        slug: "dealership",
+        status: "live",
+        title: "Dealership Plate",
+        blurb:
+          "For registered dealerships and car sales businesses — a plate issued against your company's identity, no vehicle attached. Just your dealership's details and ID.",
       },
     ],
   },

@@ -61,6 +61,7 @@ const TYPE_LABELS = {
   number_plate_replacement: "Plate replacement",
   number_plate_change_of_ownership: "Change of ownership",
   number_plate_fancy: "Fancy plate",
+  number_plate_dealership: "Dealership plate",
   vehicle_verification_registration_history: "Registration history check",
   vehicle_verification_customs_duty: "Customs duty check",
   physical_condition_inspection: "Physical condition inspection",
@@ -108,6 +109,7 @@ const NUMBER_PLATE_QUERY_TYPE = {
   number_plate_replacement: "replacement",
   number_plate_change_of_ownership: "change-of-ownership",
   number_plate_fancy: "fancy",
+  number_plate_dealership: "dealership",
 };
 
 export function renewHref(app) {

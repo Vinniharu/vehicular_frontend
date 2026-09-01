@@ -239,13 +239,18 @@ function PerAgentOverrideSection({ showToast }) {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkVal, setBulkVal] = useState("");
   const [bulkType, setBulkType] = useState("");
+  const [bulkOnlyNeverDisbursed, setBulkOnlyNeverDisbursed] = useState(false);
   const [applyingBulk, setApplyingBulk] = useState(false);
 
+  const loadAgents = async () => {
+    const res = await adminGetAgents();
+    if (res.data && Array.isArray(res.data)) setAgents(res.data);
+    setLoadingAgents(false);
+  };
+
   useEffect(() => {
-    adminGetAgents().then((res) => {
-      if (res.data && Array.isArray(res.data)) setAgents(res.data);
-      setLoadingAgents(false);
-    });
+    loadAgents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const q = query.toLowerCase();
@@ -295,29 +300,42 @@ function PerAgentOverrideSection({ showToast }) {
   const handleApplyBulk = async () => {
     const val = bulkVal !== "" ? Math.round(parseFloat(bulkVal) * 100) : null;
     const isAllTypes = bulkType === "";
+    const onlyNeverDisbursed = isAllTypes && bulkOnlyNeverDisbursed;
     const typeLabel = isAllTypes ? "all types (flat override)" : COMPENSATION_TYPE_OPTIONS.find((o) => o.value === bulkType)?.label;
-    const action = val === null ? `reset every agent's ${typeLabel} compensation to the system default` : `set every agent's ${typeLabel} compensation to ${koboToNaira(val)}`;
-    const warning = isAllTypes ? "overwriting any individual overrides already in place" : "individual flat overrides and other types are left untouched";
+    const scope = onlyNeverDisbursed ? "every agent who has never yet been disbursed" : "every agent";
+    const action = val === null ? `reset ${scope}'s ${typeLabel} compensation to the system default` : `set ${scope}'s ${typeLabel} compensation to ${koboToNaira(val)}`;
+    const warning = onlyNeverDisbursed
+      ? "agents who have already received at least one successful payout are left untouched, however low their current compensation is"
+      : isAllTypes ? "overwriting any individual overrides already in place" : "individual flat overrides and other types are left untouched";
     if (!window.confirm(`This will ${action}, ${warning}. Continue?`)) return;
     setApplyingBulk(true);
-    const res = await bulkUpdateAgentCommission(val, isAllTypes ? null : bulkType);
+    const res = await bulkUpdateAgentCommission(val, isAllTypes ? null : bulkType, onlyNeverDisbursed);
     setApplyingBulk(false);
     if (res.error) {
       showToast("error", "Could not update compensation for all agents.");
       return;
     }
-    setAgents((list) =>
-      list.map((a) => {
-        if (isAllTypes) return { ...a, agent_profile: { ...a.agent_profile, custom_commission_kobo: val } };
-        const byType = { ...(a.agent_profile?.custom_commission_by_type || {}) };
-        if (val === null) delete byType[bulkType];
-        else byType[bulkType] = val;
-        return { ...a, agent_profile: { ...a.agent_profile, custom_commission_by_type: byType } };
-      })
-    );
+    // A filtered ("only never-disbursed") bulk save can leave some agents
+    // untouched, so we can't optimistically apply the new value to every
+    // row in local state the way the unfiltered path can — reload from the
+    // server instead to reflect exactly which agents actually changed.
+    if (onlyNeverDisbursed) {
+      await loadAgents();
+    } else {
+      setAgents((list) =>
+        list.map((a) => {
+          if (isAllTypes) return { ...a, agent_profile: { ...a.agent_profile, custom_commission_kobo: val } };
+          const byType = { ...(a.agent_profile?.custom_commission_by_type || {}) };
+          if (val === null) delete byType[bulkType];
+          else byType[bulkType] = val;
+          return { ...a, agent_profile: { ...a.agent_profile, custom_commission_by_type: byType } };
+        })
+      );
+    }
     setBulkOpen(false);
     setBulkVal("");
     setBulkType("");
+    setBulkOnlyNeverDisbursed(false);
     showToast("success", `Compensation updated for ${res.data?.updated_count ?? "all"} agents.`);
   };
 
@@ -330,7 +348,7 @@ function PerAgentOverrideSection({ showToast }) {
         </div>
         <button
           type="button"
-          onClick={() => { setBulkVal(""); setBulkType(""); setBulkOpen(true); }}
+          onClick={() => { setBulkVal(""); setBulkType(""); setBulkOnlyNeverDisbursed(false); setBulkOpen(true); }}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#28A745] bg-[#28A745]/5 border border-[#28A745]/20 hover:bg-[#28A745]/10 transition-colors whitespace-nowrap shrink-0"
         >
           <Wallet className="h-3.5 w-3.5" />
@@ -493,7 +511,7 @@ function PerAgentOverrideSection({ showToast }) {
                 <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Compensation Type</label>
                 <select
                   value={bulkType}
-                  onChange={(e) => setBulkType(e.target.value)}
+                  onChange={(e) => { setBulkType(e.target.value); if (e.target.value !== "") setBulkOnlyNeverDisbursed(false); }}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[14px] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
                 >
                   <option value="">All types (flat override)</option>
@@ -502,6 +520,21 @@ function PerAgentOverrideSection({ showToast }) {
                   ))}
                 </select>
               </div>
+              {bulkType === "" && (
+                <label className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={bulkOnlyNeverDisbursed}
+                    onChange={(e) => setBulkOnlyNeverDisbursed(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
+                  />
+                  <span className="text-[12.5px] leading-relaxed text-slate-600">
+                    <span className="font-semibold text-slate-800">Only agents never yet disbursed.</span> Leaves anyone
+                    who has already received at least one successful payout untouched, no matter how low their
+                    current compensation is.
+                  </span>
+                </label>
+              )}
               <div>
                 <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Compensation Amount (₦)</label>
                 <div className="relative">

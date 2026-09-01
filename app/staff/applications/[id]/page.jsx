@@ -730,6 +730,39 @@ export default function StaffApplicationDetailsPage() {
         </div>
       )}
 
+      {/* Dealership Plate — no vehicle at all, own identity fields. Not
+          reusing the vehicle-centric card above (which correctly no-ops
+          here since it's gated on `vehicle`, never populated for this type). */}
+      {application.application_type === "number_plate_dealership" && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Dealership</h3>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dealership name</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.dealership_name || "—"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registered company</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.is_registered_company ? "Yes" : "No"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{application.nin || "—"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.applicant_email || "—"}</span>
+            </div>
+            {application.residential_address && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Address</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.residential_address}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Roadworthiness Express — bay/slot booking summary. Genuinely new
           shape (bay location + time slot), not reusing the vehicle-centric
           card above since RWX's key details are the appointment, not
