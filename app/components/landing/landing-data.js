@@ -2,7 +2,6 @@ import {
   ShoppingCart,
   ShieldCheck,
   GraduationCap,
-  Building2,
   FileText,
   CreditCard,
   Hash,
@@ -10,6 +9,8 @@ import {
   Zap,
   BadgeCheck,
   CheckCircle2,
+  Wrench,
+  Landmark,
 } from "lucide-react";
 import { SERVICES } from "@/app/services/_data";
 
@@ -26,6 +27,8 @@ const HOMEPAGE_COPY_BY_SLUG = {
   "roadworthiness-express": { label: "Roadworthiness express", benefit: "Certified in 48 hours, no queues.", icon: ShieldCheck },
   "tinted-permit": { label: "Tinted permit", benefit: "Police-approved permit on your phone.", icon: Sun },
   "vehicle-verification": { label: "Vehicle verification & inspection", benefit: "Confirm papers, ownership, and condition are clean.", icon: BadgeCheck },
+  "physical-condition-inspection": { label: "Physical condition inspection", benefit: "A mechanic's full report before you buy.", icon: Wrench },
+  "central-motor-registry": { label: "ECMR registration", benefit: "Register on the national motor registry.", icon: Landmark },
 };
 
 export const SERVICE_ITEMS = Object.entries(HOMEPAGE_COPY_BY_SLUG)
@@ -47,6 +50,17 @@ export const SHOWCASE_TABS = [
   { id: "number_plate", label: "Number Plates" },
   { id: "rwx_lagos", label: "Roadworthiness" },
   { id: "tinted_permit", label: "Tinted Permit" },
+  { id: "physical_condition_inspection", label: "Condition Inspection" },
+];
+
+// Single source of truth for the two homepage trust-stat strips (Hero +
+// FinalCta) — previously hardcoded twice with drifting numbers. These are
+// placeholder figures with no real business metrics wired up yet — confirm
+// real numbers with the business before launch.
+export const TRUST_STATS = [
+  ["40,000+", "Drivers served"],
+  ["Nationwide", "Every state"],
+  ["48 hrs", "Avg. turnaround"],
 ];
 
 export const HOW_STEPS = [
@@ -95,13 +109,6 @@ export const LIFECYCLE_STAGES = [
       { href: "/services/drivers-licence", label: "Driver's licence" },
     ],
   },
-  {
-    stage: "04", icon: Building2, title: "Scale up",
-    blurb: "Run 3 vehicles or 300. Upload once — we watch every expiry, every driver.",
-    items: [
-      { href: "/fleet", label: "Fleet dashboard" },
-    ],
-  },
 ];
 
 export const FAQ_ITEMS = [
@@ -111,5 +118,5 @@ export const FAQ_ITEMS = [
   { q: "Is my information safe?", a: "Yes. Documents are handled by vetted agents, encrypted in transit, and never shared with third parties. We're FRSC and NPF compliant." },
   { q: "Can I pay in instalments?", a: "Yes. Easy Installment is available on every service — pay any amount from the minimum deposit today, settle the rest before we deliver." },
   { q: "What if my application is rejected?", a: "If your application is rejected for reasons outside your control, we refund the full processing fee. You'll always know why upfront." },
-  { q: "Do you handle fleets?", a: "Yes. Fleet mode lets you bulk-renew, assign drivers, and track every car from one dashboard. Talk to us about volume pricing." },
+  { q: "Do you handle fleets?", a: "Every vehicle you add lives in the same account, and renewals for each one are tracked independently. If you're managing several vehicles and want to talk about it, reach out via the contact details below." },
 ];

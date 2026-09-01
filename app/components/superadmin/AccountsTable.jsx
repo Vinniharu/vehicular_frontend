@@ -19,17 +19,11 @@ import {
   getReferenceStates,
   getReferenceLgas,
 } from "@/lib/api";
+import { AGENT_APPLICATION_TYPES } from "@/app/admin/_shared/agent-application-types";
 
-const CAPABILITY_OPTIONS = ["driver_licence", "roadworthiness"];
-// Must mirror the complete 11-key list in app/admin/people/page.jsx's
-// APPLICATION_TYPE_OPTIONS — this list was previously missing number_plate
-// and all 5 vehicle_particulars document types, which meant "unrestricted"
-// here (all boxes checked) silently excluded those 6 types.
-const APPLICATION_TYPE_OPTIONS = [
-  "fresh", "renewal", "reissue", "international_permit", "tinted_permit", "number_plate",
-  "vehicle_licence", "road_worthiness", "proof_of_ownership", "insurance_third_party", "hackney_permit",
-  "roadworthiness_express",
-];
+// Sourced from the shared constant (also used by app/admin/people/page.jsx)
+// so this list can't drift out of sync again — it previously did, twice.
+const APPLICATION_TYPE_OPTIONS = AGENT_APPLICATION_TYPES.map((t) => t.value);
 
 function StatusBadge({ active }) {
   return active ? (
@@ -124,7 +118,6 @@ export default function AccountsTable({ role, title, description }) {
       phone: account.phone || "",
       is_active: account.is_active,
       vio_office: account.agent_profile?.vio_office || "",
-      capabilities: account.agent_profile?.capabilities || [],
       allowed_application_types: account.agent_profile?.allowed_application_types?.length
         ? account.agent_profile.allowed_application_types
         : APPLICATION_TYPE_OPTIONS,
@@ -137,15 +130,6 @@ export default function AccountsTable({ role, title, description }) {
     setEditTarget(null);
     setEditForm({});
     setEditError(null);
-  };
-
-  const toggleCapability = (cap) => {
-    setEditForm((p) => ({
-      ...p,
-      capabilities: p.capabilities.includes(cap)
-        ? p.capabilities.filter((c) => c !== cap)
-        : [...p.capabilities, cap],
-    }));
   };
 
   const toggleApplicationType = (type) => {
@@ -176,7 +160,6 @@ export default function AccountsTable({ role, title, description }) {
     if (role === "agent") {
       const agentUpdates = {
         vio_office: editForm.vio_office,
-        capabilities: editForm.capabilities,
         allowed_application_types: editForm.allowed_application_types.length === APPLICATION_TYPE_OPTIONS.length
           ? null
           : editForm.allowed_application_types,
@@ -432,26 +415,6 @@ export default function AccountsTable({ role, title, description }) {
                         </select>
                         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                       </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Capabilities</label>
-                    <div className="flex flex-wrap gap-2">
-                      {CAPABILITY_OPTIONS.map((cap) => (
-                        <button
-                          key={cap}
-                          type="button"
-                          onClick={() => toggleCapability(cap)}
-                          className="px-3 py-1.5 rounded-lg text-[11.5px] font-semibold uppercase tracking-wide border transition-colors"
-                          style={{
-                            background: editForm.capabilities?.includes(cap) ? "rgba(40, 167, 69,0.1)" : "#fff",
-                            borderColor: editForm.capabilities?.includes(cap) ? "#28A745" : "#e2e8f0",
-                            color: editForm.capabilities?.includes(cap) ? "#28A745" : "#64748b",
-                          }}
-                        >
-                          {cap.replace(/_/g, " ")}
-                        </button>
-                      ))}
                     </div>
                   </div>
                   <div>

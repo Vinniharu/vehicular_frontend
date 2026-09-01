@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { GREEN, INK } from "../theme";
 
 export default function Footer({ redirectTo }) {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const howHref = isHome ? "#how" : "/#how";
+  const showcasesHref = isHome ? "#showcases" : "/#showcases";
   return (
     <footer id="contact" style={{ background: INK, borderTop: `1px solid ${GREEN}14` }} className="relative z-[1] px-5 md:px-8 py-14 pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-14">
       <div className="mx-auto max-w-6xl">
@@ -17,8 +22,8 @@ export default function Footer({ redirectTo }) {
           <div>
             <p className="text-[11px] uppercase tracking-widest text-white/40 mb-4">Company</p>
             <ul className="space-y-2.5 text-[13px] text-white/60">
-              <li><a href="#how" className="hover:text-white transition-colors duration-150">How it works</a></li>
-              <li><a href="#showcases" className="hover:text-white transition-colors duration-150">App preview</a></li>
+              <li><a href={howHref} className="hover:text-white transition-colors duration-150">How it works</a></li>
+              <li><a href={showcasesHref} className="hover:text-white transition-colors duration-150">App preview</a></li>
               <li><Link href="/pricing" className="hover:text-white transition-colors duration-150">Pricing</Link></li>
               <li><a href="#contact" className="hover:text-white transition-colors duration-150">Contact</a></li>
             </ul>
@@ -27,7 +32,6 @@ export default function Footer({ redirectTo }) {
             <p className="text-[11px] uppercase tracking-widest text-white/40 mb-4">Legal</p>
             <ul className="space-y-2.5 text-[13px] text-white/60">
               <li><Link href="/privacy" className="hover:text-white transition-colors duration-150">Privacy</Link></li>
-              <li><Link href="/terms" className="hover:text-white transition-colors duration-150">Terms</Link></li>
               <li><Link href={`/auth/login?redirect=${encodeURIComponent(redirectTo)}`} className="hover:text-white transition-colors duration-150">Sign in</Link></li>
               <li><Link href={`/auth/signup?redirect=${encodeURIComponent(redirectTo)}`} className="hover:text-white transition-colors duration-150">Create account</Link></li>
             </ul>

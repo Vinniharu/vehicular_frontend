@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -510,6 +510,7 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
 
 export default function AgentApplicationDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const appId = params?.id ? Number(params.id) : null;
 
   const [application, setApplication] = useState(null);
@@ -565,6 +566,19 @@ export default function AgentApplicationDetailPage() {
     loadDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId]);
+
+  // roadworthiness_express has its own dedicated agent page (/agent/rwx/[id])
+  // — the applications list already links RWX rows there directly, but this
+  // page has no guard if it's ever reached directly (a bookmarked/shared
+  // link, browser history). Without this it would fall through to the
+  // DL-shaped generic render below, same class of bug as the capture-button
+  // leak this page's other fixes address — redirect defensively instead,
+  // mirroring how vehicle_verification_*/central_motor_registry are handled.
+  useEffect(() => {
+    if (application?.application_type === "roadworthiness_express") {
+      router.replace(`/agent/rwx/${appId}`);
+    }
+  }, [application, appId, router]);
 
   const loadChatThread = useCallback(() => getAgentSupportChat(appId), [appId]);
   const sendChatMessage = useCallback((body) => sendAgentSupportChatMessage(appId, { body }), [appId]);
@@ -769,16 +783,29 @@ export default function AgentApplicationDetailPage() {
     );
   }
 
+  if (application.application_type === "roadworthiness_express") {
+    // Redirect is fired by the effect above — render a spinner instead of
+    // the DL-shaped generic UI below while that navigation completes.
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24">
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND }} />
+        <p className="text-[13px] font-medium text-slate-500">Redirecting…</p>
+      </div>
+    );
+  }
+
   const applicant = application.applicant_details || {};
   const isRenewalOrReissue = ["renewal", "reissue", "international_permit"].includes(application.application_type);
+  const isFreshApp = application.application_type === "fresh";
   // Biometric capture is a fresh-only concept — renewal/reissue's state
   // machine has no capture_scheduled/captured leg at all (confirmed against
   // RENEWAL_REISSUE_TRANSITIONS: agent_accepted has no legal transition to
-  // any capture-related status), so these three actions never apply to them.
-  const canSchedule = !isRenewalOrReissue && application.status === "agent_accepted";
-  const canReassign = !isRenewalOrReissue && ["capture_scheduled", "capturing_scheduled"].includes(application.status);
-  const canMarkCaptured = !isRenewalOrReissue && ["capture_scheduled", "capturing_scheduled", "agent_accepted"].includes(application.status);
-  const isFreshApp = application.application_type === "fresh";
+  // any capture-related status), and neither does tinted_permit/number_plate.
+  // Gate positively on isFreshApp (not negatively on !isRenewalOrReissue) so
+  // these never leak into tinted_permit/number_plate applications.
+  const canSchedule = isFreshApp && application.status === "agent_accepted";
+  const canReassign = isFreshApp && ["capture_scheduled", "capturing_scheduled"].includes(application.status);
+  const canMarkCaptured = isFreshApp && ["capture_scheduled", "capturing_scheduled", "agent_accepted"].includes(application.status);
   // Optional step for fresh apps only: issue the interim temp licence any
   // time right after capture. Skippable — the permanent-card upload stays
   // reachable below regardless of whether this happens.
@@ -789,6 +816,10 @@ export default function AgentApplicationDetailPage() {
   // customer correction) to proof upload — no capture step.
   const isTintedPermit = application.application_type === "tinted_permit";
   const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
+  // Driver's-licence-only info sections (Personal & Origin, Medical, Licence
+  // Details, Next of Kin) are meaningless for vehicle-centric types — gate
+  // them to the DL family instead of rendering unconditionally.
+  const isDlFamily = isFreshApp || isRenewalOrReissue;
   // tinted_permit and number_plate_* have no biometric-capture leg at all —
   // proof (interim progress evidence, then the finished document/plate) is
   // reachable straight from acceptance, same shape as renewal/reissue.
@@ -857,7 +888,7 @@ export default function AgentApplicationDetailPage() {
       )}
 
       {/* Capture info */}
-      {(application.capture_centre_name || canReassign) && (
+      {isFreshApp && (application.capture_centre_name || canReassign) && (
         <Section title="Capture appointment" icon={Building2} iconColor="#4f46e5" tone="indigo">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13.5px] text-slate-700">
             <span>Centre: <strong>{application.capture_centre_name || "Not yet set"}</strong></span>
@@ -968,45 +999,51 @@ export default function AgentApplicationDetailPage() {
         </div>
       </Section>
 
-      {/* Personal & origin */}
-      <Section title="Personal & origin" icon={BadgeCheck}>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Date of birth" value={applicant.date_of_birth || application.date_of_birth} mono />
-          <Field label="Gender" value={applicant.gender} capitalize />
-          <Field label="Nationality" value={applicant.nationality} />
-          <Field label="Marital status" value={applicant.marital_status} capitalize />
-          <Field label="Mother's maiden name" value={applicant.mothers_maiden_name} />
-          <Field label="NIN" value={applicant.nin} mono />
-          <Field label="State / LGA of origin" value={[applicant.state_of_origin, applicant.lga_of_origin].filter(Boolean).join(" / ")} />
-          <Field label="State / LGA of residence" value={[applicant.state_of_residence || application.state_of_residence, applicant.lga || application.lga].filter(Boolean).join(" / ")} />
-          <div className="col-span-2 sm:col-span-3">
-            <Field label="Residential address" value={applicant.residential_address} />
+      {/* Personal & origin — DL family only, meaningless for vehicle-centric types */}
+      {isDlFamily && (
+        <Section title="Personal & origin" icon={BadgeCheck}>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Date of birth" value={applicant.date_of_birth || application.date_of_birth} mono />
+            <Field label="Gender" value={applicant.gender} capitalize />
+            <Field label="Nationality" value={applicant.nationality} />
+            <Field label="Marital status" value={applicant.marital_status} capitalize />
+            <Field label="Mother's maiden name" value={applicant.mothers_maiden_name} />
+            <Field label="NIN" value={applicant.nin} mono />
+            <Field label="State / LGA of origin" value={[applicant.state_of_origin, applicant.lga_of_origin].filter(Boolean).join(" / ")} />
+            <Field label="State / LGA of residence" value={[applicant.state_of_residence || application.state_of_residence, applicant.lga || application.lga].filter(Boolean).join(" / ")} />
+            <div className="col-span-2 sm:col-span-3">
+              <Field label="Residential address" value={applicant.residential_address} />
+            </div>
           </div>
-        </div>
-      </Section>
+        </Section>
+      )}
 
-      {/* Medical */}
-      <Section title="Medical" icon={HeartPulse} iconColor="#ef4444">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Blood group" value={applicant.blood_group} valueClassName="text-red-600" />
-          <Field label="Height" value={applicant.height_cm ? `${applicant.height_cm} cm` : null} />
-          <Field label="Vision acuity" value={application.vision_acuity_test} fallback="Not recorded" />
-          <Field label="Facial mark" value={applicant.has_facial_mark ? (applicant.facial_mark_description || "Yes") : "None"} />
-          <Field label="Disability" value={applicant.has_disability ? (applicant.disability_description || "Yes") : "None"} />
-        </div>
-      </Section>
+      {/* Medical — DL family only */}
+      {isDlFamily && (
+        <Section title="Medical" icon={HeartPulse} iconColor="#ef4444">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Blood group" value={applicant.blood_group} valueClassName="text-red-600" />
+            <Field label="Height" value={applicant.height_cm ? `${applicant.height_cm} cm` : null} />
+            <Field label="Vision acuity" value={application.vision_acuity_test} fallback="Not recorded" />
+            <Field label="Facial mark" value={applicant.has_facial_mark ? (applicant.facial_mark_description || "Yes") : "None"} />
+            <Field label="Disability" value={applicant.has_disability ? (applicant.disability_description || "Yes") : "None"} />
+          </div>
+        </Section>
+      )}
 
-      {/* Licence details */}
-      <Section title="Licence details" icon={Globe2}>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Licence class" value={application.licence_class} />
-          <Field label="Validity period" value={application.validity_period} />
-          <Field label="Driving school cert." value={application.driving_school_certificate_number} mono />
-        </div>
-      </Section>
+      {/* Licence details — DL family only */}
+      {isDlFamily && (
+        <Section title="Licence details" icon={Globe2}>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Licence class" value={application.licence_class} />
+            <Field label="Validity period" value={application.validity_period} />
+            <Field label="Driving school cert." value={application.driving_school_certificate_number} mono />
+          </div>
+        </Section>
+      )}
 
-      {/* Licence issuance — temp & permanent card tracking */}
-      {(application.temporary_licence || application.permanent_licence) && (
+      {/* Licence issuance — temp & permanent card tracking, fresh-only concept */}
+      {isFreshApp && (application.temporary_licence || application.permanent_licence) && (
         <Section title="Licence issuance" icon={BadgeCheck}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <LicenceCard title="Temporary licence" licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
@@ -1015,14 +1052,16 @@ export default function AgentApplicationDetailPage() {
         </Section>
       )}
 
-      {/* Next of kin */}
-      <Section title="Next of kin">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Name" value={applicant.next_of_kin_name || application.next_of_kin_name} />
-          <Field label="Relationship" value={applicant.next_of_kin_relationship || application.next_of_kin_relationship} />
-          <Field label="Phone" value={applicant.next_of_kin_phone || application.next_of_kin_phone} mono />
-        </div>
-      </Section>
+      {/* Next of kin — DL family only */}
+      {isDlFamily && (
+        <Section title="Next of kin">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Name" value={applicant.next_of_kin_name || application.next_of_kin_name} />
+            <Field label="Relationship" value={applicant.next_of_kin_relationship || application.next_of_kin_relationship} />
+            <Field label="Phone" value={applicant.next_of_kin_phone || application.next_of_kin_phone} mono />
+          </div>
+        </Section>
+      )}
 
       {/* Documents */}
       <Section title={`Documents (${(application.documents?.length || 0) + (application.passport_photo ? 1 : 0)})`} icon={FileText}>

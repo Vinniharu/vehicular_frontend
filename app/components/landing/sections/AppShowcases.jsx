@@ -54,7 +54,7 @@ export default function AppShowcases() {
             See how every service flows on your phone.
           </h2>
           <p className="mt-5 max-w-md mx-auto text-[16px] leading-[1.7] text-white/55">
-            From document renewals to genuine spare parts, track real-time agent updates and verified deliverables right inside your Vehiculars app.
+            From document renewals to full vehicle inspections, track real-time agent updates and verified deliverables right inside your Vehiculars app.
           </p>
         </motion.div>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import MobileDrawer from "@/app/dashboard/_shared/MobileDrawer";
 import { SERVICE_LINKS } from "../landing-data";
@@ -9,6 +10,10 @@ import { INK, GREEN, PAPER } from "../theme";
 
 export default function Nav({ logoUrl, scrolled, isLoggedIn, dashboardHref, dashboardLabel, redirectTo }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
+  const howHref = isHome ? "#how" : "/#how";
+  const showcasesHref = isHome ? "#showcases" : "/#showcases";
 
   return (
     <>
@@ -52,8 +57,8 @@ export default function Nav({ logoUrl, scrolled, isLoggedIn, dashboardHref, dash
               </div>
             </div>
             <Link href="/pricing" className="transition-colors duration-150 hover:text-white">Pricing</Link>
-            <a href="#how" className="transition-colors duration-150 hover:text-white">How it works</a>
-            <a href="#showcases" className="transition-colors duration-150 hover:text-white">App preview</a>
+            <a href={howHref} className="transition-colors duration-150 hover:text-white">How it works</a>
+            <a href={showcasesHref} className="transition-colors duration-150 hover:text-white">App preview</a>
             <a href="#contact" className="transition-colors duration-150 hover:text-white">Contact</a>
           </nav>
 
@@ -130,8 +135,8 @@ export default function Nav({ logoUrl, scrolled, isLoggedIn, dashboardHref, dash
             <div className="my-3 h-px" style={{ background: `${GREEN}30` }} />
             {[
               { href: "/pricing", label: "Pricing" },
-              { href: "#how", label: "How it works" },
-              { href: "#showcases", label: "App preview" },
+              { href: howHref, label: "How it works" },
+              { href: showcasesHref, label: "App preview" },
               { href: "#contact", label: "Contact" },
             ].map((item) => (
               <a
