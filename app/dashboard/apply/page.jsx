@@ -45,6 +45,7 @@ import {
   StepProgress,
   IneligibilityNotice,
 } from "@/app/dashboard/_shared/apply-helpers";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -249,6 +250,62 @@ export default function ApplyPage() {
   const [oldLicenceNumber, setOldLicenceNumber] = useState("");
   // { [application_type]: { eligible, reason, current_expiry_date, eligible_from_date } }
   const [eligibilityByType, setEligibilityByType] = useState({});
+
+  // Backend-persisted draft autosave/resume — wizard_key is the fixed
+  // "driver_licence" string (not per-subtype), since applicationType is
+  // chosen INSIDE this same mounted wizard; the chosen subtype travels
+  // inside the draft's own form_data snapshot below.
+  const { draftFormData, save: saveDraft, clearDraft, markSubmitting } = useApplicationDraft("driver_licence");
+  const draftRestoredRef = useRef(false);
+
+  const buildDraftSnapshot = () => ({
+    applicationType, licenceClass, validityPeriod, firstName, middleName, lastName, dob, gender,
+    nationality, maritalStatus, mothersMaidenName, residentialAddress, city, country, nin,
+    bloodGroup, heightCm, hasFacialMark, facialMarkDesc, hasDisability, disabilityDesc,
+    passportPhoto, selectedState, selectedLga, selectedOriginState, selectedOriginLga,
+    nokName, nokRelationship, nokPhone, renewalDocs, oldLicenceNumber, step,
+  });
+
+  // Runs once, whenever the draft finishes loading — after the prefill-
+  // from-most-recent-application effect below, so a real in-progress draft
+  // (the user's own just-typed input) always wins over a stale prefill.
+  useEffect(() => {
+    if (!draftFormData || draftRestoredRef.current) return;
+    draftRestoredRef.current = true;
+    const d = draftFormData;
+    if (d.applicationType !== undefined) setApplicationType(d.applicationType);
+    if (d.licenceClass !== undefined) setLicenceClass(d.licenceClass);
+    if (d.validityPeriod !== undefined) setValidityPeriod(d.validityPeriod);
+    if (d.firstName !== undefined) setFirstName(d.firstName);
+    if (d.middleName !== undefined) setMiddleName(d.middleName);
+    if (d.lastName !== undefined) setLastName(d.lastName);
+    if (d.dob !== undefined) setDob(d.dob);
+    if (d.gender !== undefined) setGender(d.gender);
+    if (d.nationality !== undefined) setNationality(d.nationality);
+    if (d.maritalStatus !== undefined) setMaritalStatus(d.maritalStatus);
+    if (d.mothersMaidenName !== undefined) setMothersMaidenName(d.mothersMaidenName);
+    if (d.residentialAddress !== undefined) setResidentialAddress(d.residentialAddress);
+    if (d.city !== undefined) setCity(d.city);
+    if (d.country !== undefined) setCountry(d.country);
+    if (d.nin !== undefined) setNin(d.nin);
+    if (d.bloodGroup !== undefined) setBloodGroup(d.bloodGroup);
+    if (d.heightCm !== undefined) setHeightCm(d.heightCm);
+    if (d.hasFacialMark !== undefined) setHasFacialMark(d.hasFacialMark);
+    if (d.facialMarkDesc !== undefined) setFacialMarkDesc(d.facialMarkDesc);
+    if (d.hasDisability !== undefined) setHasDisability(d.hasDisability);
+    if (d.disabilityDesc !== undefined) setDisabilityDesc(d.disabilityDesc);
+    if (d.passportPhoto !== undefined) setPassportPhoto(d.passportPhoto);
+    if (d.selectedState !== undefined) setSelectedState(d.selectedState);
+    if (d.selectedLga !== undefined) setSelectedLga(d.selectedLga);
+    if (d.selectedOriginState !== undefined) setSelectedOriginState(d.selectedOriginState);
+    if (d.selectedOriginLga !== undefined) setSelectedOriginLga(d.selectedOriginLga);
+    if (d.nokName !== undefined) setNokName(d.nokName);
+    if (d.nokRelationship !== undefined) setNokRelationship(d.nokRelationship);
+    if (d.nokPhone !== undefined) setNokPhone(d.nokPhone);
+    if (d.renewalDocs !== undefined) setRenewalDocs(d.renewalDocs);
+    if (d.oldLicenceNumber !== undefined) setOldLicenceNumber(d.oldLicenceNumber);
+    if (d.step) setStep(d.step);
+  }, [draftFormData]);
 
   useEffect(() => {
     // Computed from the URL directly (not the applicationType state
@@ -482,6 +539,7 @@ export default function ApplyPage() {
       setSubmitError("Please fix the highlighted fields before submitting.");
       return;
     }
+    markSubmitting();
     setFieldErrors({});
     setSubmitting(true);
     setSubmitError(null);
@@ -547,6 +605,7 @@ export default function ApplyPage() {
     } else {
       setSuccessApp(res.data);
       setExistingApplications([res.data, ...existingApplications]);
+      await clearDraft();
     }
   };
 
@@ -1202,7 +1261,12 @@ export default function ApplyPage() {
                   return;
                 }
                 setFieldErrors({});
-                setStep(activeSteps[activeSteps.indexOf(step) + 1]);
+                const nextStep = activeSteps[activeSteps.indexOf(step) + 1];
+                setStep(nextStep);
+                saveDraft(
+                  { ...buildDraftSnapshot(), step: nextStep },
+                  `Step ${activeSteps.indexOf(nextStep) + 1} of ${activeSteps.length}`
+                );
               }}
               className={btnPrimary}
               style={{ background: BRAND }}

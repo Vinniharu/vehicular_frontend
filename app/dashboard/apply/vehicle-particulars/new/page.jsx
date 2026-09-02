@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/app/dashboard/_shared/apply-helpers";
 import { VEHICLE_CATEGORY_OPTIONS, HACKNEY_ELIGIBLE_CATEGORY_VALUES } from "@/lib/constants/vehicleCategories";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -93,6 +94,9 @@ export default function VehicleParticularsNewApplicationPage() {
   const [step, setStep] = useState(1);
   const STEP_LABELS = ["Vehicle", "Pick documents", "Documents", "Review & submit"];
 
+  const { draftFormData, save, clearDraft, markSubmitting } = useApplicationDraft("vehicle_particulars");
+  const draftAppliedRef = useRef(false);
+
   const [states, setStates] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
@@ -134,6 +138,19 @@ export default function VehicleParticularsNewApplicationPage() {
       }
     );
   }, []);
+
+  // Restore a saved draft's selection/uploads once it's loaded — only runs
+  // once (draftAppliedRef), and only overrides selectedVehicleId if the
+  // draft actually had one, so it never fights the "pick the first vehicle"
+  // default set above.
+  useEffect(() => {
+    if (!draftFormData || draftAppliedRef.current) return;
+    draftAppliedRef.current = true;
+    if (draftFormData.selectedVehicleId) setSelectedVehicleId(draftFormData.selectedVehicleId);
+    if (draftFormData.selectedTypes) setSelectedTypes(draftFormData.selectedTypes);
+    if (draftFormData.evidenceByDocType) setEvidenceByDocType(draftFormData.evidenceByDocType);
+    if (draftFormData.step) setStep(draftFormData.step);
+  }, [draftFormData]);
 
   // Eligibility is per-vehicle (a document's renewal history belongs to the
   // vehicle it's for), so it's re-fetched whenever the selected vehicle
@@ -250,7 +267,12 @@ export default function VehicleParticularsNewApplicationPage() {
       return;
     }
     setFieldErrors({});
-    setStep((s) => Math.min(4, s + 1));
+    const nextStep = Math.min(4, step + 1);
+    setStep(nextStep);
+    save(
+      { selectedVehicleId, selectedTypes, evidenceByDocType, step: nextStep },
+      `Step ${nextStep} of ${STEP_LABELS.length}`
+    );
   };
 
   const canSubmit =
@@ -271,6 +293,7 @@ export default function VehicleParticularsNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const items = selectedTypes.map((dt) => {
       const config = DOC_TYPE_BY_KEY[dt];
       const evidence_documents = config.evidence.map((slot) => ({
@@ -288,6 +311,7 @@ export default function VehicleParticularsNewApplicationPage() {
       setSubmitError(res.error);
       return;
     }
+    await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
   };
@@ -391,7 +415,7 @@ export default function VehicleParticularsNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply/vehicle-particulars")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 

@@ -31,6 +31,14 @@ export const SERVICES = [
     icon: CreditCard,
     category: "Other documents",
     status: "live",
+    // Driver's Licence has 4 live subtypes (fresh/renewal/reissue/
+    // international_permit) chosen INSIDE the wizard itself (step 1), not
+    // via a picker page — there's no single application_type to preview
+    // from this generic entry point, so it's left pointing straight at the
+    // wizard (which still gets its own draft-save/resume treatment). Each
+    // subtype's requirements ARE previewable individually at
+    // /dashboard/apply/requirements?type=fresh (etc.), just not reachable
+    // from this specific card.
     applyHref: "/dashboard/apply",
     feeScheduleType: "drivers_licence",
     title: "Driver's Licence Services",
@@ -173,7 +181,7 @@ export const SERVICES = [
     icon: FileText,
     category: "Vehicle particulars",
     status: "live",
-    applyHref: "/dashboard/apply/vehicle-particulars",
+    applyHref: "/dashboard/apply/requirements?type=vehicle_particulars",
     feeScheduleType: "vehicle_particulars",
     title: "Vehicle Particulars & Renewals",
     tagline:
@@ -242,7 +250,10 @@ export const SERVICES = [
     icon: BadgeCheck,
     category: "Other documents",
     status: "live",
-    applyHref: "/dashboard/apply/vehicle-verification/new",
+    // Defaults to the registration_history subtype (the wizard's own
+    // default check_type) — the wizard lets the customer switch to
+    // customs_duty once inside.
+    applyHref: "/dashboard/apply/requirements?type=vehicle_verification_registration_history",
     feeScheduleType: "vehicle_verification_registration_history",
     title: "Vehicle Verification & Inspection",
     tagline: "Independent registration-history and customs-duty verification — before you buy, or whenever a dispute needs a documented answer.",
@@ -274,7 +285,7 @@ export const SERVICES = [
     icon: Wrench,
     category: "Other documents",
     status: "live",
-    applyHref: "/dashboard/apply/physical-condition-inspection/new",
+    applyHref: "/dashboard/apply/requirements?type=physical_condition_inspection",
     feeScheduleType: "physical_condition_inspection",
     title: "Physical Condition Inspection",
     tagline: "A full mechanical health check before you buy — engine, body, underbody, interior, and a road test, inspected and reported by a mechanic.",
@@ -307,7 +318,7 @@ export const SERVICES = [
     icon: Landmark,
     category: "Other documents",
     status: "live",
-    applyHref: "/dashboard/apply/central-motor-registry/new",
+    applyHref: "/dashboard/apply/requirements?type=central_motor_registry",
     feeScheduleType: "central_motor_registry",
     title: "ECMR",
     tagline: "Register your vehicle on the national motor registry — one document, one flat fee for every vehicle.",
@@ -336,7 +347,7 @@ export const SERVICES = [
     icon: ShieldCheck,
     category: "Fast-track & logistics",
     status: "live",
-    applyHref: "/dashboard/apply/roadworthiness-express/new",
+    applyHref: "/dashboard/apply/requirements?type=roadworthiness_express",
     feeScheduleType: "roadworthiness_express",
     title: "Roadworthiness Express (RWX)",
     tagline: "Same-day roadworthiness certificate at a Vehiculars bay — distinct from the standard road worthiness renewal in Vehicle Particulars.",
@@ -361,7 +372,7 @@ export const SERVICES = [
     icon: Sun,
     category: "Other documents",
     status: "live",
-    applyHref: "/dashboard/apply/tinted-permit",
+    applyHref: "/dashboard/apply/requirements?type=tinted_permit",
     feeScheduleType: "tinted_permit",
     title: "Tinted Glass Permit",
     tagline: "Police-issued tinted glass permit, processed without the back-and-forth.",

@@ -25,6 +25,7 @@ import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -44,6 +45,8 @@ const DOC_SLOT = {
 
 export default function CentralMotorRegistryNewApplicationPage() {
   const router = useRouter();
+  const { draftFormData, hydrated: draftHydrated, save: saveDraft, clearDraft, markSubmitting } = useApplicationDraft("central_motor_registry");
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const [states, setStates] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -90,6 +93,26 @@ export default function CentralMotorRegistryNewApplicationPage() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Restore an in-progress draft once (after the initial GET resolves) —
+  // guarded by draftRestored so it never re-applies on a later re-render.
+  useEffect(() => {
+    if (!draftHydrated || draftRestored) return;
+    if (draftFormData) {
+      if (draftFormData.selectedVehicleId != null) setSelectedVehicleId(draftFormData.selectedVehicleId);
+      if (draftFormData.selectedStateId) setSelectedStateId(draftFormData.selectedStateId);
+      if (draftFormData.nin) setNin(draftFormData.nin);
+      if (draftFormData.applicantEmail) setApplicantEmail(draftFormData.applicantEmail);
+      if (draftFormData.doc) setDoc(draftFormData.doc);
+      if (draftFormData.step) setStep(draftFormData.step);
+    }
+    setDraftRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftHydrated, draftFormData]);
+
+  const buildDraftSnapshot = (targetStep) => ({
+    selectedVehicleId, selectedStateId, nin, applicantEmail, doc, step: targetStep,
+  });
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
 
@@ -162,7 +185,9 @@ export default function CentralMotorRegistryNewApplicationPage() {
       return;
     }
     setFieldErrors({});
-    setStep((s) => Math.min(4, s + 1));
+    const nextStep = Math.min(4, step + 1);
+    setStep(nextStep);
+    saveDraft(buildDraftSnapshot(nextStep), STEP_LABELS[nextStep - 1]);
   };
 
   const canSubmit =
@@ -183,6 +208,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const res = await submitCentralMotorRegistryApplication({
       vehicle_id: selectedVehicleId,
       state_id: Number(selectedStateId),
@@ -197,6 +223,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     }
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options);
+    clearDraft();
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -286,7 +313,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
@@ -543,7 +570,15 @@ export default function CentralMotorRegistryNewApplicationPage() {
       {step < 4 && (
         <div className="flex items-center justify-between gap-3">
           {step > 1 ? (
-            <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className={btnSecondary}>
+            <button
+              type="button"
+              onClick={() => {
+                const prevStep = Math.max(1, step - 1);
+                setStep(prevStep);
+                saveDraft(buildDraftSnapshot(prevStep), STEP_LABELS[prevStep - 1]);
+              }}
+              className={btnSecondary}
+            >
               Back
             </button>
           ) : <span />}
@@ -553,7 +588,14 @@ export default function CentralMotorRegistryNewApplicationPage() {
         </div>
       )}
       {step === 4 && (
-        <button type="button" onClick={() => setStep(3)} className={btnSecondary}>
+        <button
+          type="button"
+          onClick={() => {
+            setStep(3);
+            saveDraft(buildDraftSnapshot(3), STEP_LABELS[2]);
+          }}
+          className={btnSecondary}
+        >
           Back
         </button>
       )}

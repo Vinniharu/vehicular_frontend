@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -31,6 +31,7 @@ import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS } from "@/lib/constants/vehicleCategories";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -235,13 +236,40 @@ export default function NumberPlateNewApplicationPage() {
   const [payingFromWallet, setPayingFromWallet] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
 
+  // Draft autosave/resume, keyed by the resolved subtype (this wizard's
+  // subtype is fixed via ?type= before mount, unlike driver's-licence).
+  const { draftFormData, hydrated, save, clearDraft, markSubmitting } = useApplicationDraft(plan.application_type);
+  const draftAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hydrated || draftAppliedRef.current) return;
+    draftAppliedRef.current = true;
+    if (!draftFormData) return;
+    if (draftFormData.selectedVehicleId != null) setSelectedVehicleId(draftFormData.selectedVehicleId);
+    if (draftFormData.selectedStateId != null) setSelectedStateId(draftFormData.selectedStateId);
+    if (draftFormData.previousOwnerDetails != null) setPreviousOwnerDetails(draftFormData.previousOwnerDetails);
+    if (draftFormData.applicantForm) setApplicantForm((f) => ({ ...f, ...draftFormData.applicantForm }));
+    if (draftFormData.fancyPlateNumber != null) setFancyPlateNumber(draftFormData.fancyPlateNumber);
+    if (draftFormData.isRegisteredCompany != null) setIsRegisteredCompany(draftFormData.isRegisteredCompany);
+    if (draftFormData.dealershipForm) setDealershipForm((f) => ({ ...f, ...draftFormData.dealershipForm }));
+    if (draftFormData.dealershipPassportPhoto != null) setDealershipPassportPhoto(draftFormData.dealershipPassportPhoto);
+    if (draftFormData.docs) setDocs(draftFormData.docs);
+    if (draftFormData.step != null) setStep(draftFormData.step);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, draftFormData]);
+
   useEffect(() => {
     Promise.all([getReferenceStates(), listVehicles(), getWallet()]).then(
       ([statesRes, vehiclesRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
         if (vehiclesRes.data) {
           setVehicles(vehiclesRes.data);
-          if (vehiclesRes.data.length > 0) setSelectedVehicleId(vehiclesRes.data[0].id);
+          // Functional update — a draft restore (see the hydration effect
+          // above) may set selectedVehicleId around the same time this
+          // resolves; reading the latest state here (instead of defaulting
+          // unconditionally) means whichever of the two actually finishes
+          // last never clobbers a real draft-restored selection.
+          if (vehiclesRes.data.length > 0) setSelectedVehicleId((prev) => prev ?? vehiclesRes.data[0].id);
           else setAddingVehicle(true);
         } else {
           setAddingVehicle(true);
@@ -378,7 +406,23 @@ export default function NumberPlateNewApplicationPage() {
       return;
     }
     setFieldErrors({});
-    setStep((s) => Math.min(totalSteps, s + 1));
+    const nextStep = Math.min(totalSteps, step + 1);
+    setStep(nextStep);
+    save(
+      {
+        selectedVehicleId,
+        selectedStateId,
+        previousOwnerDetails,
+        applicantForm,
+        fancyPlateNumber,
+        isRegisteredCompany,
+        dealershipForm,
+        dealershipPassportPhoto,
+        docs,
+        step: nextStep,
+      },
+      `Step ${nextStep} of ${totalSteps}`
+    );
   };
 
   const canSubmit =
@@ -413,6 +457,7 @@ export default function NumberPlateNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const res = await submitDriverLicenceApplication({
       application_type: plan.application_type,
       vehicle_id: isDealership ? undefined : selectedVehicleId,
@@ -438,6 +483,7 @@ export default function NumberPlateNewApplicationPage() {
       setSubmitError(res.error);
       return;
     }
+    await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
   };
@@ -537,7 +583,7 @@ export default function NumberPlateNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply/number-plate")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 

@@ -9,30 +9,35 @@ const BRAND = colors.primary.DEFAULT;
 const PLATE_SERVICE_OPTIONS = [
   {
     type: "new",
+    application_type: "number_plate_new",
     icon: Hash,
     title: "New plate",
     desc: "Newly bought or imported vehicle — register a fresh plate.",
   },
   {
     type: "replacement",
+    application_type: "number_plate_replacement",
     icon: Repeat,
     title: "Replacement",
     desc: "Lost or damaged plate — get a replacement issued.",
   },
   {
     type: "change-of-ownership",
+    application_type: "number_plate_change_of_ownership",
     icon: FileSignature,
     title: "Change of ownership",
     desc: "Just bought a used vehicle — transfer ownership and get a fresh plate.",
   },
   {
     type: "fancy",
+    application_type: "number_plate_fancy",
     icon: Sparkles,
     title: "Fancy plate",
     desc: "Choose your own custom plate number for a fresh registration.",
   },
   {
     type: "dealership",
+    application_type: "number_plate_dealership",
     icon: Building2,
     title: "Dealership plate",
     desc: "For registered dealerships — a plate issued against your company's identity, no vehicle required.",
@@ -72,7 +77,7 @@ export default function NumberPlateApplicationsPage() {
             <button
               key={opt.type}
               type="button"
-              onClick={() => router.push(`/dashboard/apply/number-plate/new?type=${opt.type}`)}
+              onClick={() => router.push(`/dashboard/apply/requirements?type=${opt.application_type}`)}
               className="flex flex-col items-start gap-2.5 rounded-2xl border border-[#E5E5E5] bg-white p-5 text-left transition-all hover:border-[#28A745]/60 hover:shadow-md"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "#F0FDF4", color: BRAND }}>

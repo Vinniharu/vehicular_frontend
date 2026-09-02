@@ -25,6 +25,7 @@ import {
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -46,6 +47,7 @@ function todayPlusDaysIso(days) {
 
 export default function PhysicalConditionInspectionNewApplicationPage() {
   const router = useRouter();
+  const { draftFormData, hydrated, save, clearDraft, markSubmitting } = useApplicationDraft("physical_condition_inspection");
 
   const [step, setStep] = useState(1);
 
@@ -80,6 +82,14 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     });
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || !draftFormData) return;
+    if (draftFormData.wholeVehicle) setWholeVehicle(draftFormData.wholeVehicle);
+    if (draftFormData.form) setForm((f) => ({ ...f, ...draftFormData.form }));
+    if (draftFormData.supportingDoc) setSupportingDoc(draftFormData.supportingDoc);
+    if (draftFormData.step) setStep(draftFormData.step);
+  }, [hydrated, draftFormData]);
 
   useEffect(() => {
     if (!form.state_id) { setLgas([]); setForm((f) => ({ ...f, lga_id: "" })); return; }
@@ -150,7 +160,9 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       return;
     }
     setFieldErrors({});
-    setStep((s) => s + 1);
+    const nextStep = step + 1;
+    setStep(nextStep);
+    save({ wholeVehicle, form, supportingDoc, step: nextStep }, `Step ${nextStep} of ${STEP_LABELS.length}`);
   };
 
   const canSubmit = Object.keys(validateStep1()).length === 0 && Object.keys(validateStep2()).length === 0;
@@ -166,6 +178,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const res = await submitPhysicalConditionInspectionApplication({
       state_id: Number(form.state_id),
       lga_id: Number(form.lga_id),
@@ -189,6 +202,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       setSubmitError(res.error);
       return;
     }
+    await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
   };
@@ -283,7 +297,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
@@ -512,7 +526,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
       <div className="flex items-center justify-between gap-3">
         {step > 1 ? (
-          <button type="button" onClick={() => setStep((s) => s - 1)} className={btnSecondary}>Back</button>
+          <button type="button" onClick={() => { const prev = step - 1; setStep(prev); save({ wholeVehicle, form, supportingDoc, step: prev }, `Step ${prev} of ${STEP_LABELS.length}`); }} className={btnSecondary}>Back</button>
         ) : <span />}
         {step < 3 && (
           <button type="button" onClick={goNext} className={btnPrimary} style={{ background: BRAND }}>Continue</button>
