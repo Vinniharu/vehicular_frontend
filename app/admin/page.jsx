@@ -284,12 +284,15 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-bold text-red-800">
-                    {failedTransfers.length} failed agent disbursement{failedTransfers.length === 1 ? "" : "s"} need attention
+                    {failedTransfers.length} agent disbursement{failedTransfers.length === 1 ? "" : "s"} need attention
                   </p>
                   <div className="mt-2 space-y-1.5">
                     {failedTransfers.slice(0, 5).map((t) => (
                       <div key={t.id} className="flex items-center justify-between text-[12px] text-red-700">
-                        <span className="font-mono">App #{t.application_id} &middot; {t.transfer_code || "no ref"}</span>
+                        <span className="font-mono">
+                          App #{t.application_id} &middot; {t.transfer_code || "no ref"}
+                          <span className="ml-1.5 uppercase text-red-500">({t.status})</span>
+                        </span>
                         <span className="font-semibold">{koboToNaira(t.amount_kobo)}</span>
                       </div>
                     ))}
