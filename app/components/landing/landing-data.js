@@ -117,6 +117,6 @@ export const FAQ_ITEMS = [
   { q: "How long does a renewal take?", a: "Most vehicle particulars and roadworthiness renewals are completed within 48 hours of submission. Driver's licence depends on biometrics scheduling." },
   { q: "Is my information safe?", a: "Yes. Documents are handled by vetted agents, encrypted in transit, and never shared with third parties. We're FRSC and NPF compliant." },
   { q: "Can I pay in instalments?", a: "Yes. Easy Installment is available on every service — pay any amount from the minimum deposit today, settle the rest before we deliver." },
-  { q: "What if my application is rejected?", a: "If your application is rejected for reasons outside your control, we refund the full processing fee. You'll always know why upfront." },
+  { q: "What if my application is rejected?", a: "If your application is rejected for reasons outside your control, we refund the full processing fee. You will always know why upfront." },
   { q: "Do you handle fleets?", a: "Every vehicle you add lives in the same account, and renewals for each one are tracked independently. If you're managing several vehicles and want to talk about it, reach out via the contact details below." },
 ];

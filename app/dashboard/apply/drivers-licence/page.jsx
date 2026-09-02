@@ -38,7 +38,7 @@ const DL_SERVICE_OPTIONS = [
 
 // Existing applications now live on the unified /dashboard/applications
 // list — this page is the wizard entry point only (pick a DL type, see
-// what you'll need, then land on the wizard already on that type).
+// what you will need, then land on the wizard already on that type).
 export default function DriversLicenceApplicationsPage() {
   const router = useRouter();
 

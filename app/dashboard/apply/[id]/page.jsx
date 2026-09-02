@@ -2432,7 +2432,7 @@ export default function CustomerApplicationDetailsPage() {
             <div>
               <h3 className="text-[15px] font-bold text-emerald-900">Your licence is ready</h3>
               <p className="mt-1 text-[13px] leading-relaxed text-emerald-700/90">
-                Your Driver's Licence document has been handed to our team — you'll be notified as
+                Your Driver's Licence document has been handed to our team — you will be notified as
                 soon as it's confirmed received and your application is marked complete.
               </p>
             </div>

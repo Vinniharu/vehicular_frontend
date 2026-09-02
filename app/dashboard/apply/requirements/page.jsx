@@ -119,7 +119,7 @@ function RequirementsPreviewInner() {
           {spec.title}
         </h1>
         <p className="mt-1.5 text-[13.5px] text-slate-500">
-          Here's everything you'll need to have ready. Gathering these first makes the actual form quick to fill in.
+          Here's everything you will need to have ready. Gathering these first makes the actual form quick to fill in.
         </p>
       </div>
 
@@ -154,7 +154,7 @@ function RequirementsPreviewInner() {
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
           <div className="mb-1 flex items-center gap-2">
             <ListChecks className="h-4 w-4 text-slate-400" />
-            <h2 className="text-[13px] font-bold uppercase tracking-wide text-slate-500">Information you'll provide</h2>
+            <h2 className="text-[13px] font-bold uppercase tracking-wide text-slate-500">Information you will provide</h2>
           </div>
           <ul className="divide-y divide-slate-50">
             {spec.fields.map((f) => (

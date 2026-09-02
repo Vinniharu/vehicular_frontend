@@ -358,7 +358,7 @@ function LoginForm() {
                 <div>
                   <h3 className="text-[18px] font-bold text-white tracking-tight">Check your email</h3>
                   <p className="mt-2 text-[13.5px] leading-relaxed text-white/70 max-w-sm mx-auto">
-                    If that email is registered, you'll receive password reset instructions shortly.
+                    If that email is registered, you will receive password reset instructions shortly.
                   </p>
                 </div>
                 <div className="pt-3">
