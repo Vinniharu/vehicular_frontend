@@ -27,6 +27,7 @@ import {
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -85,6 +86,22 @@ export default function TintedPermitNewApplicationPage() {
   const [payOpts, setPayOpts] = useState(null);
   const [payingFromWallet, setPayingFromWallet] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
+
+  const { draftFormData, hydrated, save, clearDraft, markSubmitting } = useApplicationDraft("tinted_permit");
+  const [draftApplied, setDraftApplied] = useState(false);
+
+  // Restore a saved draft once — after this, local state is the source of
+  // truth and further hydration passes would just clobber in-progress edits.
+  useEffect(() => {
+    if (!hydrated || draftApplied) return;
+    if (draftFormData) {
+      if (draftFormData.selectedVehicleId) setSelectedVehicleId(draftFormData.selectedVehicleId);
+      if (draftFormData.nin) setNin(draftFormData.nin);
+      if (draftFormData.justification) setJustification(draftFormData.justification);
+      if (draftFormData.docs) setDocs(draftFormData.docs);
+    }
+    setDraftApplied(true);
+  }, [hydrated, draftApplied, draftFormData]);
 
   useEffect(() => {
     Promise.all([getReferenceStates(), listVehicles(), getWallet(), getDriverLicenceFeeSchedule()]).then(
@@ -168,7 +185,9 @@ export default function TintedPermitNewApplicationPage() {
       return;
     }
     setFieldErrors({});
-    setStep((s) => Math.min(4, s + 1));
+    const nextStep = Math.min(4, step + 1);
+    setStep(nextStep);
+    save({ selectedVehicleId, nin, justification, docs }, STEP_LABELS[nextStep - 1]);
   };
 
   const canSubmit = selectedVehicleId && /^\d{11}$/.test(nin) && DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
@@ -185,6 +204,7 @@ export default function TintedPermitNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const res = await submitDriverLicenceApplication({
       application_type: "tinted_permit",
       vehicle_id: selectedVehicleId,
@@ -199,6 +219,7 @@ export default function TintedPermitNewApplicationPage() {
     }
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
+    await clearDraft();
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -304,7 +325,7 @@ export default function TintedPermitNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/apply/tinted-permit")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 

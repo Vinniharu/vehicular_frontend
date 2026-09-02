@@ -6,6 +6,7 @@ import { Wallet, Plus } from "lucide-react";
 import { getWallet, getCachedUser } from "@/lib/api";
 import { colors } from "@/lib/design-tokens";
 import ServicesList from "./_shared/ServicesList";
+import ContinueApplicationCard from "./_shared/ContinueApplicationCard";
 
 const BRAND = colors.primary.DEFAULT;
 const INK = colors.ink.DEFAULT;
@@ -102,6 +103,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════
+          CONTINUE WHERE YOU LEFT OFF
+      ══════════════════════════════════════ */}
+      <ContinueApplicationCard />
 
       {/* ══════════════════════════════════════
           SERVICES

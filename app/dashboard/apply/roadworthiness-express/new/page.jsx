@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -30,6 +30,7 @@ import {
 import { VEHICLE_CATEGORY_OPTIONS, isCommercialCategory } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -56,6 +57,17 @@ function todayIso() {
 export default function RoadworthinessExpressNewApplicationPage() {
   const router = useRouter();
   const user = getCachedUser();
+
+  // A distinct, EARLIER-stage concept from RWX's own existing pre-payment
+  // DLApplication.status == "draft" booking (created server-side once this
+  // form IS submitted, see status_machine.py's RWX_TRANSITIONS) — this
+  // hook only ever touches frontend form state before that submit call
+  // fires, and clearDraft() below is never allowed to affect that separate
+  // status once a booking exists.
+  const { draftFormData, hydrated: draftHydrated, save: saveDraft, clearDraft, markSubmitting } = useApplicationDraft("roadworthiness_express");
+  const [draftRestored, setDraftRestored] = useState(false);
+  const pendingBayRestoreRef = useRef(null);
+  const pendingSlotRestoreRef = useRef(null);
 
   const [step, setStep] = useState(1);
 
@@ -113,6 +125,30 @@ export default function RoadworthinessExpressNewApplicationPage() {
     );
   }, []);
 
+  // Restore an in-progress draft once. selectedBayId/selectedSlotId can't
+  // be applied directly here — the existing bay/availability-fetch effects
+  // below reset them to null whenever bayStateId/selectedBayId changes, so
+  // they're staged in refs and re-applied once their matching options have
+  // actually loaded.
+  useEffect(() => {
+    if (!draftHydrated || draftRestored) return;
+    if (draftFormData) {
+      if (draftFormData.selectedVehicleId != null) setSelectedVehicleId(draftFormData.selectedVehicleId);
+      if (draftFormData.bayStateId) setBayStateId(draftFormData.bayStateId);
+      if (draftFormData.bookingDate) setBookingDate(draftFormData.bookingDate);
+      if (draftFormData.papers) setPapers(draftFormData.papers);
+      if (draftFormData.step) setStep(draftFormData.step);
+      pendingBayRestoreRef.current = draftFormData.selectedBayId ?? null;
+      pendingSlotRestoreRef.current = draftFormData.selectedSlotId ?? null;
+    }
+    setDraftRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftHydrated, draftFormData]);
+
+  const buildDraftSnapshot = (targetStep) => ({
+    selectedVehicleId, bayStateId, selectedBayId, bookingDate, selectedSlotId, papers, step: targetStep,
+  });
+
   // RWX is a flat fee (ServicePrice, not vehicle-category-based) priced per
   // the BAY's state, not the vehicle's (the backend resolves the charge off
   // bay.state_id at booking time) -- so the price shown here has to be
@@ -133,8 +169,15 @@ export default function RoadworthinessExpressNewApplicationPage() {
     }
     setLoadingBays(true);
     getRwxBaysByState(bayStateId).then((res) => {
-      setBays(res.data?.items || []);
-      setSelectedBayId(null);
+      const items = res.data?.items || [];
+      setBays(items);
+      const pendingBayId = pendingBayRestoreRef.current;
+      if (pendingBayId != null && items.some((b) => b.id === pendingBayId)) {
+        setSelectedBayId(pendingBayId);
+      } else {
+        setSelectedBayId(null);
+      }
+      pendingBayRestoreRef.current = null;
       setLoadingBays(false);
     });
   }, [bayStateId]);
@@ -145,9 +188,15 @@ export default function RoadworthinessExpressNewApplicationPage() {
       return;
     }
     setLoadingAvailability(true);
-    setSelectedSlotId(null);
+    const pendingSlotId = pendingSlotRestoreRef.current;
+    if (!pendingSlotId) setSelectedSlotId(null);
     getRwxBayAvailability(selectedBayId, bookingDate).then((res) => {
-      setAvailability(res.data?.slots || []);
+      const slots = res.data?.slots || [];
+      setAvailability(slots);
+      if (pendingSlotId != null && slots.some((s) => s.slot_template_id === pendingSlotId)) {
+        setSelectedSlotId(pendingSlotId);
+      }
+      pendingSlotRestoreRef.current = null;
       setLoadingAvailability(false);
     });
   }, [selectedBayId, bookingDate]);
@@ -239,7 +288,9 @@ export default function RoadworthinessExpressNewApplicationPage() {
       return;
     }
     setFieldErrors({});
-    setStep((s) => Math.min(3, s + 1));
+    const nextStep = Math.min(3, step + 1);
+    setStep(nextStep);
+    saveDraft(buildDraftSnapshot(nextStep), STEP_LABELS[nextStep - 1]);
   };
 
   const handlePapersUpload = async (file) => {
@@ -266,6 +317,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const res = await submitRoadworthinessApplication({
       vehicle_id: selectedVehicleId,
       bay_id: selectedBayId,
@@ -280,6 +332,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
     }
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
+    clearDraft();
   };
 
   const handlePayFromWallet = async () => {
@@ -377,7 +430,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
@@ -668,13 +721,32 @@ export default function RoadworthinessExpressNewApplicationPage() {
       {step < 3 && (
         <div className="flex items-center justify-between gap-3">
           {step > 1 ? (
-            <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className={btnSecondary}>Back</button>
+            <button
+              type="button"
+              onClick={() => {
+                const prevStep = Math.max(1, step - 1);
+                setStep(prevStep);
+                saveDraft(buildDraftSnapshot(prevStep), STEP_LABELS[prevStep - 1]);
+              }}
+              className={btnSecondary}
+            >
+              Back
+            </button>
           ) : <span />}
           <button type="button" onClick={goNext} className={btnPrimary} style={{ background: BRAND }}>Continue</button>
         </div>
       )}
       {step === 3 && (
-        <button type="button" onClick={() => setStep(2)} className={btnSecondary}>Back</button>
+        <button
+          type="button"
+          onClick={() => {
+            setStep(2);
+            saveDraft(buildDraftSnapshot(2), STEP_LABELS[1]);
+          }}
+          className={btnSecondary}
+        >
+          Back
+        </button>
       )}
     </div>
   );

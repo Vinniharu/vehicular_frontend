@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/api";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
+import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -52,6 +53,8 @@ const REASONS = [
 
 export default function VehicleVerificationNewApplicationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { draftFormData, hydrated, save, clearDraft, markSubmitting } = useApplicationDraft("vehicle_verification");
 
   const [step, setStep] = useState(1);
 
@@ -85,6 +88,24 @@ export default function VehicleVerificationNewApplicationPage() {
       }
     );
   }, []);
+
+  // A resumed draft takes priority (it's exactly what the customer had);
+  // only fall back to the ?type= URL param — set by the requirements-
+  // preview page's "Start Application" CTA — once we know there's no draft.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (draftFormData) {
+      if (draftFormData.checkType) setCheckType(draftFormData.checkType);
+      if (draftFormData.form) setForm((f) => ({ ...f, ...draftFormData.form }));
+      if (draftFormData.certificate) setCertificate(draftFormData.certificate);
+      if (draftFormData.step) setStep(draftFormData.step);
+      return;
+    }
+    const typeParam = searchParams.get("type");
+    if (typeParam === "vehicle_verification_registration_history") setCheckType("registration_history");
+    else if (typeParam === "vehicle_verification_customs_duty") setCheckType("customs_duty");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, draftFormData]);
 
   const applicationType = `vehicle_verification_${checkType}`;
   const priceKobo = useMemo(() => {
@@ -134,6 +155,7 @@ export default function VehicleVerificationNewApplicationPage() {
     }
     setFieldErrors({});
     setStep(2);
+    save({ checkType, form, certificate, step: 2 }, "Step 2 of 2");
   };
 
   const canSubmit = Object.keys(validateStep1()).length === 0;
@@ -149,6 +171,7 @@ export default function VehicleVerificationNewApplicationPage() {
     setFieldErrors({});
     setSubmitError(null);
     setSubmitting(true);
+    markSubmitting();
     const res = await submitVehicleVerificationApplication({
       state_id: Number(form.state_id),
       check_type: checkType,
@@ -166,6 +189,7 @@ export default function VehicleVerificationNewApplicationPage() {
       setSubmitError(res.error);
       return;
     }
+    await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
   };
@@ -260,7 +284,7 @@ export default function VehicleVerificationNewApplicationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
@@ -420,7 +444,7 @@ export default function VehicleVerificationNewApplicationPage() {
 
       <div className="flex items-center justify-between gap-3">
         {step === 2 ? (
-          <button type="button" onClick={() => setStep(1)} className={btnSecondary}>Back</button>
+          <button type="button" onClick={() => { setStep(1); save({ checkType, form, certificate, step: 1 }, "Step 1 of 2"); }} className={btnSecondary}>Back</button>
         ) : <span />}
         {step === 1 && (
           <button type="button" onClick={goNext} className={btnPrimary} style={{ background: BRAND }}>Continue</button>
