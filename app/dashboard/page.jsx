@@ -87,7 +87,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
-              href="/dashboard/apply"
+              href="/dashboard/apply/drivers-licence"
               className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-[13px] font-bold text-emerald-800 shadow-sm transition-all hover:bg-emerald-50 active:scale-[0.98]"
             >
               <Plus className="h-4 w-4" />

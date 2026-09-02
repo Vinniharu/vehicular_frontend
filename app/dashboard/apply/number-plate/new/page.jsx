@@ -818,7 +818,7 @@ export default function NumberPlateNewApplicationPage() {
               </div>
               <p className="mt-1.5 text-[11.5px] text-slate-500">
                 {isRegisteredCompany
-                  ? "You'll be able to attach your CAC certificate on the next step — optional."
+                  ? "You will be able to attach your CAC certificate on the next step — optional."
                   : "No problem — we'll just need your dealership's details below."}
               </p>
             </div>

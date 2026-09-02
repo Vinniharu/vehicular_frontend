@@ -32,14 +32,10 @@ export const SERVICES = [
     category: "Other documents",
     status: "live",
     // Driver's Licence has 4 live subtypes (fresh/renewal/reissue/
-    // international_permit) chosen INSIDE the wizard itself (step 1), not
-    // via a picker page — there's no single application_type to preview
-    // from this generic entry point, so it's left pointing straight at the
-    // wizard (which still gets its own draft-save/resume treatment). Each
-    // subtype's requirements ARE previewable individually at
-    // /dashboard/apply/requirements?type=fresh (etc.), just not reachable
-    // from this specific card.
-    applyHref: "/dashboard/apply",
+    // international_permit) — mirrors number-plate's picker pattern: land
+    // on a type-picker first, which routes into the requirements-preview
+    // page for whichever type is chosen, then the wizard itself.
+    applyHref: "/dashboard/apply/drivers-licence",
     feeScheduleType: "drivers_licence",
     title: "Driver's Licence Services",
     tagline:

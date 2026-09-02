@@ -184,7 +184,7 @@ export default function SupportSettingsPage() {
           <h2 className="font-display text-base font-semibold text-[#111111] flex items-center gap-2">
             <KeyRound className="h-4 w-4" style={{ color: BRAND }} /> Password
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5">Change your account password. You'll need your current password.</p>
+          <p className="text-sm text-slate-500 mt-0.5">Change your account password. You will need your current password.</p>
         </div>
         <form onSubmit={handleChangePassword} className="px-6 sm:px-8 py-6 space-y-5 max-w-lg">
           {passwordError && (

@@ -396,7 +396,7 @@ export default function AgentSettingsPage() {
           <h2 className="text-[15px] font-bold text-slate-900 flex items-center gap-2">
             <KeyRound className="h-4 w-4" style={{ color: BRAND }} /> Password
           </h2>
-          <p className="mt-1 text-[12.5px] text-slate-500">Change your account password. You'll need your current password.</p>
+          <p className="mt-1 text-[12.5px] text-slate-500">Change your account password. You will need your current password.</p>
         </div>
         <form onSubmit={handleChangePassword} className="space-y-4">
           {passwordError && (
