@@ -84,29 +84,20 @@ export function TestimonialsCarousel({
               className="flex h-full flex-col rounded-2xl bg-white p-5 sm:p-6 shadow-sm"
               style={{ border: `1px solid ${INK}1a` }}
             >
-              <div className="flex items-center gap-3">
-                <img
-                  src={t.customer_photo_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
-                  alt={t.customer_name}
-                  loading="lazy"
-                  className="h-14 w-14 shrink-0 rounded-full object-cover"
-                  style={{ boxShadow: `0 0 0 2px ${GREEN}33` }}
-                />
-                <div className="min-w-0">
-                  <p className="text-[15px] font-semibold truncate" style={{ color: INK }}>
-                    {t.customer_name}
-                  </p>
-                  <p className="text-[13px] truncate" style={{ color: `${INK}99` }}>{t.customer_location}</p>
-                  <div className="mt-0.5 flex">
-                    {Array.from({ length: 5 }).map((_, n) => (
-                      <Star
-                        key={n}
-                        className={`h-3.5 w-3.5 ${
-                          n < (t.rating || 5) ? "fill-amber-400 text-amber-400" : "text-gray-200"
-                        }`}
-                      />
-                    ))}
-                  </div>
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold truncate" style={{ color: INK }}>
+                  {t.customer_name}
+                </p>
+                <p className="text-[13px] truncate" style={{ color: `${INK}99` }}>{t.customer_location}</p>
+                <div className="mt-0.5 flex">
+                  {Array.from({ length: 5 }).map((_, n) => (
+                    <Star
+                      key={n}
+                      className={`h-3.5 w-3.5 ${
+                        n < (t.rating || 5) ? "fill-amber-400 text-amber-400" : "text-gray-200"
+                      }`}
+                    />
+                  ))}
                 </div>
               </div>
               <blockquote className="mt-4 text-[15px] italic leading-relaxed" style={{ color: `${INK}cc` }}>
