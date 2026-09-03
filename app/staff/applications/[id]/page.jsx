@@ -863,21 +863,7 @@ export default function StaffApplicationDetailsPage() {
                 {application.pci_detail.preferred_time ? ` (${application.pci_detail.preferred_time})` : ""}
               </span>
             </div>
-            {application.pci_detail.whose_vehicle === "other" && (
-              <>
-                <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner name</span>
-                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_name || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner phone</span>
-                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_phone || "—"}</span>
-                  {!application.pci_detail.seller_phone && (
-                    <span className="mt-0.5 block text-[11px] font-semibold text-red-600">Missing — confirm before scheduling.</span>
-                  )}
-                </div>
-              </>
-            )}
+
             {application.pci_detail.confirmed_visit_date && (
               <div>
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Confirmed visit</span>
