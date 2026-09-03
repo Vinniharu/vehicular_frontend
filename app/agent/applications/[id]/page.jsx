@@ -30,9 +30,14 @@ import {
   BadgeCheck,
   Copy,
   Check,
+  Car,
+  Eye,
+  Download,
+  Shield,
 } from "lucide-react";
 import {
   getApplication,
+  getVehicle,
   koboToNaira,
   scheduleCapturing,
   reassignCaptureCentre,
@@ -510,12 +515,44 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
   );
 }
 
+
+const DOC_TYPE_META = {
+  proof_of_ownership: { label: "Proof of Ownership", category: "Ownership" },
+  vehicle_licence: { label: "Vehicle Licence", category: "Licence" },
+  tinted_passport_photo: { label: "Applicant Photo (Tinted)", category: "Identity" },
+  vehicle_photo_front: { label: "Vehicle Photo — Front", category: "Inspection" },
+  vehicle_photo_back: { label: "Vehicle Photo — Rear", category: "Inspection" },
+  vehicle_photo_side: { label: "Vehicle Photo — Side", category: "Inspection" },
+  vin_sticker_photo: { label: "VIN / Chassis Sticker", category: "Inspection" },
+  face_verification_screenshot: { label: "Face Verification Screenshot", category: "Verification" },
+  temporary_tinted_permit: { label: "Temporary Permit", category: "Permit" },
+  previous_licence: { label: "Previous Driver's Licence", category: "Licence" },
+  old_driver_licence: { label: "Old Driver's Licence", category: "Licence" },
+  id_document: { label: "Identification Document", category: "Identity" },
+  international_passport: { label: "International Passport", category: "Identity" },
+  passport_photo: { label: "Passport Photograph", category: "Identity" },
+  driving_school_certificate: { label: "Driving School Certificate", category: "Training" },
+  cac_certificate: { label: "CAC Certificate", category: "Corporate" },
+  company_letterhead: { label: "Company Letterhead", category: "Corporate" },
+  police_report: { label: "Police Report", category: "Legal" },
+  court_affidavit: { label: "Court Affidavit", category: "Legal" },
+  tinted_permit_progress_evidence: { label: "Work In Progress Evidence", category: "Progress" },
+  plate_production_in_progress: { label: "Plate Production Evidence", category: "Progress" },
+};
+
+function isImageFile(url) {
+  if (!url) return false;
+  const clean = url.split("?")[0].toLowerCase();
+  return clean.endsWith(".jpg") || clean.endsWith(".jpeg") || clean.endsWith(".png") || clean.endsWith(".webp") || clean.endsWith(".gif") || url.startsWith("data:image");
+}
+
 export default function AgentApplicationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const appId = params?.id ? Number(params.id) : null;
 
   const [application, setApplication] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -561,7 +598,16 @@ export default function AgentApplicationDetailPage() {
     setError(null);
     const res = await getApplication(appId);
     if (res.error) setError(res.error);
-    else if (res.data) setApplication(res.data);
+    else if (res.data) {
+      setApplication(res.data);
+      if (res.data.vehicle) {
+        setVehicle(res.data.vehicle);
+      } else if (res.data.vehicle_id) {
+        getVehicle(res.data.vehicle_id).then((vRes) => {
+          if (vRes?.data) setVehicle(vRes.data);
+        });
+      }
+    }
     setLoading(false);
     setRefreshing(false);
   };
@@ -994,73 +1040,225 @@ export default function AgentApplicationDetailPage() {
         </div>
       </Section>
 
-      {/* Contact — the most actionable info for an agent, up front */}
-      <Section title="Applicant contact" icon={UserIcon} iconColor="#059669" tone="emerald">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          <div>
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full name</span>
-            <span className="mt-0.5 block text-[15px] font-bold text-slate-900">{applicant.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}</span>
-          </div>
-          {applicant.phone && applicant.phone !== "N/A" && (
+      {/* Contact & Biodata Overview */}
+      <Section title="Customer Contact & Identity" icon={UserIcon} iconColor="#059669" tone="emerald">
+        <div className="space-y-3.5">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone</span>
-              <div className="mt-0.5 flex items-center gap-2">
-                <a href={`tel:${applicant.phone}`} className="flex items-center gap-1.5 font-mono text-[14px] font-semibold text-slate-900 hover:underline">
-                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
-                  {applicant.phone}
-                </a>
-                <button onClick={() => handleCopy("phone", applicant.phone)} className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-600" title="Copy phone number">
-                  {copiedField === "phone" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full name</span>
+              <span className="mt-0.5 block text-[15px] font-bold text-slate-900">
+                {applicant.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}
+              </span>
             </div>
-          )}
-          {applicant.email && applicant.email !== "N/A" && (
-            <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
-              <div className="mt-0.5 flex items-center gap-2">
-                <a href={`mailto:${applicant.email}`} className="flex items-center gap-1.5 text-[13.5px] font-semibold text-slate-900 hover:underline">
-                  <Mail className="h-3.5 w-3.5 text-emerald-600" />
-                  {applicant.email}
-                </a>
-                <button onClick={() => handleCopy("email", applicant.email)} className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-600" title="Copy email">
-                  {copiedField === "email" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
+            {applicant.phone && applicant.phone !== "N/A" && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone</span>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <a href={`tel:${applicant.phone}`} className="flex items-center gap-1.5 font-mono text-[14px] font-semibold text-slate-900 hover:underline">
+                    <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                    {applicant.phone}
+                  </a>
+                  <button onClick={() => handleCopy("phone", applicant.phone)} className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-600" title="Copy phone number">
+                    {copiedField === "phone" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
+            )}
+            {applicant.email && applicant.email !== "N/A" && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <a href={`mailto:${applicant.email}`} className="flex items-center gap-1.5 text-[13.5px] font-semibold text-slate-900 hover:underline">
+                    <Mail className="h-3.5 w-3.5 text-emerald-600" />
+                    {applicant.email}
+                  </a>
+                  <button onClick={() => handleCopy("email", applicant.email)} className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-600" title="Copy email">
+                    {copiedField === "email" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+            {(applicant.nin || application.nin) && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  <span className="font-mono text-[14px] font-bold text-slate-900">{applicant.nin || application.nin}</span>
+                  <button onClick={() => handleCopy("nin", applicant.nin || application.nin)} className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-600" title="Copy NIN">
+                    {copiedField === "nin" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {(applicant.residential_address || application.residential_address) && (
+            <div className="border-t border-emerald-100/70 pt-2.5">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Residential address</span>
+              <p className="mt-0.5 text-[13px] text-slate-800">
+                {applicant.residential_address || application.residential_address}
+                {(applicant.city || application.city) && `, ${applicant.city || application.city}`}
+                {(applicant.state_of_residence || application.state_of_residence) && ` · ${applicant.state_of_residence || application.state_of_residence}`}
+                {(applicant.lga || application.lga) && ` (${applicant.lga || application.lga} LGA)`}
+              </p>
             </div>
           )}
         </div>
       </Section>
 
-      {/* Dealership Plate — no vehicle at all, own identity fields */}
-      {application.application_type === "number_plate_dealership" && (
-        <Section title="Dealership" icon={BadgeCheck}>
+      {/* Vehicle Specifications Card — fully visible for all vehicle applications */}
+      {(vehicle || application.vehicle || application.vehicle_id) && (
+        <Section title="Vehicle Specifications" icon={Car} iconColor="#2563eb" tone="white">
+          {(() => {
+            const v = vehicle || application.vehicle;
+            if (!v) {
+              return (
+                <div className="flex items-center gap-2 py-3 text-[13px] text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  <span>Loading vehicle specifications…</span>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-inset ring-blue-100 shadow-sm">
+                      <Car className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[15px] font-bold text-slate-900">
+                          {v.year ? `${v.year} ` : ""}{v.make} {v.model}
+                        </span>
+                        {v.colour && (
+                          <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold capitalize text-slate-700">
+                            {v.colour}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-slate-500">
+                        Registered in <strong>{v.state}</strong>
+                        {v.vehicle_category && ` · Category: ${v.vehicle_category.replace(/_/g, " ")}`}
+                      </p>
+                    </div>
+                  </div>
+                  {v.plate_number ? (
+                    <div className="flex items-center gap-1.5 rounded-lg border-2 border-emerald-500/30 bg-emerald-50 px-3 py-1.5 font-mono text-[14px] font-bold text-emerald-800 shadow-sm">
+                      <span>{v.plate_number}</span>
+                      <button
+                        onClick={() => handleCopy("plate_number", v.plate_number)}
+                        className="ml-1 rounded p-1 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        title="Copy plate number"
+                      >
+                        {copiedField === "plate_number" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="rounded-md bg-amber-50 px-2.5 py-1 text-[11.5px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                      Plate Pending / New Plate Request
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <Field label="Make" value={v.make} />
+                  <Field label="Model" value={v.model} />
+                  <Field label="Year" value={v.year} mono />
+                  <Field label="Colour" value={v.colour} capitalize />
+                  <div className="col-span-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis / VIN Number</span>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="font-mono text-[13.5px] font-bold text-slate-900">
+                        {v.chassis_number || "—"}
+                      </span>
+                      {v.chassis_number && (
+                        <button
+                          onClick={() => handleCopy("chassis", v.chassis_number)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          title="Copy VIN"
+                        >
+                          {copiedField === "chassis" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine Number</span>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="font-mono text-[13.5px] font-bold text-slate-900">
+                        {v.engine_number || "—"}
+                      </span>
+                      {v.engine_number && (
+                        <button
+                          onClick={() => handleCopy("engine", v.engine_number)}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          title="Copy Engine No"
+                        >
+                          {copiedField === "engine" ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </Section>
+      )}
+
+      {/* Service-Specific Parameters (Justification, Plate Options, etc.) */}
+      {(application.justification || application.use_type || application.former_registration_number || application.previous_owner_details || application.dealership_name || application.is_fancy_plate || application.verification_link) && (
+        <Section title="Service & Application Specifics" icon={BadgeCheck} tone="white">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Field label="Dealership name" value={application.dealership_name} />
-            <Field label="Registered company" value={application.is_registered_company ? "Yes" : "No"} />
-            <Field label="NIN" value={application.nin} mono />
+            {application.justification && (
+              <div className="col-span-2 sm:col-span-3">
+                <Field label="Tint Justification / Reason" value={application.justification} />
+              </div>
+            )}
+            {application.verification_link && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Image Verification Check Link</span>
+                <a href={application.verification_link} target="_blank" rel="noreferrer" className="mt-0.5 flex items-center gap-1.5 text-[13.5px] font-semibold text-emerald-700 hover:underline">
+                  {application.verification_link} <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            )}
+            {application.use_type && (
+              <Field label="Use Type" value={application.use_type} capitalize />
+            )}
+            {application.former_registration_number && (
+              <Field label="Former Plate Number" value={application.former_registration_number} mono />
+            )}
+            {application.is_fancy_plate && (
+              <Field label="Requested Custom Plate" value={application.fancy_plate_number} mono valueClassName="text-emerald-700" />
+            )}
+            {application.previous_owner_details && (
+              <div className="col-span-2 sm:col-span-3">
+                <Field label="Previous Owner Details" value={application.previous_owner_details} />
+              </div>
+            )}
+            {application.dealership_name && (
+              <Field label="Dealership Name" value={application.dealership_name} />
+            )}
+            {application.is_registered_company !== null && application.is_registered_company !== undefined && (
+              <Field label="Registered Company (CAC)" value={application.is_registered_company ? "Yes" : "No"} />
+            )}
           </div>
         </Section>
       )}
 
-      {/* Personal & origin — DL family only, meaningless for vehicle-centric types */}
-      {isDlFamily && (
-        <Section title="Personal & origin" icon={BadgeCheck}>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Field label="Date of birth" value={applicant.date_of_birth || application.date_of_birth} mono />
-            <Field label="Gender" value={applicant.gender} capitalize />
-            <Field label="Nationality" value={applicant.nationality} />
-            <Field label="Marital status" value={applicant.marital_status} capitalize />
-            <Field label="Mother's maiden name" value={applicant.mothers_maiden_name} />
-            <Field label="NIN" value={applicant.nin} mono />
-            <Field label="State / LGA of origin" value={[applicant.state_of_origin, applicant.lga_of_origin].filter(Boolean).join(" / ")} />
-            <Field label="State / LGA of residence" value={[applicant.state_of_residence || application.state_of_residence, applicant.lga || application.lga].filter(Boolean).join(" / ")} />
-            <div className="col-span-2 sm:col-span-3">
-              <Field label="Residential address" value={applicant.residential_address} />
-            </div>
-          </div>
-        </Section>
-      )}
+      {/* Applicant Biodata & Origin — available across all application types */}
+      <Section title="Applicant Biodata & Origin" icon={BadgeCheck} tone="white">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Date of birth" value={applicant.date_of_birth || application.date_of_birth} mono />
+          <Field label="Gender" value={applicant.gender || application.gender} capitalize />
+          <Field label="Nationality" value={applicant.nationality || application.nationality} />
+          <Field label="Marital status" value={applicant.marital_status || application.marital_status} capitalize />
+          <Field label="Mother's maiden name" value={applicant.mothers_maiden_name || application.mothers_maiden_name} />
+          <Field label="NIN" value={applicant.nin || application.nin} mono />
+          <Field label="State / LGA of origin" value={[applicant.state_of_origin || application.state_of_origin, applicant.lga_of_origin || application.lga_of_origin].filter(Boolean).join(" / ")} />
+          <Field label="State / LGA of residence" value={[applicant.state_of_residence || application.state_of_residence, applicant.lga || application.lga].filter(Boolean).join(" / ")} />
+        </div>
+      </Section>
 
       {/* Medical — DL family only */}
       {isDlFamily && (
@@ -1096,8 +1294,8 @@ export default function AgentApplicationDetailPage() {
         </Section>
       )}
 
-      {/* Next of kin — DL family only */}
-      {isDlFamily && (
+      {/* Next of kin */}
+      {(applicant.next_of_kin_name || application.next_of_kin_name) && (
         <Section title="Next of kin">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field label="Name" value={applicant.next_of_kin_name || application.next_of_kin_name} />
@@ -1107,43 +1305,131 @@ export default function AgentApplicationDetailPage() {
         </Section>
       )}
 
-      {/* Documents */}
-      <Section title={`Documents (${(application.documents?.length || 0) + (application.passport_photo ? 1 : 0)})`} icon={FileText}>
-        {(!application.documents || application.documents.length === 0) && !application.passport_photo ? (
-          <p className="text-[13px] text-slate-400">Nothing uploaded yet.</p>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {application.passport_photo && (
-              <div className="flex items-center justify-between gap-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <ImageIcon className="h-4 w-4" />
-                  </div>
-                  <p className="text-[13.5px] font-semibold capitalize text-slate-900">Passport Photograph</p>
-                </div>
-                <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(application.passport_photo)); }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
-                  View <ExternalLink className="h-3.5 w-3.5" />
-                </button>
+      {/* Customer Uploads & Inspection Documents Gallery */}
+      {(() => {
+        const allDocs = [
+          ...(application.passport_photo
+            ? [{ doc_type: "passport_photo", file_url: application.passport_photo, status: "approved" }]
+            : []),
+          ...(application.documents || []),
+        ];
+
+        return (
+          <Section
+            title={`Customer Uploads & Documents (${allDocs.length})`}
+            icon={FileText}
+            tone="white"
+          >
+            {allDocs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
+                <FileText className="mx-auto h-8 w-8 text-slate-300" />
+                <p className="mt-2 text-[13.5px] font-semibold text-slate-600">No documents uploaded</p>
+                <p className="text-[12px] text-slate-400">The customer has not attached any documents yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                {allDocs.map((doc, idx) => {
+                  const isImg = isImageFile(doc.file_url);
+                  const meta = DOC_TYPE_META[doc.doc_type] || {
+                    label: doc.doc_type?.replace(/_/g, " ") || "Document",
+                    category: "Document",
+                  };
+                  const mediaUrl = resolveMediaUrl(doc.file_url);
+
+                  return (
+                    <div
+                      key={idx}
+                      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                    >
+                      <div>
+                        <div className="mb-2 flex items-start justify-between gap-1.5">
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            {meta.category}
+                          </span>
+                          {doc.status && (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                                doc.status === "approved"
+                                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                                  : doc.status === "rejected"
+                                  ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200"
+                                  : "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
+                              }`}
+                            >
+                              {doc.status}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Visual Thumbnail */}
+                        {isImg ? (
+                          <div
+                            onClick={() => setPreviewDocUrl(mediaUrl)}
+                            className="relative mb-2.5 flex h-36 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-slate-100 group-hover:opacity-95"
+                          >
+                            <img
+                              src={mediaUrl}
+                              alt={meta.label}
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 opacity-0 transition-all group-hover:bg-slate-900/30 group-hover:opacity-100">
+                              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 text-[12px] font-bold text-slate-800 shadow-md backdrop-blur-sm">
+                                <Eye className="h-3.5 w-3.5" /> Preview
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => setPreviewDocUrl(mediaUrl)}
+                            className="relative mb-2.5 flex h-36 w-full cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 transition-colors group-hover:bg-slate-100/70"
+                          >
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm">
+                              <FileText className="h-5 w-5" />
+                            </div>
+                            <span className="mt-2 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                              Document File
+                            </span>
+                            <span className="mt-1 text-[11px] font-semibold text-emerald-600 hover:underline">
+                              Click to view
+                            </span>
+                          </div>
+                        )}
+
+                        <h4 className="text-[13px] font-bold text-slate-900 line-clamp-1" title={meta.label}>
+                          {meta.label}
+                        </h4>
+                        {doc.uploaded_at && (
+                          <p className="mt-0.5 text-[10.5px] text-slate-400">
+                            {new Date(doc.uploaded_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewDocUrl(mediaUrl)}
+                          className="inline-flex items-center gap-1 text-[11.5px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Preview
+                        </button>
+                        <a
+                          href={mediaUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                        >
+                          Open <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            {application.documents?.map((doc, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <p className="text-[13.5px] font-semibold capitalize text-slate-900">{doc.doc_type?.replace(/_/g, " ")}</p>
-                </div>
-                {doc.file_url && (
-                  <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
-                    View <ExternalLink className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
+          </Section>
+        );
+      })()}
 
       {/* Support chat — no attachments, contact-info blocked both ways */}
       <AgentChatPanel

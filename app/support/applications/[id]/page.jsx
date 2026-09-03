@@ -6,6 +6,9 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
+  Car,
+  Eye,
+  Download,
   AlertCircle,
   Mail,
   Phone,
@@ -344,6 +347,80 @@ export default function SupportApplicationDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Vehicle Specifications Card (if linked) */}
+      {(app.vehicle || app.vehicle_id) && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
+            <Car className="h-4 w-4 text-blue-600" />
+            <h2 className="text-[12px] font-bold uppercase tracking-wide text-slate-700">Vehicle Specifications</h2>
+          </div>
+          {app.vehicle ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl">
+                <div>
+                  <p className="text-[14px] font-bold text-slate-900">{app.vehicle.year ? `${app.vehicle.year} ` : ""}{app.vehicle.make} {app.vehicle.model}</p>
+                  <p className="text-[12px] text-slate-500">{app.vehicle.colour} · Registered in {app.vehicle.state}</p>
+                </div>
+                {app.vehicle.plate_number && (
+                  <span className="font-mono text-[13px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                    {app.vehicle.plate_number}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12.5px]">
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Chassis / VIN</span>
+                  <span className="font-mono font-bold text-slate-800">{app.vehicle.chassis_number || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Engine No</span>
+                  <span className="font-mono font-bold text-slate-800">{app.vehicle.engine_number || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Category</span>
+                  <span className="capitalize font-medium text-slate-800">{app.vehicle.vehicle_category?.replace(/_/g, " ") || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">State</span>
+                  <span className="font-medium text-slate-800">{app.vehicle.state || "—"}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[12px] text-slate-400">Vehicle ID: #{app.vehicle_id}</p>
+          )}
+        </div>
+      )}
+
+      {/* Service Details */}
+      {(app.justification || app.use_type || app.fancy_plate_number) && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-[12px] font-bold uppercase tracking-wide text-slate-700 mb-3 border-b border-slate-100 pb-2">
+            Service Specifics
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12.5px]">
+            {app.justification && (
+              <div className="col-span-2 sm:col-span-3">
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">Justification</span>
+                <span className="text-slate-800">{app.justification}</span>
+              </div>
+            )}
+            {app.use_type && (
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">Use Type</span>
+                <span className="capitalize text-slate-800 font-medium">{app.use_type}</span>
+              </div>
+            )}
+            {app.fancy_plate_number && (
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">Requested Plate</span>
+                <span className="font-mono font-bold text-emerald-700">{app.fancy_plate_number}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Documents — view-only, no approve/reject (that stays a staff action) */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
