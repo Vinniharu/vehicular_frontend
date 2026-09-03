@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import {
   getStaffApplication,
+  getSupportAgentChat,
+  sendSupportAgentChatMessage,
   staffApproveApplication,
   staffRejectApplication,
   staffEnrollDrivingSchool,
@@ -51,6 +53,7 @@ import {
   downloadStaffBiodataPdf,
 } from "@/lib/api";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
+import AgentChatPanel from "@/app/components/design/AgentChatPanel";
 
 const BRAND = "#28A745";
 
@@ -1469,6 +1472,21 @@ export default function StaffApplicationDetailsPage() {
               )}
             </div>
           </section>
+
+          {/* Direct Agent Chat Panel */}
+          {application.assigned_agent_id && (
+            <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">
+                Assigned Agent Communication
+              </h2>
+              <AgentChatPanel
+                myRole="support"
+                headerLabel="Chat with Assigned Field Agent"
+                loadThread={() => getSupportAgentChat(application.id)}
+                sendMessage={(body) => sendSupportAgentChatMessage(application.id, { body })}
+              />
+            </div>
+          )}
         </div>
       </div>
 
