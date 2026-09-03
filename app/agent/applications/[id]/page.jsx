@@ -39,6 +39,8 @@ import {
   markCapturingCompleted,
   uploadProof,
   uploadTemporaryLicence,
+  sendVerificationLink,
+  uploadTemporaryDocuments,
   flagDocumentIssue,
   resolveMediaUrl,
   getAgentSupportChat,
@@ -533,6 +535,8 @@ export default function AgentApplicationDetailPage() {
   const [proofFileName, setProofFileName] = useState("");
   const [flagReasonInput, setFlagReasonInput] = useState("");
   const [licenceNumberInput, setLicenceNumberInput] = useState("");
+  const [verificationLinkInput, setVerificationLinkInput] = useState("");
+  const [tempDocInputs, setTempDocInputs] = useState([{ file_url: "", file_name: "" }]);
   const [licenceExpiryInput, setLicenceExpiryInput] = useState("");
 
   const [markCapturedLoading, setMarkCapturedLoading] = useState(false);
@@ -593,7 +597,11 @@ export default function AgentApplicationDetailPage() {
     setProofFileName("");
     setFlagReasonInput("");
     setLicenceNumberInput("");
-    if (type === "issue-temp-licence") {
+    if (type === "send-verification-link") {
+      setVerificationLinkInput(application?.verification_link || "");
+    } else if (type === "upload-temp-tinted") {
+      setTempDocInputs([{ file_url: "", file_name: "" }]);
+    } else if (type === "issue-temp-licence") {
       setLicenceExpiryInput(defaultTemporaryLicenceExpiry());
     } else if (type === "upload-proof" && application?.application_type === "fresh") {
       setLicenceExpiryInput(guessPermanentLicenceExpiry(application?.validity_period));
@@ -633,6 +641,21 @@ export default function AgentApplicationDetailPage() {
         new_scheduled_at: scheduledAtInput || undefined,
         reason: reassignReasonInput.trim() || undefined,
       });
+    } else if (modalType === "send-verification-link") {
+      if (!verificationLinkInput.trim()) {
+        setActionError("Please enter a valid verification URL.");
+        setActionLoading(false);
+        return;
+      }
+      res = await sendVerificationLink(application.id, { verification_link: verificationLinkInput.trim() });
+    } else if (modalType === "upload-temp-tinted") {
+      const validDocs = tempDocInputs.filter((d) => d.file_url.trim()).map((d) => ({ file_url: d.file_url.trim(), doc_type: "temporary_tinted_permit" }));
+      if (validDocs.length === 0) {
+        setActionError("Please attach at least one temporary permit document.");
+        setActionLoading(false);
+        return;
+      }
+      res = await uploadTemporaryDocuments(application.id, { documents: validDocs });
     } else if (modalType === "upload-proof") {
       if (!proofUrlInput.trim()) {
         setActionError("Attach proof of the finished card before continuing.");
@@ -925,6 +948,16 @@ export default function AgentApplicationDetailPage() {
               Issue temporary licence
             </ActionButton>
           )}
+          {isTintedPermit && (
+            <>
+              <ActionButton variant="primary" icon={Globe2} onClick={() => openModal("send-verification-link")}>
+                {application.verification_link ? "Update Image Verification Link" : "Send Image Verification Link"}
+              </ActionButton>
+              <ActionButton variant="success" icon={Upload} onClick={() => openModal("upload-temp-tinted")}>
+                Upload Temporary Permit Docs
+              </ActionButton>
+            </>
+          )}
           {canUploadProgressEvidence && (
             <>
               <input
@@ -1141,6 +1174,56 @@ export default function AgentApplicationDetailPage() {
               <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-[12.5px] text-red-700 ring-1 ring-inset ring-red-200">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 {actionError}
+              </div>
+            )}
+
+            {modalType === "send-verification-link" && (
+              <div className="space-y-3.5">
+                <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                  <span>Enter the official image/face verification check URL (e.g. POSSAP portal link). The customer will be notified via Email & SMS to view instructions and upload their screenshot.</span>
+                </div>
+                <div>
+                  <label className={fieldLabel}>Verification URL *</label>
+                  <input value={verificationLinkInput} onChange={(e) => setVerificationLinkInput(e.target.value)} placeholder="https://verification.possap.ng/..." className={inputBase} />
+                </div>
+              </div>
+            )}
+
+            {modalType === "upload-temp-tinted" && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                  <span>Upload one or more temporary permit documents. The customer can view, download, and print them to drive while the permanent permit is being processed.</span>
+                </div>
+                {tempDocInputs.map((item, idx) => (
+                  <div key={idx} className="space-y-2 rounded-xl border border-slate-200 p-3 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-bold text-slate-600">Temporary Document #{idx + 1}</span>
+                      {tempDocInputs.length > 1 && (
+                        <button type="button" onClick={() => setTempDocInputs(tempDocInputs.filter((_, i) => i !== idx))} className="text-[11px] font-semibold text-red-600 hover:underline">Remove</button>
+                      )}
+                    </div>
+                    <UploadField
+                      fileName={item.file_name}
+                      hasValue={!!item.file_url}
+                      onChange={(file) => {
+                        readFileAsDataUrl(file, (dataUrl) => {
+                          const next = [...tempDocInputs];
+                          next[idx] = { file_url: dataUrl, file_name: file?.name || "" };
+                          setTempDocInputs(next);
+                        });
+                      }}
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setTempDocInputs([...tempDocInputs, { file_url: "", file_name: "" }])}
+                  className="w-full rounded-xl border border-dashed border-slate-300 py-2.5 text-[12.5px] font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  + Add another temporary document
+                </button>
               </div>
             )}
 

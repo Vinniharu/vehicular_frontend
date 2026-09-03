@@ -211,6 +211,226 @@ const PARTICULARS_ITEM_STATUS_META = {
   approved: { label: "Approved", tone: "success" },
 };
 
+
+/* Tinted Permit Image Verification Check Card */
+function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
+  const [uploading, setUploading] = useState(false);
+  const [docUrlInput, setDocUrlInput] = useState("");
+  const [docFileName, setDocFileName] = useState("");
+  const [error, setError] = useState(null);
+  const [showReferenceModal, setShowReferenceModal] = useState(false);
+
+  const existingDoc = (application.documents || []).find((d) => d.doc_type === "face_verification_screenshot");
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocFileName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => reader.result && setDocUrlInput(String(reader.result));
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!docUrlInput) return;
+    setUploading(true);
+    setError(null);
+    const res = await uploadApplicationDocument(application.id, {
+      doc_type: "face_verification_screenshot",
+      file_url: docUrlInput,
+      screenshot_url: docUrlInput,
+    });
+    setUploading(false);
+    if (res.error) {
+      setError(res.error);
+    } else {
+      setDocUrlInput("");
+      setDocFileName("");
+      onUploaded();
+    }
+  };
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3 border-b border-emerald-100 pb-3">
+        <div>
+          <h3 className="text-[15px] font-bold text-emerald-900 flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Face / Image Verification Check
+          </h3>
+          <p className="mt-0.5 text-[12.5px] text-emerald-800">
+            Your assigned agent has sent the official verification check link for your Tinted Permit application.
+          </p>
+        </div>
+      </div>
+
+      {existingDoc && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-100/50 p-3.5 text-[13px] text-emerald-900">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="font-semibold">Screenshot Uploaded & Sent to Agent</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onViewDoc(resolveMediaUrl(existingDoc.file_url))}
+            className="inline-flex items-center gap-1.5 font-bold text-emerald-800 hover:underline"
+          >
+            View Uploaded Screenshot <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-3 rounded-xl border border-emerald-200 bg-white p-4">
+        <h4 className="text-[13px] font-bold text-slate-800 uppercase tracking-wide">Detailed Instructions:</h4>
+        <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700 leading-relaxed font-medium">
+          <li>Click the <strong>Open Verification Portal</strong> button below to go to the official POSSAP verification page.</li>
+          <li>Complete your face/image verification check on the portal.</li>
+          <li>
+            <strong>Take a full screenshot</strong> of the completed verification screen showing:
+            <ul className="list-disc list-inside ml-5 mt-1 text-[12px] text-slate-600 font-normal">
+              <li>"Image verification check is done!" message with the green checkmark</li>
+              <li>Your full name and match percentage (e.g. 99.95%)</li>
+              <li>The website URL (<code className="font-mono text-emerald-700">verification.possap.ng</code>) in your browser address bar</li>
+            </ul>
+          </li>
+          <li>Return to this dashboard and upload your screenshot below so your agent can process your permit.</li>
+        </ol>
+
+        {/* Reference Image Container */}
+        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-[12px] font-semibold text-slate-700 mb-2">Reference Example (Your screenshot should look like this):</p>
+          <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-black/5 max-w-xs cursor-pointer group" onClick={() => setShowReferenceModal(true)}>
+            <img src="/images/possap-verification-example.jpg" alt="POSSAP Verification Reference Example" className="max-h-48 w-auto object-contain transition-transform group-hover:scale-105" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="rounded-md bg-white px-2.5 py-1 text-[11px] font-bold text-slate-900 shadow">Click to Expand Example</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-2 flex flex-wrap items-center gap-3">
+          <a
+            href={application.verification_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[13px] font-bold text-white shadow-sm hover:bg-emerald-700 transition-all"
+          >
+            Open Verification Portal <ExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+
+      <form onSubmit={handleUpload} className="space-y-3 rounded-xl border border-emerald-200 bg-white p-4">
+        <label className="block text-[12.5px] font-bold text-slate-800">
+          {existingDoc ? "Re-upload Verification Screenshot" : "Upload Verification Screenshot *"}
+        </label>
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <label className="flex flex-1 cursor-pointer items-center justify-between rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3.5 py-2.5 text-[12.5px] text-slate-600 hover:border-emerald-500 hover:bg-emerald-50/20">
+            <span className="truncate">{docFileName || "Choose screenshot image..."}</span>
+            <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">
+              <Upload className="h-3 w-3" /> Browse
+            </span>
+            <input type="file" accept="image/*" onChange={handleFileChange} disabled={uploading} className="hidden" />
+          </label>
+          <button
+            type="submit"
+            disabled={uploading || !docUrlInput}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-bold text-white shadow-sm disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? "Uploading..." : "Upload Screenshot"}
+          </button>
+        </div>
+        {error && <p className="text-[12px] font-medium text-red-600">{error}</p>}
+      </form>
+
+      {showReferenceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowReferenceModal(false)}>
+          <div className="relative max-w-md w-full bg-white rounded-2xl p-4 shadow-2xl space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="text-[14px] font-bold text-slate-900">POSSAP Screenshot Reference</h4>
+              <button onClick={() => setShowReferenceModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <img src="/images/possap-verification-example.jpg" alt="Reference Full View" className="w-full max-h-[70vh] object-contain rounded-lg border" />
+            <p className="text-[12px] text-slate-600 text-center">Ensure your screenshot shows the match %, applicant name, and browser URL bar.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Tinted Permit Temporary Permit Documents Card */
+function TintedTemporaryPermitsCard({ application, onViewDoc }) {
+  const tempDocs = (application.documents || []).filter((d) =>
+    d.doc_type === "temporary_tinted_permit" || d.doc_type === "temporary_licence_card" || d.doc_type?.includes("temporary")
+  );
+
+  if (tempDocs.length === 0) return null;
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-violet-200 bg-violet-50/40 p-5 shadow-sm">
+      <div className="flex items-center justify-between border-b border-violet-100 pb-3">
+        <h3 className="text-[15px] font-bold text-violet-900 flex items-center gap-2">
+          <FileText className="h-5 w-5 text-violet-600" />
+          Temporary Permit Documents ({tempDocs.length})
+        </h3>
+      </div>
+
+      <div className="rounded-xl border border-violet-200 bg-white p-4 space-y-2">
+        <div className="flex items-start gap-2.5 text-[12.5px] text-violet-900 font-medium">
+          <CheckCircle2 className="h-4.5 w-4.5 text-violet-600 shrink-0 mt-0.5" />
+          <span>
+            <strong>Driving Description:</strong> You can print this temporary permit and use it to drive legally on public roads until your permanent permit is ready.
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        {tempDocs.map((doc, idx) => (
+          <div key={doc.id || idx} className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-white p-3.5 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 font-bold text-[12px]">
+                PDF
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[13.5px] font-bold text-slate-900">
+                  Temporary Tinted Permit #{idx + 1}
+                </p>
+                {doc.uploaded_at && (
+                  <p className="text-[11px] text-slate-500">
+                    Uploaded on {new Date(doc.uploaded_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onViewDoc(resolveMediaUrl(doc.file_url))}
+                className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-bold text-violet-700 hover:bg-violet-100"
+              >
+                View <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+              <a
+                href={resolveMediaUrl(doc.file_url)}
+                download={`temporary_tinted_permit_${application.id}_${idx + 1}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg bg-violet-700 px-3 py-1.5 text-[12px] font-bold text-white shadow-xs hover:bg-violet-800"
+              >
+                Download <Download className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ParticularsItemsSummary({ application, onViewDoc }) {
   const items = application.items || [];
   if (items.length === 0) return null;
@@ -2747,6 +2967,14 @@ export default function CustomerApplicationDetailsPage() {
           </div>
         </div>
       </div>
+
+      {application.application_type === "tinted_permit" && application.verification_link && (
+        <TintedVerificationCheckCard application={application} onViewDoc={setPreviewDocUrl} onUploaded={() => loadData(true)} />
+      )}
+
+      {application.application_type === "tinted_permit" && (
+        <TintedTemporaryPermitsCard application={application} onViewDoc={setPreviewDocUrl} />
+      )}
 
       {/* History */}
       {application.events && application.events.length > 0 && (
