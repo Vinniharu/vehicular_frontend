@@ -58,8 +58,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
   const [wholeVehicle, setWholeVehicle] = useState("mine");
   const [form, setForm] = useState({
     plate_number: "", make: "", model: "", year: "", mileage: "",
-    seller_name: "", seller_phone: "",
-    vehicle_category: "", state_id: "", lga_id: "",
+        vehicle_category: "", state_id: "", lga_id: "",
     location_address: "", preferred_date: todayPlusDaysIso(2), preferred_time: "",
     reason: "pre_purchase",
   });
@@ -135,10 +134,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     if (!form.make.trim()) errors.make = "Make is required.";
     if (!form.model.trim()) errors.model = "Model is required.";
     if (!form.year.trim()) errors.year = "Year is required.";
-    if (isThirdParty) {
-      if (!form.seller_name.trim()) errors.seller_name = "Seller/owner name is required.";
-      if (!form.seller_phone.trim()) errors.seller_phone = "Seller/owner phone is required.";
-    }
+
     return errors;
   };
 
@@ -189,8 +185,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       year: form.year.trim(),
       mileage: form.mileage.trim() || undefined,
       vehicle_category: form.vehicle_category,
-      seller_name: isThirdParty ? form.seller_name.trim() : undefined,
-      seller_phone: isThirdParty ? form.seller_phone.trim() : undefined,
+
       location_address: form.location_address.trim(),
       preferred_date: form.preferred_date,
       preferred_time: form.preferred_time.trim() || undefined,
@@ -338,24 +333,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
             </div>
           </div>
 
-          {isThirdParty && (
-            <div>
-              <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Seller / owner contact</h2>
-              <p className="mb-2 text-[12px] text-slate-500">Kept private from the inspector — only used to coordinate the visit.</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className={label}>Seller/owner name</label>
-                  <input className={`${inputBase} ${errInputClass(!!fieldErrors.seller_name)}`} name="seller_name" value={form.seller_name} onChange={handleChange} />
-                  <FieldError message={fieldErrors.seller_name} />
-                </div>
-                <div>
-                  <label className={label}>Seller/owner phone</label>
-                  <input className={`${inputBase} ${errInputClass(!!fieldErrors.seller_phone)}`} name="seller_phone" value={form.seller_phone} onChange={handleChange} />
-                  <FieldError message={fieldErrors.seller_phone} />
-                </div>
-              </div>
-            </div>
-          )}
+
 
           <div>
             <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">

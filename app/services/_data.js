@@ -298,8 +298,7 @@ export const SERVICES = [
       "Vehicle plate number, make, model, year, and mileage",
       "Vehicle category — tells the mechanic what to expect on site; it doesn't affect price",
       "The state, LGA, and address where the field mechanic should meet the vehicle",
-      "Seller/owner contact — if you're inspecting a vehicle you don't yet own",
-    ],
+          ],
     pricingNote: "Flat fee based on your state — not the vehicle's category. Vehicle category is collected just so the mechanic knows what to expect.",
     howItWorks: [
       { title: "Book the inspection", desc: "Vehicle details, category, meeting location, and your preferred date." },
