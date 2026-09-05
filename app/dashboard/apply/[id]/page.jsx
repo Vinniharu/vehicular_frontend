@@ -222,13 +222,20 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
 
   const existingDoc = (application.documents || []).find((d) => d.doc_type === "face_verification_screenshot");
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setDocFileName(file.name);
-    const reader = new FileReader();
-    reader.onloadend = () => reader.result && setDocUrlInput(String(reader.result));
-    reader.readAsDataURL(file);
+    setError(null);
+    setUploading(true);
+    const { data, error: uploadErr } = await uploadApplicationFile(file);
+    setUploading(false);
+    if (uploadErr || !data?.file_url) {
+      setError(uploadErr || "Upload failed. Please try again.");
+      setDocUrlInput("");
+      return;
+    }
+    setDocUrlInput(data.file_url);
   };
 
   const handleUpload = async (e) => {
@@ -578,6 +585,8 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   const [docUrl, setDocUrl] = useState("");
   const [docFileName, setDocFileName] = useState("");
   const [docPreview, setDocPreview] = useState("");
+  const [docUploading, setDocUploading] = useState(false);
+  const [docError, setDocError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -670,19 +679,40 @@ function ReapplyModal({ application, onClose, onSuccess }) {
     });
   }, [selectedOriginStateId, application.lga_of_origin]);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setDocFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => { setDocUrl(reader.result); setDocPreview(reader.result); };
-    reader.readAsDataURL(file);
+    setDocError(null);
+
+    // Provide local preview for images
+    if (file.type && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => setDocPreview(reader.result);
+      reader.readAsDataURL(file);
+    } else {
+      setDocPreview("");
+    }
+
+    setDocUploading(true);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    setDocUploading(false);
+    if (uploadError || !data?.file_url) {
+      setDocError(uploadError || "Upload failed. Please try again.");
+      setDocUrl("");
+      return;
+    }
+    setDocUrl(data.file_url);
   };
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (docUploading || passportPhotoUploading || simpleDocUploading) {
+      setError("Please wait for documents to finish uploading before submitting.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -1085,7 +1115,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {!docPreview ? (
+              {!docUrl && !docUploading ? (
                 <label
                   className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 transition-all hover:border-[#28A745] hover:bg-[rgba(40, 167, 69,0.04)]"
                 >
@@ -1094,7 +1124,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   </div>
                   <div className="text-center">
                     <p className="text-[13px] font-semibold text-slate-800">Click to upload document</p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">PNG, JPG, WEBP or PDF — up to 10MB</p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">PNG, JPG, WEBP or PDF – up to 10MB</p>
                   </div>
                   <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
                 </label>
@@ -1103,15 +1133,15 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                        <ImageIcon className="h-5 w-5" />
+                        {docUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-[13px] font-semibold text-[#111111]">{docFileName}</p>
-                        <p className="text-[11px] text-slate-400">Ready to attach</p>
+                        <p className="text-[11px] text-slate-400">{docUploading ? "Uploading to server…" : "Ready to attach"}</p>
                       </div>
                     </div>
-                    <button type="button" onClick={() => { setDocUrl(""); setDocFileName(""); setDocPreview(""); }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-[12px] font-medium text-red-600 hover:bg-red-50">
+                    <button type="button" disabled={docUploading} onClick={() => { setDocUrl(""); setDocFileName(""); setDocPreview(""); setDocError(null); }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-[12px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
                       <Trash2 className="h-3.5 w-3.5" /> Remove
                     </button>
                   </div>
@@ -1122,6 +1152,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   )}
                 </div>
               )}
+              {docError && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{docError}</p>}
             </div>
           </section>
           )}
@@ -1134,7 +1165,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             type="submit"
             form=""
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || docUploading || passportPhotoUploading || simpleDocUploading}
             className={`${btnPrimary} min-w-[160px]`}
             style={{ background: BRAND }}
           >
@@ -1976,13 +2007,19 @@ export default function CustomerApplicationDetailsPage() {
     setDownloadingCert(false);
   };
 
-  const handleCustomerFileChange = (e) => {
+  const handleCustomerFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setDocFileName(file.name);
-    const reader = new FileReader();
-    reader.onloadend = () => reader.result && setDocUrlInput(String(reader.result));
-    reader.readAsDataURL(file);
+    setUploadingDoc(true);
+    const { data, error: uploadErr } = await uploadApplicationFile(file);
+    setUploadingDoc(false);
+    if (uploadErr || !data?.file_url) {
+      setNotice({ type: "error", message: uploadErr || "Failed to upload document. Please try again." });
+      setDocUrlInput("");
+      return;
+    }
+    setDocUrlInput(data.file_url);
   };
 
   const loadData = async (isRefresh = false) => {
