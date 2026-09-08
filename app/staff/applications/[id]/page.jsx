@@ -403,7 +403,11 @@ export default function StaffApplicationDetailsPage() {
     try {
       await downloadStaffBiodataPdf(application.id);
     } catch (err) {
-      setClaimError(err?.message || "Could not generate the biodata PDF. Please try again.");
+      const message =
+        err?.message === "Failed to fetch"
+          ? "Could not connect to the server to download the biodata PDF. Please check your network connection or try again."
+          : (err?.message || "Could not generate the biodata PDF. Please try again.");
+      setClaimError(message);
     } finally {
       setDownloadingPdf(false);
     }
@@ -447,6 +451,10 @@ export default function StaffApplicationDetailsPage() {
   const verifSlipUrl =
     application.driving_school?.verification_image_url ||
     application.documents?.find((d) => d.doc_type === "driving_school_verification_slip" || d.doc_type === "driving_school_enrollment_screenshot" || d.doc_type === "driving_school_screenshot")?.file_url;
+  const passportPhotoUrl =
+    application.passport_photo ||
+    application.applicant_details?.passport_photo ||
+    application.documents?.find((d) => d.doc_type === "passport_photo")?.file_url;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-24">
@@ -458,14 +466,36 @@ export default function StaffApplicationDetailsPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-start gap-4">
-          {application.passport_photo ? (
-            <img
-              src={resolveMediaUrl(application.passport_photo)}
-              alt="Passport photo"
-              className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover"
-            />
+          {passportPhotoUrl ? (
+            <button
+              type="button"
+              onClick={() => setPreviewDocUrl(resolveMediaUrl(passportPhotoUrl))}
+              className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 transition-all hover:border-emerald-500 hover:ring-2 hover:ring-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              title="Click to view passport photograph"
+            >
+              <img
+                src={resolveMediaUrl(passportPhotoUrl)}
+                alt="Passport photo"
+                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  const fallback = e.currentTarget.parentElement?.querySelector(".photo-fallback-icon");
+                  if (fallback) fallback.classList.remove("hidden");
+                }}
+              />
+              <div className="photo-fallback-icon hidden flex flex-col items-center justify-center text-slate-400">
+                <ImageIcon className="h-6 w-6" />
+                <span className="text-[9px] font-medium mt-0.5">Photo</span>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <Eye className="h-5 w-5 text-white drop-shadow" />
+              </div>
+            </button>
           ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300">
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300"
+              title="No passport photograph uploaded"
+            >
               <ImageIcon className="h-6 w-6" />
             </div>
           )}

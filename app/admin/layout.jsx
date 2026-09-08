@@ -37,7 +37,7 @@ const ADMIN_NAV = [
     items: [
       { label: "Applications", href: "/admin/applications", icon: ClipboardList, desc: "Every application in the system and who's handling it" },
       { label: "Tickets", href: "/admin/tickets", icon: MessageCircle, desc: "Every support conversation and who's handling it" },
-      { label: "RWX Bays", href: "/admin/rwx/bays", icon: MapPin, desc: "Inspection bay locations, slot capacity, and assigned agents" },
+      // { label: "RWX Bays", href: "/admin/rwx/bays", icon: MapPin, desc: "Inspection bay locations, slot capacity, and assigned agents" },
       { label: "PCI Reference Photos", href: "/admin/pci-reference-images", icon: Camera, desc: "\"What good looks like\" comparison photos for the field mechanic's checklist" },
       { label: "Activity Log", href: "/admin/activity-log", icon: AlertTriangle, desc: "Real-time feed of customer-facing errors and failures" },
     ],

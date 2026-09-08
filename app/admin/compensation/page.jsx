@@ -1,7 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, AlertCircle, Pencil, X, Save, Loader2, Search, Wallet } from "lucide-react";
+import {
+  CheckCircle2,
+  AlertCircle,
+  Pencil,
+  X,
+  Save,
+  Loader2,
+  Search,
+  Wallet,
+  Car,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  RotateCcw,
+  ShieldCheck,
+  Check,
+} from "lucide-react";
 import {
   getAdminSettings,
   updateAdminSettings,
@@ -9,10 +26,14 @@ import {
   adminGetAgent,
   updateAgentCommission,
   bulkUpdateAgentCommission,
+  getAdminCompensation,
+  updateAdminCompensation,
 } from "@/lib/api";
+import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 
 const BRAND = "#28A745";
-const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
+const inputCls =
+  "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
 
 // The complete canonical compensation-type list — 11 keys, covering every
 // service that pays an agent (DL family + tinted permit + number plate +
@@ -21,12 +42,12 @@ const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border borde
 // and its PATCH does a wholesale dict replace, so saving it silently wiped
 // any global override ever set for tinted_permit or any particulars type.
 const COMPENSATION_TYPE_OPTIONS = [
-  { value: "fresh", label: "Fresh" },
-  { value: "renewal", label: "Renewal" },
-  { value: "reissue", label: "Reissue" },
+  { value: "fresh", label: "Fresh Driver's Licence" },
+  { value: "renewal", label: "Renewal Driver's Licence" },
+  { value: "reissue", label: "Reissue Driver's Licence" },
   { value: "international_permit", label: "International Permit" },
   { value: "tinted_permit", label: "Tinted Permit" },
-  { value: "number_plate", label: "Number Plate" },
+  { value: "number_plate", label: "Number Plate (Global Default)" },
   { value: "vehicle_licence", label: "Vehicle Particulars — Vehicle Licence" },
   { value: "road_worthiness", label: "Vehicle Particulars — Road Worthiness" },
   { value: "proof_of_ownership", label: "Vehicle Particulars — Proof of Ownership" },
@@ -34,7 +55,24 @@ const COMPENSATION_TYPE_OPTIONS = [
   { value: "hackney_permit", label: "Vehicle Particulars — Hackney Permit" },
 ];
 
+const PARTICULAR_DOC_TYPES = [
+  { key: "vehicle_licence", label: "Vehicle Licence", desc: "Annual vehicle licence registration & renewal" },
+  { key: "road_worthiness", label: "Road Worthiness", desc: "Inspection & roadworthiness renewal certificate" },
+  { key: "proof_of_ownership", label: "Proof of Ownership", desc: "Federal / State proof of vehicle ownership certificate" },
+  { key: "insurance_third_party", label: "Third-Party Insurance", desc: "Statutory third-party motor insurance policy" },
+  { key: "hackney_permit", label: "Hackney Permit", desc: "Commercial carriage permit for commercial vehicles" },
+];
+
+const NUMBER_PLATE_TYPES = [
+  { key: "number_plate_new", label: "New Number Plate", desc: "Standard new private or commercial plate issuance" },
+  { key: "number_plate_replacement", label: "Replacement Plate", desc: "Replacement for damaged, defaced, or lost plates" },
+  { key: "number_plate_change_of_ownership", label: "Change of Ownership", desc: "Plate transfer and vehicle reassignment" },
+  { key: "number_plate_fancy", label: "Fancy / Custom Plate", desc: "Personalized custom plate number issuance" },
+  { key: "number_plate_dealership", label: "Dealership Plate", desc: "Special commercial auto-dealer temporary plates" },
+];
+
 function koboToNaira(kobo) {
+  if (kobo == null) return "";
   return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
 }
 
@@ -52,16 +90,26 @@ function Avatar({ name }) {
 
 export default function AdminCompensationPage() {
   const [toast, setToast] = useState(null);
+  const [activeTab, setActiveTab] = useState("vehicle_type"); // "vehicle_type" | "global" | "agents"
+
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4500);
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-4xl">
+    <div className="space-y-6 pb-12 max-w-5xl">
       {toast && (
-        <div className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"}`}>
-          <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
+        <div
+          className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${
+            toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"
+          }`}
+        >
+          <div
+            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+              toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
+            }`}
+          >
             {toast.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           </div>
           <div className="flex-1 min-w-0">
@@ -79,19 +127,541 @@ export default function AdminCompensationPage() {
           className="text-[28px] tracking-tight text-[#111111]"
           style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
         >
-          Compensation
+          Compensation & Agent Settlement
         </h1>
         <p className="text-sm text-[#7A7A7A] mt-1">
-          Set what agents earn per completed job — a global default for all agents, plus per-agent overrides. Not connected to pricing.
+          Configure agent payouts per completed job. Set per-vehicle-type settlement for particulars renewal and plate numbers, global fallbacks, and individual agent overrides.
         </p>
       </div>
 
-      <GlobalDefaultsSection showToast={showToast} />
-      <PerAgentOverrideSection showToast={showToast} />
+      {/* Precedence Banner */}
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-[13px] text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4.5 w-4.5 text-[#28A745] shrink-0" />
+          <span>
+            <strong className="text-emerald-800 font-semibold">Settlement Priority:</strong> Agent Override &rarr;{" "}
+            <strong>Vehicle Type Settlement</strong> &rarr; Global Service Default &rarr; System Fallback
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 self-start overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab("vehicle_type")}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+          style={{
+            background: activeTab === "vehicle_type" ? "#fff" : "transparent",
+            color: activeTab === "vehicle_type" ? "#0f172a" : "#64748b",
+            boxShadow: activeTab === "vehicle_type" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <Car className="w-4 h-4 text-[#28A745]" />
+          Vehicle Type Settlement
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold bg-[#28A745]/10 text-[#28A745]">
+            10 Services
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("global")}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+          style={{
+            background: activeTab === "global" ? "#fff" : "transparent",
+            color: activeTab === "global" ? "#0f172a" : "#64748b",
+            boxShadow: activeTab === "global" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <FileText className="w-4 h-4 text-slate-500" />
+          Global Service Defaults
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("agents")}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+          style={{
+            background: activeTab === "agents" ? "#fff" : "transparent",
+            color: activeTab === "agents" ? "#0f172a" : "#64748b",
+            boxShadow: activeTab === "agents" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <Wallet className="w-4 h-4 text-slate-500" />
+          Per-Agent Overrides
+        </button>
+      </div>
+
+      {/* Tab Panels */}
+      {activeTab === "vehicle_type" && <VehicleTypeCompensationSection showToast={showToast} />}
+      {activeTab === "global" && <GlobalDefaultsSection showToast={showToast} />}
+      {activeTab === "agents" && <PerAgentOverrideSection showToast={showToast} />}
     </div>
   );
 }
 
+// ── 1. Vehicle Type Settlement Section (Vehicle Particulars & Number Plates) ──
+function VehicleTypeCompensationSection({ showToast }) {
+  const [loading, setLoading] = useState(true);
+  const [subFamily, setSubFamily] = useState("particulars"); // "particulars" | "plate"
+  const [cellMap, setCellMap] = useState({}); // `${service_key}|${vehicle_category ?? ""}` -> kobo
+  const [expandedKeys, setExpandedKeys] = useState(new Set(["vehicle_licence", "number_plate_new"]));
+  const [editingServiceKey, setEditingServiceKey] = useState(null);
+  const [draftValues, setDraftValues] = useState({});
+  const [quickFillVal, setQuickFillVal] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadCompensationData = async () => {
+    setLoading(true);
+    const res = await getAdminCompensation();
+    if (res.data && Array.isArray(res.data.items)) {
+      const mapping = {};
+      for (const item of res.data.items) {
+        const k = `${item.service_key}|${item.vehicle_category ?? ""}`;
+        mapping[k] = item.compensation_kobo;
+      }
+      setCellMap(mapping);
+    } else if (res.error) {
+      showToast("error", "Could not load vehicle category compensation grid.");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadCompensationData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleExpand = (key) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const startEditing = (serviceKey) => {
+    setEditingServiceKey(serviceKey);
+    setQuickFillVal("");
+    const drafts = {};
+    for (const cat of VEHICLE_CATEGORY_OPTIONS) {
+      const k = `${serviceKey}|${cat.value}`;
+      const kobo = cellMap[k];
+      drafts[cat.value] = kobo != null ? (kobo / 100).toString() : "";
+    }
+    // Category-agnostic fallback
+    const kNull = `${serviceKey}|`;
+    const koboNull = cellMap[kNull];
+    drafts[""] = koboNull != null ? (koboNull / 100).toString() : "";
+    setDraftValues(drafts);
+    setExpandedKeys((prev) => new Set([...prev, serviceKey]));
+  };
+
+  const cancelEditing = () => {
+    setEditingServiceKey(null);
+    setDraftValues({});
+    setQuickFillVal("");
+  };
+
+  const handleApplyQuickFill = () => {
+    if (quickFillVal === "") return;
+    setDraftValues((prev) => {
+      const updated = { ...prev };
+      for (const cat of VEHICLE_CATEGORY_OPTIONS) {
+        updated[cat.value] = quickFillVal;
+      }
+      return updated;
+    });
+  };
+
+  const handleClearAllDrafts = () => {
+    setDraftValues((prev) => {
+      const updated = {};
+      for (const cat of VEHICLE_CATEGORY_OPTIONS) {
+        updated[cat.value] = "";
+      }
+      updated[""] = "";
+      return updated;
+    });
+  };
+
+  const handleSaveService = async (serviceKey) => {
+    setSaving(true);
+    const payloadItems = [
+      ...VEHICLE_CATEGORY_OPTIONS.map((cat) => {
+        const strVal = draftValues[cat.value];
+        return {
+          service_key: serviceKey,
+          vehicle_category: cat.value,
+          compensation_kobo: strVal !== "" && strVal != null ? Math.round(parseFloat(strVal) * 100) : null,
+          is_active: true,
+        };
+      }),
+      {
+        service_key: serviceKey,
+        vehicle_category: null,
+        compensation_kobo: draftValues[""] !== "" && draftValues[""] != null ? Math.round(parseFloat(draftValues[""]) * 100) : null,
+        is_active: true,
+      },
+    ];
+
+    const res = await updateAdminCompensation(payloadItems);
+    setSaving(false);
+
+    if (res.error) {
+      showToast("error", "Failed to save settlement changes: " + res.error);
+      return;
+    }
+
+    // Update local state map from the returned items
+    if (res.data && Array.isArray(res.data.items)) {
+      setCellMap((prev) => {
+        const next = { ...prev };
+        for (const item of res.data.items) {
+          if (item.service_key === serviceKey) {
+            const k = `${item.service_key}|${item.vehicle_category ?? ""}`;
+            next[k] = item.compensation_kobo;
+          }
+        }
+        return next;
+      });
+    }
+
+    setEditingServiceKey(null);
+    showToast("success", "Settlement rates updated for " + serviceKey);
+  };
+
+  const activeServices = subFamily === "particulars" ? PARTICULAR_DOC_TYPES : NUMBER_PLATE_TYPES;
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E5E5E5] px-6 sm:px-8 py-12 flex items-center justify-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin" style={{ color: BRAND }} />
+        <p className="text-sm text-slate-500">Loading vehicle category settlement rates...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Sub-family Switcher */}
+      <div className="bg-white rounded-2xl border border-[#E5E5E5] p-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setSubFamily("particulars")}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+              subFamily === "particulars" ? "bg-[#28A745] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Vehicle Particulars Renewal
+            <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-bold ${subFamily === "particulars" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
+              5 Docs
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubFamily("plate")}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+              subFamily === "plate" ? "bg-[#28A745] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Car className="w-4 h-4" />
+            Plate Number Issuance
+            <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-bold ${subFamily === "plate" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
+              5 Types
+            </span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-slate-500 px-3">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+            Customized rate
+          </span>
+          <span className="flex items-center gap-1.5 ml-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+            Inherits fallback
+          </span>
+        </div>
+      </div>
+
+      {/* Service Cards List */}
+      <div className="space-y-4">
+        {activeServices.map((svc) => {
+          const isExpanded = expandedKeys.has(svc.key);
+          const isEditing = editingServiceKey === svc.key;
+
+          // Count how many categories have custom rates set
+          let customCount = 0;
+          for (const cat of VEHICLE_CATEGORY_OPTIONS) {
+            const k = `${svc.key}|${cat.value}`;
+            if (cellMap[k] != null) customCount++;
+          }
+          const hasFallbackCustom = cellMap[`${svc.key}|`] != null;
+
+          return (
+            <div key={svc.key} className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden transition-shadow hover:shadow-sm">
+              {/* Card Header */}
+              <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
+                    {subFamily === "particulars" ? <FileText className="h-5 w-5" /> : <Car className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h3 className="font-display text-base font-semibold text-[#111111]">{svc.label}</h3>
+                      {customCount > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                          <Check className="w-3 h-3" />
+                          {customCount} of 12 categories customized
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500">
+                          All 12 inherit fallback
+                        </span>
+                      )}
+                      {hasFallbackCustom && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                          Base: {koboToNaira(cellMap[`${svc.key}|`])}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{svc.desc}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                  {!isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(svc.key)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[#28A745] bg-[#28A745]/10 hover:bg-[#28A745]/15 transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit Rates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(svc.key)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveService(svc.key)}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#28A745] text-white hover:bg-[#218838] transition-colors disabled:opacity-60"
+                      >
+                        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        Save Rates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        disabled={saving}
+                        className="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Card Body Grid */}
+              {isExpanded && (
+                <div className="px-6 sm:px-8 py-6 space-y-6">
+                  {/* Quick Fill Tool in Edit Mode */}
+                  {isEditing && (
+                    <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[#28A745]" />
+                        <span className="font-semibold text-emerald-900">Batch Fill:</span>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">₦</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="100"
+                            placeholder="e.g. 5000"
+                            value={quickFillVal}
+                            onChange={(e) => setQuickFillVal(e.target.value)}
+                            className="pl-6 pr-3 py-1.5 w-32 rounded-lg bg-white border border-emerald-200 text-xs focus:outline-none focus:border-[#28A745]"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleApplyQuickFill}
+                          disabled={!quickFillVal}
+                          className="px-3 py-1.5 rounded-lg bg-[#28A745] text-white font-semibold hover:bg-[#218838] disabled:opacity-50 transition-colors"
+                        >
+                          Apply to All 12 Categories
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleClearAllDrafts}
+                        className="text-slate-500 hover:text-red-600 inline-flex items-center gap-1 font-medium transition-colors"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Reset All to Fallback
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 12 Vehicle Categories Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {VEHICLE_CATEGORY_OPTIONS.map((cat) => {
+                      const cellKey = `${svc.key}|${cat.value}`;
+                      const currentKobo = cellMap[cellKey];
+                      const draftVal = isEditing ? draftValues[cat.value] : null;
+
+                      return (
+                        <div
+                          key={cat.value}
+                          className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between gap-2.5 ${
+                            isEditing
+                              ? "bg-white border-slate-200 shadow-sm"
+                              : currentKobo != null
+                              ? "bg-emerald-50/40 border-emerald-200/80"
+                              : "bg-slate-50/60 border-slate-100"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12.5px] font-semibold text-slate-900 leading-snug">{cat.label}</span>
+                            {!isEditing && currentKobo != null && (
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Custom override active" />
+                            )}
+                          </div>
+
+                          {isEditing ? (
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">₦</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="100"
+                                value={draftVal || ""}
+                                onChange={(e) =>
+                                  setDraftValues((prev) => ({
+                                    ...prev,
+                                    [cat.value]: e.target.value,
+                                  }))
+                                }
+                                placeholder="Uses fallback"
+                                className="w-full pl-7 pr-7 py-1.5 rounded-lg text-[13px] bg-white border border-slate-200 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+                              />
+                              {draftVal && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDraftValues((prev) => ({
+                                      ...prev,
+                                      [cat.value]: "",
+                                    }))
+                                  }
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              {currentKobo != null ? (
+                                <span className="inline-flex items-center text-[13.5px] font-bold text-emerald-800">
+                                  {koboToNaira(currentKobo)}
+                                </span>
+                              ) : (
+                                <span className="text-[12px] text-slate-400 italic">Uses fallback</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Category-Agnostic Fallback Card */}
+                  <div className="pt-3 border-t border-dashed border-slate-200">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-blue-900 uppercase tracking-wide">Category-Agnostic Baseline Fallback</span>
+                        </div>
+                        <p className="text-[12px] text-slate-500 mt-0.5">
+                          Paid to agents for any vehicle category above that does not have its own custom rate configured.
+                        </p>
+                      </div>
+
+                      <div className="shrink-0">
+                        {isEditing ? (
+                          <div className="relative w-44">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-semibold">₦</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="100"
+                              value={draftValues[""] || ""}
+                              onChange={(e) =>
+                                setDraftValues((prev) => ({
+                                  ...prev,
+                                  "": e.target.value,
+                                }))
+                              }
+                              placeholder="System default"
+                              className="w-full pl-7 pr-7 py-1.5 rounded-lg text-[13px] bg-white border border-blue-200 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+                            />
+                            {draftValues[""] && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDraftValues((prev) => ({
+                                    ...prev,
+                                    "": "",
+                                  }))
+                                }
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-right">
+                            {cellMap[`${svc.key}|`] != null ? (
+                              <span className="text-sm font-bold text-blue-900">{koboToNaira(cellMap[`${svc.key}|`])}</span>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Inherits global default</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── 2. Global Defaults Section (Service-type and flat defaults) ───────────────
 function GlobalDefaultsSection({ showToast }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -150,7 +720,9 @@ function GlobalDefaultsSection({ showToast }) {
   };
 
   const handleCancel = () => {
-    setGlobalCommissionKobo(systemSettings?.default_agent_commission_kobo != null ? (systemSettings.default_agent_commission_kobo / 100).toString() : "");
+    setGlobalCommissionKobo(
+      systemSettings?.default_agent_commission_kobo != null ? (systemSettings.default_agent_commission_kobo / 100).toString() : ""
+    );
     seedByTypeCommission(systemSettings?.default_commission_by_type);
     setEditing(false);
   };
@@ -168,19 +740,37 @@ function GlobalDefaultsSection({ showToast }) {
     <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
       <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-base font-semibold text-[#111111]">Global Defaults</h2>
-          <p className="text-sm text-slate-500 mt-0.5">What every agent earns per completed job, unless they have their own override below.</p>
+          <h2 className="font-display text-base font-semibold text-[#111111]">Global Service Defaults</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Default compensation paid to agents per completed service type when no vehicle-type settlement or agent override applies.
+          </p>
         </div>
         {!editing ? (
-          <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors shrink-0">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
+          >
             <Pencil className="h-3.5 w-3.5" /> Edit
           </button>
         ) : (
           <div className="flex items-center gap-3 shrink-0">
-            <button type="button" onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60"
+            >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
             </button>
-            <button type="button" onClick={handleCancel} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]">Cancel</button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={saving}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]"
+            >
+              Cancel
+            </button>
           </div>
         )}
       </div>
@@ -198,7 +788,12 @@ function GlobalDefaultsSection({ showToast }) {
               />
             ) : (
               <p className="text-[15px] font-medium text-slate-800">
-                {byTypeCommission[opt.value] ? `₦${Number(byTypeCommission[opt.value]).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Uses fallback"}
+                {byTypeCommission[opt.value]
+                  ? `₦${Number(byTypeCommission[opt.value]).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`
+                  : "Uses fallback"}
               </p>
             )}
           </div>
@@ -215,7 +810,12 @@ function GlobalDefaultsSection({ showToast }) {
             />
           ) : (
             <p className="text-[15px] font-medium text-slate-800">
-              {globalCommissionKobo ? `₦${Number(globalCommissionKobo).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Built-in default"}
+              {globalCommissionKobo
+                ? `₦${Number(globalCommissionKobo).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`
+                : "Built-in default"}
             </p>
           )}
         </div>
@@ -224,6 +824,7 @@ function GlobalDefaultsSection({ showToast }) {
   );
 }
 
+// ── 3. Per-Agent Override Section ─────────────────────────────────────────────
 function PerAgentOverrideSection({ showToast }) {
   const [agents, setAgents] = useState([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
@@ -255,7 +856,10 @@ function PerAgentOverrideSection({ showToast }) {
 
   const q = query.toLowerCase();
   const filteredAgents = agents.filter(
-    (a) => a.name?.toLowerCase().includes(q) || a.email?.toLowerCase().includes(q) || a.agent_profile?.vio_office?.toLowerCase().includes(q)
+    (a) =>
+      a.name?.toLowerCase().includes(q) ||
+      a.email?.toLowerCase().includes(q) ||
+      a.agent_profile?.vio_office?.toLowerCase().includes(q)
   );
 
   const handleSelectAgent = async (agent) => {
@@ -292,7 +896,9 @@ function PerAgentOverrideSection({ showToast }) {
       return { ...profile, custom_commission_by_type: byType };
     };
     setSelectedAgent((prev) => ({ ...prev, agent_profile: applyUpdate(prev.agent_profile) }));
-    setAgents((list) => list.map((a) => (a.id === selectedAgent.id ? { ...a, agent_profile: applyUpdate(a.agent_profile) } : a)));
+    setAgents((list) =>
+      list.map((a) => (a.id === selectedAgent.id ? { ...a, agent_profile: applyUpdate(a.agent_profile) } : a))
+    );
     setEditingType(null);
     showToast("success", "Agent compensation updated.");
   };
@@ -303,10 +909,15 @@ function PerAgentOverrideSection({ showToast }) {
     const onlyNeverDisbursed = isAllTypes && bulkOnlyNeverDisbursed;
     const typeLabel = isAllTypes ? "all types (flat override)" : COMPENSATION_TYPE_OPTIONS.find((o) => o.value === bulkType)?.label;
     const scope = onlyNeverDisbursed ? "every agent who has never yet been disbursed" : "every agent";
-    const action = val === null ? `reset ${scope}'s ${typeLabel} compensation to the system default` : `set ${scope}'s ${typeLabel} compensation to ${koboToNaira(val)}`;
+    const action =
+      val === null
+        ? `reset ${scope}'s ${typeLabel} compensation to the system default`
+        : `set ${scope}'s ${typeLabel} compensation to ${koboToNaira(val)}`;
     const warning = onlyNeverDisbursed
       ? "agents who have already received at least one successful payout are left untouched, however low their current compensation is"
-      : isAllTypes ? "overwriting any individual overrides already in place" : "individual flat overrides and other types are left untouched";
+      : isAllTypes
+      ? "overwriting any individual overrides already in place"
+      : "individual flat overrides and other types are left untouched";
     if (!window.confirm(`This will ${action}, ${warning}. Continue?`)) return;
     setApplyingBulk(true);
     const res = await bulkUpdateAgentCommission(val, isAllTypes ? null : bulkType, onlyNeverDisbursed);
@@ -348,7 +959,12 @@ function PerAgentOverrideSection({ showToast }) {
         </div>
         <button
           type="button"
-          onClick={() => { setBulkVal(""); setBulkType(""); setBulkOnlyNeverDisbursed(false); setBulkOpen(true); }}
+          onClick={() => {
+            setBulkVal("");
+            setBulkType("");
+            setBulkOnlyNeverDisbursed(false);
+            setBulkOpen(true);
+          }}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#28A745] bg-[#28A745]/5 border border-[#28A745]/20 hover:bg-[#28A745]/10 transition-colors whitespace-nowrap shrink-0"
         >
           <Wallet className="h-3.5 w-3.5" />
@@ -382,7 +998,9 @@ function PerAgentOverrideSection({ showToast }) {
                 key={agent.id}
                 type="button"
                 onClick={() => handleSelectAgent(agent)}
-                className={`w-full flex items-center gap-3 px-6 sm:px-8 py-3 text-left transition-colors ${selectedAgent?.id === agent.id ? "bg-emerald-50" : "hover:bg-slate-50"}`}
+                className={`w-full flex items-center gap-3 px-6 sm:px-8 py-3 text-left transition-colors ${
+                  selectedAgent?.id === agent.id ? "bg-emerald-50" : "hover:bg-slate-50"
+                }`}
               >
                 <Avatar name={agent.name} />
                 <div className="min-w-0 flex-1">
@@ -390,7 +1008,9 @@ function PerAgentOverrideSection({ showToast }) {
                   <p className="text-[11px] text-slate-400 truncate">{agent.agent_profile?.vio_office || agent.email}</p>
                 </div>
                 {agent.agent_profile?.custom_commission_kobo != null && (
-                  <span className="text-[11px] font-semibold text-emerald-700 shrink-0">{koboToNaira(agent.agent_profile.custom_commission_kobo)}</span>
+                  <span className="text-[11px] font-semibold text-emerald-700 shrink-0">
+                    {koboToNaira(agent.agent_profile.custom_commission_kobo)}
+                  </span>
                 )}
               </button>
             ))
@@ -409,7 +1029,10 @@ function PerAgentOverrideSection({ showToast }) {
                 <Avatar name={selectedAgent.name} />
                 <div className="min-w-0">
                   <p className="text-[13.5px] font-bold text-slate-900 truncate">{selectedAgent.name}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{selectedAgent.email}{loadingDetail ? " · Loading…" : ""}</p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {selectedAgent.email}
+                    {loadingDetail ? " · Loading…" : ""}
+                  </p>
                 </div>
               </div>
 
@@ -439,10 +1062,18 @@ function PerAgentOverrideSection({ showToast }) {
                             placeholder="Default"
                           />
                         </div>
-                        <button onClick={handleSaveOverride} disabled={saving} className="px-2 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
+                        <button
+                          onClick={handleSaveOverride}
+                          disabled={saving}
+                          className="px-2 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70"
+                        >
                           {saving ? "…" : "Save"}
                         </button>
-                        <button onClick={() => setEditingType(null)} disabled={saving} className="px-2 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
+                        <button
+                          onClick={() => setEditingType(null)}
+                          disabled={saving}
+                          className="px-2 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium"
+                        >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -456,7 +1087,9 @@ function PerAgentOverrideSection({ showToast }) {
                 {editingType !== "flat" ? (
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-900">
-                      {selectedAgent.agent_profile?.custom_commission_kobo != null ? koboToNaira(selectedAgent.agent_profile.custom_commission_kobo) : "System Default"}
+                      {selectedAgent.agent_profile?.custom_commission_kobo != null
+                        ? koboToNaira(selectedAgent.agent_profile.custom_commission_kobo)
+                        : "System Default"}
                     </span>
                     <button onClick={() => startEditing("flat")} className="text-[#28A745] hover:text-[#218838]">
                       <Pencil className="w-3 h-3" />
@@ -475,10 +1108,18 @@ function PerAgentOverrideSection({ showToast }) {
                         placeholder="Default"
                       />
                     </div>
-                    <button onClick={handleSaveOverride} disabled={saving} className="px-2 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
+                    <button
+                      onClick={handleSaveOverride}
+                      disabled={saving}
+                      className="px-2 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70"
+                    >
                       {saving ? "…" : "Save"}
                     </button>
-                    <button onClick={() => setEditingType(null)} disabled={saving} className="px-2 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
+                    <button
+                      onClick={() => setEditingType(null)}
+                      disabled={saving}
+                      className="px-2 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium"
+                    >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -500,9 +1141,8 @@ function PerAgentOverrideSection({ showToast }) {
               <div>
                 <h3 className="text-[17px] font-bold text-slate-900">Set Compensation for All Agents</h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
-                  Applies one compensation value to every agent's next completed job for the chosen type. Choose
-                  "All types" to overwrite the flat fallback override, or pick a specific type to set just that
-                  one without touching flat overrides or other types.
+                  Applies one compensation value to every agent's next completed job for the chosen type. Choose "All types" to overwrite the
+                  flat fallback override, or pick a specific type to set just that one without touching flat overrides or other types.
                 </p>
               </div>
             </div>
@@ -511,12 +1151,17 @@ function PerAgentOverrideSection({ showToast }) {
                 <label className="block text-[12px] font-semibold text-slate-500 mb-1.5">Compensation Type</label>
                 <select
                   value={bulkType}
-                  onChange={(e) => { setBulkType(e.target.value); if (e.target.value !== "") setBulkOnlyNeverDisbursed(false); }}
+                  onChange={(e) => {
+                    setBulkType(e.target.value);
+                    if (e.target.value !== "") setBulkOnlyNeverDisbursed(false);
+                  }}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[14px] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
                 >
                   <option value="">All types (flat override)</option>
                   {COMPENSATION_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -529,9 +1174,8 @@ function PerAgentOverrideSection({ showToast }) {
                     className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
                   />
                   <span className="text-[12.5px] leading-relaxed text-slate-600">
-                    <span className="font-semibold text-slate-800">Only agents never yet disbursed.</span> Leaves anyone
-                    who has already received at least one successful payout untouched, no matter how low their
-                    current compensation is.
+                    <span className="font-semibold text-slate-800">Only agents never yet disbursed.</span> Leaves anyone who has already
+                    received at least one successful payout untouched, no matter how low their current compensation is.
                   </span>
                 </label>
               )}
@@ -550,10 +1194,21 @@ function PerAgentOverrideSection({ showToast }) {
               </div>
             </div>
             <div className="pt-5 flex items-center gap-3">
-              <button type="button" onClick={() => setBulkOpen(false)} disabled={applyingBulk} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60">
+              <button
+                type="button"
+                onClick={() => setBulkOpen(false)}
+                disabled={applyingBulk}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+              >
                 Cancel
               </button>
-              <button type="button" onClick={handleApplyBulk} disabled={applyingBulk} className="flex-1 rounded-xl px-4 py-3 text-[13.5px] font-semibold text-white transition-all disabled:opacity-70" style={{ background: "#28A745" }}>
+              <button
+                type="button"
+                onClick={handleApplyBulk}
+                disabled={applyingBulk}
+                className="flex-1 rounded-xl px-4 py-3 text-[13.5px] font-semibold text-white transition-all disabled:opacity-70"
+                style={{ background: "#28A745" }}
+              >
                 {applyingBulk ? "Applying..." : "Apply to All Agents"}
               </button>
             </div>
