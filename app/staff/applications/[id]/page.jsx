@@ -23,6 +23,8 @@ import {
   Info,
   UserCheck,
   Calendar,
+  Timer,
+  Flame,
 } from "lucide-react";
 import {
   getStaffApplication,
@@ -667,6 +669,83 @@ export default function StaffApplicationDetailsPage() {
           )}
         </div>
       </div>
+
+      {/* ─── Service SLA Countdown Banner ─── */}
+      {application.sla && (
+        <div className={`rounded-2xl border p-5 shadow-sm transition-all ${
+          application.sla.is_breached
+            ? "border-rose-300 bg-rose-50/75"
+            : application.sla.is_nearing
+            ? "border-amber-300 bg-amber-50/75"
+            : "border-slate-200 bg-white"
+        }`}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className={`rounded-xl p-2.5 shrink-0 ${
+                application.sla.is_breached
+                  ? "bg-rose-100 text-rose-600 animate-pulse"
+                  : application.sla.is_nearing
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+              }`}>
+                {application.sla.is_breached ? (
+                  <Flame className="h-6 w-6" />
+                ) : application.sla.is_nearing ? (
+                  <AlertTriangle className="h-6 w-6" />
+                ) : (
+                  <Timer className="h-6 w-6" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[15px] font-bold text-slate-900">
+                    SLA Countdown: {application.sla.service_name}
+                  </h3>
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                    application.sla.is_breached
+                      ? "bg-rose-600 text-white animate-pulse"
+                      : application.sla.is_nearing
+                      ? "bg-amber-500 text-white"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}>
+                    {application.sla.label}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Target turnaround: <strong className="text-slate-800">{application.sla.days_allocated} {application.sla.day_type === "business_days" ? "Working Days (Mon–Fri)" : "Calendar Days"}</strong> • Due by <strong className="text-slate-800">{new Date(application.sla.target_deadline).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="sm:text-right shrink-0">
+              <p className="text-xs font-semibold text-slate-500">Timeline Progress</p>
+              <p className="text-lg font-black font-mono text-slate-900">
+                {application.sla.days_elapsed} <span className="text-xs font-medium text-slate-400">/ {application.sla.days_allocated} days ({application.sla.percent_elapsed}%)</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-3.5 space-y-1">
+            <div className="h-2 w-full rounded-full bg-slate-200/80 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  application.sla.is_breached
+                    ? "bg-rose-600"
+                    : application.sla.is_nearing
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+                }`}
+                style={{ width: `${Math.min(100, application.sla.percent_elapsed)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[11px] text-slate-500 pt-0.5">
+              <span>Submitted: {new Date(application.sla.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+              <span className="font-semibold text-slate-700">{application.sla.days_remaining}d remaining</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Manual agent assignment — the common case, since auto-routing
           usually finds nobody in the matching LGA/state. Generic, not

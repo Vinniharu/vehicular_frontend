@@ -22,6 +22,8 @@ import {
   BarChart3,
   TrendingUp,
   ListFilter,
+  Timer,
+  Flame,
 } from "lucide-react";
 import { getStaffQueue } from "@/lib/api";
 
@@ -177,7 +179,15 @@ export default function StaffStatsDashboardPage() {
               to a field agent, sign off on finished jobs, and confirm dispatch details.
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+          <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-center">
+            <Link
+              href="/staff/countdown"
+              className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 px-4 py-2.5 text-[13px] font-bold text-rose-700 hover:bg-rose-100 transition-all shadow-sm"
+              title="View SLA Countdown and Breached Applications"
+            >
+              <Timer className="h-4 w-4 text-rose-600" />
+              <span>SLA Countdown / Breached</span>
+            </Link>
             <Link
               href="/staff/applications"
               className="inline-flex items-center gap-2 rounded-lg bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all shadow-sm"

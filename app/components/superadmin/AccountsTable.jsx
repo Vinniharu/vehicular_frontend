@@ -5,19 +5,29 @@ import {
   Search,
   Pencil,
   KeyRound,
+  Trash2,
+  AlertTriangle,
+  AlertOctagon,
+  ShieldAlert,
   X,
   CheckCircle2,
   AlertCircle,
   ChevronDown,
   Copy,
+  Wallet,
+  FileText,
 } from "lucide-react";
 import {
   superAdminGetUsers,
   superAdminUpdateUser,
   superAdminUpdateAgentProfile,
   superAdminSetUserPassword,
+  superAdminGetUserDeletionSummary,
+  superAdminDeleteUser,
   getReferenceStates,
   getReferenceLgas,
+  getCachedUser,
+  koboToNaira,
 } from "@/lib/api";
 import { AGENT_APPLICATION_TYPES } from "@/app/admin/_shared/agent-application-types";
 
@@ -79,6 +89,69 @@ export default function AccountsTable({ role, title, description }) {
   const [settingPassword, setSettingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
   const [passwordResult, setPasswordResult] = useState(null);
+
+  const currentUser = getCachedUser();
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSummary, setDeleteSummary] = useState(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [confirmCheckbox, setConfirmCheckbox] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  const openDeleteModal = async (account) => {
+    setDeleteTarget(account);
+    setConfirmEmail("");
+    setConfirmCheckbox(false);
+    setDeleteError(null);
+    setLoadingSummary(true);
+    setDeleteSummary(null);
+
+    const res = await superAdminGetUserDeletionSummary(account.id);
+    if (res?.data) {
+      setDeleteSummary(res.data);
+    } else {
+      setDeleteError(res?.error?.detail || "Could not fetch account deletion summary.");
+    }
+    setLoadingSummary(false);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteSummary(null);
+    setConfirmEmail("");
+    setConfirmCheckbox(false);
+    setDeleteError(null);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteTarget) return;
+    if (confirmEmail.trim().toLowerCase() !== deleteTarget.email.toLowerCase()) {
+      setDeleteError("Email does not match. Please enter the exact email address to confirm.");
+      return;
+    }
+    if (!confirmCheckbox) {
+      setDeleteError("Please check the box confirming you understand the permanent consequences.");
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await superAdminDeleteUser(deleteTarget.id);
+    setDeleting(false);
+
+    if (res?.error) {
+      setDeleteError(res.error?.detail || res.error?.message || "Failed to delete account.");
+    } else {
+      const deletedEmail = deleteTarget.email;
+      const count = res?.data?.deleted_applications_count || 0;
+      closeDeleteModal();
+      showToast("success", `Account ${deletedEmail} and ${count} connected application(s) were permanently deleted.`);
+      loadAccounts();
+    }
+  };
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -305,6 +378,16 @@ export default function AccountsTable({ role, title, description }) {
                         >
                           <KeyRound className="h-3.5 w-3.5" />
                           Reset Password
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openDeleteModal(account)}
+                          disabled={currentUser && currentUser.id === account.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={currentUser && currentUser.id === account.id ? "Cannot delete own account" : "Permanently delete account and all connected data"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -546,6 +629,205 @@ export default function AccountsTable({ role, title, description }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Delete Account Confirmation Modal ─── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl border border-rose-100">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-rose-100 px-6 py-4 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-slate-900">Delete User Account</h3>
+                  <p className="text-[11.5px] text-rose-600 font-medium">Permanent & Irreversible Purge</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-5">
+              {deleteError && (
+                <div className="rounded-xl p-3.5 flex items-start gap-2.5 text-[12.5px] bg-rose-50 border border-rose-200 text-rose-700">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              {/* Target Account Pill */}
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 flex items-center justify-between">
+                <div className="min-w-0 pr-3">
+                  <p className="text-[13px] font-bold text-slate-900 truncate">{deleteTarget.name}</p>
+                  <p className="text-[11.5px] font-mono text-slate-500 truncate">{deleteTarget.email}</p>
+                  {deleteTarget.phone && (
+                    <p className="text-[11px] font-mono text-slate-400 mt-0.5">{deleteTarget.phone}</p>
+                  )}
+                </div>
+                <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-slate-200 text-slate-700">
+                  {deleteTarget.role}
+                </span>
+              </div>
+
+              {loadingSummary ? (
+                <div className="py-8 text-center text-slate-500 text-[13px] flex flex-col items-center gap-2">
+                  <div className="h-6 w-6 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                  <span>Analyzing account dependencies and applications...</span>
+                </div>
+              ) : deleteSummary ? (
+                <>
+                  {!deleteSummary.can_delete ? (
+                    <div className="rounded-xl p-4 bg-amber-50 border border-amber-200 text-amber-800 text-[12.5px] space-y-1">
+                      <div className="flex items-center gap-2 font-bold text-amber-900">
+                        <AlertOctagon className="h-4 w-4 shrink-0" />
+                        Account Cannot Be Deleted
+                      </div>
+                      <p>{deleteSummary.reason || "This account is protected and cannot be deleted."}</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Impact Statistics */}
+                      <div>
+                        <p className="text-[12px] font-bold text-slate-700 uppercase tracking-wide mb-2">
+                          Impact Summary & Connected Data
+                        </p>
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                          <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3">
+                            <div className="flex items-center gap-1.5 text-rose-600 text-[11px] font-semibold mb-1">
+                              <FileText className="h-3.5 w-3.5" />
+                              Applications
+                            </div>
+                            <p className="text-[18px] font-extrabold text-slate-900">
+                              {deleteSummary.applications_count}
+                            </p>
+                            <p className="text-[10.5px] text-slate-500">Will be permanently deleted</p>
+                          </div>
+
+                          <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+                            <div className="flex items-center gap-1.5 text-amber-700 text-[11px] font-semibold mb-1">
+                              <Wallet className="h-3.5 w-3.5" />
+                              Wallet Balance
+                            </div>
+                            <p className="text-[16px] font-extrabold text-slate-900 font-mono">
+                              {koboToNaira(deleteSummary.wallet_balance_kobo)}
+                            </p>
+                            <p className="text-[10.5px] text-slate-500">Wallet will be destroyed</p>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 col-span-2 sm:col-span-1">
+                            <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-semibold mb-1">
+                              <ShieldAlert className="h-3.5 w-3.5" />
+                              Support & Vehicles
+                            </div>
+                            <p className="text-[18px] font-extrabold text-slate-900">
+                              {(deleteSummary.tickets_count || 0) + (deleteSummary.vehicles_count || 0)}
+                            </p>
+                            <p className="text-[10.5px] text-slate-500">Linked tickets & vehicles</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Consequences Notice */}
+                      <div className="rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-rose-900 space-y-1.5">
+                        <p className="text-[12px] font-bold flex items-center gap-1.5 text-rose-800">
+                          <AlertOctagon className="h-3.5 w-3.5 shrink-0" />
+                          What will happen when you confirm:
+                        </p>
+                        <ul className="text-[11.5px] text-rose-800/90 space-y-1 list-disc list-inside">
+                          <li>
+                            <strong>{deleteSummary.applications_count} application(s)</strong> and all related inspection records, documents, payment history, and messages will be completely purged from the database.
+                          </li>
+                          <li>
+                            The user login account, session tokens, vehicle records, and wallet balance will be destroyed.
+                          </li>
+                          <li>
+                            <strong>This action cannot be undone.</strong> There is no recovery or undo feature.
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Verification Input */}
+                      <div className="space-y-2 pt-1">
+                        <label className="block text-[12px] font-semibold text-slate-700">
+                          Type <span className="font-mono font-bold text-rose-600 select-all">{deleteTarget.email}</span> to confirm:
+                        </label>
+                        <input
+                          type="text"
+                          value={confirmEmail}
+                          onChange={(e) => setConfirmEmail(e.target.value)}
+                          placeholder={deleteTarget.email}
+                          disabled={deleting}
+                          className="w-full rounded-lg bg-slate-50 border border-slate-300 px-3.5 py-2.5 text-[13px] font-mono focus:border-rose-500 focus:bg-white focus:outline-none transition-colors"
+                        />
+                      </div>
+
+                      {/* Checkbox */}
+                      <label className="flex items-start gap-2.5 cursor-pointer pt-1 select-none">
+                        <input
+                          type="checkbox"
+                          checked={confirmCheckbox}
+                          onChange={(e) => setConfirmCheckbox(e.target.checked)}
+                          disabled={deleting}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 shrink-0"
+                        />
+                        <span className="text-[12px] text-slate-700 font-medium leading-snug">
+                          I acknowledge that I am permanently deleting this account and purging all associated applications and data without possibility of recovery.
+                        </span>
+                      </label>
+                    </>
+                  )}
+                </>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 rounded-b-2xl flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              {deleteSummary?.can_delete && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={
+                    deleting ||
+                    loadingSummary ||
+                    confirmEmail.trim().toLowerCase() !== deleteTarget.email.toLowerCase() ||
+                    !confirmCheckbox
+                  }
+                  className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting Account...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Permanently Delete Account
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

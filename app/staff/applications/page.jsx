@@ -13,6 +13,7 @@ import {
   CheckSquare,
   ArrowUpRight,
   UserCheck,
+  Timer,
 } from "lucide-react";
 import { getStaffQueue, staffClaimApplication, getCachedUser, koboToNaira } from "@/lib/api";
 
@@ -330,6 +331,18 @@ function StaffApplicationsQueueInner() {
                       {(app.application_type || "FRESH").replace(/_/g, " ")}
                     </span>
                     <StatusBadge status={app.status} />
+                    {app.sla && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                        app.sla.is_breached
+                          ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
+                          : app.sla.is_nearing
+                          ? "bg-amber-100 text-amber-700 border border-amber-200"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      }`}>
+                        <Timer className="h-3 w-3 shrink-0" />
+                        {app.sla.label} ({app.sla.days_elapsed}/{app.sla.days_allocated}d)
+                      </span>
+                    )}
                     {isPaid ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">
                         <CheckCircle2 className="h-3 w-3" />

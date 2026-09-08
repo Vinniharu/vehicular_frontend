@@ -22,6 +22,8 @@ import {
   AlertTriangle,
   Camera,
   Send,
+  Clock,
+  Timer,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -37,6 +39,8 @@ const ADMIN_NAV = [
     section: "Operations",
     items: [
       { label: "Applications", href: "/admin/applications", icon: ClipboardList, desc: "Every application in the system and who's handling it" },
+      { label: "SLA Countdown", href: "/admin/countdown", icon: Timer, desc: "Monitor active countdowns and SLA breaches" },
+      { label: "Deadlines & SLA", href: "/admin/deadlines", icon: Clock, desc: "Configure service delivery turnaround times and day types" },
       { label: "Tickets", href: "/admin/tickets", icon: MessageCircle, desc: "Every support conversation and who's handling it" },
       // { label: "RWX Bays", href: "/admin/rwx/bays", icon: MapPin, desc: "Inspection bay locations, slot capacity, and assigned agents" },
       { label: "PCI Reference Photos", href: "/admin/pci-reference-images", icon: Camera, desc: "\"What good looks like\" comparison photos for the field mechanic's checklist" },
