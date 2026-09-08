@@ -18,6 +18,7 @@ import {
   MapPin,
   Pencil,
   CheckCircle2,
+  Timer,
 } from "lucide-react";
 import { adminGetApplications, adminGetStaff, adminGetAgents, adminReassignStaff, adminReassignAgent } from "@/lib/api";
 
@@ -326,6 +327,7 @@ export default function AdminApplicationsPage() {
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Applicant</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Type</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">SLA / Deadline</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">LGA</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Assigned to</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Updated</th>
@@ -346,6 +348,22 @@ export default function AdminApplicationsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5"><StatusBadge status={app.status} /></td>
+                    <td className="px-4 py-3.5">
+                      {app.sla ? (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
+                          app.sla.is_breached
+                            ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
+                            : app.sla.is_nearing
+                            ? "bg-amber-100 text-amber-700 border border-amber-200"
+                            : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        }`}>
+                          <Timer className="h-3 w-3 shrink-0" />
+                          {app.sla.label} ({app.sla.days_elapsed}/{app.sla.days_allocated}d)
+                        </span>
+                      ) : (
+                        <span className="text-[11.5px] text-slate-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 text-[12.5px] text-slate-600">{app.lga || "—"}</td>
                     <td className="px-4 py-3.5">
                       <AssignmentPill assigned_staff={app.assigned_staff} assigned_agent={app.assigned_agent} />
@@ -411,6 +429,40 @@ export default function AdminApplicationsPage() {
                   {selected.payment_status || "unpaid"}
                 </span>
               </div>
+
+              {selected.sla && (
+                <div className={`rounded-xl border p-3.5 ${
+                  selected.sla.is_breached
+                    ? "border-rose-200 bg-rose-50/70"
+                    : selected.sla.is_nearing
+                    ? "border-amber-200 bg-amber-50/70"
+                    : "border-slate-200 bg-slate-50/70"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Timer className={`h-4 w-4 ${selected.sla.is_breached ? "text-rose-600" : selected.sla.is_nearing ? "text-amber-600" : "text-emerald-600"}`} />
+                      <span className="text-[12.5px] font-bold text-slate-900">
+                        SLA: {selected.sla.label}
+                      </span>
+                    </div>
+                    <span className="text-[11.5px] font-mono font-bold text-slate-700">
+                      {selected.sla.days_elapsed} / {selected.sla.days_allocated} {selected.sla.day_type === "business_days" ? "work days" : "days"}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        selected.sla.is_breached ? "bg-rose-600" : selected.sla.is_nearing ? "bg-amber-500" : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${Math.min(100, selected.sla.percent_elapsed)}%` }}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex justify-between text-[11px] text-slate-500">
+                    <span>Target: {new Date(selected.sla.target_deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    <span className="font-semibold">{selected.sla.days_remaining}d remaining</span>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
                 <div>

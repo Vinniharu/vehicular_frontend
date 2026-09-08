@@ -17,6 +17,7 @@ import {
   FileText,
   Settings,
   MapPin,
+  Timer,
 } from "lucide-react";
 import { getToken, removeToken, getCachedUser, setCachedUser, authGetMe, authSetPassword } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -34,6 +35,7 @@ const STAFF_NAV = [
     section: "Applications",
     items: [
       { label: "Review queue", href: "/staff/applications", icon: ShieldCheck },
+      { label: "SLA Countdown", href: "/staff/countdown", icon: Timer },
       { label: "RWX day queue", href: "/staff/rwx/queue", icon: MapPin },
     ],
   },
