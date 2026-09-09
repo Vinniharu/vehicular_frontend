@@ -671,7 +671,7 @@ export default function StaffApplicationDetailsPage() {
       </div>
 
       {/* ─── Service SLA Countdown Banner ─── */}
-      {application.sla && (
+      {isPaid && application.sla && (
         <div className={`rounded-2xl border p-5 shadow-sm transition-all ${
           application.sla.is_breached
             ? "border-rose-300 bg-rose-50/75"
@@ -740,7 +740,7 @@ export default function StaffApplicationDetailsPage() {
               />
             </div>
             <div className="flex justify-between text-[11px] text-slate-500 pt-0.5">
-              <span>Submitted: {new Date(application.sla.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+              <span>Started: {new Date(application.sla.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
               <span className="font-semibold text-slate-700">{application.sla.days_remaining}d remaining</span>
             </div>
           </div>

@@ -349,7 +349,7 @@ export default function AdminApplicationsPage() {
                     </td>
                     <td className="px-4 py-3.5"><StatusBadge status={app.status} /></td>
                     <td className="px-4 py-3.5">
-                      {app.sla ? (
+                      {(app.payment_status === "success" || app.payment_status === "paid") && app.sla ? (
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                           app.sla.is_breached
                             ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
@@ -430,7 +430,7 @@ export default function AdminApplicationsPage() {
                 </span>
               </div>
 
-              {selected.sla && (
+              {(selected.payment_status === "success" || selected.payment_status === "paid") && selected.sla && (
                 <div className={`rounded-xl border p-3.5 ${
                   selected.sla.is_breached
                     ? "border-rose-200 bg-rose-50/70"

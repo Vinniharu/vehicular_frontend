@@ -210,15 +210,15 @@ function StaffApplicationsQueueInner() {
         </div>
       </div>
 
-      {/* ─── Search Bar & Horizontal Status Tabs ─── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
+      {/* ─── Search Bar & Filter Dropdowns ─── */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div className="relative flex-1 min-w-[280px]">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter by ID, candidate name, or LGA..."
+            placeholder="Search by ID, candidate name, state, or LGA..."
             className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 shadow-sm transition-all"
           />
           {searchQuery && (
@@ -231,61 +231,56 @@ function StaffApplicationsQueueInner() {
           )}
         </div>
 
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-        >
-          <option value="all">All types</option>
-          <option value="fresh">Fresh</option>
-          <option value="renewal">Renewal</option>
-          <option value="reissue">Reissue</option>
-          <option value="international_permit">International Permit</option>
-          <option value="tinted_permit">Tinted Permit</option>
-          <option value="number_plate_new">Number Plate — New</option>
-          <option value="number_plate_replacement">Number Plate — Replacement</option>
-          <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
-          <option value="number_plate_fancy">Number Plate — Fancy</option>
-          <option value="number_plate_dealership">Number Plate — Dealership</option>
-          <option value="vehicle_particulars">Vehicle Particulars</option>
-          <option value="physical_condition_inspection">Physical Condition Inspection</option>
-        </select>
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+          {/* Status Types Dropdown */}
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-medium text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+          >
+            <option value="all">All Statuses ({counts.all})</option>
+            <option value="unclaimed">Unclaimed ({counts.unclaimed})</option>
+            <option value="mine">My Queue ({counts.mine})</option>
+            <option value="submitted">Awaiting Review ({counts.submitted})</option>
+            <option value="staff_review">Under Review ({counts.staff_review})</option>
+            <option value="driving_school">Driving School ({counts.driving_school})</option>
+            <option value="graduated">Ready to Route ({counts.graduated})</option>
+            <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
+            <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
+            <option value="flagged">Flagged ({counts.flagged})</option>
+          </select>
 
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-        >
-          <option value="updated_at">Recently updated</option>
-          <option value="id">ID number</option>
-          <option value="name">Applicant name</option>
-        </select>
+          {/* Service Type Filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+          >
+            <option value="all">All Types</option>
+            <option value="fresh">Fresh</option>
+            <option value="renewal">Renewal</option>
+            <option value="reissue">Reissue</option>
+            <option value="international_permit">International Permit</option>
+            <option value="tinted_permit">Tinted Permit</option>
+            <option value="number_plate_new">Number Plate — New</option>
+            <option value="number_plate_replacement">Number Plate — Replacement</option>
+            <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
+            <option value="number_plate_fancy">Number Plate — Fancy</option>
+            <option value="number_plate_dealership">Number Plate — Dealership</option>
+            <option value="vehicle_particulars">Vehicle Particulars</option>
+            <option value="physical_condition_inspection">Physical Condition Inspection</option>
+          </select>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
-          {[
-            { id: "all", label: `All (${counts.all})` },
-            { id: "unclaimed", label: `Unclaimed (${counts.unclaimed})` },
-            { id: "mine", label: `My Queue (${counts.mine})` },
-            { id: "submitted", label: `Awaiting (${counts.submitted})` },
-            { id: "staff_review", label: `Under Review (${counts.staff_review})` },
-            { id: "driving_school", label: `Driving School (${counts.driving_school})` },
-            { id: "graduated", label: `Ready to Route (${counts.graduated})` },
-            { id: "action_needed", label: `Needs Final Review (${counts.action_needed})` },
-            { id: "dispatch", label: `Needs Dispatch (${counts.dispatch})` },
-            { id: "flagged", label: `Flagged (${counts.flagged})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition-all shadow-sm ${
-                activeTab === tab.id
-                  ? "bg-[#28A745] text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {/* Sort By Filter */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+          >
+            <option value="updated_at">Recently updated</option>
+            <option value="id">ID number</option>
+            <option value="name">Applicant name</option>
+          </select>
         </div>
       </div>
 
@@ -298,23 +293,24 @@ function StaffApplicationsQueueInner() {
       )}
 
       {/* ─── Applications List ─── */}
-      <div className="space-y-3.5">
+      <div className="space-y-3">
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center space-y-3 shadow-sm">
-            <Loader2 className="h-8 w-8 animate-spin text-[#28A745] mx-auto" />
-            <p className="text-sm text-slate-500 font-medium">Loading application queue…</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#28A745]" />
+            <p className="mt-3 text-sm font-semibold text-slate-800">Loading applications queue…</p>
+            <p className="mt-1 text-xs text-slate-500">Fetching live review statuses, docs, and dispatch states.</p>
           </div>
         ) : filteredApps.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center space-y-2 shadow-sm">
-            <CheckSquare className="h-10 w-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-900">No Applications Found</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              No applications match your current search query or active filter tab.
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <CheckSquare className="mx-auto h-12 w-12 text-slate-300" />
+            <p className="mt-3 text-[15px] font-bold text-slate-800">No applications match this filter</p>
+            <p className="mt-1 text-[13px] text-slate-500">
+              Try choosing another status from the dropdown or resetting your search term.
             </p>
           </div>
         ) : (
           filteredApps.map((app) => {
-            const isPaid = app.payment_status === "success";
+            const isPaid = (app.payment_status === "success" || app.payment_status === "paid") && (!app.remaining_kobo || app.remaining_kobo <= 0);
             const isUnclaimed = !app.staff_id;
             const isMine = app.staff_id === currentUser?.id;
 
@@ -331,7 +327,7 @@ function StaffApplicationsQueueInner() {
                       {(app.application_type || "FRESH").replace(/_/g, " ")}
                     </span>
                     <StatusBadge status={app.status} />
-                    {app.sla && (
+                    {isPaid && app.sla && (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                         app.sla.is_breached
                           ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
