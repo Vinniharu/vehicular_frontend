@@ -192,7 +192,7 @@ function RequirementsPreviewInner() {
         </section>
       )}
 
-      {spec.notes?.length > 0 && (
+      {/* {spec.notes?.length > 0 && (
         <section className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
           <div className="mb-1.5 flex items-center gap-2">
             <Info className="h-3.5 w-3.5 text-slate-400" />
@@ -206,7 +206,7 @@ function RequirementsPreviewInner() {
             ))}
           </ul>
         </section>
-      )}
+      )} */}
 
       {!existingDraft && (
         <button type="button" onClick={() => router.push(startUrl)} className={`${btnPrimary} w-full sm:w-auto`} style={{ background: BRAND }}>
