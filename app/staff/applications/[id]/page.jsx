@@ -12,6 +12,7 @@ import {
   ExternalLink,
   ArrowLeft,
   Building,
+  Building2,
   X,
   Loader2,
   RefreshCw,
@@ -173,13 +174,13 @@ export default function StaffApplicationDetailsPage() {
 
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
 
-  // Manual agent assignment — for applications stuck at "routed" with no
-  // assignee (the common case, since auto-routing usually finds nobody).
+  // Manual agent assignment & reassignment
   const [eligibleAgents, setEligibleAgents] = useState([]);
   const [loadingEligibleAgents, setLoadingEligibleAgents] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState(null);
+  const [showReassign, setShowReassign] = useState(false);
 
   // tinted_permit only — the linked vehicle's details, shown in place of
   // the licence-class/driving-school fields that don't apply.
@@ -240,7 +241,7 @@ export default function StaffApplicationDetailsPage() {
         if (res.data) setVehicle(res.data);
       });
     }
-    if (application.status === "routed" && !application.assigned_agent_id) {
+    if (application.status === "routed" || ["agent_assigned", "agent_accepted"].includes(application.status)) {
       setLoadingEligibleAgents(true);
       staffGetEligibleAgents(appId).then((res) => {
         if (res.data) setEligibleAgents(res.data);
@@ -250,21 +251,23 @@ export default function StaffApplicationDetailsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [application?.id, application?.status, application?.vehicle_id]);
 
-  const handleAssignAgent = async () => {
-    if (!selectedAgentId) {
+  const handleAssignAgent = async (agentIdToUse = selectedAgentId) => {
+    if (!agentIdToUse) {
       setAssignError("Pick an agent first.");
       return;
     }
     setAssigning(true);
     setAssignError(null);
-    const res = await staffAssignAgent(appId, Number(selectedAgentId));
+    const res = await staffAssignAgent(appId, Number(agentIdToUse));
     setAssigning(false);
     if (res.error) {
       setAssignError(res.error);
       return;
     }
-    setNoticeMessage("Agent assigned successfully.");
+    setNoticeMessage(application?.assigned_agent_id ? "Agent reassigned successfully." : "Agent assigned successfully.");
     setModalType("notice");
+    setShowReassign(false);
+    setSelectedAgentId("");
     await loadDetail(true);
   };
 
@@ -747,16 +750,14 @@ export default function StaffApplicationDetailsPage() {
         </div>
       )}
 
-      {/* Manual agent assignment — the common case, since auto-routing
-          usually finds nobody in the matching LGA/state. Generic, not
-          tinted_permit-special-cased. */}
+      {/* Manual agent assignment — when routed with no agent assigned */}
       {application.status === "routed" && !application.assigned_agent_id && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
           <h3 className="flex items-center gap-2 text-[14px] font-bold text-amber-900">
             <UserCheck className="h-4.5 w-4.5" /> No agent auto-matched — assign one manually
           </h3>
           <p className="mt-1 text-[13px] text-amber-800 leading-relaxed">
-            Routing didn't find an eligible agent automatically. Pick one below to assign this application directly.
+            Routing didn't find an eligible agent automatically. Pick an agent below to assign this application directly (showing all available agents across states and LGAs).
           </p>
 
           {loadingEligibleAgents ? (
@@ -765,29 +766,130 @@ export default function StaffApplicationDetailsPage() {
             </p>
           ) : eligibleAgents.length === 0 ? (
             <p className="mt-3 text-[12.5px] text-amber-700">
-              No eligible agents found. {application.application_type === "tinted_permit" ? "Make sure at least one agent has opted into tinted_permit and is active in this state." : application.application_type?.startsWith("number_plate_") ? "Make sure at least one agent has opted into number_plate and is active in this state." : "Make sure at least one active agent covers this LGA."}
+              No eligible agents found capable of handling {(application.application_type || "this service").replace(/_/g, " ")}.
             </p>
           ) : (
             <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <select
                 value={selectedAgentId}
                 onChange={(e) => setSelectedAgentId(e.target.value)}
-                className="rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/15"
+                className="w-full sm:w-auto flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/15"
               >
                 <option value="">Select an agent…</option>
                 {eligibleAgents.map((a) => (
                   <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
-                    Agent #{a.agent_id} — {a.vio_office} ({a.state}{a.lga ? ` / ${a.lga}` : ""}){!a.has_bank_account ? " — no bank account on file" : ""}
+                    Agent #{a.agent_id} — {a.name ? `${a.name} • ` : ""}{a.state} / {a.lga} ({a.vio_office}){a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
                   </option>
                 ))}
               </select>
-              <button onClick={handleAssignAgent} disabled={assigning || !selectedAgentId} className={btnPrimary} style={{ background: BRAND }}>
+              <button onClick={() => handleAssignAgent()} disabled={assigning || !selectedAgentId} className={btnPrimary} style={{ background: BRAND }}>
                 {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Assign agent
               </button>
             </div>
           )}
           {assignError && <p className="mt-2 text-[12.5px] font-medium text-red-600">{assignError}</p>}
+        </div>
+      )}
+
+      {/* Assigned Agent Card & Reassignment */}
+      {application.assigned_agent_id && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 border border-emerald-100 shrink-0">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[14px] font-bold text-slate-900">
+                    Assigned Agent: Agent #{application.assigned_agent?.agent_id || application.assigned_agent_id}
+                    {application.assigned_agent?.name ? ` — ${application.assigned_agent.name}` : ""}
+                  </h4>
+                  <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 uppercase">
+                    Assigned
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[12.5px] text-slate-600">
+                  Location: <strong className="text-slate-800">{application.assigned_agent?.state || "—"} / {application.assigned_agent?.lga || "—"}</strong> • Office: <strong className="text-slate-800">{application.assigned_agent?.vio_office || "—"}</strong>
+                  {application.assigned_agent?.phone && ` • Phone: ${application.assigned_agent.phone}`}
+                </p>
+              </div>
+            </div>
+
+            {["routed", "agent_assigned", "agent_accepted"].includes(application.status) && (
+              <div className="shrink-0">
+                {!showReassign ? (
+                  <button
+                    onClick={() => {
+                      setShowReassign(true);
+                      if (eligibleAgents.length === 0) {
+                        setLoadingEligibleAgents(true);
+                        staffGetEligibleAgents(appId).then((res) => {
+                          if (res.data) setEligibleAgents(res.data);
+                          setLoadingEligibleAgents(false);
+                        });
+                      }
+                    }}
+                    className={btnSecondary}
+                    style={{ padding: "0.5rem 0.85rem", fontSize: "12.5px" }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Reassign to Another Agent
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowReassign(false);
+                      setAssignError(null);
+                    }}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 underline"
+                  >
+                    Cancel reassignment
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {showReassign && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="text-[12.5px] font-medium text-slate-700 mb-2">
+                Select a different agent to route this customer to (showing all available agents across states &amp; LGAs):
+              </p>
+              {loadingEligibleAgents ? (
+                <p className="flex items-center gap-2 text-[12.5px] text-slate-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading available agents…
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                  <select
+                    value={selectedAgentId}
+                    onChange={(e) => setSelectedAgentId(e.target.value)}
+                    className="w-full sm:w-auto flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+                  >
+                    <option value="">Select an agent…</option>
+                    {eligibleAgents
+                      .filter((a) => a.agent_id !== application.assigned_agent_id)
+                      .map((a) => (
+                        <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
+                          Agent #{a.agent_id} — {a.name ? `${a.name} • ` : ""}{a.state} / {a.lga} ({a.vio_office}){a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    onClick={() => handleAssignAgent()}
+                    disabled={assigning || !selectedAgentId}
+                    className={btnPrimary}
+                    style={{ background: BRAND }}
+                  >
+                    {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Confirm Reassignment
+                  </button>
+                </div>
+              )}
+              {assignError && <p className="mt-2 text-[12.5px] font-medium text-red-600">{assignError}</p>}
+            </div>
+          )}
         </div>
       )}
 
@@ -1453,7 +1555,7 @@ export default function StaffApplicationDetailsPage() {
                     <div className="rounded-xl border border-slate-200 p-5 bg-slate-50/50">
                       <div className="mb-4 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                         <span className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" /> Countdown to graduation
+                          <Clock className="h-3.5 w-3.5" /> 26-day certificate countdown
                         </span>
                         <span className={timeLeft.expired ? "text-emerald-600 font-bold" : "text-slate-400 font-bold"}>
                           {timeLeft.expired ? "Complete" : "In progress"}
@@ -1462,7 +1564,7 @@ export default function StaffApplicationDetailsPage() {
 
                       {timeLeft.expired || application.status === "driving_school_certificate_ready" ? (
                         <div className="rounded-lg bg-emerald-50 p-4 text-center ring-1 ring-inset ring-emerald-200 shadow-sm">
-                          <p className="text-[13.5px] font-bold text-emerald-800">Training period complete</p>
+                          <p className="text-[13.5px] font-bold text-emerald-800">26-day waiting period complete</p>
                           <p className="mt-1 text-[12px] text-emerald-700">Ready to route to a field agent.</p>
                         </div>
                       ) : (

@@ -73,7 +73,7 @@ export default function PaymentOptions({
         <p className="mb-1.5 text-[11.5px] font-semibold text-slate-600">How would you like to pay?</p>
         <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
           <button type="button" onClick={() => setMethod("card")} className={segBtn(method === "card")}>
-            Pay with Monnify
+            Pay with Card or Transfer
           </button>
           <button type="button" onClick={() => setMethod("wallet")} className={segBtn(method === "wallet")}>
             Wallet
@@ -161,7 +161,7 @@ export default function PaymentOptions({
           ? "Processing…"
           : method === "wallet"
           ? `Pay ${koboToNaira(amountKobo || 0)} from wallet`
-          : `Pay ${koboToNaira(amountKobo || 0)} with Monnify`}
+          : `Pay ${koboToNaira(amountKobo || 0)} with Card or Transfer`}
       </button>
     </div>
   );
