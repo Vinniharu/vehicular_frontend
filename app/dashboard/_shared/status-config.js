@@ -80,9 +80,9 @@ export function statusMeta(status) {
 
 const STATUS_DESCRIPTIONS = {
   submitted: "Application form and documents submitted; awaiting payment verification.",
-  driving_school_enrolled: "Enrolled in accredited driving school training.",
-  driving_school_certificate_ready: "Driving school completed and certificate ready.",
-  driving_school_graduated: "Driving school training completed; transitioning to the next stage.",
+  driving_school_enrolled: "Enrolled in driving school in accordance with statutory regulations (26 working days).",
+  driving_school_certificate_ready: "Driving school certificate ready.",
+  driving_school_graduated: "Driving school certificate ready; transitioning to the next stage.",
   routed: "Verified and routed to an agent in your LGA.",
   agent_assigned: "An agent has accepted your file and is processing it.",
   agent_accepted: "An agent has accepted your file and is processing it.",
@@ -165,8 +165,8 @@ export function getStatusDescription(status, applicationType) {
 const NEXT_STEP_FRESH = {
   submitted: "Your application is waiting for staff to review it.",
   staff_review: "Staff are checking your documents now.",
-  driving_school_enrolled: "You're enrolled in driving school — see your countdown below.",
-  driving_school_certificate_ready: "School's done. Your file is being routed to an agent.",
+  driving_school_enrolled: "Enrolled in driving school in accordance with the law (26 working days) — see countdown below.",
+  driving_school_certificate_ready: "Certificate is ready. Your file is being routed to an agent.",
   routed: "An agent in your LGA has been offered your case.",
   agent_accepted: "An agent has accepted and will schedule your biometric capture soon.",
   capture_scheduled: "Your capture appointment is booked — check the date below.",

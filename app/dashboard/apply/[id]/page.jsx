@@ -2841,7 +2841,7 @@ export default function CustomerApplicationDetailsPage() {
             {walletBalance < (partialPaymentAllowed ? Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) : remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
-                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Monnify above.
+                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Card or Transfer above.
               </p>
             )}
           </div>
@@ -2879,7 +2879,7 @@ export default function CustomerApplicationDetailsPage() {
             {walletBalance < (partialPaymentAllowed ? Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) : remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
-                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Monnify above.
+                <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Card or Transfer above.
               </p>
             )}
           </div>
@@ -2899,7 +2899,7 @@ export default function CustomerApplicationDetailsPage() {
                 {application.driving_school?.name || "Accredited partner driving academy"}
               </h4>
               <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-                You're completing your required instruction with an accredited academy. Once your certificate is confirmed, your application routes straight to an agent in{" "}
+                Enrolled in driving school in accordance with the law. It takes 26 working days before the certificate is ready. Once your certificate is confirmed, your application routes straight to an agent in{" "}
                 <strong className="text-slate-800">{application.lga || "your LGA"}</strong> to schedule your biometric capture.
               </p>
               {application.driving_school?.instructions && (
@@ -2917,7 +2917,7 @@ export default function CustomerApplicationDetailsPage() {
               </div>
               {timeLeft.expired || application.status === "driving_school_certificate_ready" ? (
                 <div className="rounded-lg bg-emerald-50 p-3.5 text-center ring-1 ring-inset ring-emerald-200">
-                  <p className="text-[13.5px] font-semibold text-emerald-800">Your training period is complete</p>
+                  <p className="text-[13.5px] font-semibold text-emerald-800">Driving school requirement complete</p>
                   <p className="mt-0.5 text-[12px] text-emerald-700">We're confirming your certificate and routing your case to an agent now.</p>
                 </div>
               ) : (

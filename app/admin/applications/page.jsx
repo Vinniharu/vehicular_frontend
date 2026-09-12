@@ -548,7 +548,7 @@ export default function AdminApplicationsPage() {
                         .filter((a) => a.agent_profile?.id)
                         .map((a) => (
                           <option key={a.agent_profile.id} value={a.agent_profile.id}>
-                            {a.name} — {a.agent_profile.vio_office || "no VIO office"}
+                            Agent #{a.agent_profile.id} — {a.name} ({a.agent_profile.state || ""}{a.agent_profile.lga ? ` / ${a.agent_profile.lga}` : ""} • {a.agent_profile.vio_office})
                           </option>
                         ))}
                     </select>
