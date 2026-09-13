@@ -21,7 +21,7 @@ export default function Footer({ redirectTo }) {
               </span>
             </div>
             <p className="mt-4 text-[13px] leading-relaxed text-white/45 max-w-xs">
-              Everything your car needs — handled end-to-end, delivered nationwide. Vehiculars is a startup and subsidiary under Mimhel.
+              Everything your car needs — handled end-to-end, delivered nationwide. Vehiculars is a startup and subsidiary under MIMHEL ENGINEERING AND CONTRUCTION LTD.
             </p>
           </div>
           <div>
@@ -61,7 +61,7 @@ export default function Footer({ redirectTo }) {
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-8 md:flex-row" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
           <p className="text-[12px] text-white/35">
-            &copy; {new Date().getFullYear()} Vehiculars. All rights reserved. Vehiculars is a subsidiary under Mimhel.
+            &copy; {new Date().getFullYear()} Vehiculars. All rights reserved. Vehiculars is a subsidiary under MIMHEL ENGINEERING AND CONTRUCTION LTD.
           </p>
           <p className="text-[12px] text-white/35">Made in Nigeria</p>
         </div>
