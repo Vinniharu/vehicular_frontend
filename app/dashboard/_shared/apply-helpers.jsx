@@ -79,6 +79,9 @@ export function paymentStatusMeta(app) {
   const s = app.payment_status || app.payment_options?.payment_status;
   if (s === "success" || s === "paid") return { label: "Paid", tone: "success", needsRetry: false };
   if (s === "abandoned" || s === "failed") return { label: "Payment Failed / Retry", tone: "danger", needsRetry: true };
+  if ((app.payment_options?.amount_paid_kobo || 0) > 0) {
+    return { label: "Partially Paid", tone: "warning", needsRetry: false };
+  }
   return { label: "Payment Due", tone: "warning", needsRetry: false };
 }
 
