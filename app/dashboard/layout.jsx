@@ -218,7 +218,7 @@ export default function DashboardLayout({ children }) {
           </div>
 
           <p className="mt-3 px-3 text-[10px] text-white/20 leading-relaxed">
-            © Vehiculars 2026. All rights reserved.
+            © Vehiculars 2026. A subsidiary of MIMHEL ENGINEERING AND CONTRUCTION LTD. All rights reserved.
           </p>
         </div>
       </aside>

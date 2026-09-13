@@ -77,7 +77,8 @@ export default function PrivacyPolicyPage() {
         <div className="mx-auto max-w-2xl pt-12">
           <Section title="Who we are">
             <p>
-              Vehiculars ("Vehiculars", "we", "us") provides driver's licence, vehicle particulars, number
+              Vehiculars ("Vehiculars", "we", "us") is a technology startup and subsidiary operated under
+              its parent company, <strong>MIMHEL ENGINEERING AND CONTRUCTION LTD</strong> (Mimhel). Vehiculars provides driver's licence, vehicle particulars, number
               plate, roadworthiness, and related vehicle-document services in Nigeria, delivered through our
               website and mobile app. This policy explains what personal data we collect when you use either,
               and how we handle it.

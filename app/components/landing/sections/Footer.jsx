@@ -14,9 +14,14 @@ export default function Footer({ redirectTo }) {
       <div className="mx-auto max-w-6xl">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <span className="font-display text-[18px] font-medium text-white">Vehiculars</span>
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[18px] font-medium text-white">Vehiculars</span>
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase" style={{ background: "rgba(40, 167, 69, 0.15)", color: GREEN, border: `1px solid ${GREEN}30` }}>
+                A Mimhel Subsidiary
+              </span>
+            </div>
             <p className="mt-4 text-[13px] leading-relaxed text-white/45 max-w-xs">
-              Everything your car needs — handled end-to-end, delivered nationwide.
+              Everything your car needs — handled end-to-end, delivered nationwide. Vehiculars is a startup and subsidiary under MIMHEL ENGINEERING AND CONTRUCTION LTD.
             </p>
           </div>
           <div>
@@ -55,7 +60,9 @@ export default function Footer({ redirectTo }) {
           </div>
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t pt-8 md:flex-row" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <p className="text-[12px] text-white/35">&copy; {new Date().getFullYear()} Vehiculars. All rights reserved.</p>
+          <p className="text-[12px] text-white/35">
+            &copy; {new Date().getFullYear()} Vehiculars. All rights reserved. Vehiculars is a subsidiary under MIMHEL ENGINEERING AND CONTRUCTION LTD.
+          </p>
           <p className="text-[12px] text-white/35">Made in Nigeria</p>
         </div>
       </div>
