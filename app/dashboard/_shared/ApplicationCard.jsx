@@ -30,6 +30,7 @@ export default function ApplicationCard({ app, walletBalance, payingFromWallet, 
   // estimates a 4th time in a shared component.
   const amountKobo = payOpts?.amount_kobo ?? (items ? items.reduce((sum, i) => sum + i.price_kobo, 0) : null);
   const remainingKobo = payOpts?.remaining_kobo ?? amountKobo;
+  const amountPaidKobo = payOpts?.amount_paid_kobo ?? 0;
 
   const goToDetail = () => onNavigate(`/dashboard/apply/${app.id}`);
 
@@ -84,6 +85,11 @@ export default function ApplicationCard({ app, walletBalance, payingFromWallet, 
             <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-700">
               <CheckCircle2 className="h-4 w-4" />
               {amountKobo != null ? `Paid ${koboToNaira(amountKobo)}` : "Paid"}
+            </span>
+          ) : amountPaidKobo > 0 && remainingKobo != null ? (
+            <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-amber-700">
+              <Clock className="h-4 w-4 text-amber-600" />
+              Partially Paid ({koboToNaira(amountPaidKobo)} paid · <span className="font-bold text-red-600">{koboToNaira(remainingKobo)} owed</span>)
             </span>
           ) : (
             <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold ${payMeta.needsRetry ? "text-red-600" : "text-amber-700"}`}>

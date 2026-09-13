@@ -521,16 +521,31 @@ function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
 
 function PaymentProgressBar({ paidKobo, totalKobo }) {
   const pct = totalKobo > 0 ? Math.min(100, Math.round((paidKobo / totalKobo) * 100)) : 0;
+  const remainingKobo = Math.max(0, totalKobo - paidKobo);
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-[12px]">
-        <span className="font-semibold text-slate-700">
-          {koboToNaira(paidKobo)} of {koboToNaira(totalKobo)} paid
-        </span>
-        <span className="font-mono font-semibold text-slate-500">{pct}%</span>
+    <div className="space-y-3 rounded-xl border border-amber-200/80 bg-white/90 p-4 shadow-sm">
+      <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-100">
+        <div className="px-1">
+          <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Service Fee</span>
+          <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-800">{koboToNaira(totalKobo)}</span>
+        </div>
+        <div className="px-1">
+          <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Amount Paid</span>
+          <span className="mt-1 block font-mono text-[13.5px] font-bold text-emerald-700">{koboToNaira(paidKobo)}</span>
+        </div>
+        <div className="px-1">
+          <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Balance Owed</span>
+          <span className="mt-1 block font-mono text-[13.5px] font-bold text-red-600">{koboToNaira(remainingKobo)}</span>
+        </div>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: BRAND }} />
+      <div className="space-y-1.5 pt-1 border-t border-slate-100">
+        <div className="flex items-center justify-between text-[11.5px]">
+          <span className="font-semibold text-slate-600">Payment progress</span>
+          <span className="font-mono font-bold text-slate-700">{pct}% completed</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: BRAND }} />
+        </div>
       </div>
     </div>
   );
@@ -2289,6 +2304,51 @@ export default function CustomerApplicationDetailsPage() {
         <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
       </div>
 
+      {/* Payment & Financial Breakdown Summary */}
+      {!isFreeRwxRebook && (
+        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">
+              Payment Summary
+            </h3>
+            {isPaid ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Fully Paid
+              </span>
+            ) : amountPaidKobo > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                <Clock className="h-3.5 w-3.5" /> Partially Paid
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+                <Clock className="h-3.5 w-3.5" /> Payment Pending
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total Service Fee</span>
+              <span className="mt-1 flex items-center gap-1 font-mono text-[15px] font-bold text-slate-900">
+                {koboToNaira(amountKobo)}
+                {isPaid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              </span>
+            </div>
+            <div>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Amount Paid</span>
+              <span className={`mt-1 block font-mono text-[15px] font-bold ${amountPaidKobo > 0 ? "text-emerald-700" : "text-slate-700"}`}>
+                {koboToNaira(amountPaidKobo)}
+              </span>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Balance Owed</span>
+              <span className={`mt-1 block font-mono text-[15px] font-bold ${remainingKobo > 0 ? "text-red-600" : "text-emerald-700"}`}>
+                {koboToNaira(remainingKobo)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Vehicle-centric types only (tinted_permit, number_plate_*) — the
           vehicle this application is for, in place of the licence-class/
           driving-school fields that don't apply. */}
@@ -2856,11 +2916,21 @@ export default function CustomerApplicationDetailsPage() {
                   {amountPaidKobo > 0 ? "Payment in progress" : "Payment pending"}
                 </h3>
                 <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
-                  Pay <strong className="font-mono text-[#111111]">{koboToNaira(remainingKobo)}</strong> to move this
-                  application forward
-                  {partialPaymentAllowed
-                    ? ` — pay it all at once, or bit by bit${amountPaidKobo > 0 ? ", any amount" : ", at least ₦10,000 at a time"}.`
-                    : ", in full."}
+                  {amountPaidKobo > 0 ? (
+                    <>
+                      You have made a partial payment of <strong className="font-mono text-emerald-700">{koboToNaira(amountPaidKobo)}</strong>.
+                      {" "}Remaining balance owed: <strong className="font-mono text-red-600">{koboToNaira(remainingKobo)}</strong>.
+                      {" "}Pay the balance below to move your application forward.
+                    </>
+                  ) : (
+                    <>
+                      Pay <strong className="font-mono text-[#111111]">{koboToNaira(remainingKobo)}</strong> to move this
+                      application forward
+                      {partialPaymentAllowed
+                        ? " — pay it all at once, or bit by bit, at least ₦10,000 at a time."
+                        : ", in full."}
+                    </>
+                  )}
                   {isNumberPlate && application.application_type !== "number_plate_fancy" && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>

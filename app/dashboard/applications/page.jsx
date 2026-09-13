@@ -80,7 +80,8 @@ export default function ApplicationsPage() {
 
   const totalApps = filtered.length;
   const paidApps = filtered.filter(isApplicationPaid).length;
-  const pendingPaymentApps = totalApps - paidApps;
+  const partiallyPaidApps = filtered.filter((a) => !isApplicationPaid(a) && (a.payment_options?.amount_paid_kobo || 0) > 0).length;
+  const pendingPaymentApps = totalApps - paidApps - partiallyPaidApps;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-6 pb-20">
@@ -142,18 +143,26 @@ export default function ApplicationsPage() {
 
       {/* Summary strip */}
       {totalApps > 0 && (
-        <div className="grid grid-cols-1 divide-y divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className={`grid grid-cols-1 divide-y divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white sm:divide-x sm:divide-y-0 ${
+          partiallyPaidApps > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"
+        }`}>
           <div className="px-5 py-4">
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total</span>
             <span className="mt-0.5 block text-[22px] font-bold text-[#111111]">{totalApps}</span>
           </div>
           <div className="px-5 py-4">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Paid</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fully Paid</span>
             <span className="mt-0.5 block text-[22px] font-bold text-emerald-600">{paidApps}</span>
           </div>
+          {partiallyPaidApps > 0 && (
+            <div className="px-5 py-4">
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Partially Paid</span>
+              <span className="mt-0.5 block text-[22px] font-bold text-amber-600">{partiallyPaidApps}</span>
+            </div>
+          )}
           <div className="px-5 py-4">
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Awaiting payment</span>
-            <span className="mt-0.5 block text-[22px] font-bold text-amber-600">{pendingPaymentApps}</span>
+            <span className="mt-0.5 block text-[22px] font-bold text-slate-600">{pendingPaymentApps}</span>
           </div>
         </div>
       )}
