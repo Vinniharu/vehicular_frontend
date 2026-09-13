@@ -778,7 +778,7 @@ export default function StaffApplicationDetailsPage() {
                 <option value="">Select an agent…</option>
                 {eligibleAgents.map((a) => (
                   <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
-                    Agent #{a.agent_id} — {a.name ? `${a.name} • ` : ""}{a.state} / {a.lga} ({a.vio_office}){a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
+                    Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
                   </option>
                 ))}
               </select>
@@ -804,15 +804,13 @@ export default function StaffApplicationDetailsPage() {
                 <div className="flex items-center gap-2">
                   <h4 className="text-[14px] font-bold text-slate-900">
                     Assigned Agent: Agent #{application.assigned_agent?.agent_id || application.assigned_agent_id}
-                    {application.assigned_agent?.name ? ` — ${application.assigned_agent.name}` : ""}
                   </h4>
                   <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 uppercase">
                     Assigned
                   </span>
                 </div>
                 <p className="mt-0.5 text-[12.5px] text-slate-600">
-                  Location: <strong className="text-slate-800">{application.assigned_agent?.state || "—"} / {application.assigned_agent?.lga || "—"}</strong> • Office: <strong className="text-slate-800">{application.assigned_agent?.vio_office || "—"}</strong>
-                  {application.assigned_agent?.phone && ` • Phone: ${application.assigned_agent.phone}`}
+                  Location: <strong className="text-slate-800">{application.assigned_agent?.state || "—"} / {application.assigned_agent?.lga || "—"}</strong>
                 </p>
               </div>
             </div>
@@ -872,7 +870,7 @@ export default function StaffApplicationDetailsPage() {
                       .filter((a) => a.agent_id !== application.assigned_agent_id)
                       .map((a) => (
                         <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
-                          Agent #{a.agent_id} — {a.name ? `${a.name} • ` : ""}{a.state} / {a.lga} ({a.vio_office}){a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
+                          Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
                         </option>
                       ))}
                   </select>
@@ -1162,9 +1160,11 @@ export default function StaffApplicationDetailsPage() {
             <div>
               <h3 className="text-[14px] font-bold text-indigo-900">Document ready for pickup</h3>
               <p className="mt-1 text-[13px] text-indigo-800 leading-relaxed">
-                Collect the finished card from{" "}
-                <strong>{application.assigned_agent?.vio_office || "the assigned VIO office"}</strong>
-                {application.assigned_agent?.lga ? ` (${application.assigned_agent.lga} LGA)` : ""}.
+                Collect the finished card from the designated office
+                {application.assigned_agent?.state || application.assigned_agent?.lga
+                  ? ` (${[application.assigned_agent?.state, application.assigned_agent?.lga].filter(Boolean).join(" / ")})`
+                  : ""}
+                .
               </p>
             </div>
           </div>
