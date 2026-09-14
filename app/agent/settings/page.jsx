@@ -25,7 +25,9 @@ export default function AgentSettingsPage() {
   // Basic info (name/phone)
   const [editingProfile, setEditingProfile] = useState(false);
   const [updatingProfile, setUpdatingProfile] = useState(false);
-  const [profileName, setProfileName] = useState("");
+  const [profileFirstName, setProfileFirstName] = useState("");
+  const [profileMiddleName, setProfileMiddleName] = useState("");
+  const [profileLastName, setProfileLastName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
 
   // Password
@@ -59,8 +61,27 @@ export default function AgentSettingsPage() {
 
       if (meRes.data) {
         setUser(meRes.data);
-        setProfileName(meRes.data.name || "");
-        setProfilePhone(meRes.data.phone || "");
+        const u = meRes.data;
+        let fn = u.first_name || "";
+        let mn = u.middle_name || "";
+        let ln = u.last_name || "";
+        if (!fn && !ln && u.name) {
+          const parts = u.name.trim().split(/\s+/);
+          if (parts.length === 1) {
+            fn = parts[0];
+          } else if (parts.length === 2) {
+            fn = parts[0];
+            ln = parts[1];
+          } else if (parts.length >= 3) {
+            fn = parts[0];
+            mn = parts.slice(1, -1).join(" ");
+            ln = parts[parts.length - 1];
+          }
+        }
+        setProfileFirstName(fn);
+        setProfileMiddleName(mn);
+        setProfileLastName(ln);
+        setProfilePhone(u.phone || "");
         
         if (meRes.data.agent_profile) {
           setSelectedState(meRes.data.agent_profile.state_id ? String(meRes.data.agent_profile.state_id) : "");
@@ -115,26 +136,53 @@ export default function AgentSettingsPage() {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!profileName.trim()) {
-      showToast("error", "Full name cannot be empty.");
+    if (!profileFirstName.trim() || !profileLastName.trim()) {
+      showToast("error", "First name and Last name are required.");
       return;
     }
     setUpdatingProfile(true);
     // Deliberately omits state_id/lga_id — those live on the Agent record
     // and are updated separately via updateAgentLocation below, not here.
-    const res = await authUpdateProfile({ name: profileName.trim(), phone: profilePhone.trim() });
+    const res = await authUpdateProfile({
+      first_name: profileFirstName.trim(),
+      middle_name: profileMiddleName.trim() || undefined,
+      last_name: profileLastName.trim(),
+      phone: profilePhone.trim(),
+    });
     setUpdatingProfile(false);
     if (res.error) {
       showToast("error", "Could not save your changes. Please try again.");
     } else if (res.data) {
       setUser(res.data);
+      const u = res.data;
+      setProfileFirstName(u.first_name || profileFirstName.trim());
+      setProfileMiddleName(u.middle_name || profileMiddleName.trim());
+      setProfileLastName(u.last_name || profileLastName.trim());
       setEditingProfile(false);
       showToast("success", "Your profile has been updated successfully.");
     }
   };
 
   const handleCancelProfile = () => {
-    setProfileName(user?.name || "");
+    let fn = user?.first_name || "";
+    let mn = user?.middle_name || "";
+    let ln = user?.last_name || "";
+    if (!fn && !ln && user?.name) {
+      const parts = user.name.trim().split(/\s+/);
+      if (parts.length === 1) {
+        fn = parts[0];
+      } else if (parts.length === 2) {
+        fn = parts[0];
+        ln = parts[1];
+      } else if (parts.length >= 3) {
+        fn = parts[0];
+        mn = parts.slice(1, -1).join(" ");
+        ln = parts[parts.length - 1];
+      }
+    }
+    setProfileFirstName(fn);
+    setProfileMiddleName(mn);
+    setProfileLastName(ln);
     setProfilePhone(user?.phone || "");
     setEditingProfile(false);
   };
@@ -250,15 +298,29 @@ export default function AgentSettingsPage() {
 
         {!editingProfile ? (
           <div className="space-y-3">
-            <InfoRow icon={User} label="Full Name" value={user?.name} />
+            <InfoRow icon={User} label="First Name" value={user?.first_name || user?.name?.split(" ")[0]} />
+            {Boolean(user?.middle_name) && (
+              <InfoRow icon={User} label="Middle Name" value={user?.middle_name} />
+            )}
+            <InfoRow icon={User} label="Last Name" value={user?.last_name || (user?.name?.split(" ")?.length > 1 ? user?.name?.split(" ").slice(1).join(" ") : "")} />
             <InfoRow icon={Mail} label="Email Address" value={user?.email} monospace />
             <InfoRow icon={Phone} label="Phone Number" value={user?.phone} monospace />
           </div>
         ) : (
           <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div>
-              <label className={fieldLabel}>Full Name</label>
-              <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className={inputBase} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={fieldLabel}>First Name <span className="text-red-500">*</span></label>
+                <input type="text" value={profileFirstName} onChange={(e) => setProfileFirstName(e.target.value)} className={inputBase} required />
+              </div>
+              <div>
+                <label className={fieldLabel}>Middle Name <span className="text-xs text-slate-400 font-normal">(opt)</span></label>
+                <input type="text" value={profileMiddleName} onChange={(e) => setProfileMiddleName(e.target.value)} className={inputBase} placeholder="Optional" />
+              </div>
+              <div>
+                <label className={fieldLabel}>Last Name <span className="text-red-500">*</span></label>
+                <input type="text" value={profileLastName} onChange={(e) => setProfileLastName(e.target.value)} className={inputBase} required />
+              </div>
             </div>
             <div>
               <label className={fieldLabel}>Email Address</label>

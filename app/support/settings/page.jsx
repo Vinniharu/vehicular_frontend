@@ -16,7 +16,9 @@ export default function SupportSettingsPage() {
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [updatingProfile, setUpdatingProfile] = useState(false);
-  const [profileName, setProfileName] = useState("");
+  const [profileFirstName, setProfileFirstName] = useState("");
+  const [profileMiddleName, setProfileMiddleName] = useState("");
+  const [profileLastName, setProfileLastName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -32,8 +34,27 @@ export default function SupportSettingsPage() {
     authGetMe().then((res) => {
       if (res.data) {
         setUser(res.data);
-        setProfileName(res.data.name || "");
-        setProfilePhone(res.data.phone || "");
+        const u = res.data;
+        let fn = u.first_name || "";
+        let mn = u.middle_name || "";
+        let ln = u.last_name || "";
+        if (!fn && !ln && u.name) {
+          const parts = u.name.trim().split(/\s+/);
+          if (parts.length === 1) {
+            fn = parts[0];
+          } else if (parts.length === 2) {
+            fn = parts[0];
+            ln = parts[1];
+          } else if (parts.length >= 3) {
+            fn = parts[0];
+            mn = parts.slice(1, -1).join(" ");
+            ln = parts[parts.length - 1];
+          }
+        }
+        setProfileFirstName(fn);
+        setProfileMiddleName(mn);
+        setProfileLastName(ln);
+        setProfilePhone(u.phone || "");
       }
       setLoading(false);
     });
@@ -46,24 +67,51 @@ export default function SupportSettingsPage() {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!profileName.trim()) {
-      showToast("error", "Full name cannot be empty.");
+    if (!profileFirstName.trim() || !profileLastName.trim()) {
+      showToast("error", "First name and Last name are required.");
       return;
     }
     setUpdatingProfile(true);
-    const res = await authUpdateProfile({ name: profileName.trim(), phone: profilePhone.trim() });
+    const res = await authUpdateProfile({
+      first_name: profileFirstName.trim(),
+      middle_name: profileMiddleName.trim() || undefined,
+      last_name: profileLastName.trim(),
+      phone: profilePhone.trim(),
+    });
     setUpdatingProfile(false);
     if (res.error) {
       showToast("error", "Could not save your changes. Please try again.");
     } else if (res.data) {
       setUser(res.data);
+      const u = res.data;
+      setProfileFirstName(u.first_name || profileFirstName.trim());
+      setProfileMiddleName(u.middle_name || profileMiddleName.trim());
+      setProfileLastName(u.last_name || profileLastName.trim());
       setEditingProfile(false);
       showToast("success", "Your profile has been updated successfully.");
     }
   };
 
   const handleCancelProfile = () => {
-    setProfileName(user?.name || "");
+    let fn = user?.first_name || "";
+    let mn = user?.middle_name || "";
+    let ln = user?.last_name || "";
+    if (!fn && !ln && user?.name) {
+      const parts = user.name.trim().split(/\s+/);
+      if (parts.length === 1) {
+        fn = parts[0];
+      } else if (parts.length === 2) {
+        fn = parts[0];
+        ln = parts[1];
+      } else if (parts.length >= 3) {
+        fn = parts[0];
+        mn = parts.slice(1, -1).join(" ");
+        ln = parts[parts.length - 1];
+      }
+    }
+    setProfileFirstName(fn);
+    setProfileMiddleName(mn);
+    setProfileLastName(ln);
     setProfilePhone(user?.phone || "");
     setEditingProfile(false);
   };
@@ -150,15 +198,29 @@ export default function SupportSettingsPage() {
         </div>
         {!editingProfile ? (
           <dl className="divide-y divide-slate-100">
-            <InfoRow icon={User} label="Full Name" value={user?.name} />
+            <InfoRow icon={User} label="First Name" value={user?.first_name || user?.name?.split(" ")[0]} />
+            {Boolean(user?.middle_name) && (
+              <InfoRow icon={User} label="Middle Name" value={user?.middle_name} />
+            )}
+            <InfoRow icon={User} label="Last Name" value={user?.last_name || (user?.name?.split(" ")?.length > 1 ? user?.name?.split(" ").slice(1).join(" ") : "")} />
             <InfoRow icon={Mail} label="Email Address" value={user?.email} monospace />
             <InfoRow icon={Phone} label="Phone Number" value={user?.phone} monospace />
           </dl>
         ) : (
-          <form onSubmit={handleSaveProfile} className="px-6 sm:px-8 py-6 space-y-5 max-w-lg">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
-              <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className={inputCls} />
+          <form onSubmit={handleSaveProfile} className="px-6 sm:px-8 py-6 space-y-5 max-w-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                <input type="text" value={profileFirstName} onChange={(e) => setProfileFirstName(e.target.value)} className={inputCls} required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Middle Name <span className="text-xs text-slate-400 font-normal">(opt)</span></label>
+                <input type="text" value={profileMiddleName} onChange={(e) => setProfileMiddleName(e.target.value)} className={inputCls} placeholder="Optional" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name <span className="text-red-500">*</span></label>
+                <input type="text" value={profileLastName} onChange={(e) => setProfileLastName(e.target.value)} className={inputCls} required />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>

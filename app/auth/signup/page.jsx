@@ -20,7 +20,9 @@ function SignupForm() {
   const isSafeRedirect = typeof rawRedirect === "string" && rawRedirect.startsWith("/") && rawRedirect !== "/";
   const targetRedirect = isSafeRedirect ? rawRedirect : "/dashboard";
 
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+234 ");
   const [password, setPassword] = useState("");
@@ -38,8 +40,8 @@ function SignupForm() {
     setRequestId(null);
     setSuccessMsg(null);
 
-    if (!name.trim() || !email.trim() || !password) {
-      setError("Please complete all required fields.");
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
+      setError("Please complete all required fields (First name, Last name, Email, and Password).");
       return;
     }
 
@@ -56,9 +58,17 @@ function SignupForm() {
     setLoading(true);
     const cleanPhone = phone.trim() === "+234" ? "+2348000000000" : phone.trim();
 
+    const fn = firstName.trim();
+    const mn = middleName.trim() || undefined;
+    const ln = lastName.trim();
+    const compositeName = [fn, mn, ln].filter(Boolean).join(" ");
+
     // Step 1: Register per ENDPOINTS.md Section 3 (POST /auth/register)
     const regResult = await authRegister({
-      name: name.trim(),
+      first_name: fn,
+      middle_name: mn,
+      last_name: ln,
+      name: compositeName,
       email: email.trim(),
       phone: cleanPhone,
       password,
@@ -181,23 +191,60 @@ function SignupForm() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="name">
-            Full name
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ada Obi"
-            required
-            className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-            style={{
-              background: "rgba(17, 17, 17, 0.6)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-            }}
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="firstName">
+              First name *
+            </label>
+            <input
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Ada"
+              required
+              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              style={{
+                background: "rgba(17, 17, 17, 0.6)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+              }}
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="middleName">
+              Middle name <span className="text-white/40 text-[11px] font-normal">(optional)</span>
+            </label>
+            <input
+              id="middleName"
+              type="text"
+              value={middleName}
+              onChange={(e) => setMiddleName(e.target.value)}
+              placeholder="Chidinma"
+              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              style={{
+                background: "rgba(17, 17, 17, 0.6)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+              }}
+            />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="lastName">
+              Last name *
+            </label>
+            <input
+              id="lastName"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Obi"
+              required
+              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              style={{
+                background: "rgba(17, 17, 17, 0.6)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+              }}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

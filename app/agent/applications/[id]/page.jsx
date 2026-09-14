@@ -1124,9 +1124,21 @@ export default function AgentApplicationDetailPage() {
         <div className="space-y-3.5">
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full name</span>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>
               <span className="mt-0.5 block text-[15px] font-bold text-slate-900">
-                {applicant.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}
+                {application.first_name || applicant.first_name || applicant.account_name?.split(" ")[0] || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Middle name</span>
+              <span className="mt-0.5 block text-[15px] font-bold text-slate-900">
+                {application.middle_name || applicant.middle_name || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Last name</span>
+              <span className="mt-0.5 block text-[15px] font-bold text-slate-900">
+                {application.last_name || applicant.last_name || (applicant.account_name?.split(" ")?.length > 1 ? applicant.account_name?.split(" ").slice(1).join(" ") : "—")}
               </span>
             </div>
             {applicant.phone && applicant.phone !== "N/A" && (
