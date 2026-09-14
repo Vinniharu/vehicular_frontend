@@ -264,7 +264,9 @@ export default function SupportApplicationDetailPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{ad.account_name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              {ad.first_name ? [ad.first_name, ad.middle_name, ad.last_name].filter(Boolean).join(" ") : ad.account_name}
+            </h1>
             <p className="mt-0.5 font-mono text-[12px] text-slate-400">#{app.id}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +300,7 @@ export default function SupportApplicationDetailPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">Customer</h2>
           <Link href={`/support/customers/${ad.user_id}`} className="text-[14px] font-bold text-slate-900 hover:underline">
-            {ad.account_name}
+            {ad.first_name ? [ad.first_name, ad.middle_name, ad.last_name].filter(Boolean).join(" ") : ad.account_name}
           </Link>
           <div className="mt-2 space-y-1.5">
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Mail className="h-3.5 w-3.5" /> {ad.email}</p>

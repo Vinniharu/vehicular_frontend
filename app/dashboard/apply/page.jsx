@@ -349,12 +349,13 @@ export default function ApplyPage() {
           // when there's no prior application. NIN never prefills: the
           // applications list endpoint redacts it (NDPA), so it starts blank.
           const latestApp = (appsRes.data && appsRes.data[0]) || {};
-          const pick = (appVal, fallback = "") =>
-            appVal !== undefined && appVal !== null && appVal !== "" ? appVal : fallback;
+          const fallbackFn = meRes.data.first_name || (meRes.data.name || "").split(" ")[0] || "";
+          const fallbackMn = meRes.data.middle_name || "";
+          const fallbackLn = meRes.data.last_name || ((meRes.data.name || "").split(" ").length > 1 ? (meRes.data.name || "").split(" ").slice(1).join(" ") : "");
 
-          setFirstName(pick(latestApp.first_name, (meRes.data.name || "").split(" ")[0] || ""));
-          setMiddleName(pick(latestApp.middle_name, ""));
-          setLastName(pick(latestApp.last_name, (meRes.data.name || "").split(" ").slice(1).join(" ") || ""));
+          setFirstName(pick(latestApp.first_name, fallbackFn));
+          setMiddleName(pick(latestApp.middle_name, fallbackMn));
+          setLastName(pick(latestApp.last_name, fallbackLn));
           setDob(pick(latestApp.date_of_birth, ""));
           setGender(pick(latestApp.gender, ""));
           setNationality(pick(latestApp.nationality, "Nigerian"));
@@ -1143,7 +1144,9 @@ export default function ApplyPage() {
                     {
                       section: "Personal details",
                       rows: [
-                        ["Full name", [firstName, middleName, lastName].filter(Boolean).join(" ")],
+                        ["First name", firstName || "—"],
+                        ...(middleName ? [["Middle name", middleName]] : []),
+                        ["Last name", lastName || "—"],
                         ["Date of birth", dob],
                         ["Gender", gender || "—"],
                         ["NIN", nin || "—"],

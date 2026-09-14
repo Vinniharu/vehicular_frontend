@@ -119,7 +119,9 @@ export default function AdminPage() {
   const [modalError, setModalError] = useState(null);
   const [confirmDeactivateTarget, setConfirmDeactivateTarget] = useState(null);
 
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+234");
   const [tempPassword, setTempPassword] = useState("Vehiculars2026!");
@@ -178,7 +180,7 @@ export default function AdminPage() {
 
   const openProvisionModal = (type) => {
     setModalType(type);
-    setName(""); setEmail(""); setPhone("+234"); setTempPassword("Vehiculars2026!");
+    setFirstName(""); setMiddleName(""); setLastName(""); setEmail(""); setPhone("+234"); setTempPassword("Vehiculars2026!");
     setVioOffice(""); setSelectedState(""); setSelectedLga(""); setModalError(null);
     setAllowedApplicationTypes(APPLICATION_TYPE_OPTIONS.map((o) => o.value));
     setIsModalOpen(true);
@@ -189,7 +191,20 @@ export default function AdminPage() {
     setSubmitting(true);
     setModalError(null);
 
-    const payload = { name: name.trim(), email: email.trim(), phone: phone.trim(), temp_password: tempPassword };
+    const fn = firstName.trim();
+    const mn = middleName.trim() || undefined;
+    const ln = lastName.trim();
+    const compositeName = [fn, mn, ln].filter(Boolean).join(" ");
+
+    const payload = {
+      first_name: fn,
+      middle_name: mn,
+      last_name: ln,
+      name: compositeName,
+      email: email.trim(),
+      phone: phone.trim(),
+      temp_password: tempPassword,
+    };
 
     if (modalType === "staff" || modalType === "support") {
       const res = modalType === "support" ? await adminCreateSupport(payload) : await adminCreateStaff(payload);
@@ -757,17 +772,40 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Full Name */}
-              <div>
-                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Full Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Emeka Adeyemi"
-                  required
-                  className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                />
+              {/* Names: First, Middle, Last */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="e.g. Emeka"
+                    required
+                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Middle Name <span className="text-xs text-slate-400 font-normal">(opt)</span></label>
+                  <input
+                    type="text"
+                    value={middleName}
+                    onChange={(e) => setMiddleName(e.target.value)}
+                    placeholder="Optional"
+                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Last Name <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="e.g. Adeyemi"
+                    required
+                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
+                  />
+                </div>
               </div>
 
               {/* Email + Phone */}

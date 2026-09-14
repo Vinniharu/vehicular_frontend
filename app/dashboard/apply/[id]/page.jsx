@@ -3032,6 +3032,12 @@ export default function CustomerApplicationDetailsPage() {
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.first_name || "—"}</span>
             </div>
+            {application.middle_name && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Middle name</span>
+                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.middle_name}</span>
+              </div>
+            )}
             <div>
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Last name</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.last_name || "—"}</span>

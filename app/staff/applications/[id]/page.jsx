@@ -1258,9 +1258,21 @@ export default function StaffApplicationDetailsPage() {
             <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Personal & Origin</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full Name</span>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First Name</span>
                 <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.applicant_details?.account_name || `${application.first_name || ""} ${application.middle_name || ""} ${application.last_name || ""}`.replace(/\s+/g, " ").trim() || "—"}
+                  {application.first_name || application.applicant_details?.first_name || application.applicant_details?.account_name?.split(" ")[0] || "—"}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Middle Name</span>
+                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
+                  {application.middle_name || application.applicant_details?.middle_name || "—"}
+                </span>
+              </div>
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Last Name</span>
+                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
+                  {application.last_name || application.applicant_details?.last_name || (application.applicant_details?.account_name?.split(" ")?.length > 1 ? application.applicant_details?.account_name?.split(" ").slice(1).join(" ") : "—")}
                 </span>
               </div>
               <div>
