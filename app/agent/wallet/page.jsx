@@ -49,6 +49,12 @@ const BANKS = [
   { code: "215", name: "Unity Bank" },
   { code: "035", name: "Wema Bank" },
   { code: "057", name: "Zenith Bank" },
+  { code: "999992", name: "OPay (PayCom)" },
+  { code: "999991", name: "PalmPay" },
+  { code: "50211", name: "Kuda Bank" },
+  { code: "50515", name: "Moniepoint MFB" },
+  { code: "302", name: "TAJ Bank" },
+  { code: "303", name: "Lotus Bank" },
 ];
 
 function formatDate(iso) {
