@@ -618,6 +618,7 @@ export default function AdminRevenuePage() {
               className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
               <option value="">All types</option>
+              <option value="wallet_deposit">Wallet Deposit</option>
               <option value="fresh">Fresh DL</option>
               <option value="renewal">Renewal DL</option>
               <option value="reissue">Reissue DL</option>
@@ -655,13 +656,17 @@ export default function AdminRevenuePage() {
               </thead>
               <tbody>
                 {items.map((tx) => (
-                  <tr key={tx.payment_id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                  <tr key={tx.payment_id || tx.reference} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
                     <td className="py-3.5 px-5">
                       <p className="text-[13px] font-semibold text-slate-900">{tx.applicant_name}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">App #{tx.application_id}</p>
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        {tx.application_id ? `App #${tx.application_id}` : "Wallet Deposit"}
+                      </p>
                     </td>
                     <td className="py-3.5 px-5">
-                      <p className="text-[12.5px] text-slate-700 capitalize">{tx.application_type}</p>
+                      <p className="text-[12.5px] text-slate-700 capitalize">
+                        {tx.application_type === "wallet_deposit" ? "Wallet Deposit" : tx.application_type}
+                      </p>
                       <p className="text-[11px] text-slate-400">{tx.validity_period || "—"}</p>
                     </td>
                     <td className="py-3.5 px-5">
@@ -674,20 +679,36 @@ export default function AdminRevenuePage() {
                       )}
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className="text-[13px] font-semibold text-emerald-700">{koboToNaira(tx.net_profit_kobo || 0)}</span>
+                      {tx.net_profit_kobo != null ? (
+                        <span className="text-[13px] font-semibold text-emerald-700">{koboToNaira(tx.net_profit_kobo)}</span>
+                      ) : (
+                        <span className="text-[13px] text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className="text-[13px] font-semibold text-blue-700">{koboToNaira(tx.government_payment_kobo || 0)}</span>
+                      {tx.government_payment_kobo != null ? (
+                        <span className="text-[13px] font-semibold text-blue-700">{koboToNaira(tx.government_payment_kobo)}</span>
+                      ) : (
+                        <span className="text-[13px] text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-5 text-[12.5px] text-slate-700">
-                      {koboToNaira(tx.service_fee_kobo)}
+                      {tx.service_fee_kobo != null ? (
+                        koboToNaira(tx.service_fee_kobo)
+                      ) : (
+                        <span className="text-[13px] text-slate-300">—</span>
+                      )}
                       {tx.agent_name && <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{tx.agent_name}</p>}
                     </td>
                     <td className="py-3.5 px-5">
                       <StatusBadge status={tx.status} />
                     </td>
                     <td className="py-3.5 px-5">
-                      <StatusBadge status={tx.agent_transfer_status} fallback="No transfer" />
+                      {tx.application_type === "wallet_deposit" ? (
+                        <span className="text-[12px] text-slate-300">—</span>
+                      ) : (
+                        <StatusBadge status={tx.agent_transfer_status} fallback="No transfer" />
+                      )}
                     </td>
                     <td className="py-3.5 px-5 text-[12px] text-slate-500 whitespace-nowrap">{formatDate(tx.created_at)}</td>
                   </tr>

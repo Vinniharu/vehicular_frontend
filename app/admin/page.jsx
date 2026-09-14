@@ -326,10 +326,14 @@ export default function AdminDashboardPage() {
                   </thead>
                   <tbody>
                     {recentTx.map((tx) => (
-                      <tr key={tx.payment_id} className="border-b border-slate-50 last:border-0">
+                      <tr key={tx.payment_id || tx.reference} className="border-b border-slate-50 last:border-0">
                         <td className="py-2.5 px-4">
                           <p className="text-[12.5px] font-semibold text-slate-900">{tx.applicant_name}</p>
-                          <p className="text-[11px] text-slate-400 capitalize">{tx.application_type} &middot; {tx.validity_period || "—"}</p>
+                          <p className="text-[11px] text-slate-400 capitalize">
+                            {tx.application_type === "wallet_deposit"
+                              ? "Wallet Deposit"
+                              : `${tx.application_type} · ${tx.validity_period || "—"}`}
+                          </p>
                         </td>
                         <td className="py-2.5 px-4 text-[12.5px] font-semibold text-slate-900">{koboToNaira(tx.amount_kobo)}</td>
                         <td className="py-2.5 px-4"><StatusBadge status={tx.status} /></td>
