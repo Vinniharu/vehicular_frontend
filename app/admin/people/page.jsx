@@ -796,7 +796,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Last Name <span className="text-red-500">*</span></label>
+                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Surname <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={lastName}

@@ -829,7 +829,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   <input name="middle_name" value={form.middle_name} onChange={handleChange} className={inputBase} />
                 </div>
                 <div>
-                  <label className={fieldLabel}>Last name *</label>
+                  <label className={fieldLabel}>Surname *</label>
                   <input name="last_name" value={form.last_name} onChange={handleChange} required className={inputBase} />
                 </div>
               </div>
@@ -3039,7 +3039,7 @@ export default function CustomerApplicationDetailsPage() {
               </div>
             )}
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Last name</span>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.last_name || "—"}</span>
             </div>
             {application.gender && (

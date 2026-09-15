@@ -41,7 +41,7 @@ function SignupForm() {
     setSuccessMsg(null);
 
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
-      setError("Please complete all required fields (First name, Last name, Email, and Password).");
+      setError("Please complete all required fields (First name, Surname, Email, and Password).");
       return;
     }
 
@@ -229,7 +229,7 @@ function SignupForm() {
           </div>
           <div>
             <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="lastName">
-              Last name *
+              Surname *
             </label>
             <input
               id="lastName"

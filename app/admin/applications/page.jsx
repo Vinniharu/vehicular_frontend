@@ -20,7 +20,7 @@ import {
   CheckCircle2,
   Timer,
 } from "lucide-react";
-import { adminGetApplications, adminGetStaff, adminGetAgents, adminReassignStaff, adminReassignAgent } from "@/lib/api";
+import { adminGetApplications, adminGetStaff, adminGetAgents, adminReassignStaff, adminReassignAgent, adminGetEligibleAgents } from "@/lib/api";
 
 const STATUS_TONE = {
   submitted: "bg-sky-50 text-sky-700 ring-sky-200",
@@ -104,6 +104,9 @@ export default function AdminApplicationsPage() {
   const [pendingStaffId, setPendingStaffId] = useState("");
   const [pendingAgentId, setPendingAgentId] = useState("");
   const [reassigning, setReassigning] = useState(false);
+  const [eligibleAgents, setEligibleAgents] = useState([]);
+  const [loadingEligibleAgents, setLoadingEligibleAgents] = useState(false);
+  const [reassignAgentError, setReassignAgentError] = useState(null);
 
   useEffect(() => {
     if (!selected || optionsLoaded) return;
@@ -121,7 +124,23 @@ export default function AdminApplicationsPage() {
     setEditingAgent(false);
     setPendingStaffId(selected?.staff_id ? String(selected.staff_id) : "");
     setPendingAgentId("");
+    setEligibleAgents([]);
+    setReassignAgentError(null);
   }, [selected?.id]);
+
+  useEffect(() => {
+    if (!selected || !editingAgent) return;
+    setLoadingEligibleAgents(true);
+    setReassignAgentError(null);
+    adminGetEligibleAgents(selected.id).then((res) => {
+      if (res.data && Array.isArray(res.data)) {
+        setEligibleAgents(res.data);
+      } else {
+        setEligibleAgents([]);
+      }
+      setLoadingEligibleAgents(false);
+    });
+  }, [selected?.id, editingAgent]);
 
   const applyReassignResult = (updated) => {
     setSelected(updated);
@@ -142,16 +161,22 @@ export default function AdminApplicationsPage() {
   };
 
   const handleSaveAgent = async () => {
-    if (!pendingAgentId) return;
+    if (!pendingAgentId) {
+      setReassignAgentError("Please pick an agent first.");
+      return;
+    }
     setReassigning(true);
+    setReassignAgentError(null);
     const res = await adminReassignAgent(selected.id, Number(pendingAgentId));
     setReassigning(false);
     if (res.error) {
+      setReassignAgentError(res.error);
       showToast("error", res.error);
       return;
     }
     applyReassignResult(res.data);
     setEditingAgent(false);
+    setReassignAgentError(null);
     showToast("success", "Agent assignment updated.");
   };
 
@@ -537,26 +562,80 @@ export default function AdminApplicationsPage() {
                   )}
                 </div>
                 {editingAgent ? (
-                  <div className="space-y-2">
-                    <select
-                      value={pendingAgentId}
-                      onChange={(e) => setPendingAgentId(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-800 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-                    >
-                      <option value="">Select an agent…</option>
-                      {agentOptions
-                        .filter((a) => a.agent_profile?.id)
-                        .map((a) => (
-                          <option key={a.agent_profile.id} value={a.agent_profile.id}>
-                            Agent #{a.agent_profile.id} — {a.name} ({a.agent_profile.state || ""}{a.agent_profile.lga ? ` / ${a.agent_profile.lga}` : ""} • {a.agent_profile.vio_office})
-                          </option>
-                        ))}
-                    </select>
-                    <div className="flex items-center gap-2">
-                      <button onClick={handleSaveAgent} disabled={reassigning || !pendingAgentId} className="rounded-lg bg-[#28A745] px-3 py-1.5 text-[11.5px] font-semibold text-white disabled:opacity-70">
-                        {reassigning ? "Saving…" : "Save"}
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+                    {reassignAgentError && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2 text-[12.5px] text-red-800 shadow-sm">
+                        <AlertCircle className="h-4.5 w-4.5 text-red-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-red-900">Assignment Failed</p>
+                          <p className="mt-0.5 text-red-700 leading-relaxed text-[12px]">{reassignAgentError}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReassignAgentError(null)}
+                          className="text-red-400 hover:text-red-600 transition-colors p-0.5"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {loadingEligibleAgents ? (
+                      <p className="flex items-center gap-2 text-[12.5px] text-slate-500 py-1">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#28A745]" />
+                        Finding eligible agents for this application...
+                      </p>
+                    ) : eligibleAgents.filter(a => a.agent_id !== (selected.assigned_agent?.agent_id || selected.assigned_agent_id) && a.has_bank_account).length === 0 ? (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[12.5px] text-amber-800 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                        <span>No eligible agents found capable of handling {(selected.application_type || "this service").replace(/_/g, " ")}.</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                          Select Task-Eligible Agent:
+                        </label>
+                        <select
+                          value={pendingAgentId}
+                          onChange={(e) => {
+                            setPendingAgentId(e.target.value);
+                            setReassignAgentError(null);
+                          }}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-800 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+                        >
+                          <option value="">Select an agent…</option>
+                          {eligibleAgents
+                            .filter((a) => a.agent_id !== (selected.assigned_agent?.agent_id || selected.assigned_agent_id) && a.has_bank_account)
+                            .map((a) => (
+                              <option key={a.agent_id} value={a.agent_id}>
+                                Agent #{a.agent_id} — {a.name} ({a.state || ""}{a.lga ? ` / ${a.lga}` : ""} • {a.vio_office}){a.matches_location ? " [Local Area]" : ""}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={handleSaveAgent}
+                        disabled={reassigning || !pendingAgentId || loadingEligibleAgents}
+                        className="rounded-lg bg-[#28A745] px-3.5 py-1.5 text-[11.5px] font-semibold text-white hover:bg-[#218838] transition-colors disabled:opacity-50"
+                      >
+                        {reassigning ? (
+                          <span className="flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</span>
+                        ) : (
+                          "Save Assignment"
+                        )}
                       </button>
-                      <button onClick={() => setEditingAgent(false)} disabled={reassigning} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11.5px] font-medium text-slate-600">
+                      <button
+                        onClick={() => {
+                          setEditingAgent(false);
+                          setReassignAgentError(null);
+                          setPendingAgentId("");
+                        }}
+                        disabled={reassigning}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11.5px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
                         Cancel
                       </button>
                     </div>
@@ -586,6 +665,16 @@ export default function AdminApplicationsPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13px] font-semibold text-slate-800 shadow-xl ring-1 ring-black/5">
+          <span className={`h-2.5 w-2.5 rounded-full ${toast.type === "error" ? "bg-red-500" : "bg-[#28A745]"}`} />
+          <span>{toast.msg}</span>
+          <button onClick={() => setToast(null)} className="ml-2 text-slate-400 hover:text-slate-600">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
     </div>
