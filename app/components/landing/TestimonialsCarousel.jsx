@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Star, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, ShieldCheck, ChevronLeft, ChevronRight, MessageCircle, ZoomIn, X } from "lucide-react";
 import { INK, GREEN, GOLD } from "./theme";
 
 function useVisibleCount() {
@@ -26,6 +26,7 @@ export function TestimonialsCarousel({
   const visible = useVisibleCount();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const trackRef = useRef(null);
 
   const items =
@@ -41,14 +42,24 @@ export function TestimonialsCarousel({
     setIndex((prev) => Math.min(prev, maxIndex));
   }, [maxIndex]);
 
-  // Auto-advance interval, resetting whenever index or paused state changes
+  // Auto-advance interval, resetting whenever index, paused, or modal state changes
   useEffect(() => {
-    if (paused || items.length <= visible) return;
+    if (paused || selectedImage || items.length <= visible) return;
     const t = setInterval(() => {
       setIndex((i) => (i >= maxIndex ? 0 : i + 1));
     }, intervalMs);
     return () => clearInterval(t);
-  }, [paused, items.length, visible, intervalMs, maxIndex, index]);
+  }, [paused, selectedImage, items.length, visible, intervalMs, maxIndex, index]);
+
+  // Close lightbox on Escape key
+  useEffect(() => {
+    if (!selectedImage) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setSelectedImage(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImage]);
 
   const handlePrev = () => {
     setIndex((i) => (i <= 0 ? maxIndex : i - 1));
@@ -93,47 +104,87 @@ export function TestimonialsCarousel({
           >
             {items.map((t, i) => (
               <div
-                key={`${t.id}-${i}`}
+                key={`${t.id || i}-${i}`}
                 className="shrink-0 px-2"
                 style={{ width: `${100 / visible}%` }}
               >
-                <article
-                  className="flex h-full flex-col rounded-2xl bg-white p-5 sm:p-6 shadow-sm"
-                  style={{ border: `1px solid ${INK}1a` }}
-                >
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-semibold truncate" style={{ color: INK }}>
-                      {t.customer_name}
-                    </p>
-                    <p className="text-[13px] truncate" style={{ color: `${INK}99` }}>{t.customer_location}</p>
-                    <div className="mt-0.5 flex">
-                      {Array.from({ length: 5 }).map((_, n) => (
-                        <Star
-                          key={n}
-                          className={`h-3.5 w-3.5 ${
-                            n < (t.rating || 5) ? "fill-amber-400 text-amber-400" : "text-gray-200"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <blockquote className="mt-4 text-[15px] italic leading-relaxed" style={{ color: `${INK}cc` }}>
-                    &ldquo;{t.testimonial_text}&rdquo;
-                  </blockquote>
-                  <div className="mt-auto pt-4 space-y-2">
-                    {t.service_completed && (
-                      <span className="inline-block rounded-full px-2.5 py-1 text-[12px] font-medium" style={{ background: `${GREEN}1a`, color: GREEN }}>
-                        {t.service_completed}
+                {t.image ? (
+                  <article
+                    onClick={() => setSelectedImage(t)}
+                    className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-xs transition-all duration-300 hover:shadow-md hover:border-slate-300 cursor-pointer"
+                    style={{ border: `1px solid ${INK}1a` }}
+                  >
+                    {/* Header with WhatsApp badge */}
+                    <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#25D366]/15 text-[#25D366]">
+                          <MessageCircle className="h-3.5 w-3.5 fill-[#25D366]" />
+                        </span>
+                        <span className="truncate text-[13px] font-semibold text-slate-800">
+                          {t.title || "WhatsApp Review"}
+                        </span>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200/60">
+                        <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                        Verified
                       </span>
-                    )}
-                    {t.verified !== false && (
-                      <p className="flex items-center gap-1 text-[12px] font-medium" style={{ color: GOLD }}>
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        Verified customer
+                    </div>
+
+                    {/* Image showcase */}
+                    <div className="relative flex h-[380px] sm:h-[410px] w-full items-center justify-center overflow-hidden bg-slate-900/[0.02] p-3 sm:p-4">
+                      <img
+                        src={t.image}
+                        alt={t.alt || "WhatsApp customer review"}
+                        className="h-full w-auto max-w-full rounded-xl object-contain shadow-xs transition-transform duration-300 group-hover:scale-[1.02]"
+                        loading="lazy"
+                      />
+                      {/* Hover overlay hint */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity duration-200 group-hover:opacity-100 rounded-b-2xl">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[12px] font-semibold text-slate-800 shadow-md backdrop-blur-xs">
+                          <ZoomIn className="h-3.5 w-3.5 text-slate-600" /> Click to enlarge
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                ) : (
+                  <article
+                    className="flex h-full flex-col rounded-2xl bg-white p-5 sm:p-6 shadow-sm"
+                    style={{ border: `1px solid ${INK}1a` }}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold truncate" style={{ color: INK }}>
+                        {t.customer_name}
                       </p>
-                    )}
-                  </div>
-                </article>
+                      <p className="text-[13px] truncate" style={{ color: `${INK}99` }}>{t.customer_location}</p>
+                      <div className="mt-0.5 flex">
+                        {Array.from({ length: 5 }).map((_, n) => (
+                          <Star
+                            key={n}
+                            className={`h-3.5 w-3.5 ${
+                              n < (t.rating || 5) ? "fill-amber-400 text-amber-400" : "text-gray-200"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <blockquote className="mt-4 text-[15px] italic leading-relaxed" style={{ color: `${INK}cc` }}>
+                      &ldquo;{t.testimonial_text}&rdquo;
+                    </blockquote>
+                    <div className="mt-auto pt-4 space-y-2">
+                      {t.service_completed && (
+                        <span className="inline-block rounded-full px-2.5 py-1 text-[12px] font-medium" style={{ background: `${GREEN}1a`, color: GREEN }}>
+                          {t.service_completed}
+                        </span>
+                      )}
+                      {t.verified !== false && (
+                        <p className="flex items-center gap-1 text-[12px] font-medium" style={{ color: GOLD }}>
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Verified customer
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                )}
               </div>
             ))}
           </div>
@@ -231,6 +282,47 @@ export function TestimonialsCarousel({
             ))}
           </div>
         </>
+      )}
+
+      {/* Lightbox / Zoom Modal */}
+      {selectedImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="relative flex max-h-[92vh] max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#25D366]/15 text-[#25D366]">
+                  <MessageCircle className="h-3.5 w-3.5 fill-[#25D366]" />
+                </span>
+                <span className="text-sm font-semibold text-slate-800">
+                  {selectedImage.title || "WhatsApp Customer Review"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedImage(null)}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition cursor-pointer"
+                aria-label="Close review modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex items-center justify-center bg-neutral-950/5 p-4 sm:p-6 overflow-auto">
+              <img
+                src={selectedImage.image}
+                alt={selectedImage.alt || "WhatsApp customer testimony"}
+                className="max-h-[75vh] w-auto max-w-full rounded-xl object-contain shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
