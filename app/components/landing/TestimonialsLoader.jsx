@@ -5,51 +5,63 @@ import { motion } from "framer-motion";
 import { TestimonialsCarousel } from "./TestimonialsCarousel";
 import { GREEN, PAPER, INK } from "./theme";
 
-const SAMPLE_TESTIMONIALS = [
+export const WHATSAPP_TESTIMONIALS = [
   {
     id: "1",
-    customer_name: "Chukwudi O.",
-    customer_location: "Lekki Phase 1, Lagos",
-    rating: 5,
-    testimonial_text: "Renewed my vehicle particulars right from my office desk. The rider delivered all my physical documents to Lekki under 48 hours. Zero queues!",
-    service_completed: "Vehicle Particulars",
-    verified: true,
+    image: "/testimony/tes1.jpeg",
+    title: "Driver's Licence Update",
+    alt: "Customer WhatsApp review for temporary driver's licence",
   },
   {
     id: "2",
-    customer_name: "Amina Balogun",
-    customer_location: "Ikeja GRA, Lagos",
-    rating: 5,
-    testimonial_text: "The physical condition inspection saved me from buying a Lexus RX350 with hidden transmission issues — the mechanic's report was thorough, with photos on every section.",
-    service_completed: "Physical Condition Inspection",
-    verified: true,
+    image: "/testimony/tes2.jpeg",
+    title: "Seamless Renewal Service",
+    alt: "Customer WhatsApp feedback praising the seamless renewal process",
   },
   {
     id: "3",
-    customer_name: "Tomiwa Adeyemi",
-    customer_location: "Abuja FCT",
-    rating: 5,
-    testimonial_text: "Renewed my driver's licence without setting foot in an FRSC office — booked my biometric slot from the app, and the licence was delivered to my house in Abuja.",
-    service_completed: "Driver's Licence",
-    verified: true,
+    image: "/testimony/tes3.jpeg",
+    title: "Licence Document Collected",
+    alt: "Customer WhatsApp confirmation of collecting driver's licence document",
   },
   {
     id: "4",
-    customer_name: "Blessing K.",
-    customer_location: "Victoria Island, Lagos",
-    rating: 5,
-    testimonial_text: "Roadworthiness express is the real deal. Drove into their bay for my slot, got tested end-to-end, and the soft copy was in my app the same day.",
-    service_completed: "Roadworthiness Express",
-    verified: true,
+    image: "/testimony/tes4.jpeg",
+    title: "Temporary Licence Received",
+    alt: "Customer photo confirming collection of temporary driver licence",
+  },
+  {
+    id: "5",
+    image: "/testimony/tes5.jpeg",
+    title: "100% Customer Trust",
+    alt: "Customer chat expressing 100% trust in Vehicular service",
+  },
+  {
+    id: "6",
+    image: "/testimony/tes6.jpeg",
+    title: "Biometric Capture Done",
+    alt: "Customer WhatsApp message after biometric capture praising Vehicular",
+  },
+  {
+    id: "7",
+    image: "/testimony/tes7.jpeg",
+    title: "Fast Service & Referrals",
+    alt: "Customer thanking Vehicular for prompt service and referring others",
+  },
+  {
+    id: "8",
+    image: "/testimony/tes8.jpeg",
+    title: "No Queues & Direct Delivery",
+    alt: "Customer feedback confirming convenient delivery without queueing",
   },
 ];
 
 export function TestimonialsLoader({
   serviceId,
-  eyebrow = "Trusted by drivers nationwide",
-  heading = "What customers say",
+  eyebrow = "Real customer stories",
+  heading = "What our customers are saying",
 }) {
-  const [items, setItems] = useState(SAMPLE_TESTIMONIALS);
+  const [items, setItems] = useState(WHATSAPP_TESTIMONIALS);
 
   useEffect(() => {
     let active = true;
