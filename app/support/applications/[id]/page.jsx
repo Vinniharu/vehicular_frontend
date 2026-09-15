@@ -34,7 +34,7 @@ const fieldLabel = "block text-[12px] font-semibold text-slate-600 mb-1.5";
 const EDIT_FIELDS = [
   { key: "first_name", label: "First name" },
   { key: "middle_name", label: "Middle name" },
-  { key: "last_name", label: "Last name" },
+  { key: "last_name", label: "Surname" },
   { key: "gender", label: "Gender" },
   { key: "nationality", label: "Nationality" },
   { key: "marital_status", label: "Marital status" },
@@ -103,7 +103,7 @@ function EditApplicationModal({ application, onClose, onSaved }) {
               <input className={inputBase} value={form.middle_name} onChange={(e) => setForm({ ...form, middle_name: e.target.value })} />
             </div>
             <div>
-              <label className={fieldLabel}>Last name</label>
+              <label className={fieldLabel}>Surname</label>
               <input className={inputBase} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
             </div>
           </div>

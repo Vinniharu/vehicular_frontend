@@ -137,7 +137,7 @@ export default function AgentSettingsPage() {
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!profileFirstName.trim() || !profileLastName.trim()) {
-      showToast("error", "First name and Last name are required.");
+      showToast("error", "First name and Surname are required.");
       return;
     }
     setUpdatingProfile(true);
@@ -302,7 +302,7 @@ export default function AgentSettingsPage() {
             {Boolean(user?.middle_name) && (
               <InfoRow icon={User} label="Middle Name" value={user?.middle_name} />
             )}
-            <InfoRow icon={User} label="Last Name" value={user?.last_name || (user?.name?.split(" ")?.length > 1 ? user?.name?.split(" ").slice(1).join(" ") : "")} />
+            <InfoRow icon={User} label="Surname" value={user?.last_name || (user?.name?.split(" ")?.length > 1 ? user?.name?.split(" ").slice(1).join(" ") : "")} />
             <InfoRow icon={Mail} label="Email Address" value={user?.email} monospace />
             <InfoRow icon={Phone} label="Phone Number" value={user?.phone} monospace />
           </div>
@@ -318,7 +318,7 @@ export default function AgentSettingsPage() {
                 <input type="text" value={profileMiddleName} onChange={(e) => setProfileMiddleName(e.target.value)} className={inputBase} placeholder="Optional" />
               </div>
               <div>
-                <label className={fieldLabel}>Last Name <span className="text-red-500">*</span></label>
+                <label className={fieldLabel}>Surname <span className="text-red-500">*</span></label>
                 <input type="text" value={profileLastName} onChange={(e) => setProfileLastName(e.target.value)} className={inputBase} required />
               </div>
             </div>

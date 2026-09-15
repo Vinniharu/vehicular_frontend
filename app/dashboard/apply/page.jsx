@@ -465,7 +465,7 @@ export default function ApplyPage() {
       const trimmedMaiden = mothersMaidenName.trim();
       if (!trimmedFirst) errors.firstName = "First name is required.";
       else if (!NAME_RE.test(trimmedFirst)) errors.firstName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
-      if (!trimmedLast) errors.lastName = "Last name is required.";
+      if (!trimmedLast) errors.lastName = "Surname is required.";
       else if (!NAME_RE.test(trimmedLast)) errors.lastName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
       if (trimmedMaiden && !NAME_RE.test(trimmedMaiden)) errors.mothersMaidenName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
       if (!dob) errors.dob = "Date of birth is required.";
@@ -901,7 +901,7 @@ export default function ApplyPage() {
                 <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="(optional)" className={inputBase} />
               </div>
               <div>
-                <label className={label}>Last name <span className="text-red-400">*</span></label>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
                 <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Obi" className={`${inputBase} ${errInputClass(!!fieldErrors.lastName)}`} />
                 <FieldError message={fieldErrors.lastName} />
               </div>
@@ -1146,7 +1146,7 @@ export default function ApplyPage() {
                       rows: [
                         ["First name", firstName || "—"],
                         ...(middleName ? [["Middle name", middleName]] : []),
-                        ["Last name", lastName || "—"],
+                        ["Surname", lastName || "—"],
                         ["Date of birth", dob],
                         ["Gender", gender || "—"],
                         ["NIN", nin || "—"],

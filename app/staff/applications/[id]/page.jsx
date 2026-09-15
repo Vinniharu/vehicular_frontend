@@ -777,30 +777,53 @@ export default function StaffApplicationDetailsPage() {
             <UserCheck className="h-4.5 w-4.5" /> No agent auto-matched — assign one manually
           </h3>
           <p className="mt-1 text-[13px] text-amber-800 leading-relaxed">
-            Routing didn't find an eligible agent automatically. Pick an agent below to assign this application directly (showing all available agents across states and LGAs).
+            Routing didn't find an eligible agent automatically. Pick an agent below to assign this application directly (showing only available agents capable of handling this specific service).
           </p>
+
+          {assignError && (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3.5 flex items-start gap-2.5 text-[12.5px] text-red-800 shadow-sm">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-red-900">Assignment Failed</p>
+                <p className="mt-0.5 text-red-700 leading-relaxed">{assignError}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignError(null)}
+                className="text-red-400 hover:text-red-600 transition-colors p-0.5"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
           {loadingEligibleAgents ? (
             <p className="mt-3 flex items-center gap-2 text-[12.5px] text-amber-700">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading eligible agents…
             </p>
-          ) : eligibleAgents.length === 0 ? (
-            <p className="mt-3 text-[12.5px] text-amber-700">
-              No eligible agents found capable of handling {(application.application_type || "this service").replace(/_/g, " ")}.
-            </p>
+          ) : eligibleAgents.filter((a) => a.has_bank_account).length === 0 ? (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-100/60 p-3 text-[12.5px] text-amber-800 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-700 shrink-0" />
+              <span>No eligible agents found capable of handling {(application.application_type || "this service").replace(/_/g, " ")}.</span>
+            </div>
           ) : (
             <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <select
                 value={selectedAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedAgentId(e.target.value);
+                  setAssignError(null);
+                }}
                 className="w-full sm:w-auto flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/15"
               >
                 <option value="">Select an agent…</option>
-                {eligibleAgents.map((a) => (
-                  <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
-                    Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
-                  </option>
-                ))}
+                {eligibleAgents
+                  .filter((a) => a.has_bank_account)
+                  .map((a) => (
+                    <option key={a.agent_id} value={a.agent_id}>
+                      Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}
+                    </option>
+                  ))}
               </select>
               <button onClick={() => handleAssignAgent()} disabled={assigning || !selectedAgentId} className={btnPrimary} style={{ background: BRAND }}>
                 {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -808,7 +831,6 @@ export default function StaffApplicationDetailsPage() {
               </button>
             </div>
           )}
-          {assignError && <p className="mt-2 text-[12.5px] font-medium text-red-600">{assignError}</p>}
         </div>
       )}
 
@@ -872,25 +894,51 @@ export default function StaffApplicationDetailsPage() {
           {showReassign && (
             <div className="mt-4 border-t border-slate-100 pt-4">
               <p className="text-[12.5px] font-medium text-slate-700 mb-2">
-                Select a different agent to route this customer to (showing all available agents across states &amp; LGAs):
+                Select a different agent to route this customer to (showing only available agents capable of handling this specific service):
               </p>
+
+              {assignError && (
+                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3.5 flex items-start gap-2.5 text-[12.5px] text-red-800 shadow-sm">
+                  <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-red-900">Reassignment Failed</p>
+                    <p className="mt-0.5 text-red-700 leading-relaxed">{assignError}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAssignError(null)}
+                    className="text-red-400 hover:text-red-600 transition-colors p-0.5"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+
               {loadingEligibleAgents ? (
                 <p className="flex items-center gap-2 text-[12.5px] text-slate-500">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading available agents…
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#28A745]" /> Loading available agents…
                 </p>
+              ) : eligibleAgents.filter((a) => a.agent_id !== application.assigned_agent_id && a.has_bank_account).length === 0 ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-100/60 p-3 text-[12.5px] text-amber-800 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-700 shrink-0" />
+                  <span>No other eligible agents found capable of handling {(application.application_type || "this service").replace(/_/g, " ")}.</span>
+                </div>
               ) : (
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                   <select
                     value={selectedAgentId}
-                    onChange={(e) => setSelectedAgentId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedAgentId(e.target.value);
+                      setAssignError(null);
+                    }}
                     className="w-full sm:w-auto flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
                   >
                     <option value="">Select an agent…</option>
                     {eligibleAgents
-                      .filter((a) => a.agent_id !== application.assigned_agent_id)
+                      .filter((a) => a.agent_id !== application.assigned_agent_id && a.has_bank_account)
                       .map((a) => (
-                        <option key={a.agent_id} value={a.agent_id} disabled={!a.has_bank_account}>
-                          Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}{!a.has_bank_account ? " — no bank account on file" : ""}
+                        <option key={a.agent_id} value={a.agent_id}>
+                          Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}
                         </option>
                       ))}
                   </select>
@@ -905,7 +953,6 @@ export default function StaffApplicationDetailsPage() {
                   </button>
                 </div>
               )}
-              {assignError && <p className="mt-2 text-[12.5px] font-medium text-red-600">{assignError}</p>}
             </div>
           )}
         </div>
@@ -1290,7 +1337,7 @@ export default function StaffApplicationDetailsPage() {
                 </span>
               </div>
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Last Name</span>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
                 <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
                   {application.last_name || application.applicant_details?.last_name || (application.applicant_details?.account_name?.split(" ")?.length > 1 ? application.applicant_details?.account_name?.split(" ").slice(1).join(" ") : "—")}
                 </span>

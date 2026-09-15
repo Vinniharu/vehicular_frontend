@@ -1144,7 +1144,7 @@ export default function AgentApplicationDetailPage() {
               </span>
             </div>
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Last name</span>
+              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
               <span className="mt-0.5 block text-[15px] font-bold text-slate-900">
                 {application.last_name || applicant.last_name || (applicant.account_name?.split(" ")?.length > 1 ? applicant.account_name?.split(" ").slice(1).join(" ") : "—")}
               </span>
