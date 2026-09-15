@@ -551,7 +551,8 @@ function isImageFile(url) {
 export default function AgentApplicationDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const appId = params?.id ? Number(params.id) : null;
+  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
+  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
 
   const [application, setApplication] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -595,7 +596,10 @@ export default function AgentApplicationDetailPage() {
   };
 
   const loadDetail = async (isRefresh = false) => {
-    if (!appId) return;
+    if (!appId) {
+      setLoading(false);
+      return;
+    }
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     const res = await getApplication(appId);
@@ -866,6 +870,8 @@ export default function AgentApplicationDetailPage() {
   }
 
   const applicant = application.applicant_details || {};
+  const isPaid = application?.payment_status === "success" || application?.payment_options?.payment_status === "success";
+  const hasMinimumPayment = isPaid || !!application?.payment_options?.has_minimum_payment || ((application?.payment_options?.amount_paid_kobo || 0) >= 1000000);
   const isRenewalOrReissue = ["renewal", "reissue", "international_permit"].includes(application.application_type);
   const isFreshApp = application.application_type === "fresh";
   // Biometric capture is a fresh-only concept — renewal/reissue's state
@@ -901,6 +907,8 @@ export default function AgentApplicationDetailPage() {
   const canFlagIssue = (isRenewalOrReissue || isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status);
   const canUploadProgressEvidence = (isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status);
 
+  const fullName = `${application.first_name || applicant.first_name || applicant.account_name?.split(" ")[0] || ""} ${application.last_name || applicant.last_name || (applicant.account_name?.split(" ")?.length > 1 ? applicant.account_name?.split(" ").slice(1).join(" ") : "")}`.trim() || applicant.account_name || "Applicant";
+
   return (
     <div className="mx-auto max-w-3xl space-y-5 pb-16">
       <DocumentPreviewModal 
@@ -928,7 +936,7 @@ export default function AgentApplicationDetailPage() {
               </div>
             )}
             <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
-              {application.first_name} {application.last_name} <span className="font-mono text-slate-400">#{application.id}</span>
+              {fullName} <span className="font-mono text-slate-400">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} appType={application.application_type} />
             <span className="rounded-md border border-slate-200 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
