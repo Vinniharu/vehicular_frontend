@@ -450,7 +450,7 @@ export default function StaffApplicationDetailsPage() {
   // NGN10,000 "pay small small" minimum — enough to unlock approval/enrollment/
   // certificate steps, but NOT enough to push the application to an agent
   // (that still requires isPaid/full payment).
-  const hasMinimumPayment = isPaid || !!application.payment_options?.has_minimum_payment;
+  const hasMinimumPayment = isPaid || !!application.payment_options?.has_minimum_payment || ((application.payment_options?.amount_paid_kobo || 0) >= 1000000);
   const hasDrivingSchoolCertificate = application.documents?.some((d) => d.doc_type === "driving_school_certificate");
   const skipPathCertOnFile = hasDrivingSchoolCertificate && !application.driving_school_enrolled_at;
   const verifSlipUrl =
@@ -560,14 +560,34 @@ export default function StaffApplicationDetailsPage() {
               <button onClick={() => openModal("reject")} className={btnDanger}>
                 <X className="h-4 w-4" /> Reject
               </button>
-              <button
-                onClick={() => openModal("approve")}
-                disabled={!hasMinimumPayment}
-                className={btnPrimary}
-                style={{ background: hasMinimumPayment ? BRAND : undefined }}
-              >
-                <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Approve & verify" : "Awaiting ₦10,000 min. payment"}
-              </button>
+              {application.application_type === "fresh" && !hasDrivingSchoolCertificate ? (
+                <button
+                  onClick={() => openModal("enroll")}
+                  disabled={!hasMinimumPayment}
+                  className={btnPrimary}
+                  style={{ background: hasMinimumPayment ? "#7c3aed" : undefined }}
+                >
+                  <Building className="h-4 w-4" /> {hasMinimumPayment ? "Enroll in driving school" : "Awaiting ₦10,000 min. payment"}
+                </button>
+              ) : hasDrivingSchoolCertificate ? (
+                <button
+                  onClick={() => openModal("confirm-cert")}
+                  disabled={!hasMinimumPayment}
+                  className={btnPrimary}
+                  style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}
+                >
+                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Certificate on file — verify & route" : "Awaiting ₦10,000 min. payment"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => openModal("approve")}
+                  disabled={!hasMinimumPayment}
+                  className={btnPrimary}
+                  style={{ background: hasMinimumPayment ? BRAND : undefined }}
+                >
+                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Approve & verify" : "Awaiting ₦10,000 min. payment"}
+                </button>
+              )}
             </>
           )}
 
@@ -1461,9 +1481,26 @@ export default function StaffApplicationDetailsPage() {
               </div>
               
               {application.status === "submitted" && application.application_type === "fresh" && (
-                <p className="text-[13.5px] leading-relaxed text-slate-600">
-                  Verify the applicant's NIN and biodata against the national database before enrolling them in a driving school. Use the <strong>Approve</strong> button at the top to proceed.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-[13.5px] leading-relaxed text-slate-600">
+                    Verify the applicant's NIN and biodata against the national database.
+                    {hasMinimumPayment
+                      ? " The customer has met the ₦10,000 minimum deposit, so you can enroll them in driving school using the Enroll button at the top."
+                      : " A minimum payment of ₦10,000 is required before enrolling the customer in driving school."}
+                  </p>
+                  {!hasMinimumPayment && (
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-2.5 text-[12.5px] text-amber-800 ring-1 ring-inset ring-amber-200">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                      <span>Customer has paid {koboToNaira(application.payment_options?.amount_paid_kobo || 0)} of ₦10,000 required minimum.</span>
+                    </div>
+                  )}
+                  {hasMinimumPayment && !isPaid && application.payment_options && (
+                    <div className="flex items-center gap-2 rounded-lg bg-purple-50 p-2.5 text-[12.5px] text-purple-800 ring-1 ring-inset ring-purple-200">
+                      <Building className="h-4 w-4 shrink-0 text-purple-600" />
+                      <span>₦10,000 driving school minimum paid ({koboToNaira(application.payment_options.amount_paid_kobo)}). Remaining balance: {koboToNaira(application.payment_options.remaining_kobo)}.</span>
+                    </div>
+                  )}
+                </div>
               )}
 
               {application.status === "submitted" && application.application_type !== "fresh" && (
@@ -1475,9 +1512,23 @@ export default function StaffApplicationDetailsPage() {
               )}
 
               {application.status === "staff_review" && application.application_type === "fresh" && !hasDrivingSchoolCertificate && (
-                <p className="text-[13.5px] leading-relaxed text-slate-600">
-                  Applicant is verified. Enroll them in an accredited driving school using the <strong>Enroll</strong> button at the top to attach the verification slip and start their countdown.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-[13.5px] leading-relaxed text-slate-600">
+                    Applicant is verified. {hasMinimumPayment ? "Enroll them in an accredited driving school using the Enroll button at the top to attach the verification slip and start their countdown." : "Awaiting the ₦10,000 minimum deposit before enrollment can proceed."}
+                  </p>
+                  {!hasMinimumPayment && (
+                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-2.5 text-[12.5px] text-amber-800 ring-1 ring-inset ring-amber-200">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                      <span>Customer has paid {koboToNaira(application.payment_options?.amount_paid_kobo || 0)} of ₦10,000 required minimum.</span>
+                    </div>
+                  )}
+                  {hasMinimumPayment && !isPaid && application.payment_options && (
+                    <div className="flex items-center gap-2 rounded-lg bg-purple-50 p-2.5 text-[12.5px] text-purple-800 ring-1 ring-inset ring-purple-200">
+                      <Building className="h-4 w-4 shrink-0 text-purple-600" />
+                      <span>₦10,000 driving school minimum paid ({koboToNaira(application.payment_options.amount_paid_kobo)}). Remaining balance: {koboToNaira(application.payment_options.remaining_kobo)}.</span>
+                    </div>
+                  )}
+                </div>
               )}
 
               {application.status === "staff_review" && application.application_type === "fresh" && hasDrivingSchoolCertificate && (
