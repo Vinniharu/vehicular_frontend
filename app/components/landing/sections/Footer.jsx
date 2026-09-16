@@ -36,7 +36,7 @@ export default function Footer({ redirectTo }) {
           <div>
             <p className="text-[11px] uppercase tracking-widest text-white/40 mb-4">Legal</p>
             <ul className="space-y-2.5 text-[13px] text-white/60">
-              <li><Link href="/privacy" className="hover:text-white transition-colors duration-150">Privacy</Link></li>
+              <li><Link href="/privacy-policy" className="hover:text-white transition-colors duration-150">Privacy Policy</Link></li>
               <li><Link href={`/auth/login?redirect=${encodeURIComponent(redirectTo)}`} className="hover:text-white transition-colors duration-150">Sign in</Link></li>
               <li><Link href={`/auth/signup?redirect=${encodeURIComponent(redirectTo)}`} className="hover:text-white transition-colors duration-150">Create account</Link></li>
             </ul>
