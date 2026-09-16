@@ -20,6 +20,7 @@ function LoginForm() {
   const isSafeRedirect = typeof rawRedirect === "string" && rawRedirect.startsWith("/") && rawRedirect !== "/";
   const targetRedirect = isSafeRedirect ? rawRedirect : null;
   const sessionExpired = searchParams?.get("reason") === "session_expired";
+  const accountDeleted = searchParams?.get("reason") === "account_deleted";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -187,6 +188,18 @@ function LoginForm() {
           <span>Your session expired after 60 minutes. Please sign in again.</span>
         </div>
       )}
+
+      {/* Account deleted notice */}
+      {accountDeleted && !error && (
+        <div
+          className="mb-6 rounded-xl p-4 flex items-start gap-3 text-[13px] leading-relaxed"
+          style={{ background: "rgba(40,167,69,0.12)", border: "1px solid rgba(40,167,69,0.3)", color: "#34d399" }}
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-[#28A745]" />
+          <span>Your account has been deleted successfully.</span>
+        </div>
+      )}
+
 
       {/* Error Alert */}
       {error && (
