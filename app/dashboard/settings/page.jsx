@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   User, Mail, Phone, CheckCircle2,
   AlertCircle, Pencil, X, Save, ChevronDown, Loader2, KeyRound, Eye, EyeOff,
-  MessageCircle, Send,
+  MessageCircle, Send, Trash2, AlertTriangle,
 } from "lucide-react";
 import {
   authGetMe, authUpdateProfile, authChangePassword, getReferenceStates,
   getReferenceLgas, getCachedUser, createCustomerSupportTicket,
+  authDeleteAccount, removeToken,
 } from "@/lib/api";
+import Modal from "@/app/dashboard/_shared/Modal";
 import { colors } from "@/lib/design-tokens";
 
 const BRAND = colors.primary.DEFAULT;
@@ -57,6 +60,14 @@ export default function SettingsPage() {
   const [ticketMessage, setTicketMessage] = useState("");
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [ticketError, setTicketError] = useState(null);
+
+  // Delete account section
+  const router = useRouter();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const [toast, setToast] = useState(null);
 
@@ -239,6 +250,40 @@ export default function SettingsPage() {
       showToast("success", "Your message has been sent to our support team.");
     }
   };
+
+  const isOAuthUser = Boolean(user?.oauth_provider && !user?.password_hash);
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setDeleteError(null);
+
+    if (isOAuthUser) {
+      if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+        setDeleteError("Please type DELETE to confirm account deletion.");
+        return;
+      }
+    } else {
+      if (!deletePassword) {
+        setDeleteError("Please enter your current password to confirm.");
+        return;
+      }
+    }
+
+    setDeletingAccount(true);
+    const res = await authDeleteAccount({
+      password: deletePassword || undefined,
+      confirmation: deleteConfirmText.trim().toUpperCase() || undefined,
+    });
+    setDeletingAccount(false);
+
+    if (res.error) {
+      setDeleteError(res.error);
+    } else {
+      removeToken();
+      router.push("/auth/login?reason=account_deleted");
+    }
+  };
+
 
   if (loading && !user) {
     return (
@@ -493,9 +538,155 @@ export default function SettingsPage() {
           </div>
         </form>
       </div>
+
+      {/* Danger Zone */}
+      <div className="bg-white rounded-2xl border border-red-200 overflow-hidden shadow-xs">
+        <div className="px-6 sm:px-8 py-5 border-b border-red-100 flex items-center justify-between flex-wrap gap-3 bg-red-50/40">
+          <div>
+            <h2 className="font-display text-base font-semibold text-red-900 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" /> Danger Zone
+            </h2>
+            <p className="text-sm text-red-700/80 mt-0.5">
+              Permanently delete your Vehiculars account and service records.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDeletePassword("");
+              setDeleteConfirmText("");
+              setDeleteError(null);
+              setDeleteModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-xs cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4" /> Delete Account
+          </button>
+        </div>
+        <div className="px-6 sm:px-8 py-5 text-sm text-slate-600">
+          <p className="leading-relaxed">
+            Deleting your account will permanently deactivate your profile, cancel any ongoing or in-flight applications, close your assigned Monnify dedicated virtual account, and forfeit any remaining wallet balance. This action is irreversible.
+          </p>
+        </div>
+      </div>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal
+        open={deleteModalOpen}
+        onOpenChange={(open) => {
+          if (!deletingAccount) setDeleteModalOpen(open);
+        }}
+        title="Delete Account Confirmation"
+      >
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 max-h-[88vh] overflow-y-auto text-left">
+          <div className="flex items-center gap-3.5 mb-4">
+            <div className="h-11 w-11 shrink-0 rounded-2xl bg-red-100 flex items-center justify-center text-red-600">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-bold text-slate-900">Delete your account?</h3>
+              <p className="text-xs text-red-600 font-medium">This action is permanent and cannot be undone</p>
+            </div>
+          </div>
+
+          <p className="text-sm text-slate-600 leading-relaxed mb-3">
+            Please carefully review the consequences of deleting your account before proceeding:
+          </p>
+
+          {/* Consequences List */}
+          <div className="rounded-xl bg-red-50/80 border border-red-200/80 p-4 space-y-3 text-[13px] text-red-950 mb-4">
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5 text-base leading-none">🚫</span>
+              <p><strong>Immediate Sign-Out &amp; Access Revocation:</strong> You will be logged out instantly and will no longer be able to sign in with this email or linked Google account.</p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5 text-base leading-none">📄</span>
+              <p><strong>Active Applications Cancelled:</strong> Any pending or in-flight driver’s licence, vehicle particulars, or verification requests will be terminated.</p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5 text-base leading-none">🗄️</span>
+              <p><strong>Document Vault Inaccessible:</strong> All approved licences, vehicle documents, and certificates in your account will become permanently inaccessible.</p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5 text-base leading-none">💳</span>
+              <p><strong>Wallet &amp; Dedicated Account:</strong> Any remaining wallet balance will be forfeited. Your assigned Monnify virtual account number will be closed.</p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 mt-0.5 text-base leading-none">🎁</span>
+              <p><strong>Referral Code &amp; Rewards:</strong> Your referral code and any unredeemed referral reward balance will be permanently erased.</p>
+            </div>
+          </div>
+
+          {deleteError && (
+            <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-red-100/80 p-3 text-sm text-red-700 border border-red-200">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleDeleteAccount} className="space-y-4">
+            {isOAuthUser ? (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  To confirm, please type <span className="font-mono text-red-600 font-bold">DELETE</span> below:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE"
+                  className={inputCls}
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Enter your account password to confirm:
+                </label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Your current password"
+                  className={inputCls}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={deletingAccount}
+                onClick={() => setDeleteModalOpen(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Keep Account
+              </button>
+              <button
+                type="submit"
+                disabled={deletingAccount || (isOAuthUser ? deleteConfirmText.trim().toUpperCase() !== "DELETE" : !deletePassword)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white transition-colors shadow-xs cursor-pointer"
+              >
+                {deletingAccount ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" /> Permanently Delete Account
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
     </div>
   );
 }
+
 
 function InfoRow({ icon: Icon, label, value, monospace, empty = "Not provided" }) {
   return (
