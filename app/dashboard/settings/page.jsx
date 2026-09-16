@@ -540,7 +540,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-white rounded-2xl border border-red-200 overflow-hidden shadow-xs">
+      <div id="danger-zone" className="bg-white rounded-2xl border border-red-200 overflow-hidden shadow-xs">
         <div className="px-6 sm:px-8 py-5 border-b border-red-100 flex items-center justify-between flex-wrap gap-3 bg-red-50/40">
           <div>
             <h2 className="font-display text-base font-semibold text-red-900 flex items-center gap-2">
