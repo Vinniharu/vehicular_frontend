@@ -56,6 +56,7 @@ import {
   addApplicationDocument,
   submitVehicleVerificationChecklist,
   completeCentralMotorRegistryApplication,
+  downloadAgentBiodataPdf,
 } from "@/lib/api";
 import { statusMeta, StatusBadge } from "../../_status";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
@@ -146,8 +147,9 @@ function LicenceCard({ title, licence, onViewDoc }) {
 // ad-hoc inline hex colors with one small named lookup, reused everywhere.
 const ACTION_VARIANTS = {
   primary: { filled: true, bg: BRAND },
-  success: { filled: true, bg: "#0d9488" },
+  success: { filled: true, bg: BRAND },
   accent: { filled: true, bg: "#7c3aed" },
+  secondary: { filled: false, color: "#334155", border: "#cbd5e1" },
   info: { filled: false, color: "#4338ca", border: "#c7d2fe" },
   danger: { filled: false, color: "#b91c1c", border: "#fecaca" },
 };
@@ -233,7 +235,7 @@ const REGISTRATION_VERDICT_OPTIONS = [
 // the rest of this page is built around — kept as its own compact
 // self-contained view rather than threading `isVehicleVerification`
 // branches through every DL-specific section below.
-function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc }) {
+function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onDownloadBiodataPdf, downloadingBiodataPdf }) {
   const detail = application.verification_detail || {};
   const isCustomsDuty = detail.check_type === "customs_duty";
   const evidenceDocType = isCustomsDuty ? CUSTOMS_EVIDENCE_DOC_TYPE : REGISTRY_EVIDENCE_DOC_TYPE;
@@ -273,26 +275,22 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc }) {
 
   const handleSubmit = async () => {
     setError(null);
-    if (!evidenceUrl) {
-      setError("Upload your evidence before submitting.");
-      return;
-    }
     if (!verdict) {
-      setError("Select an overall verdict before submitting.");
+      setError("Please select an overall verdict before submitting.");
       return;
     }
-    if (!isCustomsDuty && (isRegistered === null || reportedStolen === null || hasFines === null)) {
-      setError("Answer all three registry questions before submitting.");
+    if (!evidenceUrl) {
+      setError("Please upload the required verification evidence document before submitting.");
       return;
     }
     setSubmitting(true);
     const res = await submitVehicleVerificationChecklist(application.id, {
-      is_registered: isCustomsDuty ? undefined : isRegistered,
-      reported_stolen: isCustomsDuty ? undefined : reportedStolen,
-      has_fines: isCustomsDuty ? undefined : hasFines,
-      fine_details: !isCustomsDuty && hasFines ? fineDetails.trim() || undefined : undefined,
+      is_registered: isRegistered,
+      reported_stolen: reportedStolen,
+      has_fines: hasFines,
+      fine_details: fineDetails || undefined,
       verdict,
-      notes: notes.trim() || undefined,
+      notes: notes || undefined,
     });
     setSubmitting(false);
     if (res.error) {
@@ -311,9 +309,24 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 pb-16">
-      <Link href="/agent/applications" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="h-3.5 w-3.5" /> My applications
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/agent/applications" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
+          <ArrowLeft className="h-3.5 w-3.5" /> My applications
+        </Link>
+        {onDownloadBiodataPdf && (
+          <button
+            type="button"
+            onClick={onDownloadBiodataPdf}
+            disabled={downloadingBiodataPdf}
+            className={btnSecondary}
+            style={{ padding: "0.45rem 0.8rem", fontSize: "12.5px" }}
+            title="Download applicant biodata and vehicle specifications as PDF"
+          >
+            {downloadingBiodataPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+            {downloadingBiodataPdf ? "Preparing PDF…" : "Download Biodata PDF"}
+          </button>
+        )}
+      </div>
 
       <Section title="Vehicle Verification" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -416,7 +429,7 @@ const CENTRAL_REGISTRY_CERTIFICATE_DOC_TYPE = "central_registry_certificate";
 // ECMR's agent flow is a single completion
 // document, no structured checklist — kept as its own compact
 // self-contained view for the same reason VehicleVerificationChecklist is.
-function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
+function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onDownloadBiodataPdf, downloadingBiodataPdf }) {
   const existingDoc = (application.documents || []).find((d) => d.doc_type === CENTRAL_REGISTRY_CERTIFICATE_DOC_TYPE);
 
   const [uploading, setUploading] = useState(false);
@@ -457,9 +470,24 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 pb-16">
-      <Link href="/agent/applications" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="h-3.5 w-3.5" /> My applications
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/agent/applications" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
+          <ArrowLeft className="h-3.5 w-3.5" /> My applications
+        </Link>
+        {onDownloadBiodataPdf && (
+          <button
+            type="button"
+            onClick={onDownloadBiodataPdf}
+            disabled={downloadingBiodataPdf}
+            className={btnSecondary}
+            style={{ padding: "0.45rem 0.8rem", fontSize: "12.5px" }}
+            title="Download applicant biodata and vehicle specifications as PDF"
+          >
+            {downloadingBiodataPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+            {downloadingBiodataPdf ? "Preparing PDF…" : "Download Biodata PDF"}
+          </button>
+        )}
+      </div>
 
       <Section title="ECMR" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -581,6 +609,24 @@ export default function AgentApplicationDetailPage() {
 
   const [markCapturedLoading, setMarkCapturedLoading] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
+  const [downloadingBiodataPdf, setDownloadingBiodataPdf] = useState(false);
+
+  const handleDownloadBiodataPdf = async () => {
+    if (!application) return;
+    setDownloadingBiodataPdf(true);
+    setActionError(null);
+    try {
+      await downloadAgentBiodataPdf(application.id);
+    } catch (err) {
+      const message =
+        err?.message === "Failed to fetch"
+          ? "Could not connect to the server to download the biodata PDF. Please check your network connection or try again."
+          : (err?.message || "Could not generate the biodata PDF. Please try again.");
+      setActionError(message);
+    } finally {
+      setDownloadingBiodataPdf(false);
+    }
+  };
 
   // tinted_permit progress evidence — interim "work is underway" uploads,
   // distinct from the terminal finished-permit proof (which still goes
@@ -833,6 +879,8 @@ export default function AgentApplicationDetailPage() {
         <VehicleVerificationChecklist
           application={application}
           onViewDoc={setPreviewDocUrl}
+          onDownloadBiodataPdf={handleDownloadBiodataPdf}
+          downloadingBiodataPdf={downloadingBiodataPdf}
           onSubmitted={async () => {
             setNotice({ type: "success", message: "Checklist submitted — awaiting staff confirmation." });
             await loadDetail(true);
@@ -849,6 +897,8 @@ export default function AgentApplicationDetailPage() {
         <CentralMotorRegistryComplete
           application={application}
           onViewDoc={setPreviewDocUrl}
+          onDownloadBiodataPdf={handleDownloadBiodataPdf}
+          downloadingBiodataPdf={downloadingBiodataPdf}
           onSubmitted={async () => {
             setNotice({ type: "success", message: "Completion document submitted — awaiting staff confirmation." });
             await loadDetail(true);
@@ -948,10 +998,26 @@ export default function AgentApplicationDetailPage() {
               </span>
             )}
           </div>
-          <button onClick={() => loadDetail(true)} className={btnSecondary} style={{ padding: "0.55rem 0.9rem" }}>
-            {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadBiodataPdf}
+              disabled={downloadingBiodataPdf}
+              className={btnSecondary}
+              style={{ padding: "0.55rem 0.9rem" }}
+              title="Download applicant biodata and vehicle specifications as PDF"
+            >
+              {downloadingBiodataPdf ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileText className="h-3.5 w-3.5" />
+              )}
+              {downloadingBiodataPdf ? "Preparing PDF…" : "Download Biodata PDF"}
+            </button>
+            <button onClick={() => loadDetail(true)} className={btnSecondary} style={{ padding: "0.55rem 0.9rem" }}>
+              {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Refresh
+            </button>
+          </div>
         </div>
         <p className="mt-2 flex items-center gap-1.5 text-[13.5px] text-slate-500">
           <MapPin className="h-3.5 w-3.5 text-slate-400" />
@@ -1121,6 +1187,15 @@ export default function AgentApplicationDetailPage() {
               Flag document issue
             </ActionButton>
           )}
+          <ActionButton
+            variant="secondary"
+            icon={FileText}
+            loading={downloadingBiodataPdf}
+            disabled={downloadingBiodataPdf}
+            onClick={handleDownloadBiodataPdf}
+          >
+            {downloadingBiodataPdf ? "Preparing PDF…" : "Download Biodata & Specs PDF"}
+          </ActionButton>
           {!canSchedule && !canReassign && !canMarkCaptured && !canIssueTempLicence && !canUploadProof && !canFlagIssue && (
             <p className="text-[13px] text-slate-400">No agent actions available for this application's current status ({statusMeta(application.status).label.toLowerCase()}).</p>
           )}
