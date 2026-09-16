@@ -20,16 +20,29 @@ import {
   Save,
   RotateCcw,
   Info,
+  Globe2,
+  Copy,
+  MapPin,
+  Sparkles,
+  ArrowRight,
+  Layers,
 } from "lucide-react";
 import {
   adminGetDeadlines,
   adminUpdateDeadline,
+  adminCreateOrOverrideDeadline,
+  adminDeleteDeadlineOverride,
+  adminCloneDeadlines,
+  adminApplyDeadlinesToAll,
   adminResetDeadlines,
+  getReferenceStates,
 } from "@/lib/api";
 
 const BRAND = "#28A745";
 
 export default function AdminDeadlinesPage() {
+  const [states, setStates] = useState([]);
+  const [selectedStateId, setSelectedStateId] = useState(""); // "" = General (All States)
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,19 +58,46 @@ export default function AdminDeadlinesPage() {
     warning_threshold_percent: 75,
     is_active: true,
     description: "",
+    apply_to_all_states: false,
   });
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState(null);
+
+  // Clone Modal State
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [cloneSourceStateId, setCloneSourceStateId] = useState("");
+  const [cloneTargetStateId, setCloneTargetStateId] = useState("");
+  const [cloning, setCloning] = useState(false);
+  const [cloneError, setCloneError] = useState(null);
+
+  // Apply to All States Modal State
+  const [applyAllOpen, setApplyAllOpen] = useState(false);
+  const [applyingAll, setApplyingAll] = useState(false);
+
+  // Reverting item id tracking
+  const [revertingId, setRevertingId] = useState(null);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const loadData = async (isRefresh = false) => {
+  // Load Reference States on mount
+  useEffect(() => {
+    getReferenceStates().then((res) => {
+      if (res?.data && Array.isArray(res.data)) {
+        setStates(res.data);
+      }
+    });
+  }, []);
+
+  const loadData = async (stateId = selectedStateId, isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
-    const res = await adminGetDeadlines();
+
+    const param = stateId ? parseInt(stateId, 10) : undefined;
+    const res = await adminGetDeadlines({ state_id: param });
+
     if (res?.data?.items) {
       setDeadlines(res.data.items);
     } else if (res?.error) {
@@ -67,9 +107,16 @@ export default function AdminDeadlinesPage() {
     setRefreshing(false);
   };
 
+  // Trigger load when selectedStateId changes
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(selectedStateId);
+  }, [selectedStateId]);
+
+  const selectedStateName = useMemo(() => {
+    if (!selectedStateId) return null;
+    const match = states.find((s) => String(s.id) === String(selectedStateId));
+    return match ? match.name : `State #${selectedStateId}`;
+  }, [selectedStateId, states]);
 
   const categories = useMemo(() => {
     const cats = new Set(deadlines.map((d) => d.category).filter(Boolean));
@@ -94,9 +141,19 @@ export default function AdminDeadlinesPage() {
     const businessDaysCount = deadlines.filter((d) => d.day_type === "business_days").length;
     const calendarDaysCount = deadlines.filter((d) => d.day_type === "calendar_days").length;
     const activeCount = deadlines.filter((d) => d.is_active).length;
-    return { total, businessDaysCount, calendarDaysCount, activeCount };
+    const overrideCount = deadlines.filter((d) => d.is_override).length;
+    const inheritedCount = total - overrideCount;
+    return {
+      total,
+      businessDaysCount,
+      calendarDaysCount,
+      activeCount,
+      overrideCount,
+      inheritedCount,
+    };
   }, [deadlines]);
 
+  // Edit Modal Handlers
   const openEditModal = (item) => {
     setEditingItem(item);
     setEditForm({
@@ -105,6 +162,7 @@ export default function AdminDeadlinesPage() {
       warning_threshold_percent: item.warning_threshold_percent || 75,
       is_active: item.is_active,
       description: item.description || "",
+      apply_to_all_states: false,
     });
     setEditError(null);
   };
@@ -131,32 +189,138 @@ export default function AdminDeadlinesPage() {
     setSaving(true);
     setEditError(null);
 
-    const res = await adminUpdateDeadline(editingItem.id, {
-      expected_days: days,
-      day_type: editForm.day_type,
-      warning_threshold_percent: warn,
-      is_active: editForm.is_active,
-      description: editForm.description,
-    });
+    let res;
+    if (!selectedStateId) {
+      // General baseline
+      res = await adminUpdateDeadline(editingItem.id, {
+        expected_days: days,
+        day_type: editForm.day_type,
+        warning_threshold_percent: warn,
+        is_active: editForm.is_active,
+        description: editForm.description,
+        apply_to_all_states: editForm.apply_to_all_states,
+      });
+    } else {
+      // State override
+      res = await adminCreateOrOverrideDeadline({
+        service_key: editingItem.service_key,
+        state_id: parseInt(selectedStateId, 10),
+        expected_days: days,
+        day_type: editForm.day_type,
+        warning_threshold_percent: warn,
+        is_active: editForm.is_active,
+        description: editForm.description,
+      });
+    }
 
     setSaving(false);
     if (res?.error) {
       setEditError(res.error.detail || "Failed to update deadline.");
     } else {
-      showToast("success", `Updated deadline for ${editingItem.service_name}`);
+      const scopeLabel = selectedStateName ? `${selectedStateName} State` : "General (All States)";
+      showToast("success", `Updated deadline for ${editingItem.service_name} (${scopeLabel})`);
       closeEditModal();
-      loadData();
+      loadData(selectedStateId);
+    }
+  };
+
+  // Revert State Override Handler
+  const handleRevertOverride = async (item) => {
+    if (
+      !confirm(
+        `Revert ${item.service_name} in ${selectedStateName} back to the General SLA baseline? This state will now inherit the federation default.`
+      )
+    ) {
+      return;
+    }
+    setRevertingId(item.id);
+    const res = await adminDeleteDeadlineOverride(item.id);
+    setRevertingId(null);
+    if (res?.error) {
+      showToast("error", res.error.detail || "Failed to revert state override.");
+    } else {
+      showToast("success", `Reverted ${item.service_name} in ${selectedStateName} to General baseline.`);
+      loadData(selectedStateId);
+    }
+  };
+
+  // Clone Modal Handlers
+  const openCloneModal = () => {
+    setCloneSourceStateId(selectedStateId || "");
+    setCloneTargetStateId(selectedStateId ? "" : states[0]?.id ? String(states[0].id) : "");
+    setCloneError(null);
+    setCloneOpen(true);
+  };
+
+  const closeCloneModal = () => {
+    if (cloning) return;
+    setCloneOpen(false);
+    setCloneError(null);
+  };
+
+  const handleCloneDeadlines = async () => {
+    if (!cloneTargetStateId) {
+      setCloneError("Please select a target Nigerian state.");
+      return;
+    }
+    if ((cloneSourceStateId || null) === (cloneTargetStateId || null)) {
+      setCloneError("Source and target state cannot be the same.");
+      return;
+    }
+
+    setCloning(true);
+    setCloneError(null);
+
+    const res = await adminCloneDeadlines({
+      source_state_id: cloneSourceStateId ? parseInt(cloneSourceStateId, 10) : null,
+      target_state_id: parseInt(cloneTargetStateId, 10),
+    });
+
+    setCloning(false);
+    if (res?.error) {
+      setCloneError(res.error.detail || "Failed to clone service deadlines.");
+    } else {
+      const targetState = states.find((s) => String(s.id) === String(cloneTargetStateId));
+      showToast(
+        "success",
+        `Successfully cloned deadlines to ${targetState ? targetState.name : "target"} state!`
+      );
+      closeCloneModal();
+      setSelectedStateId(String(cloneTargetStateId));
+    }
+  };
+
+  // Apply to All States Handler
+  const handleApplyToAllStates = async () => {
+    setApplyingAll(true);
+    const res = await adminApplyDeadlinesToAll({ reset_overrides: true });
+    setApplyingAll(false);
+    if (res?.error) {
+      showToast("error", res.error.detail || "Failed to apply baseline to all states.");
+    } else {
+      const cleared = res.data?.cleared_count ?? 0;
+      showToast(
+        "success",
+        `Baseline turnaround times applied to all states. Cleared ${cleared} state override(s).`
+      );
+      setApplyAllOpen(false);
+      loadData(selectedStateId);
     }
   };
 
   const handleResetDefaults = async () => {
-    if (!confirm("Are you sure you want to reset or sync all service deadlines to platform standard defaults?")) return;
+    if (
+      !confirm(
+        "Are you sure you want to reset or sync all general service deadlines to platform standard defaults?"
+      )
+    )
+      return;
     setRefreshing(true);
     const res = await adminResetDeadlines();
     setRefreshing(false);
     if (res?.data?.items) {
       setDeadlines(res.data.items);
-      showToast("success", "Service deadlines synced to standard defaults.");
+      showToast("success", "General service deadlines synced to standard defaults.");
     } else {
       showToast("error", "Failed to reset deadlines.");
     }
@@ -186,25 +350,27 @@ export default function AdminDeadlinesPage() {
           </div>
           <h1 className="mt-1 text-2xl font-black text-slate-900">Service Delivery Deadlines</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Set the expected duration for every service, toggle business vs. calendar days, and configure warning thresholds.
+            Configure expected delivery durations nationwide or set custom state-by-state turnaround timelines.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleResetDefaults}
-            disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
-            title="Reset to platform defaults"
-          >
-            <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
-            Sync Defaults
-          </button>
+          {!selectedStateId && (
+            <button
+              type="button"
+              onClick={handleResetDefaults}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+              title="Sync general platform defaults"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
+              Sync Baseline Defaults
+            </button>
+          )}
 
           <button
             type="button"
-            onClick={() => loadData(true)}
+            onClick={() => loadData(selectedStateId, true)}
             disabled={refreshing}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
           >
@@ -223,6 +389,90 @@ export default function AdminDeadlinesPage() {
         </div>
       </div>
 
+      {/* State Selector Bar */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
+              {selectedStateId ? <MapPin className="h-5 w-5" /> : <Globe2 className="h-5 w-5" />}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Turnaround Time Scope
+                </span>
+                {selectedStateId ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                    <Sparkles className="h-3 w-3" /> State Override Scope
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700 border border-sky-200">
+                    <Globe2 className="h-3 w-3" /> Federation Baseline (All States)
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-1 flex items-center gap-3">
+                <select
+                  value={selectedStateId}
+                  onChange={(e) => setSelectedStateId(e.target.value)}
+                  className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-900 outline-none focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15 transition-all cursor-pointer"
+                >
+                  <option value="">General (All States) — Baseline for All States</option>
+                  <optgroup label="Configure Specific State Override">
+                    {states.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} State {s.code ? `(${s.code})` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+
+                <span className="text-xs text-slate-500 hidden sm:inline">
+                  {selectedStateId
+                    ? `Showing turnaround times for ${selectedStateName} State`
+                    : "Default SLA applied to any state without custom overrides"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Scope Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={openCloneModal}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
+              title="Copy turnaround times from one state or general baseline to another state"
+            >
+              <Copy className="h-3.5 w-3.5 text-slate-500" />
+              Clone Deadlines
+            </button>
+
+            {!selectedStateId ? (
+              <button
+                type="button"
+                onClick={() => setApplyAllOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors shadow-sm"
+                title="Ensure every state uses the General baseline by removing state-specific overrides"
+              >
+                <Layers className="h-3.5 w-3.5 text-amber-600" />
+                Apply Baseline to All States
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSelectedStateId("")}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
+              >
+                <Globe2 className="h-3.5 w-3.5 text-slate-500" />
+                Back to General Baseline
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Top Metric Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -233,30 +483,62 @@ export default function AdminDeadlinesPage() {
             </div>
           </div>
           <p className="mt-2 text-2xl font-black text-slate-900">{stats.total}</p>
-          <span className="text-[11.5px] font-medium text-slate-500">Configured SLA rules</span>
+          <span className="text-[11.5px] font-medium text-slate-500">Service catalogue</span>
         </div>
 
-        <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700">Business Days</span>
-            <div className="rounded-lg bg-sky-100 p-1.5 text-sky-700">
-              <Briefcase className="h-4 w-4" />
+        {selectedStateId ? (
+          <>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                  Custom Overrides
+                </span>
+                <div className="rounded-lg bg-emerald-100 p-1.5 text-emerald-700">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-black text-emerald-950">{stats.overrideCount}</p>
+              <span className="text-[11.5px] font-medium text-emerald-700">Specific to {selectedStateName}</span>
             </div>
-          </div>
-          <p className="mt-2 text-2xl font-black text-sky-950">{stats.businessDaysCount}</p>
-          <span className="text-[11.5px] font-medium text-sky-700/80">Skips weekends & holidays</span>
-        </div>
 
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Calendar Days</span>
-            <div className="rounded-lg bg-amber-100 p-1.5 text-amber-700">
-              <Calendar className="h-4 w-4" />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  Inherited Baseline
+                </span>
+                <div className="rounded-lg bg-slate-200 p-1.5 text-slate-700">
+                  <Globe2 className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-black text-slate-900">{stats.inheritedCount}</p>
+              <span className="text-[11.5px] font-medium text-slate-500">Uses federation default</span>
             </div>
-          </div>
-          <p className="mt-2 text-2xl font-black text-amber-950">{stats.calendarDaysCount}</p>
-          <span className="text-[11.5px] font-medium text-amber-700/80">Consecutive days</span>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700">Business Days</span>
+                <div className="rounded-lg bg-sky-100 p-1.5 text-sky-700">
+                  <Briefcase className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-black text-sky-950">{stats.businessDaysCount}</p>
+              <span className="text-[11.5px] font-medium text-sky-700/80">Skips weekends & holidays</span>
+            </div>
+
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Calendar Days</span>
+                <div className="rounded-lg bg-amber-100 p-1.5 text-amber-700">
+                  <Calendar className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-2 text-2xl font-black text-amber-950">{stats.calendarDaysCount}</p>
+              <span className="text-[11.5px] font-medium text-amber-700/80">Consecutive calendar days</span>
+            </div>
+          </>
+        )}
 
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -266,7 +548,7 @@ export default function AdminDeadlinesPage() {
             </div>
           </div>
           <p className="mt-2 text-2xl font-black text-emerald-950">{stats.activeCount}</p>
-          <span className="text-[11.5px] font-medium text-emerald-700/80">Currently enforcing</span>
+          <span className="text-[11.5px] font-medium text-emerald-700/80">Enforcing on applications</span>
         </div>
       </div>
 
@@ -322,7 +604,7 @@ export default function AdminDeadlinesPage() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <th className="py-3.5 px-5">Service Name & Key</th>
-                  <th className="py-3.5 px-5">Category</th>
+                  <th className="py-3.5 px-5">Scope / Origin</th>
                   <th className="py-3.5 px-5">Expected Turnaround</th>
                   <th className="py-3.5 px-5">Day Type</th>
                   <th className="py-3.5 px-5">Warning Threshold</th>
@@ -332,10 +614,15 @@ export default function AdminDeadlinesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredDeadlines.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={`${item.service_key}-${item.id}`} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-5">
                       <div>
-                        <p className="text-[13px] font-bold text-slate-900">{item.service_name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[13px] font-bold text-slate-900">{item.service_name}</p>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                            {item.category}
+                          </span>
+                        </div>
                         <p className="text-[11px] font-mono text-slate-400 mt-0.5">{item.service_key}</p>
                         {item.description && (
                           <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{item.description}</p>
@@ -343,10 +630,24 @@ export default function AdminDeadlinesPage() {
                       </div>
                     </td>
 
+                    {/* Scope / Origin Badge */}
                     <td className="py-3.5 px-5">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                        {item.category}
-                      </span>
+                      {!selectedStateId ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                          <Globe2 className="h-3 w-3" />
+                          Federation Baseline
+                        </span>
+                      ) : item.is_override ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Sparkles className="h-3 w-3 text-emerald-600" />
+                          Custom ({selectedStateName})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                          <Globe2 className="h-3 w-3 text-slate-400" />
+                          Inherits Baseline
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-5">
@@ -394,14 +695,37 @@ export default function AdminDeadlinesPage() {
                     </td>
 
                     <td className="py-3.5 px-5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(item)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        Edit SLA
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          {selectedStateId
+                            ? item.is_override
+                              ? "Edit State SLA"
+                              : "Customize State SLA"
+                            : "Edit SLA"}
+                        </button>
+
+                        {selectedStateId && item.is_override && (
+                          <button
+                            type="button"
+                            onClick={() => handleRevertOverride(item)}
+                            disabled={revertingId === item.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors disabled:opacity-50"
+                            title="Revert this service to the General baseline"
+                          >
+                            {revertingId === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-3 w-3" />
+                            )}
+                            Revert
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -418,8 +742,21 @@ export default function AdminDeadlinesPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
               <div>
-                <h3 className="text-[15px] font-bold text-slate-900">Configure Service Deadline</h3>
-                <p className="text-[11.5px] text-slate-500">{editingItem.service_name}</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[15px] font-bold text-slate-900">
+                    {selectedStateId ? "Configure State SLA Override" : "Configure Service Deadline"}
+                  </h3>
+                  {selectedStateId ? (
+                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-800">
+                      {selectedStateName} State
+                    </span>
+                  ) : (
+                    <span className="rounded bg-sky-100 px-2 py-0.5 text-[10.5px] font-bold text-sky-800">
+                      Federation Baseline
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11.5px] text-slate-500 mt-0.5">{editingItem.service_name}</p>
               </div>
               <button
                 type="button"
@@ -431,8 +768,34 @@ export default function AdminDeadlinesPage() {
               </button>
             </div>
 
+            {/* Scope Banner in Modal */}
+            <div className="px-6 pt-4">
+              {selectedStateId ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900 flex items-start gap-2.5">
+                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <div>
+                    <span className="font-bold">State-specific Override:</span>
+                    <p className="mt-0.5 text-emerald-800 text-[11.5px]">
+                      This custom turnaround duration will only apply to applications filed in{" "}
+                      <strong>{selectedStateName} State</strong>. Other states will continue using their own configuration or general defaults.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-xs text-sky-900 flex items-start gap-2.5">
+                  <Globe2 className="h-4 w-4 shrink-0 text-sky-600 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Federation Baseline:</span>
+                    <p className="mt-0.5 text-sky-800 text-[11.5px]">
+                      This SLA is the nationwide default. Any Nigerian state without a custom override will follow this timeline.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Modal Body */}
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-4 space-y-4">
               {editError && (
                 <div className="rounded-xl p-3 flex items-start gap-2 text-xs bg-red-50 border border-red-200 text-red-700">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -514,7 +877,12 @@ export default function AdminDeadlinesPage() {
                     max="95"
                     step="5"
                     value={editForm.warning_threshold_percent}
-                    onChange={(e) => setEditForm((p) => ({ ...p, warning_threshold_percent: parseInt(e.target.value, 10) }))}
+                    onChange={(e) =>
+                      setEditForm((p) => ({
+                        ...p,
+                        warning_threshold_percent: parseInt(e.target.value, 10),
+                      }))
+                    }
                     className="flex-1 accent-[#28A745] h-2 bg-slate-200 rounded-lg cursor-pointer"
                   />
                   <span className="shrink-0 w-12 text-center text-xs font-bold font-mono bg-slate-100 py-1.5 px-2 rounded-lg border border-slate-200 text-slate-800">
@@ -530,7 +898,9 @@ export default function AdminDeadlinesPage() {
               <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 p-3">
                 <div>
                   <span className="text-xs font-bold text-slate-800">Enforce this SLA Rule</span>
-                  <p className="text-[11px] text-slate-500">Active SLAs are computed on live applications and countdowns.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Active SLAs are computed on live applications and countdown monitors.
+                  </p>
                 </div>
                 <input
                   type="checkbox"
@@ -539,6 +909,28 @@ export default function AdminDeadlinesPage() {
                   className="h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
                 />
               </div>
+
+              {/* Apply to All States Immediately (Only in General baseline mode) */}
+              {!selectedStateId && (
+                <div className="flex items-center justify-between rounded-xl bg-amber-50/70 border border-amber-200 p-3">
+                  <div>
+                    <span className="text-xs font-bold text-amber-950">
+                      Apply to all states immediately
+                    </span>
+                    <p className="text-[11px] text-amber-800">
+                      Clears any custom state overrides for this service so all states follow this turnaround time.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editForm.apply_to_all_states}
+                    onChange={(e) =>
+                      setEditForm((p) => ({ ...p, apply_to_all_states: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                  />
+                </div>
+              )}
 
               {/* Notes / Description */}
               <div>
@@ -549,7 +941,11 @@ export default function AdminDeadlinesPage() {
                   type="text"
                   value={editForm.description}
                   onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                  placeholder="e.g. Standard VIO production timeline"
+                  placeholder={
+                    selectedStateId
+                      ? `e.g. Turnaround specifically agreed with ${selectedStateName} VIO`
+                      : "e.g. Standard national VIO production timeline"
+                  }
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#28A745] focus:bg-white transition-all"
                 />
               </div>
@@ -581,7 +977,183 @@ export default function AdminDeadlinesPage() {
                 ) : (
                   <>
                     <Save className="h-3.5 w-3.5" />
-                    Save Deadline
+                    {selectedStateId ? "Save State Override" : "Save Baseline SLA"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clone Deadlines Modal */}
+      {cloneOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#28A745]/10 text-[#28A745]">
+                  <Copy className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Clone Service Deadlines</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeCloneModal}
+                disabled={cloning}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Copy all turnaround days, day calculation types, and warning thresholds from a source scope to a target Nigerian state.
+              </p>
+
+              {cloneError && (
+                <div className="rounded-xl p-3 flex items-start gap-2 text-xs bg-red-50 border border-red-200 text-red-700">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{cloneError}</span>
+                </div>
+              )}
+
+              {/* Source Scope */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Clone From (Source Scope)
+                </label>
+                <select
+                  value={cloneSourceStateId}
+                  onChange={(e) => setCloneSourceStateId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#28A745] focus:bg-white transition-all"
+                >
+                  <option value="">General (All States) — Baseline</option>
+                  <optgroup label="Clone from Existing State">
+                    {states.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} State
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* Target State */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Clone To (Target State)
+                </label>
+                <select
+                  value={cloneTargetStateId}
+                  onChange={(e) => setCloneTargetStateId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 outline-none focus:border-[#28A745] focus:bg-white transition-all"
+                >
+                  <option value="">Select target Nigerian state...</option>
+                  {states.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} State
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={closeCloneModal}
+                disabled={cloning}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCloneDeadlines}
+                disabled={cloning}
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: BRAND }}
+              >
+                {cloning ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Cloning...
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    Clone Deadlines
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Apply Baseline to All States Modal */}
+      {applyAllOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Apply Baseline to All States</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApplyAllOpen(false)}
+                disabled={applyingAll}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This action will reset turnaround times across all Nigerian states so that every state uses the exact same delivery deadlines configured in the General Baseline.
+              </p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900">
+                <strong>What happens:</strong>
+                <ul className="mt-1 list-disc list-inside space-y-1 text-amber-800">
+                  <li>All state-specific overrides will be removed.</li>
+                  <li>All active applications will compute SLAs from the General baseline.</li>
+                  <li>You can still create new state-specific overrides anytime in the future.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 px-6 py-4 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setApplyAllOpen(false)}
+                disabled={applyingAll}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleApplyToAllStates}
+                disabled={applyingAll}
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 transition-all disabled:opacity-50 shadow-sm"
+              >
+                {applyingAll ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Confirm & Apply to All States
                   </>
                 )}
               </button>
