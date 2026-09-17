@@ -493,8 +493,8 @@ export default function StaffStatsDashboardPage() {
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="font-mono font-bold text-xs text-slate-900">#{app.id}</span>
                     <StatusBadge status={app.status} />
-                    <span className="text-xs font-bold text-slate-900">
-                      {app.applicant_name}
+                    <span className="text-xs text-slate-700 font-medium">
+                      Surname: <strong className="font-bold text-slate-900">{app.last_name || "—"}</strong> • First: <strong className="font-bold text-slate-900">{app.first_name || "—"}</strong>{app.middle_name ? ` • Middle: ${app.middle_name}` : ""}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2.5">

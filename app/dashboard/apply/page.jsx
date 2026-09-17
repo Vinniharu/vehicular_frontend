@@ -30,6 +30,7 @@ import {
   getDriverLicenceEligibility,
   getDriverLicenceFeeSchedule,
 } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
@@ -127,6 +128,11 @@ function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
   const handleFile = async (file) => {
     if (!file) return;
     setError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10, imagesOnly: true });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
     setUploading(true);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploading(false);
@@ -248,6 +254,7 @@ export default function ApplyPage() {
   // string (e.g. { old_driver_licence: { fileName, url } }).
   const [renewalDocs, setRenewalDocs] = useState({});
   const [oldLicenceNumber, setOldLicenceNumber] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   // { [application_type]: { eligible, reason, current_expiry_date, eligible_from_date } }
   const [eligibilityByType, setEligibilityByType] = useState({});
 
@@ -263,7 +270,7 @@ export default function ApplyPage() {
     nationality, maritalStatus, mothersMaidenName, residentialAddress, city, country, nin,
     bloodGroup, heightCm, hasFacialMark, facialMarkDesc, hasDisability, disabilityDesc,
     passportPhoto, selectedState, selectedLga, selectedOriginState, selectedOriginLga,
-    nokName, nokRelationship, nokPhone, renewalDocs, oldLicenceNumber, step,
+    nokName, nokRelationship, nokPhone, renewalDocs, oldLicenceNumber, deliveryAddress, step,
   });
 
   // Runs once, whenever the draft finishes loading — after the prefill-
@@ -304,6 +311,7 @@ export default function ApplyPage() {
     if (d.nokPhone !== undefined) setNokPhone(d.nokPhone);
     if (d.renewalDocs !== undefined) setRenewalDocs(d.renewalDocs);
     if (d.oldLicenceNumber !== undefined) setOldLicenceNumber(d.oldLicenceNumber);
+    if (d.deliveryAddress !== undefined) setDeliveryAddress(d.deliveryAddress);
     if (d.step) setStep(d.step);
   }, [draftFormData]);
 
@@ -482,7 +490,7 @@ export default function ApplyPage() {
       }
     }
     if (n === 3 && applicationType === "fresh") {
-      if (!nokName.trim()) errors.nokName = "Next of kin's full name is required.";
+      if (!nokName.trim()) errors.nokName = "Next of kin's name is required.";
       if (!nokPhone.trim() || nokPhone.trim() === "+234") errors.nokPhone = "Next of kin's phone number is required.";
     }
     if (n === 4 && applicationType === "fresh") {
@@ -499,6 +507,9 @@ export default function ApplyPage() {
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
       if (!passportPhoto) errors.passportPhoto = "Upload a passport photo to continue.";
+      if ((applicationType === "reissue" || applicationType === "international_permit") && !deliveryAddress.trim()) {
+        errors.deliveryAddress = "Delivery address is required.";
+      }
     }
     return errors;
   };
@@ -598,6 +609,7 @@ export default function ApplyPage() {
           documents: applicationType !== "international_permit" && renewalDocs.old_driver_licence?.url
             ? [{ doc_type: "old_driver_licence", file_url: renewalDocs.old_driver_licence.url }]
             : [],
+          delivery_address: (applicationType === "reissue" || applicationType === "international_permit") ? deliveryAddress.trim() : undefined,
         });
 
     setSubmitting(false);
@@ -1039,7 +1051,7 @@ export default function ApplyPage() {
           <div className="space-y-5 p-6">
             <p className="text-[13px] text-slate-500">Who should we contact in an emergency?</p>
             <div>
-              <label className={label}>Full name <span className="text-red-400">*</span></label>
+              <label className={label}>Next of kin name <span className="text-red-400">*</span></label>
               <input type="text" value={nokName} onChange={(e) => setNokName(e.target.value)} placeholder="Emeka Obi" className={`${inputBase} ${errInputClass(!!fieldErrors.nokName)}`} />
               <FieldError message={fieldErrors.nokName} />
             </div>
@@ -1097,6 +1109,22 @@ export default function ApplyPage() {
               <input type="text" inputMode="numeric" value={nin} onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))} placeholder="12345678901" maxLength={11} className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`} />
               <FieldError message={fieldErrors.nin} />
             </div>
+            {(applicationType === "reissue" || applicationType === "international_permit") && (
+              <div>
+                <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
+                />
+                <p className="mt-1 text-[11.5px] text-slate-500">
+                  Your physical permit / reissued licence will be dispatched to this delivery address.
+                </p>
+                <FieldError message={fieldErrors.deliveryAddress} />
+              </div>
+            )}
             <DocUploadSlot
               title="Passport photo"
               value={passportPhoto ? { fileName: "Passport photo", url: passportPhoto } : null}
@@ -1185,6 +1213,7 @@ export default function ApplyPage() {
                         section: "Permit details",
                         rows: [
                           ["NIN", nin || "—"],
+                          ["Delivery address", deliveryAddress || "—"],
                           ["ID Document", renewalDocs.id_document?.fileName || "Not provided"],
                           ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
                         ],
@@ -1203,6 +1232,7 @@ export default function ApplyPage() {
                         rows: [
                           ["Old licence number", oldLicenceNumber || "—"],
                           ["NIN", nin || "—"],
+                          ...(applicationType === "reissue" ? [["Delivery address", deliveryAddress || "—"]] : []),
                           ["Old licence photo", renewalDocs.old_driver_licence?.fileName || "Not provided"],
                           ["Passport photo", passportPhoto ? "Uploaded" : "Not provided"],
                         ],

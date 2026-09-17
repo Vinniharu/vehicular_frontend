@@ -21,6 +21,7 @@ import {
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
@@ -64,7 +65,7 @@ export default function VehicleVerificationNewApplicationPage() {
   const [checkType, setCheckType] = useState("registration_history");
   const [form, setForm] = useState({
     plate_number: "", make: "", model: "", year: "", colour: "",
-    chassis_number: "", state_id: "", reason: "pre_purchase",
+    chassis_number: "", state_id: "", delivery_address: "", reason: "pre_purchase",
   });
 
   const [certificate, setCertificate] = useState(null);
@@ -121,6 +122,11 @@ export default function VehicleVerificationNewApplicationPage() {
   const handleCertificateUpload = async (file) => {
     if (!file) return;
     setUploadError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setUploadError(validation.error);
+      return;
+    }
     setUploadingCert(true);
     const { data, error } = await uploadApplicationFile(file);
     setUploadingCert(false);
@@ -140,6 +146,7 @@ export default function VehicleVerificationNewApplicationPage() {
     if (!form.colour.trim()) errors.colour = "Colour is required.";
     if (!form.state_id) errors.state_id = "Select a state.";
     if (!form.reason) errors.reason = "Select a reason.";
+    if (!form.delivery_address?.trim()) errors.delivery_address = "Delivery address is required for dispatching verification report.";
     if (isCustomsDuty) {
       if (!form.chassis_number.trim()) errors.chassis_number = "Chassis/VIN number is required for a customs duty check.";
       if (!certificate?.url) errors.certificate = "Upload your customs duty certificate/receipt.";
@@ -181,6 +188,7 @@ export default function VehicleVerificationNewApplicationPage() {
       year: form.year.trim(),
       colour: form.colour.trim(),
       reason: form.reason,
+      delivery_address: form.delivery_address.trim(),
       chassis_number: isCustomsDuty ? form.chassis_number.trim() : undefined,
       customs_duty_certificate: isCustomsDuty ? { doc_type: "customs_duty_certificate", file_url: certificate.url } : undefined,
     });
@@ -370,6 +378,18 @@ export default function VehicleVerificationNewApplicationPage() {
                 </select>
                 <FieldError message={fieldErrors.reason} />
               </div>
+              <div className="sm:col-span-2">
+                <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.delivery_address)}`}
+                  name="delivery_address"
+                  value={form.delivery_address || ""}
+                  onChange={handleChange}
+                  placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+                />
+                <p className="mt-1 text-[11.5px] text-slate-500">Official verification report and certified search documents will be dispatched to this delivery address.</p>
+                <FieldError message={fieldErrors.delivery_address} />
+              </div>
             </div>
           </div>
 
@@ -385,6 +405,7 @@ export default function VehicleVerificationNewApplicationPage() {
               </div>
               <div className="mt-3">
                 <label className={label}>Duty certificate or receipt</label>
+                <p className="text-[11px] text-slate-400 mb-2">JPG, PNG, WEBP, or PDF — up to 10MB</p>
                 {certificate?.url ? (
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
                     <p className="truncate text-[12.5px] font-semibold text-[#111111]">{certificate.fileName}</p>
@@ -420,6 +441,10 @@ export default function VehicleVerificationNewApplicationPage() {
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Reason</span>
                 <span className="font-semibold text-[#111111]">{REASONS.find((r) => r.value === form.reason)?.label}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Delivery address</span>
+                <span className="font-semibold text-[#111111] text-right max-w-xs">{form.delivery_address || "—"}</span>
               </div>
             </div>
           </div>

@@ -22,6 +22,7 @@ import {
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -58,8 +59,8 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
   const [wholeVehicle, setWholeVehicle] = useState("mine");
   const [form, setForm] = useState({
     plate_number: "", make: "", model: "", year: "", mileage: "",
-        vehicle_category: "", state_id: "", lga_id: "",
-    location_address: "", preferred_date: todayPlusDaysIso(2), preferred_time: "",
+    vehicle_category: "", state_id: "", lga_id: "",
+    location_address: "", delivery_address: "", preferred_date: todayPlusDaysIso(2), preferred_time: "",
     reason: "pre_purchase",
   });
 
@@ -111,6 +112,11 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
   const handleDocUpload = async (file) => {
     if (!file) return;
     setUploadError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setUploadError(validation.error);
+      return;
+    }
     setUploadingDoc(true);
     const { data, error } = await uploadApplicationFile(file);
     setUploadingDoc(false);
@@ -144,6 +150,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     if (!form.state_id) errors.state_id = "Select a state.";
     if (!form.lga_id) errors.lga_id = "Select an LGA.";
     if (!form.location_address.trim()) errors.location_address = "Tell us where the inspector should meet you.";
+    if (!form.delivery_address?.trim()) errors.delivery_address = "Delivery address is required for dispatching inspection reports.";
     if (!form.preferred_date) errors.preferred_date = "Select a preferred date.";
     if (!form.reason) errors.reason = "Select a reason.";
     return errors;
@@ -187,6 +194,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       vehicle_category: form.vehicle_category,
 
       location_address: form.location_address.trim(),
+      delivery_address: form.delivery_address?.trim() || form.location_address.trim(),
       preferred_date: form.preferred_date,
       preferred_time: form.preferred_time.trim() || undefined,
       reason: form.reason,
@@ -409,6 +417,12 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
                 <input className={`${inputBase} ${errInputClass(!!fieldErrors.location_address)}`} name="location_address" value={form.location_address} onChange={handleChange} placeholder="House address, estate, or landmark" />
                 <FieldError message={fieldErrors.location_address} />
               </div>
+              <div className="sm:col-span-2">
+                <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+                <input className={`${inputBase} ${errInputClass(!!fieldErrors.delivery_address)}`} name="delivery_address" value={form.delivery_address || ""} onChange={handleChange} placeholder="Physical address for dispatching inspection reports" />
+                <p className="mt-1 text-[11.5px] text-slate-500">Physical inspection report and certification will be dispatched to this delivery address.</p>
+                <FieldError message={fieldErrors.delivery_address} />
+              </div>
               <div>
                 <label className={label}>Preferred date</label>
                 <input type="date" min={todayPlusDaysIso(0)} className={`${inputBase} ${errInputClass(!!fieldErrors.preferred_date)}`} name="preferred_date" value={form.preferred_date} onChange={handleChange} />
@@ -434,7 +448,8 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents to check (optional)</h2>
+            <h2 className="mb-1 text-[13.5px] font-bold text-[#111111]">Documents to check (optional)</h2>
+            <p className="text-[11px] text-slate-400 mb-3">JPG, PNG, WEBP, or PDF — up to 10MB</p>
             {supportingDoc?.url ? (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
                 <p className="truncate text-[12.5px] font-semibold text-[#111111]">{supportingDoc.fileName}</p>
@@ -443,11 +458,11 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
             ) : (
               <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
                 {uploadingDoc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploadingDoc ? "Uploading…" : "Click to upload"}
+                {uploadingDoc ? "Uploading…" : "Upload a photo or document if helpful"}
                 <input type="file" accept="image/*,application/pdf" disabled={uploadingDoc} onChange={(e) => handleDocUpload(e.target.files?.[0])} className="hidden" />
               </label>
             )}
-            <FieldError message={uploadError} />
+            {uploadError && <p className="mt-2 text-[11.5px] font-medium text-red-600">{uploadError}</p>}
           </div>
         </section>
       )}
@@ -472,6 +487,10 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Meeting location</span>
                 <span className="font-semibold text-[#111111]">{form.location_address}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Delivery address</span>
+                <span className="font-semibold text-[#111111]">{form.delivery_address || form.location_address}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Preferred date</span>

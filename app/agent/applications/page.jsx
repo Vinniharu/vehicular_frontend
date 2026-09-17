@@ -63,6 +63,9 @@ export default function AgentApplicationsPage() {
       if (!q) return true;
       return (
         String(app.raw_id ?? app.id).includes(q) ||
+        (app.last_name || "").toLowerCase().includes(q) ||
+        (app.first_name || "").toLowerCase().includes(q) ||
+        (app.middle_name || "").toLowerCase().includes(q) ||
         (app.applicant_name || "").toLowerCase().includes(q) ||
         (app.lga || "").toLowerCase().includes(q)
       );
@@ -199,9 +202,17 @@ export default function AgentApplicationsPage() {
                     )}
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">
-                      {app.applicant_name}
-                    </h4>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.last_name || "—"}</strong></span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.first_name || "—"}</strong></span>
+                      {app.middle_name && (
+                        <>
+                          <span className="text-slate-300">•</span>
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.middle_name}</strong></span>
+                        </>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
                       <span>LGA: <strong className="text-slate-700">{app.lga || "—"}</strong></span>
                       <span>•</span>

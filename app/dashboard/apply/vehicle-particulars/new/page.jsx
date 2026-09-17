@@ -113,6 +113,7 @@ export default function VehicleParticularsNewApplicationPage() {
   const [eligibility, setEligibility] = useState(null);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [evidenceByDocType, setEvidenceByDocType] = useState({}); // { [evidence_doc_type]: { fileName, url } }
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [submitting, setSubmitting] = useState(false);
@@ -149,6 +150,7 @@ export default function VehicleParticularsNewApplicationPage() {
     if (draftFormData.selectedVehicleId) setSelectedVehicleId(draftFormData.selectedVehicleId);
     if (draftFormData.selectedTypes) setSelectedTypes(draftFormData.selectedTypes);
     if (draftFormData.evidenceByDocType) setEvidenceByDocType(draftFormData.evidenceByDocType);
+    if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
     if (draftFormData.step) setStep(draftFormData.step);
   }, [draftFormData]);
 
@@ -256,6 +258,7 @@ export default function VehicleParticularsNewApplicationPage() {
     if (n === 3) {
       const allUploaded = evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
       if (!allUploaded) errors.evidence = "Upload every required document to continue.";
+      if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     return errors;
   };
@@ -270,7 +273,7 @@ export default function VehicleParticularsNewApplicationPage() {
     const nextStep = Math.min(4, step + 1);
     setStep(nextStep);
     save(
-      { selectedVehicleId, selectedTypes, evidenceByDocType, step: nextStep },
+      { selectedVehicleId, selectedTypes, evidenceByDocType, deliveryAddress, step: nextStep },
       `Step ${nextStep} of ${STEP_LABELS.length}`
     );
   };
@@ -278,6 +281,7 @@ export default function VehicleParticularsNewApplicationPage() {
   const canSubmit =
     selectedVehicleId &&
     selectedTypes.length > 0 &&
+    deliveryAddress.trim() &&
     selectedTypes.every((dt) => eligibility?.[dt]?.eligible) &&
     evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
 
@@ -305,6 +309,7 @@ export default function VehicleParticularsNewApplicationPage() {
     const res = await submitVehicleParticularsApplication({
       vehicle_id: selectedVehicleId,
       items,
+      delivery_address: deliveryAddress.trim(),
     });
     setSubmitting(false);
     if (res.error) {
@@ -620,6 +625,18 @@ export default function VehicleParticularsNewApplicationPage() {
             ))}
           </div>
           <FieldError message={fieldErrors.evidence} />
+
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
+            <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+            <input
+              className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+            />
+            <p className="text-[11.5px] text-slate-500">Your renewed physical vehicle documents will be dispatched to this address.</p>
+            <FieldError message={fieldErrors.deliveryAddress} />
+          </div>
         </section>
       )}
 
@@ -634,6 +651,10 @@ export default function VehicleParticularsNewApplicationPage() {
                 <span className="font-semibold text-[#111111]">
                   {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} — ${selectedVehicle.plate_number || "no plate on file"}` : "—"}
                 </span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Delivery address</span>
+                <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
               {selectedTypes.map((dt) => (
                 <div key={dt} className="flex items-center justify-between py-2.5 text-[13px]">

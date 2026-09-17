@@ -236,7 +236,9 @@ export default function StaffApplicationDetailsPage() {
 
   useEffect(() => {
     if (!application) return;
-    if ((application.application_type === "tinted_permit" || application.application_type?.startsWith("number_plate_") || application.application_type === "vehicle_particulars" || application.application_type === "roadworthiness_express") && application.vehicle_id) {
+    if (application.vehicle) {
+      setVehicle(application.vehicle);
+    } else if (application.vehicle_id) {
       getVehicle(application.vehicle_id).then((res) => {
         if (res.data) setVehicle(res.data);
       });
@@ -443,6 +445,29 @@ export default function StaffApplicationDetailsPage() {
 
   const isVehicleParticulars = application.application_type === "vehicle_particulars";
   const isPci = application.application_type === "physical_condition_inspection";
+  const isDl = ["fresh", "renewal", "reissue", "international_permit"].includes(application.application_type);
+  const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
+  const isTinted = application.application_type === "tinted_permit";
+  const isRwx = application.application_type === "roadworthiness_express";
+  const isCmr = application.application_type === "central_motor_registry";
+  const isVehicleVerification = Boolean(application.application_type?.startsWith("vehicle_verification_"));
+  const isVehicleCentric = isNumberPlate || isTinted || isVehicleParticulars || isRwx || isCmr || isVehicleVerification || isPci;
+
+  const deliveryAddress = application.delivery_address || application.applicant_details?.delivery_address;
+  const hasDeliveryAddress = Boolean(deliveryAddress && String(deliveryAddress).trim());
+
+  const vMake = vehicle?.make || application.vehicle_make || application.applicant_details?.vehicle_make;
+  const vModel = vehicle?.model || application.vehicle_model || application.applicant_details?.vehicle_model;
+  const vYear = vehicle?.year || application.year_of_manufacture || application.manufacturing_year || application.applicant_details?.year_of_manufacture;
+  const vColour = vehicle?.colour || application.vehicle_colour || application.applicant_details?.vehicle_colour;
+  const vChassis = vehicle?.chassis_number || application.chassis_number || application.applicant_details?.chassis_number;
+  const vType = application.vehicle_type || vehicle?.vehicle_type || application.applicant_details?.vehicle_type;
+  const vBodyType = application.vehicle_body_type || vehicle?.vehicle_category || application.applicant_details?.vehicle_body_type;
+  const vFormerReg = application.former_registration_number || application.applicant_details?.former_registration_number;
+  const vPlate = vehicle?.plate_number || application.plate_number;
+  const vPhone = application.phone_number || application.applicant_details?.phone || application.applicant_details?.phone_number;
+  const vNin = application.nin || application.applicant_details?.nin;
+  const hasVehicleData = Boolean(vehicle || vMake || vModel || vChassis || vType);
 
   // Backend only ever emits "unpaid" | "pending" | "success" | "failed" for
   // payment_status — "paid" is never produced, so only "success" is checked.
@@ -513,9 +538,17 @@ export default function StaffApplicationDetailsPage() {
               Review Queue
             </Link>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-[24px] font-extrabold tracking-tight text-slate-900">
-                {application.applicant_details?.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}
-              </h1>
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[14px] font-semibold text-slate-500">Surname: <strong className="text-[22px] font-extrabold text-slate-900">{application.last_name || application.applicant_details?.last_name || "—"}</strong></span>
+                <span className="text-slate-300">•</span>
+                <span className="text-[14px] font-semibold text-slate-500">First: <strong className="text-[22px] font-extrabold text-slate-900">{application.first_name || application.applicant_details?.first_name || "—"}</strong></span>
+                {(application.middle_name || application.applicant_details?.middle_name) && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-[14px] font-semibold text-slate-500">Middle: <strong className="text-[22px] font-extrabold text-slate-900">{application.middle_name || application.applicant_details?.middle_name}</strong></span>
+                  </>
+                )}
+              </div>
               <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
                 #{application.id}
               </span>
@@ -958,51 +991,113 @@ export default function StaffApplicationDetailsPage() {
         </div>
       )}
 
-      {/* Vehicle-centric types only (tinted_permit, number_plate_*) —
-          vehicle this application is for, in place of the licence-class/
-          driving-school fields that don't apply. */}
-      {(application.application_type === "tinted_permit" || application.application_type?.startsWith("number_plate_") || isVehicleParticulars) && vehicle && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Vehicle</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      {/* Delivery Address Card — shown for all services requiring delivery (exempt: fresh & renewal DL) */}
+      {hasDeliveryAddress && (
+        <div id="delivery" className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm scroll-mt-24">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 shadow-sm">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13px] font-bold uppercase tracking-wide text-emerald-900">
+                  Delivery Address
+                </h3>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-800">
+                  Required Destination
+                </span>
+              </div>
+              <p className="mt-1.5 text-[14.5px] font-semibold text-slate-900 leading-relaxed">
+                {deliveryAddress}
+              </p>
+              <p className="mt-0.5 text-[12px] text-slate-500">
+                Completed plate numbers, documents, or permits will be dispatched directly to this address.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle Specifications Card — fully tailored to vehicle services with all 14 vehicle fields */}
+      {isVehicleCentric && (hasVehicleData || vehicle) && (
+        <div id="vehicle-specs" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm scroll-mt-24">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <h3 className="text-[13px] font-bold uppercase tracking-wide text-slate-700">
+              Vehicle Specifications
+            </h3>
+            {vPlate ? (
+              <span className="font-mono text-[13px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+                {vPlate}
+              </span>
+            ) : (
+              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                Plate Pending / New Request
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make / Model</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.make} {vehicle.model}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make & Model</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vMake || "—"} {vModel || ""}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Colour</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.colour}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Manufacturing Year</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vYear || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number || "Pending"}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Type</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vType || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">SUV or Saloon Car</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vBodyType || "—"}</span>
             </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Colour</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vColour || "—"}</span>
+            </div>
+            <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis / VIN Number</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vChassis || "—"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Former Reg Number</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vFormerReg || "None"}</span>
+            </div>
+            {vehicle?.engine_number && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine Number</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vehicle.engine_number}</span>
+              </div>
+            )}
+            {vehicle?.state && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration State</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+              </div>
+            )}
             {application.use_type && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use type</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use Type</span>
                 <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.use_type}</span>
-              </div>
-            )}
-            {application.justification && (
-              <div className="col-span-2 sm:col-span-3">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
-              </div>
-            )}
-            {application.previous_owner_details && (
-              <div className="col-span-2 sm:col-span-3">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous owner</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
               </div>
             )}
             {application.is_fancy_plate && application.fancy_plate_number && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy plate requested</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{application.fancy_plate_number}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy Plate Requested</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-bold text-emerald-700">{application.fancy_plate_number}</span>
+              </div>
+            )}
+            {application.previous_owner_details && (
+              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous Owner Details</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
+              </div>
+            )}
+            {application.justification && (
+              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
               </div>
             )}
           </div>
@@ -1251,10 +1346,22 @@ export default function StaffApplicationDetailsPage() {
         <aside className="w-full lg:w-56 shrink-0 lg:sticky lg:top-24">
           <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 text-[13.5px] font-semibold text-slate-600">
              <a href="#overview" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Overview</a>
-             <a href="#personal" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Personal & Origin</a>
-             <a href="#medical" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Medical Info</a>
-             <a href="#licence" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Licence Details</a>
-             <a href="#licence-issuance" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Licence Issuance</a>
+             <a href="#personal" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Applicant Details</a>
+             {hasDeliveryAddress && (
+               <a href="#delivery" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors text-emerald-700">Delivery Address</a>
+             )}
+             {isVehicleCentric && (hasVehicleData || vehicle) && (
+               <a href="#vehicle-specs" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Vehicle Specs</a>
+             )}
+             {isDl && (
+               <>
+                 <a href="#medical" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Medical Info</a>
+                 <a href="#licence" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Licence Details</a>
+                 {(application.temporary_licence || application.permanent_licence) && (
+                   <a href="#licence-issuance" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Licence Issuance</a>
+                 )}
+               </>
+             )}
              <a href="#documents" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Documents</a>
              <a href="#processing" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Processing</a>
           </nav>
@@ -1322,25 +1429,41 @@ export default function StaffApplicationDetailsPage() {
 
           {/* Personal & Origin */}
           <section id="personal" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Personal & Origin</h2>
+            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Applicant & Contact Details</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First Name</span>
                 <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.first_name || application.applicant_details?.first_name || application.applicant_details?.account_name?.split(" ")[0] || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Middle Name</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.middle_name || application.applicant_details?.middle_name || "—"}
+                  {application.first_name || application.applicant_details?.first_name || "—"}
                 </span>
               </div>
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
                 <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.last_name || application.applicant_details?.last_name || (application.applicant_details?.account_name?.split(" ")?.length > 1 ? application.applicant_details?.account_name?.split(" ").slice(1).join(" ") : "—")}
+                  {application.last_name || application.applicant_details?.last_name || "—"}
                 </span>
+              </div>
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Other Name</span>
+                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
+                  {application.middle_name || application.applicant_details?.middle_name || "—"}
+                </span>
+              </div>
+              {vPhone && (
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone Number</span>
+                  <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{vPhone}</span>
+                </div>
+              )}
+              {application.applicant_email && (
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.applicant_email}</span>
+                </div>
+              )}
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{vNin || "—"}</span>
               </div>
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">DOB</span>
@@ -1351,108 +1474,122 @@ export default function StaffApplicationDetailsPage() {
                 <span className="mt-1 block text-[13.5px] font-semibold text-slate-900 capitalize">{application.gender || "—"}</span>
               </div>
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA of Origin</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.state_of_origin || "—"} / {application.lga_of_origin || "—"}</span>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA of Residence</span>
+                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.state_of_residence || "—"} / {application.lga || "—"}</span>
               </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Nationality</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.nationality || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Marital Status</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900 capitalize">{application.marital_status || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Mother's Maiden Name</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.mothers_maiden_name || "—"}</span>
-              </div>
+              {application.state_of_origin && (
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA of Origin</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.state_of_origin} / {application.lga_of_origin || "—"}</span>
+                </div>
+              )}
+              {application.nationality && (
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Nationality</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.nationality}</span>
+                </div>
+              )}
+              {application.mothers_maiden_name && (
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Mother's Maiden Name</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.mothers_maiden_name}</span>
+                </div>
+              )}
               <div className="col-span-2">
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Residential Address</span>
                 <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.residential_address || "—"}</span>
               </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.nin || "—"}</span>
-              </div>
+              {hasDeliveryAddress && (
+                <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+                    <MapPin className="h-3.5 w-3.5" /> Delivery Address
+                  </span>
+                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{deliveryAddress}</span>
+                </div>
+              )}
             </div>
           </section>
 
-          {/* Medical */}
-          <section id="medical" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Medical</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Blood Group</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-red-600">{application.blood_group || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Height</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.height_cm ? `${application.height_cm} cm` : "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vision Acuity</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.vision_acuity_test || "Pending"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Facial Mark</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.has_facial_mark ? (application.facial_mark_description || "Yes") : "None"}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Disability</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.has_disability ? (application.disability_description || "Yes") : "None"}
-                </span>
-              </div>
-            </div>
-            <div className="mt-6">
-              <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-3">Next of Kin</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 bg-slate-50 rounded-xl p-4 border border-slate-100">
+          {/* Medical — only for Driver's Licence applications */}
+          {isDl && (
+            <section id="medical" className="scroll-mt-24">
+              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Medical & Physical Characteristics</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Name</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_name || "—"}</span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Blood Group</span>
+                  <span className="mt-1 block text-[13.5px] font-bold text-red-600">{application.blood_group || "—"}</span>
                 </div>
                 <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Relationship</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_relationship || "—"}</span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Height</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.height_cm ? `${application.height_cm} cm` : "—"}</span>
                 </div>
                 <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone</span>
-                  <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_phone || "—"}</span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vision Acuity</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.vision_acuity_test || "Pending"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Facial Mark</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
+                    {application.has_facial_mark ? (application.facial_mark_description || "Yes") : "None"}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Disability</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
+                    {application.has_disability ? (application.disability_description || "Yes") : "None"}
+                  </span>
                 </div>
               </div>
-            </div>
-          </section>
+              <div className="mt-6">
+                <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-3">Next of Kin</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <div>
+                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Name</span>
+                    <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_name || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Relationship</span>
+                    <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_relationship || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone</span>
+                    <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_phone || "—"}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
-          {/* Licence Details */}
-          <section id="licence" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Licence Details</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Licence Class</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.licence_class || "—"}</span>
+          {/* Licence Details — only for Driver's Licence applications */}
+          {isDl && (
+            <section id="licence" className="scroll-mt-24">
+              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Licence Details</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Licence Class</span>
+                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.licence_class || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Validity Period</span>
+                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.validity_period || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Driving School Cert</span>
+                  <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.driving_school_certificate_number || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Processing State / LGA</span>
+                  <span className="mt-1 flex items-center gap-1 text-[13.5px] font-semibold text-slate-900">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    {application.state_of_residence || "—"} / {application.lga || "—"}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Validity Period</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.validity_period || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Driving School Cert</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.driving_school_certificate_number || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Processing State / LGA</span>
-                <span className="mt-1 flex items-center gap-1 text-[13.5px] font-semibold text-slate-900">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                  {application.state_of_residence || "—"} / {application.lga || "—"}
-                </span>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Licence issuance — temp & permanent card tracking, fresh applications only */}
-          {(application.temporary_licence || application.permanent_licence) && (
+          {isDl && (application.temporary_licence || application.permanent_licence) && (
             <section id="licence-issuance" className="scroll-mt-24">
               <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Licence Issuance</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1461,7 +1598,6 @@ export default function StaffApplicationDetailsPage() {
               </div>
             </section>
           )}
-
           {/* Documents */}
           <section id="documents" className="scroll-mt-24">
             <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Documents ({application.documents?.length || 0})</h2>
@@ -1852,7 +1988,7 @@ export default function StaffApplicationDetailsPage() {
                 <p className="text-[12.5px] text-slate-500">
                   Confirm identity and NIN checks for{" "}
                   <strong className="text-slate-800">
-                    {application.applicant_details?.account_name || `${application.first_name || ""} ${application.last_name || ""}`.trim() || "—"}
+                    {`Surname: ${application.last_name || application.applicant_details?.last_name || "—"}, First Name: ${application.first_name || application.applicant_details?.first_name || "—"}`}
                   </strong>
                   .
                 </p>

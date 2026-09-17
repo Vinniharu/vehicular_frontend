@@ -15,6 +15,7 @@ import {
   Send,
 } from "lucide-react";
 import { getApplication, submitRwxChecklistItem, submitRwxChecklist, uploadApplicationFile, resolveMediaUrl } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 
 const BRAND = "#28A745";
@@ -47,8 +48,13 @@ function ChecklistRow({ item, existing, onSave, previewFn }) {
 
   const handleFile = async (file) => {
     if (!file) return;
-    setUploading(true);
     setError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
+    setUploading(true);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploading(false);
     if (uploadError || !data?.file_url) {
