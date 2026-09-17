@@ -1136,7 +1136,7 @@ export default function AgentApplicationDetailPage() {
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Target turnaround: <strong className="text-slate-800">{application.sla.days_allocated} {application.sla.day_type === "business_days" ? "Working Days (Mon–Fri)" : "Calendar Days"}</strong> • Due by <strong className="text-slate-800">{new Date(application.sla.target_deadline).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</strong>
+                  Target turnaround: <strong className="text-slate-800">{application.sla.days_allocated} {application.sla.day_type === "business_days" ? "Working Days (Mon–Fri)" : "Calendar Days"}</strong> • Due by <strong className="text-slate-800">{application.sla.target_deadline ? new Date(application.sla.target_deadline).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>
                 </p>
               </div>
             </div>

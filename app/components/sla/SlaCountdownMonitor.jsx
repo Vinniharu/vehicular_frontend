@@ -436,7 +436,7 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
                             </span>
                           </div>
                           <p className="text-[10.5px] text-slate-400 mt-0.5">
-                            Target: {new Date(sla.target_deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                            Target: {sla.target_deadline ? new Date(sla.target_deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                           </p>
                         </div>
                       </td>

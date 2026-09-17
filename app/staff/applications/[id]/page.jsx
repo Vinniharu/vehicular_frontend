@@ -140,7 +140,8 @@ const inputBase =
 
 export default function StaffApplicationDetailsPage() {
   const params = useParams();
-  const appId = params?.id ? Number(params.id) : null;
+  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
+  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
 
   const [application, setApplication] = useState(null);
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
@@ -192,12 +193,21 @@ export default function StaffApplicationDetailsPage() {
   const [selectedParticularsItem, setSelectedParticularsItem] = useState(null);
 
   const loadDetail = async (isRefresh = false) => {
-    if (!appId) return;
+    if (!appId) {
+      setLoading(false);
+      return;
+    }
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     const res = await getStaffApplication(appId);
-    if (res.error) setError(res.error);
-    else if (res.data) setApplication(res.data);
+    if (res.error) {
+      setError(res.error);
+    } else if (res.data) {
+      setApplication(res.data);
+      if (res.data.vehicle) {
+        setVehicle(res.data.vehicle);
+      }
+    }
     setLoading(false);
     setRefreshing(false);
   };
@@ -211,9 +221,10 @@ export default function StaffApplicationDetailsPage() {
     const rawTarget = application?.driving_school_target_date || application?.driving_school?.target_date;
     if (!rawTarget) return;
 
-    let parseTarget = rawTarget;
+    let parseTarget = String(rawTarget);
     if (!parseTarget.includes("T")) parseTarget += "T23:59:59";
     const targetMs = new Date(parseTarget).getTime();
+    if (isNaN(targetMs)) return;
 
     const tick = () => {
       const diff = targetMs - Date.now();
@@ -768,7 +779,7 @@ export default function StaffApplicationDetailsPage() {
                   </span>
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Target turnaround: <strong className="text-slate-800">{application.sla.days_allocated} {application.sla.day_type === "business_days" ? "Working Days (Mon–Fri)" : "Calendar Days"}</strong> • Due by <strong className="text-slate-800">{new Date(application.sla.target_deadline).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</strong>
+                  Target turnaround: <strong className="text-slate-800">{application.sla.days_allocated} {application.sla.day_type === "business_days" ? "Working Days (Mon–Fri)" : "Calendar Days"}</strong> • Due by <strong className="text-slate-800">{application.sla.target_deadline ? new Date(application.sla.target_deadline).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>
                 </p>
               </div>
             </div>
@@ -1264,10 +1275,10 @@ export default function StaffApplicationDetailsPage() {
       {isVehicleParticulars && (application.items || []).length > 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">
-            Documents in this request ({application.items.length})
+            Documents in this request ({(application.items || []).length})
           </h3>
           <div className="divide-y divide-slate-100">
-            {application.items.map((item) => {
+            {(application.items || []).map((item) => {
               const meta = statusMeta(item.status);
               const finalDoc = (application.documents || []).find((d) => d.doc_type === `${item.document_type}_final`);
               return (
@@ -1605,7 +1616,7 @@ export default function StaffApplicationDetailsPage() {
               <p className="py-3 text-[13px] text-slate-400">Nothing uploaded on this file yet.</p>
             ) : (
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-2">
-                {application.documents.map((doc, idx) => (
+                {(application.documents || []).map((doc, idx) => (
                   <div key={idx} className="flex items-center justify-between gap-4 p-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">

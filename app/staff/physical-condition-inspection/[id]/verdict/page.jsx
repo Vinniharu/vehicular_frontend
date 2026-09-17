@@ -24,7 +24,8 @@ const MAX_REPORT_IMAGES = 6;
 export default function StaffPciVerdictPage() {
   const params = useParams();
   const router = useRouter();
-  const appId = params?.id ? Number(params.id) : null;
+  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
+  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
 
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,10 @@ export default function StaffPciVerdictPage() {
   const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
+    if (!appId) {
+      setLoading(false);
+      return;
+    }
     getStaffApplication(appId).then((res) => {
       if (res.error) setError(res.error);
       else setApplication(res.data);

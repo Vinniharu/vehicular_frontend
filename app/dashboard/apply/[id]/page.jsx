@@ -1977,7 +1977,8 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
 export default function CustomerApplicationDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const appId = params?.id ? Number(params.id) : null;
+  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
+  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
 
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2079,7 +2080,10 @@ export default function CustomerApplicationDetailsPage() {
   };
 
   const loadData = async (isRefresh = false) => {
-    if (!appId) return;
+    if (!appId) {
+      setLoading(false);
+      return;
+    }
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
 

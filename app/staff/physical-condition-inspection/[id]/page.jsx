@@ -114,7 +114,8 @@ function SectionBlock({ section, itemsByKey, referenceByKey, onPreview }) {
 export default function StaffPhysicalConditionInspectionReviewPage() {
   const params = useParams();
   const router = useRouter();
-  const appId = params?.id ? Number(params.id) : null;
+  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
+  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
 
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -129,6 +130,10 @@ export default function StaffPhysicalConditionInspectionReviewPage() {
   const pollRef = useRef(null);
 
   const loadDetail = useCallback(async ({ silent = false } = {}) => {
+    if (!appId) {
+      if (!silent) setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
     const res = await getStaffApplication(appId);
     if (res.error) setError(res.error);
