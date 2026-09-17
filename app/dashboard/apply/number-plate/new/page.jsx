@@ -30,7 +30,7 @@ import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
-import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS } from "@/lib/constants/vehicleCategories";
+import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS, resolveVehicleCategory } from "@/lib/constants/vehicleCategories";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 
 const BRAND = "#28A745";
@@ -525,7 +525,7 @@ export default function NumberPlateNewApplicationPage() {
           chassis_number: applicantForm.chassis_number.trim(),
           year: applicantForm.year ? Number(applicantForm.year) : undefined,
           state_id: Number(selectedStateId),
-          vehicle_category: applicantForm.vehicle_type?.toLowerCase().includes("commercial") ? "commercial" : "private",
+          vehicle_category: resolveVehicleCategory(applicantForm.vehicle_body_type, applicantForm.vehicle_type),
           plate_number: applicantForm.former_registration_number?.trim() || (isChangeOfOwnership ? "TRANS-PEND" : undefined),
         });
         if (vRes.error) {
