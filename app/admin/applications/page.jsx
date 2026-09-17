@@ -646,7 +646,7 @@ export default function AdminApplicationsPage() {
                     />
                   </div>
                   <div className="mt-1.5 flex justify-between text-[11px] text-slate-500">
-                    <span>Target: {new Date(selected.sla.target_deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    <span>Target: {selected.sla.target_deadline ? new Date(selected.sla.target_deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
                     <span className="font-semibold">{selected.sla.days_remaining}d remaining</span>
                   </div>
                 </div>
