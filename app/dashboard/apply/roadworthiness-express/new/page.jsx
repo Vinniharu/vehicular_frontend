@@ -27,6 +27,7 @@ import {
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { VEHICLE_CATEGORY_OPTIONS, isCommercialCategory } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -96,9 +97,11 @@ export default function RoadworthinessExpressNewApplicationPage() {
   const [availability, setAvailability] = useState(null);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
 
   const [papers, setPapers] = useState(null);
   const [uploadingPapers, setUploadingPapers] = useState(false);
+  const [papersError, setPapersError] = useState(null);
 
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -136,6 +139,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
       if (draftFormData.selectedVehicleId != null) setSelectedVehicleId(draftFormData.selectedVehicleId);
       if (draftFormData.bayStateId) setBayStateId(draftFormData.bayStateId);
       if (draftFormData.bookingDate) setBookingDate(draftFormData.bookingDate);
+      if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
       if (draftFormData.papers) setPapers(draftFormData.papers);
       if (draftFormData.step) setStep(draftFormData.step);
       pendingBayRestoreRef.current = draftFormData.selectedBayId ?? null;
@@ -146,7 +150,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
   }, [draftHydrated, draftFormData]);
 
   const buildDraftSnapshot = (targetStep) => ({
-    selectedVehicleId, bayStateId, selectedBayId, bookingDate, selectedSlotId, papers, step: targetStep,
+    selectedVehicleId, bayStateId, selectedBayId, bookingDate, selectedSlotId, deliveryAddress, papers, step: targetStep,
   });
 
   // RWX is a flat fee (ServicePrice, not vehicle-category-based) priced per
@@ -277,6 +281,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
       if (!selectedBayId) errors.bay = "Pick a bay to continue.";
       if (!bookingDate) errors.date = "Pick a date.";
       if (!selectedSlotId) errors.slot = "Pick a time slot.";
+      if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     return errors;
   };
@@ -295,15 +300,23 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
   const handlePapersUpload = async (file) => {
     if (!file) return;
+    setPapersError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setPapersError(validation.error);
+      return;
+    }
     setUploadingPapers(true);
     const { data, error } = await uploadApplicationFile(file);
     setUploadingPapers(false);
-    if (!error && data?.file_url) {
-      setPapers({ fileName: file.name, url: data.file_url });
+    if (error || !data?.file_url) {
+      setPapersError(error || "Upload failed. Please try again.");
+      return;
     }
+    setPapers({ fileName: file.name, url: data.file_url });
   };
 
-  const canSubmit = selectedVehicleId && selectedBayId && bookingDate && selectedSlotId;
+  const canSubmit = selectedVehicleId && selectedBayId && bookingDate && selectedSlotId && deliveryAddress.trim();
 
   const handleSubmit = async () => {
     const allErrors = { ...validateStep(1), ...validateStep(2) };
@@ -323,6 +336,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
       bay_id: selectedBayId,
       slot_template_id: selectedSlotId,
       booking_date: bookingDate,
+      delivery_address: deliveryAddress.trim(),
       papers: papers ? { doc_type: "vehicle_papers", file_url: papers.url } : undefined,
     });
     setSubmitting(false);
@@ -656,6 +670,18 @@ export default function RoadworthinessExpressNewApplicationPage() {
               <FieldError message={fieldErrors.slot} />
             </div>
           )}
+
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
+            <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+            <input
+              className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+            />
+            <p className="text-[11.5px] text-slate-500">Your physical roadworthiness certificate will be dispatched to this delivery address.</p>
+            <FieldError message={fieldErrors.deliveryAddress} />
+          </div>
         </section>
       )}
 
@@ -679,11 +705,16 @@ export default function RoadworthinessExpressNewApplicationPage() {
                   {bookingDate} · {availability?.find((s) => s.slot_template_id === selectedSlotId)?.label || "—"}
                 </span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Delivery address</span>
+                <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
+              </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Vehicle papers <span className="font-normal text-slate-400">(optional)</span></h2>
+            <h2 className="mb-1 text-[13.5px] font-bold text-[#111111]">Vehicle papers <span className="font-normal text-slate-400">(optional)</span></h2>
+            <p className="text-[11px] text-slate-400 mb-3">JPG, PNG, WEBP, or PDF — up to 10MB</p>
             {papers?.url ? (
               <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="truncate text-[12.5px] font-semibold text-slate-700">{papers.fileName}</p>
@@ -696,6 +727,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
                 <input type="file" accept="image/*,application/pdf" disabled={uploadingPapers} onChange={(e) => handlePapersUpload(e.target.files?.[0])} className="hidden" />
               </label>
             )}
+            {papersError && <p className="mt-2 text-[11.5px] font-medium text-red-600">{papersError}</p>}
           </div>
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">

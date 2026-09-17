@@ -19,8 +19,20 @@ import {
   Pencil,
   CheckCircle2,
   Timer,
+  Trash2,
+  AlertTriangle,
+  Car,
 } from "lucide-react";
-import { adminGetApplications, adminGetStaff, adminGetAgents, adminReassignStaff, adminReassignAgent, adminGetEligibleAgents } from "@/lib/api";
+import {
+  adminGetApplications,
+  adminGetStaff,
+  adminGetAgents,
+  adminReassignStaff,
+  adminReassignAgent,
+  adminGetEligibleAgents,
+  adminDeleteApplication,
+  adminBulkDeleteApplications,
+} from "@/lib/api";
 
 const STATUS_TONE = {
   submitted: "bg-sky-50 text-sky-700 ring-sky-200",
@@ -212,6 +224,9 @@ export default function AdminApplicationsPage() {
     return items.filter(
       (a) =>
         String(a.id).includes(q) ||
+        (a.last_name || "").toLowerCase().includes(q) ||
+        (a.first_name || "").toLowerCase().includes(q) ||
+        (a.middle_name || "").toLowerCase().includes(q) ||
         (a.applicant_name || "").toLowerCase().includes(q) ||
         (a.lga || "").toLowerCase().includes(q) ||
         (a.state_of_residence || "").toLowerCase().includes(q) ||
@@ -219,6 +234,73 @@ export default function AdminApplicationsPage() {
         (a.assigned_agent?.name || "").toLowerCase().includes(q)
     );
   }, [items, searchQuery]);
+
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({ open: false, items: [], deleting: false });
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (filteredItems.length > 0 && selectedIds.length === filteredItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredItems.map((it) => it.id));
+    }
+  };
+
+  const promptDeleteSingle = (app) => {
+    setDeleteModal({ open: true, items: [app], deleting: false });
+  };
+
+  const promptDeleteBulk = () => {
+    const toDelete = items.filter((it) => selectedIds.includes(it.id));
+    if (toDelete.length === 0) return;
+    setDeleteModal({ open: true, items: toDelete, deleting: false });
+  };
+
+  const handleConfirmDelete = async () => {
+    const { items: toDelete } = deleteModal;
+    if (toDelete.length === 0) return;
+    setDeleteModal((prev) => ({ ...prev, deleting: true }));
+
+    let success = false;
+    let errMessage = null;
+
+    if (toDelete.length === 1) {
+      const res = await adminDeleteApplication(toDelete[0].id);
+      if (res.error) {
+        errMessage = res.error;
+      } else {
+        success = true;
+      }
+    } else {
+      const ids = toDelete.map((it) => it.id);
+      const res = await adminBulkDeleteApplications(ids);
+      if (res.error) {
+        errMessage = res.error;
+      } else {
+        success = true;
+      }
+    }
+
+    if (success) {
+      showToast("success", `Successfully deleted ${toDelete.length} application${toDelete.length > 1 ? "s" : ""}.`);
+      setDeleteModal({ open: false, items: [], deleting: false });
+      const deletedIdSet = new Set(toDelete.map((it) => it.id));
+      setSelectedIds((prev) => prev.filter((id) => !deletedIdSet.has(id)));
+      if (selected && deletedIdSet.has(selected.id)) {
+        setSelected(null);
+      }
+      loadData(true);
+    } else {
+      showToast("error", errMessage || "Failed to delete applications.");
+      setDeleteModal((prev) => ({ ...prev, deleting: false }));
+    }
+  };
 
   return (
     <div className="space-y-6 pb-16">
@@ -328,6 +410,37 @@ export default function AdminApplicationsPage() {
         </div>
       )}
 
+      {/* Bulk action banner */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-900 px-5 py-3 text-white shadow-lg animate-in fade-in duration-200">
+          <div className="flex items-center gap-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#28A745] text-xs font-bold text-white">
+              {selectedIds.length}
+            </span>
+            <span className="text-[13.5px] font-semibold">
+              {selectedIds.length} application{selectedIds.length > 1 ? "s" : ""} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+            >
+              Deselect all
+            </button>
+            <button
+              type="button"
+              onClick={promptDeleteBulk}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 py-1.5 text-[12.5px] font-bold text-white hover:bg-rose-700 transition-colors shadow-sm"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {loading ? (
@@ -348,6 +461,15 @@ export default function AdminApplicationsPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/60">
+                  <th className="w-12 px-3 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
+                      title="Select all"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">ID</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Applicant</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Type</th>
@@ -356,6 +478,7 @@ export default function AdminApplicationsPage() {
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">LGA</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Assigned to</th>
                   <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Updated</th>
+                  <th className="w-16 px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -365,8 +488,28 @@ export default function AdminApplicationsPage() {
                     onClick={() => setSelected(app)}
                     className="cursor-pointer hover:bg-slate-50 transition-colors"
                   >
+                    <td className="w-12 px-3 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(app.id)}
+                        onChange={() => toggleSelect(app.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
+                      />
+                    </td>
                     <td className="px-4 py-3.5 font-mono text-[12.5px] font-bold text-slate-900">#{app.id}</td>
-                    <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-800">{app.applicant_name}</td>
+                    <td className="px-4 py-3.5 text-[13px]">
+                      <div className="font-bold text-slate-900">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1.5">Surname:</span>
+                        {app.last_name || "—"}
+                      </div>
+                      <div className="text-[12px] text-slate-600 mt-0.5">
+                        <span className="text-[10px] font-medium text-slate-400 mr-1">First:</span>
+                        <strong className="font-semibold text-slate-800">{app.first_name || "—"}</strong>
+                        {app.middle_name && (
+                          <span className="text-slate-500 ml-1.5">({app.middle_name})</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3.5">
                       <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                         {(app.application_type || "fresh").replace(/_/g, " ")}
@@ -395,6 +538,16 @@ export default function AdminApplicationsPage() {
                     </td>
                     <td className="px-4 py-3.5 text-[12px] text-slate-500">
                       {app.updated_at ? new Date(app.updated_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                    </td>
+                    <td className="w-16 px-3 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => promptDeleteSingle(app)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                        title="Delete application"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -436,7 +589,17 @@ export default function AdminApplicationsPage() {
           <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-[17px] font-bold text-slate-900">{selected.applicant_name}</h3>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-[17px] font-bold text-slate-900">{selected.last_name || "—"}</strong></span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-[17px] font-bold text-slate-900">{selected.first_name || "—"}</strong></span>
+                  {selected.middle_name && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-[17px] font-bold text-slate-900">{selected.middle_name}</strong></span>
+                    </>
+                  )}
+                </div>
                 <p className="mt-0.5 font-mono text-[12px] text-slate-400">#{selected.id}</p>
               </div>
               <button onClick={() => setSelected(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -504,6 +667,78 @@ export default function AdminApplicationsPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Delivery Address Card (All services except fresh/renewal DL) */}
+              {(selected.delivery_address || selected.applicant_details?.delivery_address) && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-indigo-900 font-bold text-[12.5px]">
+                      <MapPin className="h-4 w-4 text-indigo-600 shrink-0" />
+                      <span>Delivery Address</span>
+                    </div>
+                    <span className="text-[10px] uppercase font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                      Physical Dispatch
+                    </span>
+                  </div>
+                  <p className="text-[13px] text-slate-800 font-medium pl-5.5">
+                    {selected.delivery_address || selected.applicant_details?.delivery_address}
+                  </p>
+                </div>
+              )}
+
+              {/* Vehicle & Plate Specifications (Tailored for vehicle services) */}
+              {(selected.vehicle || selected.vehicle_type || selected.chassis_number || selected.make || selected.vehicle_body_type) && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-blue-900 font-bold text-[12.5px]">
+                    <Car className="h-4 w-4 text-blue-600 shrink-0" />
+                    <span>Vehicle & Plate Details</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-[12px] pt-1">
+                    {selected.vehicle_type && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Vehicle Type</span>
+                        <span className="font-bold text-slate-800">{selected.vehicle_type}</span>
+                      </div>
+                    )}
+                    {selected.vehicle_body_type && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Body Type (SUV / Saloon)</span>
+                        <span className="font-bold text-slate-800">{selected.vehicle_body_type}</span>
+                      </div>
+                    )}
+                    {(selected.make || selected.vehicle?.make) && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Make & Model</span>
+                        <span className="font-bold text-slate-800">{selected.make || selected.vehicle?.make} {selected.model || selected.vehicle?.model}</span>
+                      </div>
+                    )}
+                    {(selected.colour || selected.vehicle?.colour) && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Colour</span>
+                        <span className="font-bold text-slate-800 capitalize">{selected.colour || selected.vehicle?.colour}</span>
+                      </div>
+                    )}
+                    {(selected.year || selected.vehicle?.year) && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Manufacturing Year</span>
+                        <span className="font-bold text-slate-800 font-mono">{selected.year || selected.vehicle?.year}</span>
+                      </div>
+                    )}
+                    {(selected.chassis_number || selected.vehicle?.chassis_number) && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Chassis / VIN</span>
+                        <span className="font-bold text-slate-800 font-mono">{selected.chassis_number || selected.vehicle?.chassis_number}</span>
+                      </div>
+                    )}
+                    {selected.former_registration_number && (
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-semibold">Former Reg No</span>
+                        <span className="font-bold text-slate-800 font-mono">{selected.former_registration_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -656,12 +891,99 @@ export default function AdminApplicationsPage() {
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end border-t border-slate-100 pt-4">
+            <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => promptDeleteSingle(selected)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-[12.5px] font-semibold text-rose-700 hover:bg-rose-100 transition-all"
+              >
+                <Trash2 className="h-4 w-4 text-rose-600" /> Delete application
+              </button>
               <button
                 onClick={() => setSelected(null)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#28A745] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Repercussions Delete Confirmation Modal */}
+      {deleteModal.open && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-rose-100 bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                <AlertTriangle className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-[16px] font-bold text-slate-900">
+                  {deleteModal.items.length === 1 ? "Permanently Delete Application" : "Permanently Delete Applications"}
+                </h3>
+                <p className="text-[12px] text-rose-600 font-semibold">Irreversible Administrative Action</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 py-2 text-[13px] text-slate-600">
+              <p>
+                {deleteModal.items.length === 1 ? (
+                  <>
+                    Are you sure you want to permanently delete application{" "}
+                    <strong className="font-mono text-slate-900">#{deleteModal.items[0]?.id}</strong>
+                    {deleteModal.items[0]?.applicant_name || deleteModal.items[0]?.last_name
+                      ? ` (${deleteModal.items[0]?.last_name || ""} ${deleteModal.items[0]?.first_name || ""})`
+                      : ""}
+                    ?
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to permanently delete{" "}
+                    <strong className="text-slate-900">{deleteModal.items.length} selected applications</strong>?
+                  </>
+                )}
+              </p>
+
+              <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 space-y-1.5 text-rose-900 text-[12px]">
+                <p className="font-bold flex items-center gap-1.5 text-rose-700">
+                  <AlertCircle className="h-4 w-4 shrink-0" /> Repercussions & Warning:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-rose-800 leading-relaxed pl-1">
+                  <li>This action is <strong>permanent</strong> and cannot be undone.</li>
+                  <li>All uploaded files, customer slips, and verification images will be purged.</li>
+                  <li>Audit logs, payment records, and status histories will be removed.</li>
+                  <li>Assigned staff and field agents will immediately lose access.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ open: false, items: [], deleting: false })}
+                disabled={deleteModal.deleting}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={deleteModal.deleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-rose-700 transition-colors disabled:opacity-50 shadow-sm"
+              >
+                {deleteModal.deleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete Permanently
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -95,6 +95,9 @@ export default function SupportApplicationsPage() {
     return items.filter(
       (a) =>
         String(a.id).includes(q) ||
+        (a.last_name || "").toLowerCase().includes(q) ||
+        (a.first_name || "").toLowerCase().includes(q) ||
+        (a.middle_name || "").toLowerCase().includes(q) ||
         (a.applicant_name || "").toLowerCase().includes(q) ||
         (a.customer_email || "").toLowerCase().includes(q) ||
         (a.lga || "").toLowerCase().includes(q) ||
@@ -210,8 +213,18 @@ export default function SupportApplicationsPage() {
                       <Link href={`/support/applications/${app.id}`} className="hover:underline">#{app.id}</Link>
                     </td>
                     <td className="px-4 py-3.5">
-                      <Link href={`/support/customers/${app.customer_id}`} className="text-[13px] font-semibold text-slate-800 hover:underline">
-                        {app.applicant_name}
+                      <Link href={`/support/customers/${app.customer_id}`} className="hover:underline">
+                        <div className="font-bold text-slate-900 text-[13px]">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1.5">Surname:</span>
+                          {app.last_name || "—"}
+                        </div>
+                        <div className="text-[12px] text-slate-600 mt-0.5">
+                          <span className="text-[10px] font-medium text-slate-400 mr-1">First:</span>
+                          <strong className="font-semibold text-slate-800">{app.first_name || "—"}</strong>
+                          {app.middle_name && (
+                            <span className="text-slate-500 ml-1.5">({app.middle_name})</span>
+                          )}
+                        </div>
                       </Link>
                       <div className="mt-0.5 space-y-0.5">
                         <p className="flex items-center gap-1 text-[11px] text-slate-500"><Mail className="h-2.5 w-2.5" />{app.customer_email}</p>

@@ -63,6 +63,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
   const [selectedStateId, setSelectedStateId] = useState("");
   const [nin, setNin] = useState("");
   const [applicantEmail, setApplicantEmail] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [doc, setDoc] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -103,6 +104,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
       if (draftFormData.selectedStateId) setSelectedStateId(draftFormData.selectedStateId);
       if (draftFormData.nin) setNin(draftFormData.nin);
       if (draftFormData.applicantEmail) setApplicantEmail(draftFormData.applicantEmail);
+      if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
       if (draftFormData.doc) setDoc(draftFormData.doc);
       if (draftFormData.step) setStep(draftFormData.step);
     }
@@ -111,7 +113,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
   }, [draftHydrated, draftFormData]);
 
   const buildDraftSnapshot = (targetStep) => ({
-    selectedVehicleId, selectedStateId, nin, applicantEmail, doc, step: targetStep,
+    selectedVehicleId, selectedStateId, nin, applicantEmail, deliveryAddress, doc, step: targetStep,
   });
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
@@ -171,6 +173,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
       else if (!NIN_RE.test(nin.trim())) errors.nin = "NIN must be exactly 11 digits.";
       if (!applicantEmail.trim()) errors.applicant_email = "Email is required.";
       else if (!EMAIL_RE.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
+      if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     if (n === DOC_STEP) {
       if (!doc?.url) errors.documents = "Upload the vehicle licence document to continue.";
@@ -193,6 +196,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
   const canSubmit =
     selectedVehicleId &&
     selectedStateId && NIN_RE.test(nin.trim()) && EMAIL_RE.test(applicantEmail.trim()) &&
+    deliveryAddress.trim() &&
     !!doc?.url;
 
   const handleSubmit = async () => {
@@ -214,6 +218,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
       state_id: Number(selectedStateId),
       nin: nin.trim(),
       applicant_email: applicantEmail.trim(),
+      delivery_address: deliveryAddress.trim(),
       vehicle_licence: { doc_type: "vehicle_licence", file_url: doc.url },
     });
     setSubmitting(false);
@@ -508,6 +513,17 @@ export default function CentralMotorRegistryNewApplicationPage() {
               />
               <FieldError message={fieldErrors.applicant_email} />
             </div>
+            <div>
+              <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+              />
+              <p className="mt-1 text-[11.5px] text-slate-500">Physical CMR documents and certificates will be dispatched to this delivery address.</p>
+              <FieldError message={fieldErrors.deliveryAddress} />
+            </div>
           </div>
         </section>
       )}
@@ -544,6 +560,10 @@ export default function CentralMotorRegistryNewApplicationPage() {
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Email</span>
                 <span className="font-semibold text-[#111111]">{applicantEmail || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Delivery address</span>
+                <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Document</span>

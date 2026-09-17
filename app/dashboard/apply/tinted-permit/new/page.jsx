@@ -73,6 +73,7 @@ export default function TintedPermitNewApplicationPage() {
 
   const [nin, setNin] = useState("");
   const [justification, setJustification] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [docs, setDocs] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -98,6 +99,7 @@ export default function TintedPermitNewApplicationPage() {
       if (draftFormData.selectedVehicleId) setSelectedVehicleId(draftFormData.selectedVehicleId);
       if (draftFormData.nin) setNin(draftFormData.nin);
       if (draftFormData.justification) setJustification(draftFormData.justification);
+      if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
       if (draftFormData.docs) setDocs(draftFormData.docs);
     }
     setDraftApplied(true);
@@ -170,6 +172,7 @@ export default function TintedPermitNewApplicationPage() {
       const trimmedNin = nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!/^\d{11}$/.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+      if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     if (n === 3) {
       const allDocsUploaded = DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
@@ -187,10 +190,10 @@ export default function TintedPermitNewApplicationPage() {
     setFieldErrors({});
     const nextStep = Math.min(4, step + 1);
     setStep(nextStep);
-    save({ selectedVehicleId, nin, justification, docs }, STEP_LABELS[nextStep - 1]);
+    save({ selectedVehicleId, nin, justification, deliveryAddress, docs }, STEP_LABELS[nextStep - 1]);
   };
 
-  const canSubmit = selectedVehicleId && /^\d{11}$/.test(nin) && DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
+  const canSubmit = selectedVehicleId && /^\d{11}$/.test(nin) && deliveryAddress.trim() && DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
 
   const handleSubmit = async () => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3) };
@@ -210,6 +213,7 @@ export default function TintedPermitNewApplicationPage() {
       vehicle_id: selectedVehicleId,
       nin,
       justification: justification || undefined,
+      delivery_address: deliveryAddress.trim(),
       documents: DOC_SLOTS.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
     });
     setSubmitting(false);
@@ -485,6 +489,17 @@ export default function TintedPermitNewApplicationPage() {
               <FieldError message={fieldErrors.nin} />
             </div>
             <div className="sm:col-span-2">
+              <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+              />
+              <p className="mt-1 text-[11.5px] text-slate-500">Physical tinted permit documents will be delivered to this address.</p>
+              <FieldError message={fieldErrors.deliveryAddress} />
+            </div>
+            <div className="sm:col-span-2">
               <label className={label}>Justification <span className="font-normal text-slate-400">(optional)</span></label>
               <textarea
                 className={inputBase}
@@ -531,6 +546,10 @@ export default function TintedPermitNewApplicationPage() {
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">NIN</span>
                 <span className="font-mono font-semibold text-[#111111]">{nin || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Delivery address</span>
+                <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
               {justification.trim() && (
                 <div className="py-2.5 text-[13px]">

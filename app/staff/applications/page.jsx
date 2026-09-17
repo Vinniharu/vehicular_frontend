@@ -142,6 +142,9 @@ function StaffApplicationsQueueInner() {
       const matchSearch =
         !q ||
         String(app.id).includes(q) ||
+        (app.last_name || "").toLowerCase().includes(q) ||
+        (app.first_name || "").toLowerCase().includes(q) ||
+        (app.middle_name || "").toLowerCase().includes(q) ||
         (app.applicant_name || "").toLowerCase().includes(q) ||
         (app.lga || "").toLowerCase().includes(q) ||
         (app.state_of_residence || "").toLowerCase().includes(q);
@@ -363,9 +366,17 @@ function StaffApplicationsQueueInner() {
                   </div>
 
                   <div>
-                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-[#28A745] transition-colors flex items-center gap-2">
-                      <span>{app.applicant_name}</span>
-                    </h4>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.last_name || "—"}</strong></span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.first_name || "—"}</strong></span>
+                      {app.middle_name && (
+                        <>
+                          <span className="text-slate-300">•</span>
+                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.middle_name}</strong></span>
+                        </>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
                       <span>LGA Sector: <strong className="text-slate-700">{app.lga || "—"}</strong></span>
                       <span>•</span>

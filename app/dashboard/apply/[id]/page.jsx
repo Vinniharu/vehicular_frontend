@@ -48,6 +48,7 @@ import {
   downloadVehicleVerificationReportPdf,
   downloadPciReportPdf,
 } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import PaymentOptions, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PaymentOptions";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
@@ -225,8 +226,13 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setDocFileName(file.name);
     setError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
+    setDocFileName(file.name);
     setUploading(true);
     const { data, error: uploadErr } = await uploadApplicationFile(file);
     setUploading(false);
@@ -623,6 +629,11 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   const handlePassportPhotoFile = async (file) => {
     if (!file) return;
     setPassportPhotoError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10, imagesOnly: true });
+    if (!validation.valid) {
+      setPassportPhotoError(validation.error);
+      return;
+    }
     setPassportPhotoUploading(true);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setPassportPhotoUploading(false);
@@ -636,6 +647,11 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   const handleSimpleDocFile = async (file) => {
     if (!file) return;
     setSimpleDocError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setSimpleDocError(validation.error);
+      return;
+    }
     setSimpleDocUploading(true);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setSimpleDocUploading(false);
@@ -697,8 +713,13 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setDocFileName(file.name);
     setDocError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setDocError(validation.error);
+      return;
+    }
+    setDocFileName(file.name);
 
     // Provide local preview for images
     if (file.type && file.type.startsWith("image/")) {
@@ -996,7 +1017,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className={fieldLabel}>Full name</label>
+                  <label className={fieldLabel}>Next of kin name</label>
                   <input name="next_of_kin_name" value={form.next_of_kin_name} onChange={handleChange} placeholder="Jane Doe" className={inputBase} />
                 </div>
                 <div>
@@ -1209,6 +1230,11 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
   const handleFile = async (docType, file) => {
     if (!file) return;
     setError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
     setUploadingType(docType);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploadingType(null);
@@ -1344,6 +1370,11 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
   const handleFile = async (docType, file) => {
     if (!file) return;
     setError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
     setUploadingType(docType);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploadingType(null);
@@ -1831,6 +1862,11 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
   const handleFile = async (docType, file) => {
     if (!file) return;
     setError(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
     setUploadingType(docType);
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploadingType(null);
@@ -2025,6 +2061,11 @@ export default function CustomerApplicationDetailsPage() {
   const handleCustomerFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setNotice({ type: "error", message: validation.error });
+      return;
+    }
     setDocFileName(file.name);
     setUploadingDoc(true);
     const { data, error: uploadErr } = await uploadApplicationFile(file);
@@ -2057,11 +2098,12 @@ export default function CustomerApplicationDetailsPage() {
   }, [appId]);
 
   useEffect(() => {
-    const isVehicleCentric = application?.application_type === "tinted_permit" || application?.application_type?.startsWith("number_plate_");
-    if (isVehicleCentric && application?.vehicle_id) {
+    if (application?.vehicle) {
+      setVehicle(application.vehicle);
+    } else if (application?.vehicle_id) {
       getVehicle(application.vehicle_id).then((res) => { if (res.data) setVehicle(res.data); });
     }
-  }, [application?.application_type, application?.vehicle_id]);
+  }, [application?.application_type, application?.vehicle_id, application?.vehicle]);
 
   useEffect(() => {
     const rawTarget = application?.driving_school_target_date || application?.driving_school?.target_date;
@@ -2191,7 +2233,22 @@ export default function CustomerApplicationDetailsPage() {
   const isRwx = application.application_type === "roadworthiness_express";
   const isVehicleVerification = Boolean(application.application_type?.startsWith("vehicle_verification_"));
   const isPci = application.application_type === "physical_condition_inspection";
-  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars || isRwx;
+  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars || isRwx || isVehicleVerification || isPci;
+
+  const deliveryAddress = application.delivery_address || application.applicant_details?.delivery_address;
+  const hasDeliveryAddress = Boolean(deliveryAddress && String(deliveryAddress).trim());
+
+  const vMake = vehicle?.make || application.vehicle_make;
+  const vModel = vehicle?.model || application.vehicle_model;
+  const vYear = vehicle?.year || application.year_of_manufacture || application.manufacturing_year;
+  const vColour = vehicle?.colour || application.vehicle_colour;
+  const vChassis = vehicle?.chassis_number || application.chassis_number;
+  const vType = application.vehicle_type || vehicle?.vehicle_type;
+  const vBodyType = application.vehicle_body_type || vehicle?.vehicle_category;
+  const vFormerReg = application.former_registration_number;
+  const vPlate = vehicle?.plate_number || application.plate_number;
+  const vEngine = vehicle?.engine_number || application.engine_number;
+  const hasVehicleData = Boolean(vehicle || vMake || vModel || vChassis || vType);
   // A free re-inspection booking (see the "Rebook free" flow) is created
   // directly at status="paid" with NO Payment row at all — it was never
   // charged, so application.payment_options is null and payment_status
@@ -2352,66 +2409,113 @@ export default function CustomerApplicationDetailsPage() {
       {/* Vehicle-centric types only (tinted_permit, number_plate_*) — the
           vehicle this application is for, in place of the licence-class/
           driving-school fields that don't apply. */}
-      {isVehicleCentric && vehicle && (
+      {/* Delivery Address Card — shown for all services requiring delivery (exempt: fresh & renewal DL) */}
+      {hasDeliveryAddress && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13px] font-bold uppercase tracking-wide text-emerald-900">
+                  Delivery Address
+                </h3>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-800">
+                  Required Destination
+                </span>
+              </div>
+              <p className="mt-1 text-[14.5px] font-semibold text-slate-900 leading-relaxed">
+                {deliveryAddress}
+              </p>
+              <p className="mt-0.5 text-[12px] text-slate-500">
+                Your processed document, plate number, or permit will be delivered to this address.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle Specifications Card — tailored for all vehicle applications with full 14 fields */}
+      {isVehicleCentric && (hasVehicleData || vehicle) && (
         <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Vehicle</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">
+              Vehicle Specifications
+            </h3>
+            {vPlate ? (
+              <span className="font-mono text-[13px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+                {vPlate}
+              </span>
+            ) : (
+              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                Plate Pending / New Request
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make / Model</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.make} {vehicle.model}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make & Model</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vMake || "—"} {vModel || ""}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Colour</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.colour}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Manufacturing Year</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vYear || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.plate_number || "Pending"}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Type</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vType || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">State</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">SUV or Saloon Car</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vBodyType || "—"}</span>
             </div>
-            {isNumberPlate && vehicle.year && (
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Colour</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vColour || "—"}</span>
+            </div>
+            <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis / VIN Number</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vChassis || "—"}</span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Former Reg Number</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vFormerReg || "None"}</span>
+            </div>
+            {vEngine && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Year</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.year}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine Number</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vEngine}</span>
               </div>
             )}
-            {isNumberPlate && application.use_type && (
+            {vehicle?.state && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use type</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration State</span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+              </div>
+            )}
+            {application.use_type && (
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use Type</span>
                 <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.use_type}</span>
               </div>
             )}
-            {isNumberPlate && vehicle.chassis_number && (
+            {application.is_fancy_plate && application.fancy_plate_number && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis number</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.chassis_number}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy Plate Requested</span>
+                <span className="mt-1 block font-mono text-[13.5px] font-bold text-emerald-700">{application.fancy_plate_number}</span>
               </div>
             )}
-            {isNumberPlate && vehicle.engine_number && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine number</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.engine_number}</span>
-              </div>
-            )}
-            {application.justification && (
-              <div className="col-span-2 sm:col-span-3">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
-              </div>
-            )}
-            {isNumberPlate && application.previous_owner_details && (
-              <div className="col-span-2 sm:col-span-3">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous owner</span>
+            {application.previous_owner_details && (
+              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous Owner Details</span>
                 <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
               </div>
             )}
-            {isNumberPlate && application.is_fancy_plate && application.fancy_plate_number && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy plate requested</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{application.fancy_plate_number}</span>
+            {application.justification && (
+              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
+                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
               </div>
             )}
           </div>
@@ -3032,16 +3136,36 @@ export default function CustomerApplicationDetailsPage() {
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.first_name || "—"}</span>
             </div>
-            {application.middle_name && (
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Middle name</span>
-                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.middle_name}</span>
-              </div>
-            )}
             <div>
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
               <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.last_name || "—"}</span>
             </div>
+            {application.middle_name && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Other name</span>
+                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.middle_name}</span>
+              </div>
+            )}
+            {(application.phone_number || application.applicant_details?.phone) && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone number</span>
+                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">
+                  {application.phone_number || application.applicant_details?.phone}
+                </span>
+              </div>
+            )}
+            {application.nin && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
+                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">{application.nin}</span>
+              </div>
+            )}
+            {application.date_of_birth && (
+              <div>
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date of birth</span>
+                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">{application.date_of_birth}</span>
+              </div>
+            )}
             {application.gender && (
               <div>
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Gender</span>
@@ -3049,34 +3173,40 @@ export default function CustomerApplicationDetailsPage() {
               </div>
             )}
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date of birth</span>
-              <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">{application.date_of_birth || "—"}</span>
-            </div>
-            <div>
               <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA</span>
               <span className="mt-0.5 flex items-center gap-1 text-[13.5px] font-semibold text-[#111111]">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                 {application.state_of_residence || "—"} · {application.lga || "—"}
               </span>
             </div>
-            {application.nin && (
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
-                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">{application.nin}</span>
+            {application.residential_address && (
+              <div className="col-span-2">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Residential Address</span>
+                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.residential_address}</span>
               </div>
             )}
-            <div className="col-span-2">
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Next of kin</span>
-              <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">
-                {application.next_of_kin_name || "—"}
-                {application.next_of_kin_relationship && (
-                  <span className="ml-1.5 text-[12px] font-normal text-slate-500">({application.next_of_kin_relationship})</span>
-                )}
-                {application.next_of_kin_phone && (
-                  <span className="ml-1.5 font-mono text-[12px] font-normal text-slate-500">{application.next_of_kin_phone}</span>
-                )}
-              </span>
-            </div>
+            {hasDeliveryAddress && (
+              <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+                <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+                  <MapPin className="h-3.5 w-3.5" /> Delivery Address
+                </span>
+                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{deliveryAddress}</span>
+              </div>
+            )}
+            {!isVehicleCentric && (application.next_of_kin_name || application.applicant_details?.next_of_kin_name) && (
+              <div className="col-span-2">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Next of kin</span>
+                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">
+                  {application.next_of_kin_name || application.applicant_details?.next_of_kin_name || "—"}
+                  {(application.next_of_kin_relationship || application.applicant_details?.next_of_kin_relationship) && (
+                    <span className="ml-1.5 text-[12px] font-normal text-slate-500">({application.next_of_kin_relationship || application.applicant_details?.next_of_kin_relationship})</span>
+                  )}
+                  {(application.next_of_kin_phone || application.applicant_details?.next_of_kin_phone) && (
+                    <span className="ml-1.5 font-mono text-[12px] font-normal text-slate-500">{application.next_of_kin_phone || application.applicant_details?.next_of_kin_phone}</span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

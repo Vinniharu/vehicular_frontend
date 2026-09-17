@@ -403,7 +403,18 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
                               {(item.current_status || "").replace(/_/g, " ")}
                             </span>
                           </div>
-                          <p className="text-[13px] font-bold text-slate-900">{item.applicant_name}</p>
+                          <div className="text-[13px] leading-tight">
+                            {item.last_name ? (
+                              <>
+                                <span className="font-bold text-slate-900">Surname: {item.last_name}</span>
+                                <span className="text-slate-500 font-normal text-[11.5px] block">
+                                  First: {item.first_name || "—"}{item.middle_name ? ` • Middle: ${item.middle_name}` : ""}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-bold text-slate-900">{item.applicant_name || "—"}</span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
                             {item.applicant_phone && <span>{item.applicant_phone}</span>}
                             {item.applicant_email && <span className="truncate max-w-[140px]">{item.applicant_email}</span>}

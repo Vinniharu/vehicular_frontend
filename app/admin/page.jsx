@@ -328,7 +328,16 @@ export default function AdminDashboardPage() {
                     {recentTx.map((tx) => (
                       <tr key={tx.payment_id || tx.reference} className="border-b border-slate-50 last:border-0">
                         <td className="py-2.5 px-4">
-                          <p className="text-[12.5px] font-semibold text-slate-900">{tx.applicant_name}</p>
+                          <p className="text-[12.5px] font-semibold text-slate-900">
+                            {tx.last_name || tx.first_name ? (
+                              <span>
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase mr-1">Surname:</span>
+                                {tx.last_name || "—"} <span className="text-slate-400 font-normal">({tx.first_name || "—"}{tx.middle_name ? ` ${tx.middle_name}` : ""})</span>
+                              </span>
+                            ) : (
+                              tx.applicant_name
+                            )}
+                          </p>
                           <p className="text-[11px] text-slate-400 capitalize">
                             {tx.application_type === "wallet_deposit"
                               ? "Wallet Deposit"

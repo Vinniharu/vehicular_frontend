@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Upload, CheckCircle2 } from "lucide-react";
 import { uploadApplicationFile } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 
 const BRAND = "#28A745";
 
@@ -27,15 +28,27 @@ export default function UploadSlot({ slot, value, onChange }) {
   const handleFile = async (file) => {
     if (!file) return;
     setError(null);
+
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
+
     setUploading(true);
+    const isImage = file.type && file.type.startsWith("image/");
+    const tempUrl = isImage ? URL.createObjectURL(file) : null;
     setPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
+      return tempUrl;
     });
+
     const { data, error: uploadError } = await uploadApplicationFile(file);
     setUploading(false);
     if (uploadError || !data?.file_url) {
       setError(uploadError || "Upload failed. Please try again.");
+      if (tempUrl) URL.revokeObjectURL(tempUrl);
+      setPreviewUrl(null);
       return;
     }
     onChange({ fileName: file.name, url: data.file_url });

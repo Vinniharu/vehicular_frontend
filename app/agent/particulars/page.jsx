@@ -25,6 +25,7 @@ import {
   koboToNaira,
   resolveMediaUrl,
 } from "@/lib/api";
+import { validateUploadFile } from "@/lib/utils/fileValidation";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 
 const BRAND = "#28A745";
@@ -112,8 +113,13 @@ export default function AgentParticularsJobsPage() {
       setNotice({ type: "error", message: "Enter the document's expiry date before uploading." });
       return;
     }
-    setUploadingItemId(item.id);
     setNotice(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setNotice({ type: "error", message: validation.error });
+      return;
+    }
+    setUploadingItemId(item.id);
     setUploadFileNames((prev) => ({ ...prev, [item.id]: file.name }));
     const { data, error: uploadError } = await uploadApplicationFile(file);
     if (uploadError || !data?.file_url) {

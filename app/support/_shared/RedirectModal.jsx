@@ -61,7 +61,7 @@ export default function RedirectModal({ application, onClose, onRedirected }) {
             <div>
               <h3 className="text-[17px] font-bold text-slate-900">Redirect application</h3>
               <p className="mt-0.5 text-[12.5px] text-slate-500">
-                #{application.id} · {application.applicant_name} — currently {application.state_of_residence}/{application.lga}
+                #{application.id} · {application.last_name ? `Surname: ${application.last_name}, First: ${application.first_name || "—"}` : application.applicant_name} — currently {application.state_of_residence}/{application.lga}
               </p>
             </div>
           </div>

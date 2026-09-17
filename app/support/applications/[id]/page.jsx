@@ -40,16 +40,17 @@ const EDIT_FIELDS = [
   { key: "marital_status", label: "Marital status" },
   { key: "nin", label: "NIN" },
   { key: "residential_address", label: "Residential address" },
+  { key: "delivery_address", label: "Delivery address" },
   { key: "next_of_kin_name", label: "Next of kin name" },
   { key: "next_of_kin_relationship", label: "Next of kin relationship" },
   { key: "next_of_kin_phone", label: "Next of kin phone" },
 ];
 
 function EditApplicationModal({ application, onClose, onSaved }) {
-  const ad = application.applicant_details;
+  const ad = application.applicant_details || {};
   const [form, setForm] = useState(() => {
     const initial = { date_of_birth: ad.date_of_birth || "" };
-    for (const f of EDIT_FIELDS) initial[f.key] = ad[f.key] || "";
+    for (const f of EDIT_FIELDS) initial[f.key] = ad[f.key] || application[f.key] || "";
     return initial;
   });
   const [saving, setSaving] = useState(false);
@@ -65,7 +66,7 @@ function EditApplicationModal({ application, onClose, onSaved }) {
     const payload = {};
     if (form.date_of_birth !== (ad.date_of_birth || "")) payload.date_of_birth = form.date_of_birth;
     for (const f of EDIT_FIELDS) {
-      if (form[f.key] !== (ad[f.key] || "")) payload[f.key] = form[f.key];
+      if (form[f.key] !== (ad[f.key] || application[f.key] || "")) payload[f.key] = form[f.key];
     }
     const res = await editSupportApplication(`app_${application.id}`, payload);
     setSaving(false);
@@ -264,9 +265,17 @@ export default function SupportApplicationDetailPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {ad.first_name ? [ad.first_name, ad.middle_name, ad.last_name].filter(Boolean).join(" ") : ad.account_name}
-            </h1>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-[14px] font-semibold text-slate-500">Surname: <strong className="text-2xl font-bold text-slate-900">{ad.last_name || "—"}</strong></span>
+              <span className="text-slate-300">•</span>
+              <span className="text-[14px] font-semibold text-slate-500">First: <strong className="text-2xl font-bold text-slate-900">{ad.first_name || "—"}</strong></span>
+              {ad.middle_name && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-[14px] font-semibold text-slate-500">Middle: <strong className="text-2xl font-bold text-slate-900">{ad.middle_name}</strong></span>
+                </>
+              )}
+            </div>
             <p className="mt-0.5 font-mono text-[12px] text-slate-400">#{app.id}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -300,7 +309,7 @@ export default function SupportApplicationDetailPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">Customer</h2>
           <Link href={`/support/customers/${ad.user_id}`} className="text-[14px] font-bold text-slate-900 hover:underline">
-            {ad.first_name ? [ad.first_name, ad.middle_name, ad.last_name].filter(Boolean).join(" ") : ad.account_name}
+            Surname: {ad.last_name || "—"} • First: {ad.first_name || "—"}{ad.middle_name ? ` • Middle: ${ad.middle_name}` : ""}
           </Link>
           <div className="mt-2 space-y-1.5">
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600"><Mail className="h-3.5 w-3.5" /> {ad.email}</p>
@@ -308,6 +317,16 @@ export default function SupportApplicationDetailPage() {
             <p className="flex items-center gap-1.5 text-[12.5px] text-slate-600">
               <MapPin className="h-3.5 w-3.5" /> {ad.state_of_residence || "—"} / {ad.lga || "—"}
             </p>
+            {(app.delivery_address || ad.delivery_address) && (
+              <div className="mt-2.5 pt-2.5 border-t border-emerald-100 bg-emerald-50/50 p-2.5 rounded-xl">
+                <span className="text-[10.5px] font-bold uppercase tracking-wide text-emerald-800 flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> Delivery Address
+                </span>
+                <p className="text-[12.5px] font-bold text-slate-900 leading-snug mt-1">
+                  {app.delivery_address || ad.delivery_address}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -350,48 +369,63 @@ export default function SupportApplicationDetailPage() {
         </div>
       </div>
 
-      {/* Vehicle Specifications Card (if linked) */}
-      {(app.vehicle || app.vehicle_id) && (
+      {/* Vehicle Specifications Card (if linked or on application) */}
+      {(app.vehicle || app.vehicle_id || app.vehicle_make || app.chassis_number || app.vehicle_type) && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
-            <Car className="h-4 w-4 text-blue-600" />
-            <h2 className="text-[12px] font-bold uppercase tracking-wide text-slate-700">Vehicle Specifications</h2>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Car className="h-4 w-4 text-blue-600" />
+              <h2 className="text-[12px] font-bold uppercase tracking-wide text-slate-700">Vehicle Specifications</h2>
+            </div>
+            {(app.vehicle?.plate_number || app.plate_number) && (
+              <span className="font-mono text-[12.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
+                {app.vehicle?.plate_number || app.plate_number}
+              </span>
+            )}
           </div>
-          {app.vehicle ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl">
-                <div>
-                  <p className="text-[14px] font-bold text-slate-900">{app.vehicle.year ? `${app.vehicle.year} ` : ""}{app.vehicle.make} {app.vehicle.model}</p>
-                  <p className="text-[12px] text-slate-500">{app.vehicle.colour} · Registered in {app.vehicle.state}</p>
-                </div>
-                {app.vehicle.plate_number && (
-                  <span className="font-mono text-[13px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                    {app.vehicle.plate_number}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12.5px]">
-                <div>
-                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Chassis / VIN</span>
-                  <span className="font-mono font-bold text-slate-800">{app.vehicle.chassis_number || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Engine No</span>
-                  <span className="font-mono font-bold text-slate-800">{app.vehicle.engine_number || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Category</span>
-                  <span className="capitalize font-medium text-slate-800">{app.vehicle.vehicle_category?.replace(/_/g, " ") || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">State</span>
-                  <span className="font-medium text-slate-800">{app.vehicle.state || "—"}</span>
-                </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl">
+              <div>
+                <p className="text-[14px] font-bold text-slate-900">
+                  {app.vehicle?.year || app.year_of_manufacture ? `${app.vehicle?.year || app.year_of_manufacture} ` : ""}
+                  {app.vehicle?.make || app.vehicle_make || "Vehicle"} {app.vehicle?.model || app.vehicle_model || ""}
+                </p>
+                <p className="text-[12px] text-slate-500">
+                  {app.vehicle?.colour || app.vehicle_colour} · Registered in {app.vehicle?.state || app.state_of_residence || "—"}
+                </p>
               </div>
             </div>
-          ) : (
-            <p className="text-[12px] text-slate-400">Vehicle ID: #{app.vehicle_id}</p>
-          )}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12.5px]">
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">Vehicle Type</span>
+                <span className="capitalize font-medium text-slate-800">{app.vehicle_type || app.vehicle?.vehicle_type || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">SUV / Saloon</span>
+                <span className="capitalize font-medium text-slate-800">{app.vehicle_body_type || app.vehicle?.vehicle_category || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">Chassis / VIN</span>
+                <span className="font-mono font-bold text-slate-800">{app.vehicle?.chassis_number || app.chassis_number || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase font-semibold">Former Reg</span>
+                <span className="font-mono font-bold text-slate-800">{app.former_registration_number || "None"}</span>
+              </div>
+              {app.vehicle?.engine_number && (
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Engine No</span>
+                  <span className="font-mono font-bold text-slate-800">{app.vehicle.engine_number}</span>
+                </div>
+              )}
+              {app.use_type && (
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase font-semibold">Use Type</span>
+                  <span className="capitalize font-medium text-slate-800">{app.use_type}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
