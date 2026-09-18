@@ -53,6 +53,7 @@ const COMPENSATION_TYPE_OPTIONS = [
   { value: "international_permit", label: "International Permit" },
   { value: "tinted_permit", label: "Tinted Permit" },
   { value: "number_plate", label: "Number Plate (Global Fallback)" },
+  { value: "vehicle_particulars", label: "Vehicle Particulars (All Documents Package / Bundle)" },
   { value: "vehicle_licence", label: "Vehicle Particulars — Vehicle Licence" },
   { value: "road_worthiness", label: "Vehicle Particulars — Road Worthiness" },
   { value: "proof_of_ownership", label: "Vehicle Particulars — Proof of Ownership" },
@@ -66,9 +67,11 @@ const DL_AND_OTHER_SERVICES = [
   { key: "reissue", label: "Reissue Driver's Licence", desc: "Replacement for lost, damaged, or defaced driver's licence" },
   { key: "international_permit", label: "International Driving Permit", desc: "International driving permit issuance" },
   { key: "tinted_permit", label: "Tinted Glass Permit", desc: "Police tinted glass permit verification & processing" },
+  { key: "vehicle_particulars", label: "Vehicle Particulars (All Documents Bundle)", desc: "Fixed agent settlement when customer renews all documents together as a bundle" },
 ];
 
 const PARTICULAR_DOC_TYPES = [
+  { key: "vehicle_particulars", label: "All Documents Package (Full Bundle)", desc: "Settlement paid to agent when customer renews all documents as a complete package" },
   { key: "vehicle_licence", label: "Vehicle Licence", desc: "Annual vehicle licence registration & renewal" },
   { key: "road_worthiness", label: "Road Worthiness", desc: "Inspection & roadworthiness renewal certificate" },
   { key: "proof_of_ownership", label: "Proof of Ownership", desc: "Federal / State proof of vehicle ownership certificate" },
@@ -545,7 +548,7 @@ function VehicleTypeCompensationSection({ showToast }) {
             <FileText className="w-4 h-4" />
             Vehicle Particulars Renewal
             <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-bold ${subFamily === "particulars" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
-              5 Docs
+              5 Docs + Bundle
             </span>
           </button>
 
@@ -600,6 +603,11 @@ function VehicleTypeCompensationSection({ showToast }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       <h3 className="font-display text-base font-semibold text-[#111111]">{svc.label}</h3>
+                      {svc.key === "vehicle_particulars" && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#28A745]/10 text-[#28A745] border border-[#28A745]/20">
+                          Package Bundle
+                        </span>
+                      )}
                       {customCount > 0 ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                           <Check className="w-3 h-3" />
