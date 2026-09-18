@@ -441,10 +441,20 @@ export default function StaffApplicationDetailsPage() {
   }
 
   if (error || !application) {
+    const isHandledByOther = Boolean(
+      error && (
+        error.toLowerCase().includes("handled by another staff") ||
+        error.toLowerCase().includes("assigned to another staff") ||
+        error.toLowerCase().includes("not authorized") ||
+        error.toLowerCase().includes("forbidden")
+      )
+    );
     return (
       <div className="mx-auto mt-10 max-w-md space-y-4 rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
         <AlertCircle className="mx-auto h-8 w-8 text-red-500" />
-        <h3 className="text-[16px] font-bold text-slate-900">Application not found</h3>
+        <h3 className="text-[16px] font-bold text-slate-900">
+          {isHandledByOther ? "Application Assigned / Restricted" : (error ? "Unable to Load Application" : "Application not found")}
+        </h3>
         <p className="text-[13px] text-red-700">{error || "Could not retrieve this record."}</p>
         <Link href="/staff/applications" className={`${btnSecondary} mx-auto`}>
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -710,9 +720,11 @@ export default function StaffApplicationDetailsPage() {
             </>
           )}
 
-          {application.assigned_staff && application.application_type !== "tinted_permit" &&
+          {application.assigned_staff &&
+            !["tinted_permit", "central_motor_registry", "roadworthiness_express", "vehicle_particulars", "physical_condition_inspection"].includes(application.application_type) &&
             !application.application_type?.startsWith("number_plate_") &&
-            ["captured", "capturing_completed", "agent_completed"].includes(application.status) && (
+            !application.application_type?.startsWith("vehicle_verification_") &&
+            ["captured", "capturing_completed"].includes(application.status) && (
             <button onClick={() => openModal("ready-for-pickup")} className={btnPrimary} style={{ background: "#4f46e5" }}>
               <Send className="h-4 w-4" /> Ready for pickup
             </button>
