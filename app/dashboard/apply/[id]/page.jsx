@@ -25,6 +25,7 @@ import {
   Image as ImageIcon,
   Trash2,
   Download,
+  Zap,
 } from "lucide-react";
 import {
   getApplication,
@@ -47,6 +48,9 @@ import {
   submitRoadworthinessApplication,
   downloadVehicleVerificationReportPdf,
   downloadPciReportPdf,
+  getApplicationFastTrackUpgrade,
+  acceptFastTrackUpgrade,
+  declineFastTrackUpgrade,
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import PaymentOptions, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PaymentOptions";
@@ -2013,6 +2017,10 @@ export default function CustomerApplicationDetailsPage() {
   const [downloadingVvReport, setDownloadingVvReport] = useState(false);
   const [downloadingPciReport, setDownloadingPciReport] = useState(false);
 
+  const [upgradeRequest, setUpgradeRequest] = useState(null);
+  const [acceptingUpgrade, setAcceptingUpgrade] = useState(false);
+  const [decliningUpgrade, setDecliningUpgrade] = useState(false);
+
   const handleDownloadVvReport = async () => {
     if (!application) return;
     setDownloadingVvReport(true);
@@ -2087,10 +2095,16 @@ export default function CustomerApplicationDetailsPage() {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
 
-    const [appRes, walletRes] = await Promise.all([getApplication(appId), getWallet()]);
+    const [appRes, walletRes, upgRes] = await Promise.all([
+      getApplication(appId),
+      getWallet(),
+      getApplicationFastTrackUpgrade(appId).catch(() => ({ data: null })),
+    ]);
     if (appRes.error) setError(appRes.error);
     else if (appRes.data) setApplication(appRes.data);
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    if (upgRes?.data) setUpgradeRequest(upgRes.data);
+    else setUpgradeRequest(null);
 
     setLoading(false);
     setRefreshing(false);
@@ -2353,6 +2367,11 @@ export default function CustomerApplicationDetailsPage() {
               {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} />
+            {application.is_urgent && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 shadow-xs">
+                <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
+              </span>
+            )}
             <span className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
               {application.application_type || "fresh"}
             </span>
@@ -2364,6 +2383,99 @@ export default function CustomerApplicationDetailsPage() {
         </div>
         <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
       </div>
+
+      {/* Fast Track Upgrade Offer Card */}
+      {upgradeRequest && (upgradeRequest.status === "pending" || (upgradeRequest.status === "accepted" && upgradeRequest.payment_options?.checkout_url)) && !application.is_urgent && (
+        <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/90 to-yellow-50/50 p-5 shadow-sm space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                <Zap className="h-5 w-5 fill-white" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold text-amber-950">Fast Track Upgrade Available</h3>
+                <p className="text-[12.5px] text-amber-800">
+                  Expedite your application processing to jump the queue!
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[11px] font-bold text-amber-900">
+              Expedited Turnaround
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 p-3.5 border border-amber-200 text-[13px]">
+            <div>
+              <span className="text-slate-500 text-[11.5px] block font-medium">Upgrade Surcharge</span>
+              <span className="font-bold text-[16px] text-slate-900">{koboToNaira(upgradeRequest.amount_due_kobo)}</span>
+            </div>
+            {upgradeRequest.expires_at && (
+              <div className="text-right">
+                <span className="text-slate-500 text-[11.5px] block font-medium">Offer Expires</span>
+                <span className="font-semibold text-amber-900 text-[12px]">
+                  {new Date(upgradeRequest.expires_at).toLocaleString("en-NG", { dateStyle: "short", timeStyle: "short" })}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            {upgradeRequest.payment_options?.checkout_url ? (
+              <a
+                href={upgradeRequest.payment_options.checkout_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${btnPrimary} flex-1 text-center justify-center`}
+                style={{ background: "#D97706" }}
+              >
+                Complete Payment ({koboToNaira(upgradeRequest.amount_due_kobo)})
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  setAcceptingUpgrade(true);
+                  const res = await acceptFastTrackUpgrade(application.id);
+                  setAcceptingUpgrade(false);
+                  if (res.error) {
+                    setNotice({ type: "error", message: res.error });
+                  } else {
+                    if (res.data?.payment_options?.checkout_url) {
+                      window.open(res.data.payment_options.checkout_url, "_blank");
+                    }
+                    await loadData(true);
+                  }
+                }}
+                disabled={acceptingUpgrade || decliningUpgrade}
+                className={`${btnPrimary} flex-1 justify-center`}
+                style={{ background: "#D97706" }}
+              >
+                {acceptingUpgrade ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 fill-white" />}
+                {acceptingUpgrade ? "Processing…" : `Accept & Pay (${koboToNaira(upgradeRequest.amount_due_kobo)})`}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={async () => {
+                setDecliningUpgrade(true);
+                const res = await declineFastTrackUpgrade(application.id);
+                setDecliningUpgrade(false);
+                if (res.error) {
+                  setNotice({ type: "error", message: res.error });
+                } else {
+                  setNotice({ type: "success", message: "Fast Track upgrade declined." });
+                  await loadData(true);
+                }
+              }}
+              disabled={acceptingUpgrade || decliningUpgrade}
+              className={`${btnSecondary} text-slate-600 hover:text-slate-900`}
+            >
+              {decliningUpgrade ? <Loader2 className="h-4 w-4 animate-spin" /> : "Decline"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Payment & Financial Breakdown Summary */}
       {!isFreeRwxRebook && (

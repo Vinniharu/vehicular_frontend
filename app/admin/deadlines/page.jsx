@@ -37,6 +37,7 @@ import {
   adminResetDeadlines,
   getReferenceStates,
 } from "@/lib/api";
+import FastTrackSLACard from "./FastTrackSLACard";
 
 const BRAND = "#28A745";
 
@@ -551,6 +552,8 @@ export default function AdminDeadlinesPage() {
           <span className="text-[11.5px] font-medium text-emerald-700/80">Enforcing on applications</span>
         </div>
       </div>
+
+      <FastTrackSLACard stateId={selectedStateId ? parseInt(selectedStateId, 10) : null} />
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

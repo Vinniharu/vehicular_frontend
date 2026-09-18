@@ -27,6 +27,7 @@ import {
   Calendar,
   Timer,
   Flame,
+  Zap,
 } from "lucide-react";
 import {
   getStaffApplication,
@@ -575,6 +576,11 @@ export default function StaffApplicationDetailsPage() {
                 #{application.id}
               </span>
               <StatusBadge status={application.status} />
+              {application.is_urgent && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-800 shadow-xs">
+                  <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
+                </span>
+              )}
               {application.assigned_staff ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#28A745]/30 bg-[#E9F7EC] px-2.5 py-1 text-[11.5px] font-semibold text-[#166B2C]">
                   <UserCheck className="h-3 w-3" />

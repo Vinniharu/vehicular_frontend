@@ -18,9 +18,11 @@ import {
   payFromWalletEndpoint,
   getWallet,
   getServicePricing,
+  getFastTrackPricingPublic,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -68,6 +70,17 @@ export default function CentralMotorRegistryNewApplicationPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
+
+  useEffect(() => {
+    getFastTrackPricingPublic("central_motor_registry", selectedStateId).then((res) => {
+      if (res.data) setFastTrackInfo(res.data);
+    });
+  }, [selectedStateId]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const totalFeeKobo = feeKobo != null ? (feeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -220,6 +233,8 @@ export default function CentralMotorRegistryNewApplicationPage() {
       applicant_email: applicantEmail.trim(),
       delivery_address: deliveryAddress.trim(),
       vehicle_licence: { doc_type: "vehicle_licence", file_url: doc.url },
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -569,12 +584,26 @@ export default function CentralMotorRegistryNewApplicationPage() {
                 <span className="text-slate-500">Document</span>
                 <span className="font-semibold text-[#111111]">{doc?.url ? "1 of 1 uploaded" : "0 of 1 uploaded"}</span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
 
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
+
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <p className="text-[20px] font-bold text-[#111111]">Total: {feeKobo != null ? koboToNaira(feeKobo) : "—"}</p>
+            <p className="text-[20px] font-bold text-[#111111]">Total: {totalFeeKobo != null ? koboToNaira(totalFeeKobo) : "—"}</p>
             <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
           </section>
 

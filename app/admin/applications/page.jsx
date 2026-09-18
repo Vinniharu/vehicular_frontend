@@ -22,6 +22,7 @@ import {
   Trash2,
   AlertTriangle,
   Car,
+  Zap,
 } from "lucide-react";
 import {
   adminGetApplications,
@@ -32,6 +33,7 @@ import {
   adminGetEligibleAgents,
   adminDeleteApplication,
   adminBulkDeleteApplications,
+  sendAdminFastTrackRequest,
 } from "@/lib/api";
 
 const STATUS_TONE = {
@@ -100,6 +102,8 @@ export default function AdminApplicationsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [sortBy, setSortBy] = useState("updated_at");
+  const [isUrgentOnly, setIsUrgentOnly] = useState(false);
+  const [sendingFastTrack, setSendingFastTrack] = useState(false);
 
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
@@ -201,6 +205,7 @@ export default function AdminApplicationsPage() {
       status: statusFilter || undefined,
       application_type: typeFilter || undefined,
       sort: sortBy,
+      is_urgent_only: isUrgentOnly ? true : undefined,
     });
     if (res.error) {
       setError(res.error);
@@ -216,7 +221,7 @@ export default function AdminApplicationsPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, typeFilter, sortBy]);
+  }, [page, statusFilter, typeFilter, sortBy, isUrgentOnly]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -401,6 +406,15 @@ export default function AdminApplicationsPage() {
           <option value="id">ID number</option>
           <option value="name">Applicant name</option>
         </select>
+        <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-amber-900 select-none cursor-pointer bg-amber-50/70 border border-amber-200 px-3 py-2 rounded-lg hover:bg-amber-100/60 transition-colors">
+          <input
+            type="checkbox"
+            checked={isUrgentOnly}
+            onChange={(e) => { setIsUrgentOnly(e.target.checked); setPage(1); }}
+            className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+          />
+          <Zap className="h-3.5 w-3.5 text-amber-600 fill-amber-500" /> Fast Track only
+        </label>
       </div>
 
       {error && (
@@ -515,7 +529,16 @@ export default function AdminApplicationsPage() {
                         {(app.application_type || "fresh").replace(/_/g, " ")}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5"><StatusBadge status={app.status} /></td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={app.status} />
+                        {app.is_urgent && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-xs">
+                            <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3.5">
                       {(app.payment_status === "success" || app.payment_status === "paid") && app.sla ? (
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
@@ -613,6 +636,11 @@ export default function AdminApplicationsPage() {
                   {(selected.application_type || "fresh").replace(/_/g, " ")}
                 </span>
                 <StatusBadge status={selected.status} />
+                {selected.is_urgent && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 shadow-xs">
+                    <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
+                  </span>
+                )}
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                   {selected.payment_status || "unpaid"}
                 </span>
@@ -891,14 +919,37 @@ export default function AdminApplicationsPage() {
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-              <button
-                type="button"
-                onClick={() => promptDeleteSingle(selected)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-[12.5px] font-semibold text-rose-700 hover:bg-rose-100 transition-all"
-              >
-                <Trash2 className="h-4 w-4 text-rose-600" /> Delete application
-              </button>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => promptDeleteSingle(selected)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-[12.5px] font-semibold text-rose-700 hover:bg-rose-100 transition-all"
+                >
+                  <Trash2 className="h-4 w-4 text-rose-600" /> Delete
+                </button>
+                {!selected.is_urgent && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setSendingFastTrack(true);
+                      const res = await sendAdminFastTrackRequest(selected.id);
+                      setSendingFastTrack(false);
+                      if (res.error) {
+                        showToast("error", res.error);
+                      } else {
+                        showToast("success", "Fast Track upgrade request sent to customer!");
+                        loadData(true);
+                      }
+                    }}
+                    disabled={sendingFastTrack}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2 text-[12.5px] font-semibold text-amber-800 hover:bg-amber-100 transition-all disabled:opacity-50"
+                  >
+                    {sendingFastTrack ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />}
+                    {sendingFastTrack ? "Sending…" : "Offer Fast Track"}
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => setSelected(null)}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#28A745] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all"

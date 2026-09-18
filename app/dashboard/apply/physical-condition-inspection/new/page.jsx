@@ -15,6 +15,7 @@ import {
   getReferenceStates,
   getReferenceLgas,
   getServicePricing,
+  getFastTrackPricingPublic,
   submitPhysicalConditionInspectionApplication,
   uploadApplicationFile,
   payFromWalletEndpoint,
@@ -22,6 +23,7 @@ import {
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
@@ -132,6 +134,20 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     return servicePrices.find((p) => p.slug === PCI_SLUG)?.amount_kobo ?? null;
   }, [servicePrices]);
 
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
+
+  useEffect(() => {
+    if (form.state_id) {
+      getFastTrackPricingPublic("physical_condition_inspection", form.state_id).then((res) => {
+        if (res.data) setFastTrackInfo(res.data);
+      });
+    }
+  }, [form.state_id]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const totalFeeKobo = priceKobo != null ? (priceKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
+
   const isThirdParty = wholeVehicle === "other";
 
   const validateStep1 = () => {
@@ -199,6 +215,8 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       preferred_time: form.preferred_time.trim() || undefined,
       reason: form.reason,
       supporting_document: supportingDoc ? { doc_type: "pci_supporting_document", file_url: supportingDoc.url } : undefined,
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -500,13 +518,27 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
                 <span className="text-slate-500">Reason</span>
                 <span className="font-semibold text-[#111111]">{REASONS.find((r) => r.value === form.reason)?.label}</span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
 
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
+
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            {priceKobo != null ? (
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(priceKobo)}</p>
+            {totalFeeKobo != null ? (
+              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalFeeKobo)}</p>
             ) : (
               <p className="text-[13px] font-semibold text-amber-700">Not yet priced — contact support.</p>
             )}
@@ -514,7 +546,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
           {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
 
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || priceKobo == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || totalFeeKobo == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {submitting ? "Submitting…" : "Submit & continue to payment"}
           </button>

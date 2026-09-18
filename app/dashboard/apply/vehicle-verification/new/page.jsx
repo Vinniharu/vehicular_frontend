@@ -18,9 +18,11 @@ import {
   uploadApplicationFile,
   payFromWalletEndpoint,
   getWallet,
+  getFastTrackPricingPublic,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -115,6 +117,20 @@ export default function VehicleVerificationNewApplicationPage() {
     return row?.amount_kobo ?? null;
   }, [prices, applicationType]);
 
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
+
+  useEffect(() => {
+    if (form.state_id) {
+      getFastTrackPricingPublic("vehicle_verification", form.state_id).then((res) => {
+        if (res.data) setFastTrackInfo(res.data);
+      });
+    }
+  }, [form.state_id]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const totalFeeKobo = priceKobo != null ? (priceKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
+
   const isCustomsDuty = checkType === "customs_duty";
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -191,6 +207,8 @@ export default function VehicleVerificationNewApplicationPage() {
       delivery_address: form.delivery_address.trim(),
       chassis_number: isCustomsDuty ? form.chassis_number.trim() : undefined,
       customs_duty_certificate: isCustomsDuty ? { doc_type: "customs_duty_certificate", file_url: certificate.url } : undefined,
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -446,13 +464,27 @@ export default function VehicleVerificationNewApplicationPage() {
                 <span className="text-slate-500">Delivery address</span>
                 <span className="font-semibold text-[#111111] text-right max-w-xs">{form.delivery_address || "—"}</span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
 
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
+
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            {priceKobo != null ? (
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(priceKobo)}</p>
+            {totalFeeKobo != null ? (
+              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalFeeKobo)}</p>
             ) : (
               <p className="text-[13px] font-semibold text-amber-700">Not yet priced — contact support.</p>
             )}

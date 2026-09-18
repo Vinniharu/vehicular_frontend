@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
   UserCheck,
   Timer,
+  Zap,
 } from "lucide-react";
 import { getStaffQueue, staffClaimApplication, getCachedUser, koboToNaira } from "@/lib/api";
 
@@ -102,13 +103,14 @@ function StaffApplicationsQueueInner() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("updated_at");
+  const [isUrgentOnly, setIsUrgentOnly] = useState(false);
 
-  const loadData = async (isRefresh = false, sort = sortBy) => {
+  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
 
-    const res = await getStaffQueue({ page: 1, page_size: 100, sort });
+    const res = await getStaffQueue({ page: 1, page_size: 100, sort, is_urgent_only: urgentOnly ? true : undefined });
     if (res.error) {
       setError(res.error);
     } else if (Array.isArray(res.data?.items)) {
@@ -119,9 +121,9 @@ function StaffApplicationsQueueInner() {
   };
 
   useEffect(() => {
-    loadData(false, sortBy);
+    loadData(false, sortBy, isUrgentOnly);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy]);
+  }, [sortBy, isUrgentOnly]);
 
   const handleClaim = async (e, appId) => {
     e.stopPropagation();
@@ -286,6 +288,16 @@ function StaffApplicationsQueueInner() {
             <option value="id">ID number</option>
             <option value="name">Applicant name</option>
           </select>
+
+          <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-amber-900 select-none cursor-pointer bg-amber-50/70 border border-amber-200 px-3 py-2 rounded-lg hover:bg-amber-100/60 transition-colors">
+            <input
+              type="checkbox"
+              checked={isUrgentOnly}
+              onChange={(e) => setIsUrgentOnly(e.target.checked)}
+              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+            />
+            <Zap className="h-3.5 w-3.5 text-amber-600 fill-amber-500" /> Fast Track only
+          </label>
         </div>
       </div>
 
@@ -342,6 +354,11 @@ function StaffApplicationsQueueInner() {
                       }`}>
                         <Timer className="h-3 w-3 shrink-0" />
                         {app.sla.label} ({app.sla.days_elapsed}/{app.sla.days_allocated}d)
+                      </span>
+                    )}
+                    {app.is_urgent && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-800 shadow-xs">
+                        <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
                       </span>
                     )}
                     {isPaid ? (

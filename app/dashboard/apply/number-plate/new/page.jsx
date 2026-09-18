@@ -25,6 +25,7 @@ import {
   getApplication,
   getCachedUser,
   koboToNaira,
+  getFastTrackPricingPublic,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
@@ -32,6 +33,7 @@ import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_sha
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS, resolveVehicleCategory } from "@/lib/constants/vehicleCategories";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -302,6 +304,20 @@ export default function NumberPlateNewApplicationPage() {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
   const estimatedFeeKobo = feeKobo ?? plan.fallbackFeeKobo;
 
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
+
+  useEffect(() => {
+    if (selectedStateId) {
+      getFastTrackPricingPublic(plan.application_type, selectedStateId).then((res) => {
+        if (res.data) setFastTrackInfo(res.data);
+      });
+    }
+  }, [selectedStateId, plan.application_type]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const totalEstimatedFeeKobo = estimatedFeeKobo != null ? (estimatedFeeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
+
   // Live, state-aware flat price (vehicle category no longer affects it) --
   // refetched whenever the selected vehicle or registration state changes.
   // Falls back to plan.fallbackFeeKobo (set above) until both are chosen.
@@ -561,6 +577,8 @@ export default function NumberPlateNewApplicationPage() {
       is_registered_company: isDealership ? isRegisteredCompany : undefined,
       passport_photo: isDealership ? dealershipPassportPhoto : undefined,
       documents: docSlots.filter((slot) => docs[slot.doc_type]?.url).map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -1434,8 +1452,22 @@ export default function NumberPlateNewApplicationPage() {
                   {docSlots.filter((s) => docs[s.doc_type]?.url).length} of {docSlots.length} uploaded
                 </span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
+
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
@@ -1443,7 +1475,13 @@ export default function NumberPlateNewApplicationPage() {
               <span className="text-slate-500">{plan.title}</span>
               <span className="font-semibold text-[#111111]">{koboToNaira(estimatedFeeKobo)}</span>
             </div>
-            <p className="mt-2 text-[20px] font-bold text-[#111111]">Total: {koboToNaira(estimatedFeeKobo)}</p>
+            {processingSpeed === "fast_track" && (
+              <div className="flex items-center justify-between text-[13px] mt-1">
+                <span className="text-slate-500">Fast Track Surcharge</span>
+                <span className="font-semibold text-emerald-600">+{koboToNaira(fastTrackSurchargeKobo)}</span>
+              </div>
+            )}
+            <p className="mt-2 text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalEstimatedFeeKobo)}</p>
             <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
           </section>
 

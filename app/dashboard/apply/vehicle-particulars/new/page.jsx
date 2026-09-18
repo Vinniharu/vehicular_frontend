@@ -19,9 +19,11 @@ import {
   payFromWalletEndpoint,
   getWallet,
   getVehicleParticularsEligibility,
+  getFastTrackPricingPublic,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/app/dashboard/_shared/apply-helpers";
@@ -93,6 +95,8 @@ export default function VehicleParticularsNewApplicationPage() {
 
   const [step, setStep] = useState(1);
   const STEP_LABELS = ["Vehicle", "Pick documents", "Documents", "Review & submit"];
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
 
   const { draftFormData, save, clearDraft, markSubmitting } = useApplicationDraft("vehicle_particulars");
   const draftAppliedRef = useRef(false);
@@ -188,6 +192,15 @@ export default function VehicleParticularsNewApplicationPage() {
     }
     return selectedTypes.reduce((sum, dt) => sum + (eligibility[dt]?.amount_kobo || 0), 0);
   }, [eligibility, selectedTypes, isAllSelected, bundleAmountKobo]);
+
+  useEffect(() => {
+    getFastTrackPricingPublic("vehicle_particulars", selectedVehicle?.state_id).then((res) => {
+      if (res.data) setFastTrackInfo(res.data);
+    });
+  }, [selectedVehicle?.state_id]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const finalTotalKobo = totalKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0);
 
   // Union of evidence slots across every selected document type, deduped by
   // doc_type — a shared requirement (e.g. owner_id_evidence) shows once, not
@@ -318,6 +331,8 @@ export default function VehicleParticularsNewApplicationPage() {
       vehicle_id: selectedVehicleId,
       items,
       delivery_address: deliveryAddress.trim(),
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -689,13 +704,27 @@ export default function VehicleParticularsNewApplicationPage() {
                   {evidenceSlots.filter((s) => evidenceByDocType[s.doc_type]?.url).length} of {evidenceSlots.length}
                 </span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
+
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
             <div className="flex items-baseline gap-2">
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalKobo)}</p>
+              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(finalTotalKobo)}</p>
               {isAllSelected && bundleAmountKobo > 0 && (
                 <span className="rounded-full bg-[#28A745]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#28A745]">
                   Fixed package price
