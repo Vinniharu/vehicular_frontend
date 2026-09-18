@@ -154,6 +154,8 @@ export default function VehicleParticularsNewApplicationPage() {
     if (draftFormData.step) setStep(draftFormData.step);
   }, [draftFormData]);
 
+  const [bundleAmountKobo, setBundleAmountKobo] = useState(null);
+
   // Eligibility is per-vehicle (a document's renewal history belongs to the
   // vehicle it's for), so it's re-fetched whenever the selected vehicle
   // changes — including right after "Add another vehicle" picks a brand-new
@@ -165,6 +167,7 @@ export default function VehicleParticularsNewApplicationPage() {
       if (res.data?.items) {
         setEligibility(Object.fromEntries(res.data.items.map((i) => [i.document_type, i])));
       }
+      setBundleAmountKobo(res.data?.bundle_amount_kobo ?? null);
     });
   }, [selectedVehicleId]);
 
@@ -176,10 +179,15 @@ export default function VehicleParticularsNewApplicationPage() {
     (d) => !d.commercialOnly || HACKNEY_ELIGIBLE_CATEGORY_VALUES.includes(selectedVehicle?.vehicle_category)
   );
 
+  const isAllSelected = availableDocTypes.length > 0 && selectedTypes.length === availableDocTypes.length;
+
   const totalKobo = useMemo(() => {
     if (!eligibility) return 0;
+    if (isAllSelected && bundleAmountKobo != null && bundleAmountKobo > 0) {
+      return bundleAmountKobo;
+    }
     return selectedTypes.reduce((sum, dt) => sum + (eligibility[dt]?.amount_kobo || 0), 0);
-  }, [eligibility, selectedTypes]);
+  }, [eligibility, selectedTypes, isAllSelected, bundleAmountKobo]);
 
   // Union of evidence slots across every selected document type, deduped by
   // doc_type — a shared requirement (e.g. owner_id_evidence) shows once, not
@@ -601,7 +609,14 @@ export default function VehicleParticularsNewApplicationPage() {
 
           {selectedTypes.length > 0 && (
             <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-              <span className="text-[12.5px] font-semibold text-slate-600">Running total</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[12.5px] font-semibold text-slate-600">Running total</span>
+                {isAllSelected && bundleAmountKobo != null && bundleAmountKobo > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+                    Fixed package price
+                  </span>
+                )}
+              </div>
               <span className="text-[15px] font-bold text-[#111111]">{koboToNaira(totalKobo)}</span>
             </div>
           )}
@@ -662,6 +677,12 @@ export default function VehicleParticularsNewApplicationPage() {
                   <span className="font-semibold text-[#111111]">{koboToNaira(eligibility?.[dt]?.amount_kobo || 0)}</span>
                 </div>
               ))}
+              {isAllSelected && bundleAmountKobo > 0 && (
+                <div className="flex items-center justify-between py-2.5 text-[13px] text-[#28A745] font-semibold bg-[#28A745]/5 px-3 rounded-lg my-1">
+                  <span>All Documents Package Pricing</span>
+                  <span>Applied</span>
+                </div>
+              )}
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Evidence uploaded</span>
                 <span className="font-semibold text-[#111111]">
@@ -673,7 +694,14 @@ export default function VehicleParticularsNewApplicationPage() {
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalKobo)}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalKobo)}</p>
+              {isAllSelected && bundleAmountKobo > 0 && (
+                <span className="rounded-full bg-[#28A745]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#28A745]">
+                  Fixed package price
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
           </section>
 

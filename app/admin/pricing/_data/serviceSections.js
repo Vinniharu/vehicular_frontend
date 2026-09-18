@@ -100,7 +100,15 @@ export const SERVICE_SECTIONS = [
   {
     slug: "vehicle-particulars",
     title: "Vehicle Particulars & Renewals",
-    subtitle: "Each document is priced by vehicle category, with a flat fallback used when a vehicle has no category, or that category has no price set.",
+    subtitle: "Set a fixed bundle price when a customer selects all documents, plus category & fallback prices when selected individually.",
+    rows: [
+      {
+        mechanism: "service",
+        key: "vehicle-particulars",
+        slug: "vehicle-particulars",
+        label: "Fixed bundle price (all documents selected)",
+      },
+    ],
     subServices: [
       {
         key: "vehicle-licence",
