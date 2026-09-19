@@ -2,20 +2,68 @@
 
 import { useState, useEffect } from "react";
 import { Zap, Pencil, Save, X, Loader2, CheckCircle2 } from "lucide-react";
-import { getAdminFastTrackPricing, updateAdminFastTrackPricing, koboToNaira } from "@/lib/api";
+import {
+  getAdminFastTrackPricing,
+  updateAdminFastTrackPricing,
+  koboToNaira,
+} from "@/lib/api";
 
 const FAST_TRACK_SERVICES = [
-  { key: "vehicle_particulars", label: "Vehicle Particulars", desc: "Expedited processing for vehicle particulars renewal & registration" },
-  { key: "tinted_permit", label: "Tinted Permit", desc: "Expedited processing for police tinted glass permit" },
-  { key: "number_plate_new", label: "New Number Plate", desc: "Expedited standard new plate issuance" },
-  { key: "number_plate_replacement", label: "Plate Replacement", desc: "Expedited plate reissue for damaged or lost plates" },
-  { key: "number_plate_change_of_ownership", label: "Change of Ownership Plate", desc: "Expedited plate transfer & vehicle reassignment" },
-  { key: "number_plate_fancy", label: "Fancy / Custom Plate", desc: "Expedited personalized plate number issuance" },
-  { key: "number_plate_dealership", label: "Dealership Plate", desc: "Expedited commercial auto-dealer plate processing" },
-  { key: "vehicle_verification", label: "Vehicle Verification", desc: "Expedited multi-agency ownership and history verification" },
-  { key: "central_motor_registry", label: "Electronic Central Motor Registry (eCMR)", desc: "Expedited police motor registry document processing" },
-  { key: "roadworthiness_express", label: "Roadworthiness Express", desc: "Priority inspection slot and certificate dispatch" },
-  { key: "physical_condition_inspection", label: "Physical Condition Inspection", desc: "Priority mechanic visit and comprehensive report generation" },
+  {
+    key: "vehicle_particulars",
+    label: "Vehicle Particulars",
+    desc: "Expedited processing for vehicle particulars renewal & registration",
+  },
+  {
+    key: "tinted_permit",
+    label: "Tinted Permit",
+    desc: "Expedited processing for police tinted glass permit",
+  },
+  {
+    key: "number_plate_new",
+    label: "New Number Plate",
+    desc: "Expedited standard new plate issuance",
+  },
+  {
+    key: "number_plate_replacement",
+    label: "Plate Replacement",
+    desc: "Expedited plate reissue for damaged or lost plates",
+  },
+  {
+    key: "number_plate_change_of_ownership",
+    label: "Change of Ownership Plate",
+    desc: "Expedited plate transfer & vehicle reassignment",
+  },
+  {
+    key: "number_plate_fancy",
+    label: "Fancy / Custom Plate",
+    desc: "Expedited personalized plate number issuance",
+  },
+  {
+    key: "number_plate_dealership",
+    label: "Dealership Plate",
+    desc: "Expedited commercial auto-dealer plate processing",
+  },
+  {
+    key: "vehicle_verification",
+    label: "Vehicle Verification",
+    desc: "Expedited multi-agency ownership and history verification",
+  },
+  {
+    key: "central_motor_registry",
+    label: "Electronic Central Motor Registry (eCMR)",
+    desc: "Expedited police motor registry document processing",
+  },
+  {
+    key: "roadworthiness_express",
+    label: "Roadworthiness Express",
+    desc: "Priority inspection slot and certificate dispatch",
+  },
+  {
+    key: "physical_condition_inspection",
+    label: "Physical Condition Inspection",
+    desc: "Priority mechanic visit and comprehensive report generation",
+  },
 ];
 
 export default function FastTrackPricingCard({ stateId }) {
@@ -27,19 +75,22 @@ export default function FastTrackPricingCard({ stateId }) {
   const [toast, setToast] = useState(null);
 
   const loadPricing = async () => {
-  setLoading(true);
-  const res = await getAdminFastTrackPricing();
-  if (Array.isArray(res.data)) {
-    setItems(res.data);
-  } else {
-    setItems([]);
-    if (res.error) {
-      setToast({ type: "error", message: "Could not load Fast Track pricing." });
-      setTimeout(() => setToast(null), 4000);
+    setLoading(true);
+    const res = await getAdminFastTrackPricing();
+    if (Array.isArray(res.data)) {
+      setItems(res.data);
+    } else {
+      setItems([]);
+      if (res.error) {
+        setToast({
+          type: "error",
+          message: "Could not load Fast Track pricing.",
+        });
+        setTimeout(() => setToast(null), 4000);
+      }
     }
-  }
-  setLoading(false);
-};
+    setLoading(false);
+  };
 
   useEffect(() => {
     loadPricing();
@@ -54,7 +105,9 @@ export default function FastTrackPricingCard({ stateId }) {
     const item = currentScopeItems.find((it) => it.service_name === serviceKey);
     if (item != null) return item.surcharge_kobo;
     if (stateId != null) {
-      const generalItem = items.find((it) => it.service_name === serviceKey && it.state_id == null);
+      const generalItem = items.find(
+        (it) => it.service_name === serviceKey && it.state_id == null,
+      );
       if (generalItem != null) return generalItem.surcharge_kobo;
     }
     return 500000;
@@ -64,7 +117,9 @@ export default function FastTrackPricingCard({ stateId }) {
     const item = currentScopeItems.find((it) => it.service_name === serviceKey);
     if (item != null) return item.is_active;
     if (stateId != null) {
-      const generalItem = items.find((it) => it.service_name === serviceKey && it.state_id == null);
+      const generalItem = items.find(
+        (it) => it.service_name === serviceKey && it.state_id == null,
+      );
       if (generalItem != null) return generalItem.is_active;
     }
     return true;
@@ -88,9 +143,9 @@ export default function FastTrackPricingCard({ stateId }) {
       const val = formValues[s.key] || {};
       const amountNaira = parseFloat(val.naira) || 0;
       return {
-        service_name: s.key,
+        service_type: s.key, // was: service_name
         state_id: stateId ?? null,
-        surcharge_kobo: Math.round(amountNaira * 100),
+        price_kobo: Math.round(amountNaira * 100), // was: surcharge_kobo
         is_active: val.is_active ?? true,
       };
     });
@@ -100,7 +155,10 @@ export default function FastTrackPricingCard({ stateId }) {
     if (res.error) {
       setToast({ type: "error", message: res.error });
     } else {
-      setToast({ type: "success", message: "Fast Track surcharges updated successfully!" });
+      setToast({
+        type: "success",
+        message: "Fast Track surcharges updated successfully!",
+      });
       setEditing(false);
       await loadPricing();
     }
@@ -116,13 +174,16 @@ export default function FastTrackPricingCard({ stateId }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-slate-900">Fast Track Surcharges</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                Fast Track Surcharges
+              </h2>
               <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900">
                 Expedited Processing
               </span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              Configure the extra fee charged to customers who choose Fast Track. Urgent applications bypass standard queues.
+              Configure the extra fee charged to customers who choose Fast
+              Track. Urgent applications bypass standard queues.
             </p>
           </div>
         </div>
@@ -153,7 +214,11 @@ export default function FastTrackPricingCard({ stateId }) {
                 disabled={saving}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 shadow-sm"
               >
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                {saving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
                 {saving ? "Saving…" : "Save all"}
               </button>
             </div>
@@ -162,10 +227,16 @@ export default function FastTrackPricingCard({ stateId }) {
       </div>
 
       {toast && (
-        <div className={`rounded-xl p-3.5 text-sm font-medium flex items-center gap-2 ${
-          toast.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-        }`}>
-          {toast.type === "success" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+        <div
+          className={`rounded-xl p-3.5 text-sm font-medium flex items-center gap-2 ${
+            toast.type === "error"
+              ? "bg-red-50 text-red-700 border border-red-200"
+              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          }`}
+        >
+          {toast.type === "success" && (
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+          )}
           <span>{toast.message}</span>
         </div>
       )}
@@ -188,24 +259,36 @@ export default function FastTrackPricingCard({ stateId }) {
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-sm text-slate-900">{s.label}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      (editing ? formValues[s.key]?.is_active : active)
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200 text-slate-600"
-                    }`}>
-                      {(editing ? formValues[s.key]?.is_active : active) ? "Active" : "Disabled"}
+                    <span className="font-bold text-sm text-slate-900">
+                      {s.label}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        (editing ? formValues[s.key]?.is_active : active)
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {(editing ? formValues[s.key]?.is_active : active)
+                        ? "Active"
+                        : "Disabled"}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">{s.desc}</p>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                    {s.desc}
+                  </p>
                 </div>
 
                 <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-3">
-                  <span className="text-xs text-slate-500 font-medium">Surcharge fee</span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Surcharge fee
+                  </span>
                   {editing ? (
                     <div className="flex items-center gap-2">
                       <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₦</span>
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                          ₦
+                        </span>
                         <input
                           type="number"
                           value={formValues[s.key]?.naira ?? ""}
@@ -227,7 +310,10 @@ export default function FastTrackPricingCard({ stateId }) {
                             const checked = e.target.checked;
                             setFormValues((prev) => ({
                               ...prev,
-                              [s.key]: { ...(prev[s.key] || {}), is_active: checked },
+                              [s.key]: {
+                                ...(prev[s.key] || {}),
+                                is_active: checked,
+                              },
                             }));
                           }}
                           className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
