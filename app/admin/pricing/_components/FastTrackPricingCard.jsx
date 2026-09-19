@@ -27,13 +27,19 @@ export default function FastTrackPricingCard({ stateId }) {
   const [toast, setToast] = useState(null);
 
   const loadPricing = async () => {
-    setLoading(true);
-    const res = await getAdminFastTrackPricing();
-    if (res.data) {
-      setItems(res.data);
+  setLoading(true);
+  const res = await getAdminFastTrackPricing();
+  if (Array.isArray(res.data)) {
+    setItems(res.data);
+  } else {
+    setItems([]);
+    if (res.error) {
+      setToast({ type: "error", message: "Could not load Fast Track pricing." });
+      setTimeout(() => setToast(null), 4000);
     }
-    setLoading(false);
-  };
+  }
+  setLoading(false);
+};
 
   useEffect(() => {
     loadPricing();
