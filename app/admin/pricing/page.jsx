@@ -7,6 +7,7 @@ import Modal from "@/app/dashboard/_shared/Modal";
 import { SERVICE_SECTIONS } from "./_data/serviceSections";
 import { PricingDataProvider } from "./_context/PricingDataContext";
 import ServicePricingCard from "./_components/ServicePricingCard";
+import FastTrackPricingCard from "./_components/FastTrackPricingCard";
 
 const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
 
@@ -174,6 +175,8 @@ export default function AdminPricingPage() {
         setSelectedStateId={setSelectedStateId}
         onOpenClone={() => setCloneOpen(true)}
       />
+
+      <FastTrackPricingCard key={`fast-track:${scopeKey}`} stateId={stateIdNum} />
 
       <PricingDataProvider stateId={stateIdNum} reloadKey={reloadKey}>
         <div className="space-y-4">

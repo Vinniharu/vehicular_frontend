@@ -1,0 +1,232 @@
+﻿"use client";
+
+import { useState, useEffect } from "react";
+import { Zap, Pencil, Save, X, Loader2, CheckCircle2, Gift } from "lucide-react";
+import { getAdminFastTrackBonus, updateAdminFastTrackBonus, koboToNaira } from "@/lib/api";
+
+const BONUS_SERVICES = [
+  { key: "vehicle_particulars", label: "Vehicle Particulars", desc: "Bonus paid to agent for completing urgent vehicle particulars renewal" },
+  { key: "tinted_permit", label: "Tinted Permit", desc: "Bonus paid to agent for completing urgent tinted glass permit" },
+  { key: "number_plate_new", label: "New Number Plate", desc: "Bonus paid to agent for completing urgent new plate registration" },
+  { key: "number_plate_replacement", label: "Plate Replacement", desc: "Bonus paid to agent for completing urgent plate replacement" },
+  { key: "number_plate_change_of_ownership", label: "Change of Ownership Plate", desc: "Bonus paid to agent for completing urgent plate transfer" },
+  { key: "number_plate_fancy", label: "Fancy / Custom Plate", desc: "Bonus paid to agent for completing urgent fancy plate" },
+  { key: "number_plate_dealership", label: "Dealership Plate", desc: "Bonus paid to agent for completing urgent dealership plate" },
+  { key: "vehicle_verification", label: "Vehicle Verification", desc: "Bonus paid to agent for completing urgent vehicle verification" },
+  { key: "central_motor_registry", label: "Electronic Central Motor Registry (eCMR)", desc: "Bonus paid to agent for completing urgent eCMR processing" },
+  { key: "roadworthiness_express", label: "Roadworthiness Express", desc: "Bonus paid to agent for completing urgent RWX inspection" },
+  { key: "physical_condition_inspection", label: "Physical Condition Inspection", desc: "Bonus paid to mechanic for completing urgent vehicle inspection" },
+  { key: "fresh", label: "Driver's Licence (Fresh)", desc: "Bonus paid to agent if customer upgraded fresh licence to Fast Track" },
+  { key: "renewal", label: "Driver's Licence (Renewal)", desc: "Bonus paid to agent if customer upgraded licence renewal to Fast Track" },
+];
+
+export default function FastTrackBonusCard() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [formValues, setFormValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const loadBonus = async () => {
+    setLoading(true);
+    const res = await getAdminFastTrackBonus();
+    if (res.data) {
+      setItems(res.data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadBonus();
+  }, []);
+
+  const getServiceBonusKobo = (serviceKey) => {
+    const it = items.find((i) => i.service_name === serviceKey);
+    if (it != null) return it.bonus_kobo;
+    return 150000; // ₦1,500 default
+  };
+
+  const getServiceActive = (serviceKey) => {
+    const it = items.find((i) => i.service_name === serviceKey);
+    if (it != null) return it.is_active;
+    return true;
+  };
+
+  const handleStartEdit = () => {
+    const initial = {};
+    BONUS_SERVICES.forEach((s) => {
+      initial[s.key] = {
+        naira: (getServiceBonusKobo(s.key) / 100).toString(),
+        is_active: getServiceActive(s.key),
+      };
+    });
+    setFormValues(initial);
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const payloadItems = BONUS_SERVICES.map((s) => {
+      const val = formValues[s.key] || {};
+      const amountNaira = parseFloat(val.naira) || 0;
+      return {
+        service_name: s.key,
+        bonus_kobo: Math.round(amountNaira * 100),
+        is_active: val.is_active ?? true,
+      };
+    });
+
+    const res = await updateAdminFastTrackBonus(payloadItems);
+    setSaving(false);
+    if (res.error) {
+      setToast({ type: "error", message: res.error });
+    } else {
+      setToast({ type: "success", message: "Fast Track agent bonuses updated successfully!" });
+      setEditing(false);
+      await loadBonus();
+    }
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  return (
+    <div className="rounded-2xl border-2 border-amber-300/80 bg-white p-6 shadow-sm space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+            <Zap className="h-5 w-5 fill-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-900">Fast Track Agent Bonus</h2>
+              <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900">
+                Speed Incentive
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Extra compensation credited to agent wallets on top of standard compensation when they successfully complete urgent applications.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          {!editing ? (
+            <button
+              type="button"
+              onClick={handleStartEdit}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Edit agent bonuses
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <X className="h-3.5 w-3.5" /> Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 shadow-sm"
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                {saving ? "Saving…" : "Save all"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {toast && (
+        <div className={`rounded-xl p-3.5 text-sm font-medium flex items-center gap-2 ${
+          toast.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+        }`}>
+          {toast.type === "success" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading Fast Track bonuses…</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+          {BONUS_SERVICES.map((s) => {
+            const bonusKobo = getServiceBonusKobo(s.key);
+            const active = getServiceActive(s.key);
+
+            return (
+              <div
+                key={s.key}
+                className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-between gap-3 hover:border-amber-200 transition-colors"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-sm text-slate-900">{s.label}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      (editing ? formValues[s.key]?.is_active : active)
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-600"
+                    }`}>
+                      {(editing ? formValues[s.key]?.is_active : active) ? "Active" : "Disabled"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">{s.desc}</p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-3">
+                  <span className="text-xs text-slate-500 font-medium">Agent bonus payout</span>
+                  {editing ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">₦</span>
+                        <input
+                          type="number"
+                          value={formValues[s.key]?.naira ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormValues((prev) => ({
+                              ...prev,
+                              [s.key]: { ...(prev[s.key] || {}), naira: val },
+                            }));
+                          }}
+                          className="w-28 rounded-lg border border-slate-300 bg-white pl-6 pr-2 py-1 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <label className="flex items-center gap-1 cursor-pointer select-none text-xs font-medium text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={formValues[s.key]?.is_active ?? true}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setFormValues((prev) => ({
+                              ...prev,
+                              [s.key]: { ...(prev[s.key] || {}), is_active: checked },
+                            }));
+                          }}
+                          className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-3.5 w-3.5"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <span className="font-mono font-bold text-sm text-emerald-700">
+                      +{koboToNaira(bonusKobo)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

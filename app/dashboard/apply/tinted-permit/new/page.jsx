@@ -21,9 +21,11 @@ import {
   getWallet,
   getDriverLicenceFeeSchedule,
   getTintedPermitEligibility,
+  getFastTrackPricingPublic,
   getApplication,
   koboToNaira,
 } from "@/lib/api";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -78,6 +80,8 @@ export default function TintedPermitNewApplicationPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
   // { eligible, reason: "in_flight" | "not_due" | null, current_expiry_date, eligible_from_date }
   const [eligibility, setEligibility] = useState(null);
 
@@ -135,7 +139,15 @@ export default function TintedPermitNewApplicationPage() {
   }, [selectedVehicleId]);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
-  const displayFeeKobo = feeKobo ?? TOTAL_FEE_KOBO;
+
+  useEffect(() => {
+    getFastTrackPricingPublic("tinted_permit", selectedVehicle?.state_id).then((res) => {
+      if (res.data) setFastTrackInfo(res.data);
+    });
+  }, [selectedVehicle?.state_id]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const displayFeeKobo = (feeKobo ?? TOTAL_FEE_KOBO) + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0);
 
   const handleCreateVehicle = async () => {
     const errors = {};
@@ -215,6 +227,8 @@ export default function TintedPermitNewApplicationPage() {
       justification: justification || undefined,
       delivery_address: deliveryAddress.trim(),
       documents: DOC_SLOTS.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -563,8 +577,22 @@ export default function TintedPermitNewApplicationPage() {
                   {DOC_SLOTS.filter((s) => docs[s.doc_type]?.url).length} of {DOC_SLOTS.length} uploaded
                 </span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
+
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>

@@ -25,6 +25,7 @@ import {
   ArrowRight,
   UserCheck,
   UserX,
+  Zap,
 } from "lucide-react";
 import {
   getAdminSettings,
@@ -39,6 +40,7 @@ import {
   updateAdminAgentCompensation,
   syncAdminUndisbursedCompensation,
 } from "@/lib/api";
+import FastTrackBonusCard from "./FastTrackBonusCard";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 
 const BRAND = "#28A745";
@@ -228,12 +230,30 @@ export default function AdminCompensationPage() {
             Full Grid
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("fast_track")}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+          style={{
+            background: activeTab === "fast_track" ? "#fff" : "transparent",
+            color: activeTab === "fast_track" ? "#b45309" : "#64748b",
+            boxShadow: activeTab === "fast_track" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <Zap className="w-4 h-4 text-amber-600 fill-amber-500" />
+          Fast Track Agent Bonus
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold bg-amber-100 text-amber-900">
+            Speed Incentive
+          </span>
+        </button>
       </div>
 
       {/* Tab Panels */}
       {activeTab === "vehicle_type" && <VehicleTypeCompensationSection key={refreshKey} showToast={showToast} />}
       {activeTab === "global" && <GlobalDefaultsSection key={refreshKey} showToast={showToast} />}
       {activeTab === "agents" && <PerAgentOverrideSection key={refreshKey} showToast={showToast} triggerGlobalRefresh={triggerRefresh} />}
+      {activeTab === "fast_track" && <FastTrackBonusCard />}
 
       {/* Global Sync Undisbursed Modal */}
       {syncModalOpen && (

@@ -26,12 +26,14 @@ import {
   getServicePricing,
   getApplication,
   koboToNaira,
+  getFastTrackPricingPublic,
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { VEHICLE_CATEGORY_OPTIONS, isCommercialCategory } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
+import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -213,6 +215,20 @@ export default function RoadworthinessExpressNewApplicationPage() {
     return servicePrices.find((p) => p.slug === "roadworthiness-express")?.amount_kobo ?? null;
   }, [servicePrices]);
 
+  const [processingSpeed, setProcessingSpeed] = useState("normal");
+  const [fastTrackInfo, setFastTrackInfo] = useState(null);
+
+  useEffect(() => {
+    if (bayStateId) {
+      getFastTrackPricingPublic("roadworthiness_express", bayStateId).then((res) => {
+        if (res.data) setFastTrackInfo(res.data);
+      });
+    }
+  }, [bayStateId]);
+
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const totalFeeKobo = rwxFeeKobo != null ? (rwxFeeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
+
   const handleBodyTypeChange = (key) => {
     setBodyType(key);
     const bt = BODY_TYPES.find((b) => b.key === key);
@@ -338,6 +354,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
       booking_date: bookingDate,
       delivery_address: deliveryAddress.trim(),
       papers: papers ? { doc_type: "vehicle_papers", file_url: papers.url } : undefined,
+      is_urgent: processingSpeed === "fast_track",
+      processing_speed: processingSpeed,
     });
     setSubmitting(false);
     if (res.error) {
@@ -709,8 +727,22 @@ export default function RoadworthinessExpressNewApplicationPage() {
                 <span className="text-slate-500">Delivery address</span>
                 <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Processing Speed</span>
+                <span className="font-semibold text-[#111111]">
+                  {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
+                </span>
+              </div>
             </div>
           </div>
+
+          <ProcessingSpeedSelector
+            value={processingSpeed}
+            onChange={setProcessingSpeed}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+          />
 
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-1 text-[13.5px] font-bold text-[#111111]">Vehicle papers <span className="font-normal text-slate-400">(optional)</span></h2>
@@ -732,8 +764,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            {rwxFeeKobo != null ? (
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(rwxFeeKobo)}</p>
+            {totalFeeKobo != null ? (
+              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalFeeKobo)}</p>
             ) : (
               <p className="text-[13px] font-semibold text-amber-700">Not yet priced — contact support.</p>
             )}
@@ -742,7 +774,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
           {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
 
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || rwxFeeKobo == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || totalFeeKobo == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {submitting ? "Booking…" : "Book & continue to payment"}
           </button>
