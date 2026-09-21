@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { Zap, Pencil, Save, X, Loader2, CheckCircle2 } from "lucide-react";
@@ -8,6 +8,11 @@ import {
   koboToNaira,
 } from "@/lib/api";
 
+// Aligned with the backend's FAST_TRACK_SERVICES canonical keys
+// (app/core/fast_track_helpers.py). number_plate covers all plate types;
+// driver_licence is omitted here — DL can't be chosen as Fast Track at
+// submission time (only via admin-initiated upgrade), so there is no
+// customer-facing surcharge to configure.
 const FAST_TRACK_SERVICES = [
   {
     key: "vehicle_particulars",
@@ -20,29 +25,9 @@ const FAST_TRACK_SERVICES = [
     desc: "Expedited processing for police tinted glass permit",
   },
   {
-    key: "number_plate_new",
-    label: "New Number Plate",
-    desc: "Expedited standard new plate issuance",
-  },
-  {
-    key: "number_plate_replacement",
-    label: "Plate Replacement",
-    desc: "Expedited plate reissue for damaged or lost plates",
-  },
-  {
-    key: "number_plate_change_of_ownership",
-    label: "Change of Ownership Plate",
-    desc: "Expedited plate transfer & vehicle reassignment",
-  },
-  {
-    key: "number_plate_fancy",
-    label: "Fancy / Custom Plate",
-    desc: "Expedited personalized plate number issuance",
-  },
-  {
-    key: "number_plate_dealership",
-    label: "Dealership Plate",
-    desc: "Expedited commercial auto-dealer plate processing",
+    key: "number_plate",
+    label: "Number Plate (all types)",
+    desc: "Expedited new, replacement, change-of-ownership, fancy, and dealership plate issuance",
   },
   {
     key: "vehicle_verification",
@@ -77,15 +62,16 @@ export default function FastTrackPricingCard({ stateId }) {
   const loadPricing = async () => {
     setLoading(true);
     const res = await getAdminFastTrackPricing();
-    if (Array.isArray(res.data)) {
+    // Backend returns: { items: [{ id, service_type, state_id, state_name, price_kobo, is_active }] }
+    if (res.data?.items && Array.isArray(res.data.items)) {
+      setItems(res.data.items);
+    } else if (Array.isArray(res.data)) {
+      // backward compat if shape changes
       setItems(res.data);
     } else {
       setItems([]);
       if (res.error) {
-        setToast({
-          type: "error",
-          message: "Could not load Fast Track pricing.",
-        });
+        setToast({ type: "error", message: "Could not load Fast Track pricing." });
         setTimeout(() => setToast(null), 4000);
       }
     }
@@ -102,23 +88,24 @@ export default function FastTrackPricingCard({ stateId }) {
   });
 
   const getServicePriceKobo = (serviceKey) => {
-    const item = currentScopeItems.find((it) => it.service_name === serviceKey);
-    if (item != null) return item.surcharge_kobo;
+    // Field is service_type (not service_name), value is price_kobo (not surcharge_kobo)
+    const item = currentScopeItems.find((it) => it.service_type === serviceKey);
+    if (item != null) return item.price_kobo;
     if (stateId != null) {
       const generalItem = items.find(
-        (it) => it.service_name === serviceKey && it.state_id == null,
+        (it) => it.service_type === serviceKey && it.state_id == null,
       );
-      if (generalItem != null) return generalItem.surcharge_kobo;
+      if (generalItem != null) return generalItem.price_kobo;
     }
     return 500000;
   };
 
   const getServiceActive = (serviceKey) => {
-    const item = currentScopeItems.find((it) => it.service_name === serviceKey);
+    const item = currentScopeItems.find((it) => it.service_type === serviceKey);
     if (item != null) return item.is_active;
     if (stateId != null) {
       const generalItem = items.find(
-        (it) => it.service_name === serviceKey && it.state_id == null,
+        (it) => it.service_type === serviceKey && it.state_id == null,
       );
       if (generalItem != null) return generalItem.is_active;
     }
@@ -143,9 +130,9 @@ export default function FastTrackPricingCard({ stateId }) {
       const val = formValues[s.key] || {};
       const amountNaira = parseFloat(val.naira) || 0;
       return {
-        service_type: s.key, // was: service_name
+        service_type: s.key,
         state_id: stateId ?? null,
-        price_kobo: Math.round(amountNaira * 100), // was: surcharge_kobo
+        price_kobo: Math.round(amountNaira * 100),
         is_active: val.is_active ?? true,
       };
     });

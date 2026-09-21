@@ -1,23 +1,21 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { Zap, Pencil, Save, X, Loader2, CheckCircle2, Gift } from "lucide-react";
 import { getAdminFastTrackBonus, updateAdminFastTrackBonus, koboToNaira } from "@/lib/api";
 
+// Aligned with the backend's FAST_TRACK_SERVICES canonical keys.
+// Bonus card includes driver_licence because agents can still receive bonuses
+// for admin-upgraded DL jobs (fresh/renewal).
 const BONUS_SERVICES = [
   { key: "vehicle_particulars", label: "Vehicle Particulars", desc: "Bonus paid to agent for completing urgent vehicle particulars renewal" },
   { key: "tinted_permit", label: "Tinted Permit", desc: "Bonus paid to agent for completing urgent tinted glass permit" },
-  { key: "number_plate_new", label: "New Number Plate", desc: "Bonus paid to agent for completing urgent new plate registration" },
-  { key: "number_plate_replacement", label: "Plate Replacement", desc: "Bonus paid to agent for completing urgent plate replacement" },
-  { key: "number_plate_change_of_ownership", label: "Change of Ownership Plate", desc: "Bonus paid to agent for completing urgent plate transfer" },
-  { key: "number_plate_fancy", label: "Fancy / Custom Plate", desc: "Bonus paid to agent for completing urgent fancy plate" },
-  { key: "number_plate_dealership", label: "Dealership Plate", desc: "Bonus paid to agent for completing urgent dealership plate" },
+  { key: "number_plate", label: "Number Plate (all types)", desc: "Bonus paid to agent for completing urgent number plate issuance" },
   { key: "vehicle_verification", label: "Vehicle Verification", desc: "Bonus paid to agent for completing urgent vehicle verification" },
   { key: "central_motor_registry", label: "Electronic Central Motor Registry (eCMR)", desc: "Bonus paid to agent for completing urgent eCMR processing" },
   { key: "roadworthiness_express", label: "Roadworthiness Express", desc: "Bonus paid to agent for completing urgent RWX inspection" },
   { key: "physical_condition_inspection", label: "Physical Condition Inspection", desc: "Bonus paid to mechanic for completing urgent vehicle inspection" },
-  { key: "fresh", label: "Driver's Licence (Fresh)", desc: "Bonus paid to agent if customer upgraded fresh licence to Fast Track" },
-  { key: "renewal", label: "Driver's Licence (Renewal)", desc: "Bonus paid to agent if customer upgraded licence renewal to Fast Track" },
+  { key: "driver_licence", label: "Driver's Licence (upgrades)", desc: "Bonus paid to agent when an admin-upgraded licence job is completed" },
 ];
 
 export default function FastTrackBonusCard() {
@@ -31,8 +29,13 @@ export default function FastTrackBonusCard() {
   const loadBonus = async () => {
     setLoading(true);
     const res = await getAdminFastTrackBonus();
-    if (res.data) {
+    // Backend returns: { items: [{ id, service_type, bonus_kobo, is_active }] }
+    if (res.data?.items && Array.isArray(res.data.items)) {
+      setItems(res.data.items);
+    } else if (Array.isArray(res.data)) {
       setItems(res.data);
+    } else {
+      setItems([]);
     }
     setLoading(false);
   };
@@ -42,13 +45,14 @@ export default function FastTrackBonusCard() {
   }, []);
 
   const getServiceBonusKobo = (serviceKey) => {
-    const it = items.find((i) => i.service_name === serviceKey);
+    // Field is service_type (not service_name)
+    const it = items.find((i) => i.service_type === serviceKey);
     if (it != null) return it.bonus_kobo;
-    return 150000; // ₦1,500 default
+    return 200000; // ₦2,000 default (matches backend DEFAULT_FAST_TRACK_BONUS_KOBO)
   };
 
   const getServiceActive = (serviceKey) => {
-    const it = items.find((i) => i.service_name === serviceKey);
+    const it = items.find((i) => i.service_type === serviceKey);
     if (it != null) return it.is_active;
     return true;
   };
@@ -71,7 +75,7 @@ export default function FastTrackBonusCard() {
       const val = formValues[s.key] || {};
       const amountNaira = parseFloat(val.naira) || 0;
       return {
-        service_name: s.key,
+        service_type: s.key,    // was: service_name
         bonus_kobo: Math.round(amountNaira * 100),
         is_active: val.is_active ?? true,
       };
