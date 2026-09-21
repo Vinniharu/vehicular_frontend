@@ -26,6 +26,7 @@ const STAFF_STATUS = {
   released_to_agents: { label: "Released to agents", tone: "success" },
   in_progress: { label: "Agents working", tone: "success" },
   driving_school_enrolled: { label: "In driving school pool", tone: "purple" },
+  driving_school_graduation: { label: "Awaiting graduation certificate", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete — Ready to route", tone: "teal" },
   routed: { label: "Routed to field agent", tone: "success" },
   agent_assigned: { label: "Agent assigned", tone: "success" },
@@ -161,7 +162,8 @@ function StaffApplicationsQueueInner() {
       if (activeTab === "mine") return app.staff_id === currentUser?.id;
       if (activeTab === "submitted") return app.status === "submitted";
       if (activeTab === "staff_review") return app.status === "staff_review";
-      if (activeTab === "driving_school") return app.status === "driving_school_enrolled";
+      if (activeTab === "driving_school") return app.status === "driving_school_enrolled" || app.status === "driving_school_graduation";
+      if (activeTab === "graduation") return app.status === "driving_school_graduation";
       if (activeTab === "graduated") return app.status === "driving_school_certificate_ready";
       if (activeTab === "action_needed") return app.status === "agent_completed";
       if (activeTab === "dispatch") return app.status === "awaiting_customer";
@@ -178,7 +180,8 @@ function StaffApplicationsQueueInner() {
       mine: applications.filter((a) => a.staff_id === currentUser?.id).length,
       submitted: applications.filter((a) => a.status === "submitted").length,
       staff_review: applications.filter((a) => a.status === "staff_review").length,
-      driving_school: applications.filter((a) => a.status === "driving_school_enrolled").length,
+      driving_school: applications.filter((a) => a.status === "driving_school_enrolled" || a.status === "driving_school_graduation").length,
+      graduation: applications.filter((a) => a.status === "driving_school_graduation").length,
       graduated: applications.filter((a) => a.status === "driving_school_certificate_ready").length,
       action_needed: applications.filter((a) => a.status === "agent_completed").length,
       dispatch: applications.filter((a) => a.status === "awaiting_customer").length,
@@ -248,7 +251,8 @@ function StaffApplicationsQueueInner() {
             <option value="mine">My Queue ({counts.mine})</option>
             <option value="submitted">Awaiting Review ({counts.submitted})</option>
             <option value="staff_review">Under Review ({counts.staff_review})</option>
-            <option value="driving_school">Driving School ({counts.driving_school})</option>
+            <option value="driving_school">Driving School Mode ({counts.driving_school})</option>
+            <option value="graduation">Graduation — Awaiting Cert ({counts.graduation})</option>
             <option value="graduated">Ready to Route ({counts.graduated})</option>
             <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
             <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>

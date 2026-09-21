@@ -2284,6 +2284,7 @@ export default function CustomerApplicationDetailsPage() {
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
     application.status === "driving_school_enrolled" ||
+    application.status === "driving_school_graduation" ||
     application.status === "driving_school_certificate_ready" ||
     !!application.driving_school;
   const awaitingCustomer = application.status === "awaiting_customer";
@@ -3205,7 +3206,12 @@ export default function CustomerApplicationDetailsPage() {
                   {timeLeft.expired ? "Complete" : "In progress"}
                 </span>
               </div>
-              {timeLeft.expired || application.status === "driving_school_certificate_ready" ? (
+              {application.status === "driving_school_graduation" || (timeLeft.expired && application.status === "driving_school_enrolled") ? (
+                <div className="rounded-lg bg-violet-50 p-3.5 text-center ring-1 ring-inset ring-violet-200">
+                  <p className="text-[13.5px] font-semibold text-violet-800">🎓 Graduation Stage — Awaiting Your Certificate</p>
+                  <p className="mt-0.5 text-[12px] text-violet-700">Your 26-day driving school training is complete! You are now in the graduation stage awaiting your certificate from the driving academy. Once staff verify and upload your certificate, your application will proceed to the next step.</p>
+                </div>
+              ) : application.status === "driving_school_certificate_ready" ? (
                 <div className="rounded-lg bg-emerald-50 p-3.5 text-center ring-1 ring-inset ring-emerald-200">
                   <p className="text-[13.5px] font-semibold text-emerald-800">Driving school requirement complete</p>
                   <p className="mt-0.5 text-[12px] text-emerald-700">We're confirming your certificate and routing your case to an agent now.</p>

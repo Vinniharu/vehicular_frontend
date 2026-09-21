@@ -6,6 +6,7 @@ export const STATUS_META = {
   submitted: { label: "Submitted", tone: "info" },
   staff_review: { label: "Under staff review", tone: "warning" },
   driving_school_enrolled: { label: "Driving school enrolled", tone: "purple" },
+  driving_school_graduation: { label: "Graduation stage — Awaiting certificate", tone: "purple" },
   driving_school_certificate_ready: { label: "Driving school certificate ready", tone: "teal" },
   driving_school_graduated: { label: "Driving school complete", tone: "purple" },
   routed: { label: "Sent to agent", tone: "success" },
@@ -81,6 +82,7 @@ export function statusMeta(status) {
 const STATUS_DESCRIPTIONS = {
   submitted: "Application form and documents submitted; awaiting payment verification.",
   driving_school_enrolled: "Enrolled in driving school in accordance with statutory regulations (26 working days).",
+  driving_school_graduation: "26-day driving school period complete. Awaiting certificate from staff.",
   driving_school_certificate_ready: "Driving school certificate ready.",
   driving_school_graduated: "Driving school certificate ready; transitioning to the next stage.",
   routed: "Verified and routed to an agent in your LGA.",
@@ -166,6 +168,7 @@ const NEXT_STEP_FRESH = {
   submitted: "Your application is waiting for staff to review it.",
   staff_review: "Staff are checking your documents now.",
   driving_school_enrolled: "Enrolled in driving school in accordance with the law (26 working days) — see countdown below.",
+  driving_school_graduation: "Graduation stage: 26-day training complete! Staff are awaiting your certificate from the academy before moving to biometric capture.",
   driving_school_certificate_ready: "Certificate is ready. Your file is being routed to an agent.",
   routed: "An agent in your LGA has been offered your case.",
   agent_accepted: "An agent has accepted and will schedule your biometric capture soon.",
@@ -271,7 +274,7 @@ export function getNextStepCopy(application) {
 }
 
 const STAGE_ORDER_FRESH = [
-  "submitted", "staff_review", "driving_school_enrolled", "driving_school_certificate_ready",
+  "submitted", "staff_review", "driving_school_enrolled", "driving_school_graduation", "driving_school_certificate_ready",
   "driving_school_graduated", "routed", "agent_assigned", "agent_accepted", "capture_scheduled",
   "capturing_scheduled", "scheduled", "captured", "capturing_completed", "agent_completed",
   "staff_final_review", "in_review", "ready_for_pickup", "awaiting_customer", "completed",

@@ -38,6 +38,7 @@ import {
   staffEnrollDrivingSchool,
   staffUploadDrivingSchoolCertificate,
   staffConfirmDrivingSchoolCertificate,
+  staffMarkDrivingSchoolCountdownExpired,
   staffReviewTemporaryLicence,
   staffRouteApplication,
   staffFinalReview,
@@ -68,6 +69,7 @@ const STAFF_STATUS = {
   released_to_agents: { label: "Released to agents", tone: "success" },
   in_progress: { label: "Agents working", tone: "success" },
   driving_school_enrolled: { label: "In driving school", tone: "purple" },
+  driving_school_graduation: { label: "Awaiting graduation certificate", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete", tone: "teal" },
   routed: { label: "Routed to agent", tone: "success" },
   agent_assigned: { label: "Agent assigned", tone: "success" },
@@ -228,10 +230,22 @@ export default function StaffApplicationDetailsPage() {
     const targetMs = new Date(parseTarget).getTime();
     if (isNaN(targetMs)) return;
 
+    let hasTriggeredGraduation = false;
+
     const tick = () => {
       const diff = targetMs - Date.now();
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: true });
+        // When the countdown expires and the app is still in the enrolled stage,
+        // automatically transition it to graduation stage so it stays visible to staff.
+        if (!hasTriggeredGraduation && application?.status === "driving_school_enrolled") {
+          hasTriggeredGraduation = true;
+          staffMarkDrivingSchoolCountdownExpired(application.id).then((res) => {
+            if (!res.error && res.data) {
+              setApplication(res.data);
+            }
+          });
+        }
       } else {
         setTimeLeft({
           days: Math.floor(diff / 86400000),
@@ -681,7 +695,7 @@ export default function StaffApplicationDetailsPage() {
             </>
           )}
 
-          {application.assigned_staff && application.status === "driving_school_enrolled" && (
+          {application.assigned_staff && (application.status === "driving_school_enrolled" || application.status === "driving_school_graduation") && (
             <button onClick={() => openModal("upload-cert")} className={btnPrimary} style={{ background: "#0d9488" }}>
               <Upload className="h-4 w-4" /> Upload certificate
             </button>
@@ -1790,6 +1804,7 @@ export default function StaffApplicationDetailsPage() {
               )}
 
               {(application.status === "driving_school_enrolled" ||
+                application.status === "driving_school_graduation" ||
                 application.status === "driving_school_certificate_ready" ||
                 application.driving_school) &&
                 application.driving_school_enrolled_at && (
@@ -1838,7 +1853,12 @@ export default function StaffApplicationDetailsPage() {
                         </span>
                       </div>
 
-                      {timeLeft.expired || application.status === "driving_school_certificate_ready" ? (
+                      {application.status === "driving_school_graduation" || (timeLeft.expired && application.status === "driving_school_enrolled") ? (
+                        <div className="rounded-lg bg-violet-50 p-4 text-center ring-1 ring-inset ring-violet-200 shadow-sm">
+                          <p className="text-[13.5px] font-bold text-violet-800">🎓 Graduation Stage</p>
+                          <p className="mt-1 text-[12px] text-violet-700">26-day countdown complete. Awaiting the physical certificate from the driving school — upload it using the action button above.</p>
+                        </div>
+                      ) : application.status === "driving_school_certificate_ready" ? (
                         <div className="rounded-lg bg-emerald-50 p-4 text-center ring-1 ring-inset ring-emerald-200 shadow-sm">
                           <p className="text-[13.5px] font-bold text-emerald-800">26-day waiting period complete</p>
                           <p className="mt-1 text-[12px] text-emerald-700">Ready to route to a field agent.</p>
@@ -1870,7 +1890,9 @@ export default function StaffApplicationDetailsPage() {
                   
                   <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
                     <p className="text-[13px] text-slate-500">
-                      {application.status === "driving_school_enrolled"
+                      {application.status === "driving_school_graduation"
+                        ? "🎓 Graduation stage: Upload the driving school certificate using the action button at the top to move this application forward."
+                        : application.status === "driving_school_enrolled"
                         ? "Next: Upload the graduation certificate using the actions at the top."
                         : "Next: Route this application to a field agent using the actions at the top."}
                     </p>
@@ -1878,7 +1900,7 @@ export default function StaffApplicationDetailsPage() {
                 </div>
               )}
 
-              {!["submitted", "staff_review", "driving_school_enrolled", "driving_school_certificate_ready"].includes(application.status) &&
+              {!["submitted", "staff_review", "driving_school_enrolled", "driving_school_graduation", "driving_school_certificate_ready"].includes(application.status) &&
                 !application.driving_school && (
                   <p className="text-[13px] text-slate-500">
                     Not applicable — driving school enrollment doesn't apply to this application's current status (
