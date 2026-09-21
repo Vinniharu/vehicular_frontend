@@ -315,7 +315,7 @@ export default function NumberPlateNewApplicationPage() {
     }
   }, [selectedStateId, plan.application_type]);
 
-  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 1000000;
   const totalEstimatedFeeKobo = estimatedFeeKobo != null ? (estimatedFeeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
 
   // Live, state-aware flat price (vehicle category no longer affects it) --
@@ -1464,7 +1464,7 @@ export default function NumberPlateNewApplicationPage() {
           <ProcessingSpeedSelector
             value={processingSpeed}
             onChange={setProcessingSpeed}
-            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 1000000}
             standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />

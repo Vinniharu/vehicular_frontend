@@ -249,12 +249,13 @@ export default function ServicePricingCard({ section }) {
         </div>
       )}
 
-      {section.rows && section.rows.length > 0 && section.subServices && (
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-slate-50/50 space-y-3">
+      {((section.rows && section.rows.length > 0) || section.categoryGrid) && section.subServices && (
+        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-slate-50/50 space-y-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Fixed Bundle Pricing (When all documents are selected)
+            All-Included Documents Package Pricing (When all documents are selected)
           </div>
-          {renderRows(section.rows, section.title)}
+          {section.rows && section.rows.length > 0 && renderRows(section.rows, section.title)}
+          {section.categoryGrid && renderCategoryGrid(section.categoryGrid.service_key, "All-Included Documents Package")}
         </div>
       )}
 

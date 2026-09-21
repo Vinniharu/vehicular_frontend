@@ -79,7 +79,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     });
   }, [selectedStateId]);
 
-  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 500000;
+  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 1000000;
   const totalFeeKobo = feeKobo != null ? (feeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
 
   const [step, setStep] = useState(1);
@@ -596,7 +596,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
           <ProcessingSpeedSelector
             value={processingSpeed}
             onChange={setProcessingSpeed}
-            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 500000}
+            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 1000000}
             standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />

@@ -97,7 +97,7 @@ export default function FastTrackPricingCard({ stateId }) {
       );
       if (generalItem != null) return generalItem.price_kobo;
     }
-    return 500000;
+    return 1000000;
   };
 
   const getServiceActive = (serviceKey) => {
