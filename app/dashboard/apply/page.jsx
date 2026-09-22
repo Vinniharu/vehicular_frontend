@@ -29,10 +29,12 @@ import {
   getWallet,
   getDriverLicenceEligibility,
   getDriverLicenceFeeSchedule,
+  initializeCardPayment,
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import DocumentRing from "@/app/components/design/DocumentRing";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
@@ -542,6 +544,24 @@ export default function ApplyPage() {
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
   };
 
+  const [payingCard, setPayingCard] = useState(false);
+
+  const handlePayCard = async (appId, amountKobo) => {
+    setPayingCard(true);
+    const res = await initializeCardPayment(appId, { amount_kobo: amountKobo });
+    setPayingCard(false);
+    if (res.error) {
+      showToast("error", res.error);
+    } else if (res.data?.authorization_url) {
+      const authUrl = res.data.authorization_url;
+      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        window.location.href = authUrl;
+      }
+      showToast("success", `Opening payment checkout for ${koboToNaira(amountKobo)}...`);
+    }
+  };
+
   const handleSubmit = async () => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3), ...validateStep(4) };
     if (Object.keys(allErrors).length > 0) {
@@ -675,24 +695,17 @@ export default function ApplyPage() {
           </div>
 
           {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5 text-left">
-              <PartialPayControls
+            <div className="mt-5 text-left">
+              <PaymentOptions
                 remainingKobo={payOpts.remaining_kobo ?? payOpts.amount_kobo}
                 walletBalanceKobo={walletBalance}
+                amountPaidKobo={payOpts.amount_paid_kobo || 0}
                 payingWallet={payingFromWallet === successApp.id}
-                onPay={(amountKobo) => handlePayFromWallet(successApp.id, amountKobo)}
+                payingCard={payingCard}
+                onPayWallet={(amt) => handlePayFromWallet(successApp.id, amt)}
+                onPayCard={(amt) => handlePayCard(successApp.id, amt)}
+                partialAllowed={payOpts.partial_payment_allowed ?? (successApp.application_type === "fresh")}
               />
-              {payOpts.checkout_url && (
-                <a
-                  href={payOpts.checkout_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${btnSecondary} w-full`}
-                >
-                  Pay with card or bank transfer
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
             </div>
           )}
 

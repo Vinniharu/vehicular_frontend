@@ -15,11 +15,40 @@ const btnPrimary =
 const btnSecondary =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-[#E5E5E5] bg-white px-5 py-3 text-[13.5px] font-semibold text-slate-700 shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 hover:bg-slate-50";
 
-/* "Pay small small" — a partial contribution (by wallet or card), at least
-   ₦10,000 unless it's the exact remaining balance. Shared across every
-   customer surface that offers a partial payment. onPayCard is optional —
-   omit it to keep the wallet-only behavior some callers may still want. */
-export default function PartialPayControls({ remainingKobo, walletBalanceKobo, payingWallet, onPay, payingCard, onPayCard }) {
+export default function PartialPayControls({ remainingKobo, walletBalanceKobo, payingWallet, onPay, payingCard, onPayCard, partialAllowed = true }) {
+  if (!partialAllowed) {
+    const canPayFromWallet = remainingKobo > 0 && remainingKobo <= walletBalanceKobo && !payingWallet;
+    const canPayByCard = remainingKobo > 0 && !payingCard;
+    return (
+      <div className="space-y-2">
+        <p className="text-[12.5px] font-semibold text-slate-700">Amount due: {koboToNaira(remainingKobo)} (Full payment required)</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onPay(remainingKobo)}
+            disabled={!canPayFromWallet}
+            className={btnPrimary}
+            style={{ background: BRAND }}
+          >
+            {payingWallet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+            {payingWallet ? "Processing…" : `Pay ${koboToNaira(remainingKobo)} from wallet`}
+          </button>
+          {onPayCard && (
+            <button
+              type="button"
+              onClick={() => onPayCard(remainingKobo)}
+              disabled={!canPayByCard}
+              className={btnSecondary}
+            >
+              {payingCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              {payingCard ? "Preparing…" : `Pay ${koboToNaira(remainingKobo)} by card`}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const minKobo = Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo);
   const suggestedKobo = Math.max(0, Math.min(remainingKobo, walletBalanceKobo));
   const [amountNaira, setAmountNaira] = useState(String(Math.floor(suggestedKobo / 100) || Math.ceil(minKobo / 100)));

@@ -45,7 +45,7 @@ const DOCUMENT_TYPES = [
     desc: "The core papers proving your vehicle is registered and road-legal.",
     commercialOnly: false,
     evidence: [
-      { doc_type: "vehicle_licence_evidence", title: "Current Vehicle Licence", hint: "Photo of your existing or expiring vehicle licence", image: "/placeholder/vehicle.jpeg" },
+      { doc_type: "vehicle_licence_evidence", title: "Vehicle Licence", hint: "Photo of your current or expiring vehicle licence", image: "/placeholder/vehicle.jpeg" },
     ],
   },
   {
@@ -54,7 +54,7 @@ const DOCUMENT_TYPES = [
     desc: "Confirms your vehicle is mechanically fit.",
     commercialOnly: false,
     evidence: [
-      { doc_type: "road_worthiness_evidence", title: "Expiring Road Worthiness Certificate", hint: "Photo of your current certificate", image: "/placeholder/vehicle.jpeg" },
+      { doc_type: "vehicle_licence_evidence", title: "Vehicle Licence", hint: "Photo of your vehicle licence for road worthiness renewal", image: "/placeholder/vehicle.jpeg" },
     ],
   },
   {
@@ -63,8 +63,8 @@ const DOCUMENT_TYPES = [
     desc: "For a missing document or a change of ownership.",
     commercialOnly: false,
     evidence: [
-      { doc_type: "proof_of_ownership_evidence", title: "Proof of Ownership", hint: "Purchase receipt or current ownership document", image: "/placeholder/proof.jpeg" },
-      { doc_type: "owner_id_evidence", title: "Owner's ID", hint: "NIN slip, driver's licence, or international passport", image: "/placeholder/person.jpeg" },
+      { doc_type: "proof_of_ownership_evidence", title: "Proof of Ownership", hint: "Purchase receipt or ownership document", image: "/placeholder/proof.jpeg" },
+      { doc_type: "owner_id_evidence", title: "Owner's ID (NIN)", hint: "National Identification Number (NIN) slip or card", image: "/placeholder/person.jpeg" },
     ],
   },
   {
@@ -73,7 +73,7 @@ const DOCUMENT_TYPES = [
     desc: "The minimum legal cover for every vehicle.",
     commercialOnly: false,
     evidence: [
-      { doc_type: "owner_id_evidence", title: "Owner's ID", hint: "NIN slip, driver's licence, or international passport", image: "/placeholder/person.jpeg" },
+      { doc_type: "owner_id_evidence", title: "Owner's ID (NIN)", hint: "National Identification Number (NIN) slip or card", image: "/placeholder/person.jpeg" },
     ],
   },
   {
@@ -82,7 +82,7 @@ const DOCUMENT_TYPES = [
     desc: "The commercial-passenger permit — only for vehicles carrying passengers.",
     commercialOnly: true,
     evidence: [
-      { doc_type: "commercial_registration_evidence", title: "Commercial Registration Evidence", hint: "Proof this vehicle is registered for commercial use", image: "/placeholder/vehicle.jpeg" },
+      { doc_type: "vehicle_licence_evidence", title: "Vehicle Licence", hint: "Photo of your vehicle licence for commercial permit renewal", image: "/placeholder/vehicle.jpeg" },
     ],
   },
 ];

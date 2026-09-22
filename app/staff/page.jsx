@@ -26,7 +26,7 @@ import {
   Flame,
   GraduationCap,
 } from "lucide-react";
-import { getStaffQueue } from "@/lib/api";
+import { getStaffQueue, getStaffCounts } from "@/lib/api";
 
 const BRAND = "#28A745";
 
@@ -99,6 +99,7 @@ function StatusBadge({ status }) {
 export default function StaffStatsDashboardPage() {
   const router = useRouter();
   const [applications, setApplications] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -108,12 +109,21 @@ export default function StaffStatsDashboardPage() {
     else setLoading(true);
     setError(null);
 
-    const res = await getStaffQueue({ page: 1, page_size: 100 });
-    if (res.error) {
-      setError(res.error);
-    } else if (Array.isArray(res.data?.items)) {
-      setApplications(res.data.items);
+    const [queueRes, countsRes] = await Promise.all([
+      getStaffQueue({ page: 1, page_size: 100 }),
+      getStaffCounts(),
+    ]);
+
+    if (queueRes.error) {
+      setError(queueRes.error);
+    } else if (Array.isArray(queueRes.data?.items)) {
+      setApplications(queueRes.data.items);
     }
+
+    if (countsRes.data) {
+      setStats(countsRes.data);
+    }
+
     setLoading(false);
     setRefreshing(false);
   };
@@ -124,17 +134,18 @@ export default function StaffStatsDashboardPage() {
 
   // Compute stats
   const counts = useMemo(() => {
-    const total = applications.length;
-    const submitted = applications.filter((a) => a.status === "submitted").length;
-    const staff_review = applications.filter((a) => a.status === "staff_review").length;
-    const driving_school_countdown = applications.filter((a) => a.status === "driving_school_enrolled").length;
-    const driving_school_graduation = applications.filter((a) => a.status === "driving_school_graduation").length;
-    const driving_school = driving_school_countdown + driving_school_graduation;
-    const graduated = applications.filter((a) => a.status === "driving_school_certificate_ready").length;
-    const routed = applications.filter((a) => a.status === "routed").length;
-    const needsFinalReview = applications.filter((a) => a.status === "agent_completed").length;
-    const awaitingCustomer = applications.filter((a) => a.status === "awaiting_customer").length;
-    const flagged = applications.filter((a) => a.status === "staff_rejected" || a.status === "needs_correction").length;
+    const total = stats?.all ?? applications.length;
+    const submitted = stats?.submitted ?? applications.filter((a) => a.status === "submitted").length;
+    const staff_review = stats?.staff_review ?? applications.filter((a) => a.status === "staff_review").length;
+    const driving_school_countdown = stats?.driving_school_countdown ?? applications.filter((a) => a.status === "driving_school_enrolled").length;
+    const driving_school_graduation = stats?.driving_school_graduation ?? applications.filter((a) => a.status === "driving_school_graduation").length;
+    const graduated = stats?.graduated ?? applications.filter((a) => a.status === "driving_school_certificate_ready").length;
+    // Total driving school includes both countdown and graduated (and cert ready)
+    const driving_school = stats?.driving_school ?? (driving_school_countdown + driving_school_graduation + graduated);
+    const routed = stats?.routed ?? applications.filter((a) => a.status === "routed").length;
+    const needsFinalReview = stats?.needs_final_review ?? applications.filter((a) => ["agent_completed", "staff_final_review"].includes(a.status)).length;
+    const awaitingCustomer = stats?.awaiting_customer ?? applications.filter((a) => a.status === "awaiting_customer").length;
+    const flagged = stats?.flagged ?? applications.filter((a) => a.status === "staff_rejected" || a.status === "needs_correction").length;
 
     const calcPct = (cnt) => (total > 0 ? Math.round((cnt / total) * 100) : 0);
 
@@ -158,7 +169,7 @@ export default function StaffStatsDashboardPage() {
       pctGraduated: calcPct(graduated),
       pctRouted: calcPct(routed),
     };
-  }, [applications]);
+  }, [applications, stats]);
 
   // Top recent applications requiring action
   const recentActionApps = useMemo(() => {
@@ -265,7 +276,7 @@ export default function StaffStatsDashboardPage() {
             <div className="mt-2 pt-2 border-t border-violet-100 flex items-center justify-between text-[11px] font-medium text-slate-500">
               <span className="text-violet-700 font-semibold">{counts.driving_school_countdown} countdown</span>
               <span>•</span>
-              <span className="text-purple-700 font-semibold">{counts.driving_school_graduation} graduated</span>
+              <span className="text-purple-700 font-semibold">{counts.driving_school_graduation + counts.graduated} graduated</span>
             </div>
           </Link>
           <Link

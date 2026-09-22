@@ -17,7 +17,7 @@ import {
   Zap,
   GraduationCap,
 } from "lucide-react";
-import { getStaffQueue, staffClaimApplication, getCachedUser, koboToNaira } from "@/lib/api";
+import { getStaffQueue, staffClaimApplication, getCachedUser, koboToNaira, getStaffCounts } from "@/lib/api";
 
 const BRAND = "#28A745";
 
@@ -94,6 +94,7 @@ function StaffApplicationsQueueInner() {
     // static / outside Suspense fallback
   }
   const [applications, setApplications] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -108,31 +109,55 @@ function StaffApplicationsQueueInner() {
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
 
-  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly, payFilter = paymentFilter) => {
+  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly, payFilter = paymentFilter, tab = activeTab, type = typeFilter) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
 
-    const res = await getStaffQueue({
-      page: 1,
-      page_size: 100,
-      sort,
-      is_urgent_only: urgentOnly ? true : undefined,
-      payment_status: payFilter === "all" ? undefined : payFilter,
-    });
-    if (res.error) {
-      setError(res.error);
-    } else if (Array.isArray(res.data?.items)) {
-      setApplications(res.data.items);
+    // Map tab to backend status or staff_id params if applicable
+    let queryStatus = undefined;
+    let queryStaffId = undefined;
+
+    if (tab === "unclaimed") {
+      queryStaffId = 0;
+    } else if (tab === "mine") {
+      if (currentUser?.id) queryStaffId = currentUser.id;
+    } else if (["submitted", "staff_review", "driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready", "action_needed", "dispatch", "flagged"].includes(tab)) {
+      queryStatus = tab;
     }
+
+    const [queueRes, countsRes] = await Promise.all([
+      getStaffQueue({
+        page: 1,
+        page_size: 100,
+        sort,
+        is_urgent_only: urgentOnly ? true : undefined,
+        payment_status: payFilter === "all" ? undefined : payFilter,
+        application_type: type === "all" ? undefined : type,
+        status: queryStatus,
+        staff_id: queryStaffId,
+      }),
+      getStaffCounts(),
+    ]);
+
+    if (queueRes.error) {
+      setError(queueRes.error);
+    } else if (Array.isArray(queueRes.data?.items)) {
+      setApplications(queueRes.data.items);
+    }
+
+    if (countsRes?.data) {
+      setStats(countsRes.data);
+    }
+
     setLoading(false);
     setRefreshing(false);
   };
 
   useEffect(() => {
-    loadData(false, sortBy, isUrgentOnly, paymentFilter);
+    loadData(false, sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, isUrgentOnly, paymentFilter]);
+  }, [sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter]);
 
   const handleClaim = async (e, appId) => {
     e.stopPropagation();
@@ -170,11 +195,11 @@ function StaffApplicationsQueueInner() {
       if (activeTab === "mine") return app.staff_id === currentUser?.id;
       if (activeTab === "submitted") return app.status === "submitted";
       if (activeTab === "staff_review") return app.status === "staff_review";
-      if (activeTab === "driving_school") return app.status === "driving_school_enrolled" || app.status === "driving_school_graduation";
+      if (activeTab === "driving_school") return app.status === "driving_school_enrolled" || app.status === "driving_school_graduation" || app.status === "driving_school_certificate_ready";
       if (activeTab === "driving_school_countdown") return app.status === "driving_school_enrolled";
       if (activeTab === "driving_school_graduation" || activeTab === "graduation") return app.status === "driving_school_graduation";
       if (activeTab === "graduated" || activeTab === "driving_school_ready") return app.status === "driving_school_certificate_ready";
-      if (activeTab === "action_needed") return app.status === "agent_completed";
+      if (activeTab === "action_needed") return app.status === "agent_completed" || app.status === "staff_final_review";
       if (activeTab === "dispatch") return app.status === "awaiting_customer";
       if (activeTab === "flagged") return app.status === "staff_rejected" || app.status === "needs_correction";
       return true;
@@ -183,27 +208,28 @@ function StaffApplicationsQueueInner() {
 
   // Counts for top tabs
   const counts = useMemo(() => {
-    const ds_countdown = applications.filter((a) => a.status === "driving_school_enrolled").length;
-    const ds_graduation = applications.filter((a) => a.status === "driving_school_graduation").length;
-    const ds_total = ds_countdown + ds_graduation;
-    const ds_ready = applications.filter((a) => a.status === "driving_school_certificate_ready").length;
+    const total = stats?.all ?? applications.length;
+    const ds_countdown = stats?.driving_school_countdown ?? applications.filter((a) => a.status === "driving_school_enrolled").length;
+    const ds_graduation = stats?.driving_school_graduation ?? applications.filter((a) => a.status === "driving_school_graduation").length;
+    const ds_ready = stats?.graduated ?? applications.filter((a) => a.status === "driving_school_certificate_ready").length;
+    const ds_total = stats?.driving_school ?? (ds_countdown + ds_graduation + ds_ready);
 
     return {
-      all: applications.length,
-      unclaimed: applications.filter((a) => !a.staff_id).length,
-      mine: applications.filter((a) => a.staff_id === currentUser?.id).length,
-      submitted: applications.filter((a) => a.status === "submitted").length,
-      staff_review: applications.filter((a) => a.status === "staff_review").length,
+      all: total,
+      unclaimed: stats?.unclaimed ?? applications.filter((a) => !a.staff_id).length,
+      mine: stats?.mine ?? applications.filter((a) => a.staff_id === currentUser?.id).length,
+      submitted: stats?.submitted ?? applications.filter((a) => a.status === "submitted").length,
+      staff_review: stats?.staff_review ?? applications.filter((a) => a.status === "staff_review").length,
       driving_school: ds_total,
       driving_school_countdown: ds_countdown,
       driving_school_graduation: ds_graduation,
       graduation: ds_graduation,
       graduated: ds_ready,
-      action_needed: applications.filter((a) => a.status === "agent_completed").length,
-      dispatch: applications.filter((a) => a.status === "awaiting_customer").length,
-      flagged: applications.filter((a) => a.status === "staff_rejected" || a.status === "needs_correction").length,
+      action_needed: stats?.needs_final_review ?? applications.filter((a) => ["agent_completed", "staff_final_review"].includes(a.status)).length,
+      dispatch: stats?.awaiting_customer ?? applications.filter((a) => a.status === "awaiting_customer").length,
+      flagged: stats?.flagged ?? applications.filter((a) => a.status === "staff_rejected" || a.status === "needs_correction").length,
     };
-  }, [applications, currentUser]);
+  }, [applications, stats, currentUser]);
 
   return (
     <div className="space-y-6 pb-16">
@@ -343,7 +369,7 @@ function StaffApplicationsQueueInner() {
       </div>
 
       {/* ─── Driving School Breakdown Sub-Filter Banner ─── */}
-      {["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation"].includes(activeTab) && (
+      {["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready"].includes(activeTab) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-violet-50/80 border border-violet-200 p-3.5 shadow-xs">
           <div className="flex items-center gap-2.5">
             <div className="rounded-lg bg-violet-600 p-2 text-white shadow-xs">
@@ -352,7 +378,7 @@ function StaffApplicationsQueueInner() {
             <div>
               <p className="text-xs font-bold text-violet-950">Driving School Candidate Breakdown</p>
               <p className="text-[11.5px] text-violet-700">
-                Quickly separate candidates actively in 26-day countdown vs candidates who graduated and await certification.
+                Quickly separate candidates actively in 26-day countdown vs candidates who graduated and await certification or are ready to route.
               </p>
             </div>
           </div>
@@ -391,6 +417,18 @@ function StaffApplicationsQueueInner() {
             >
               <GraduationCap className="h-3.5 w-3.5" />
               Graduated / Awaiting Cert ({counts.driving_school_graduation})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("graduated")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "graduated" || activeTab === "driving_school_ready"
+                  ? "bg-teal-700 text-white shadow-sm ring-1 ring-teal-800"
+                  : "bg-white text-teal-800 border border-teal-200 hover:bg-teal-100/70"
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              School Complete ({counts.graduated})
             </button>
           </div>
         </div>
