@@ -103,15 +103,22 @@ function StaffApplicationsQueueInner() {
   const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "unclaimed");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
 
-  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly) => {
+  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly, payFilter = paymentFilter) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
 
-    const res = await getStaffQueue({ page: 1, page_size: 100, sort, is_urgent_only: urgentOnly ? true : undefined });
+    const res = await getStaffQueue({
+      page: 1,
+      page_size: 100,
+      sort,
+      is_urgent_only: urgentOnly ? true : undefined,
+      payment_status: payFilter === "all" ? undefined : payFilter,
+    });
     if (res.error) {
       setError(res.error);
     } else if (Array.isArray(res.data?.items)) {
@@ -122,9 +129,9 @@ function StaffApplicationsQueueInner() {
   };
 
   useEffect(() => {
-    loadData(false, sortBy, isUrgentOnly);
+    loadData(false, sortBy, isUrgentOnly, paymentFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, isUrgentOnly]);
+  }, [sortBy, isUrgentOnly, paymentFilter]);
 
   const handleClaim = async (e, appId) => {
     e.stopPropagation();
@@ -282,6 +289,18 @@ function StaffApplicationsQueueInner() {
             <option value="number_plate_dealership">Number Plate — Dealership</option>
           </select>
 
+          {/* Payment Status Filter */}
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+          >
+            <option value="all">All Payments</option>
+            <option value="paid">Paid Fee</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="partial">Partially Paid</option>
+          </select>
+
           {/* Sort By Filter */}
           <select
             value={sortBy}
@@ -421,7 +440,7 @@ function StaffApplicationsQueueInner() {
                       ) : (
                         <UserCheck className="h-4 w-4" />
                       )}
-                      <span>Accept</span>
+                      <span>Claim</span>
                     </button>
                   )}
                   <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] font-semibold text-slate-700 group-hover:bg-[#28A745] group-hover:text-white group-hover:border-[#28A745] transition-all shadow-sm">

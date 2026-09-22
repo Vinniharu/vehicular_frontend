@@ -63,7 +63,9 @@ const DATE_PRESETS = [
 
 const PAYMENT_STATUS_STYLES = {
   success: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  partial: "bg-blue-50 text-blue-700 border-blue-200",
   pending: "bg-amber-50 text-amber-700 border-amber-200",
+  failed: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 const CATEGORY_METADATA = {
@@ -608,9 +610,9 @@ export default function AdminRevenuePage() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
-              <option value="">All statuses</option>
-              <option value="success">Success</option>
-              <option value="pending">Pending</option>
+              <option value="">All statuses (Paid)</option>
+              <option value="success">Success (Full Payment)</option>
+              <option value="partial">Partial Payment</option>
             </select>
             <select
               value={typeFilter}
@@ -673,9 +675,15 @@ export default function AdminRevenuePage() {
                       <span className="font-mono text-[11.5px] text-slate-500">{tx.reference}</span>
                     </td>
                     <td className="py-3.5 px-5">
-                      <p className="text-[13px] font-semibold text-slate-900">{koboToNaira(tx.amount_kobo)}</p>
-                      {tx.amount_paid_kobo < tx.amount_kobo && (
-                        <p className="text-[11px] text-amber-600">{koboToNaira(tx.amount_paid_kobo)} paid so far</p>
+                      <p className="text-[13px] font-semibold text-slate-900">
+                        {koboToNaira(tx.amount_paid_kobo > 0 ? tx.amount_paid_kobo : tx.amount_kobo)}
+                      </p>
+                      {tx.status === "partial" || (tx.amount_paid_kobo > 0 && tx.amount_paid_kobo < tx.amount_kobo) ? (
+                        <p className="text-[11px] text-amber-600 font-medium">
+                          of {koboToNaira(tx.amount_kobo)} (partial)
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-slate-400">Full payment</p>
                       )}
                     </td>
                     <td className="py-3.5 px-5">

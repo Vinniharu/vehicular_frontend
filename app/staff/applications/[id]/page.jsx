@@ -625,7 +625,7 @@ export default function StaffApplicationDetailsPage() {
           {!application.assigned_staff && (
             <button onClick={handleClaim} disabled={claiming} className={btnPrimary} style={{ background: BRAND }}>
               {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-              {claiming ? "Accepting…" : "Accept this application"}
+              {claiming ? "Claiming…" : "Claim this application"}
             </button>
           )}
 

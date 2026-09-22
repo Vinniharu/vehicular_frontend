@@ -184,7 +184,7 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <StatCard label="Total Inflow" value={overview ? koboToNaira(overview.gross_payments_kobo) : "—"} sub="Gross successful payments" icon={TrendingUp} />
+              <StatCard label="Total Inflow" value={overview ? koboToNaira(overview.gross_payments_kobo) : "—"} sub="Gross collected payments" icon={TrendingUp} />
               <StatCard label="Platform Profit" value={overview ? koboToNaira(overview.platform_profit_kobo) : "—"} sub="Kept by Vehiculars" icon={Landmark} />
               <StatCard
                 label="Agent Service Fees"

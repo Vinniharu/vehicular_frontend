@@ -101,6 +101,7 @@ export default function AdminApplicationsPage() {
 
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
   const [sendingFastTrack, setSendingFastTrack] = useState(false);
@@ -204,6 +205,7 @@ export default function AdminApplicationsPage() {
       page_size: pageSize,
       status: statusFilter || undefined,
       application_type: typeFilter || undefined,
+      payment_status: paymentStatusFilter || undefined,
       sort: sortBy,
       is_urgent_only: isUrgentOnly ? true : undefined,
     });
@@ -221,7 +223,7 @@ export default function AdminApplicationsPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, typeFilter, sortBy, isUrgentOnly]);
+  }, [page, statusFilter, typeFilter, paymentStatusFilter, sortBy, isUrgentOnly]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -379,13 +381,27 @@ export default function AdminApplicationsPage() {
           <option value="fresh">Fresh</option>
           <option value="renewal">Renewal</option>
           <option value="reissue">Reissue</option>
+          <option value="international_permit">International Permit</option>
           <option value="tinted_permit">Tinted Permit</option>
+          <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
+          <option value="roadworthiness_express">Roadworthiness Express</option>
+          <option value="vehicle_particulars">Vehicle Particulars</option>
+          <option value="physical_condition_inspection">Physical Condition Inspection</option>
           <option value="number_plate_new">Number Plate — New</option>
           <option value="number_plate_replacement">Number Plate — Replacement</option>
           <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
           <option value="number_plate_fancy">Number Plate — Fancy</option>
           <option value="number_plate_dealership">Number Plate — Dealership</option>
-          <option value="physical_condition_inspection">Physical Condition Inspection</option>
+        </select>
+        <select
+          value={paymentStatusFilter}
+          onChange={(e) => { setPaymentStatusFilter(e.target.value); setPage(1); }}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+        >
+          <option value="">All payments</option>
+          <option value="paid">Paid fee</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partial">Partially paid</option>
         </select>
         <select
           value={statusFilter}

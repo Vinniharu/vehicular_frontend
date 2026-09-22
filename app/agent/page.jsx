@@ -18,7 +18,16 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { getAgentOffers, acceptOffer, declineOffer, getAgentWallet, getAgentApplications, authGetMe } from "@/lib/api";
+import {
+  getAgentOffers,
+  acceptOffer,
+  declineOffer,
+  getAgentWallet,
+  getAgentApplications,
+  getAgentParticularsOffers,
+  getAgentParticularsItems,
+  authGetMe,
+} from "@/lib/api";
 
 const NEEDS_ACTION_STATUSES = ["agent_accepted", "captured", "capturing_completed", "temp_licence_pending_review"];
 // Mirrors AGENT_ACTIVE_JOB_STATUSES in app/routers/agent.py — statuses where
@@ -54,6 +63,8 @@ const btnSecondary =
 
 export default function AgentOffersPage() {
   const [offers, setOffers] = useState([]);
+  const [particularsOffers, setParticularsOffers] = useState([]);
+  const [particularsItems, setParticularsItems] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [applications, setApplications] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
@@ -66,23 +77,30 @@ export default function AgentOffersPage() {
   const loadOffers = async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
-    const [offersRes, walletRes, appsRes, meRes] = await Promise.all([
+    const [offersRes, walletRes, appsRes, meRes, partOffersRes, partItemsRes] = await Promise.all([
       getAgentOffers(), 
       getAgentWallet(), 
       getAgentApplications(),
-      authGetMe()
+      authGetMe(),
+      getAgentParticularsOffers(),
+      getAgentParticularsItems(),
     ]);
     if (offersRes.error) setError(offersRes.error);
     else if (Array.isArray(offersRes.data)) setOffers(offersRes.data);
     if (walletRes.data) setWallet(walletRes.data);
     if (Array.isArray(appsRes.data)) setApplications(appsRes.data);
     if (meRes.data) setUserProfile(meRes.data);
+    if (Array.isArray(partOffersRes?.data)) setParticularsOffers(partOffersRes.data);
+    if (Array.isArray(partItemsRes?.data)) setParticularsItems(partItemsRes.data);
     setLoading(false);
     setRefreshing(false);
   };
 
   const activeJobs = applications.filter((a) => ACTIVE_JOB_STATUSES.includes(a.status));
-  const atJobCap = activeJobs.length >= MAX_ACTIVE_JOBS;
+  const activeParticulars = particularsItems.filter((i) => ["agent_accepted", "agent_completed", "rejected"].includes(i.status));
+  const totalActiveJobsCount = activeJobs.length + activeParticulars.length;
+  const totalOffersCount = offers.length + particularsOffers.length;
+  const atJobCap = totalActiveJobsCount >= MAX_ACTIVE_JOBS;
   const needsAction = applications.filter((a) => NEEDS_ACTION_STATUSES.includes(a.status));
   const completedThisMonth = applications.filter((a) => a.status === "completed" && isThisMonth(a.updated_at));
 
@@ -163,7 +181,7 @@ export default function AgentOffersPage() {
             <Inbox className="h-4 w-4" />
             <span className="text-[11px] font-bold uppercase tracking-wide">Open offers</span>
           </div>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{loading ? "—" : offers.length}</p>
+          <p className="mt-1.5 text-2xl font-bold text-slate-900">{loading ? "—" : totalOffersCount}</p>
         </div>
         <div className={`rounded-2xl border p-4 shadow-sm ${atJobCap ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"}`}>
           <div className={`flex items-center gap-2 ${atJobCap ? "text-red-600" : "text-slate-400"}`}>
@@ -171,7 +189,7 @@ export default function AgentOffersPage() {
             <span className="text-[11px] font-bold uppercase tracking-wide">Active jobs</span>
           </div>
           <p className={`mt-1.5 text-2xl font-bold ${atJobCap ? "text-red-900" : "text-slate-900"}`}>
-            {loading ? "—" : `${activeJobs.length}/${MAX_ACTIVE_JOBS}`}
+            {loading ? "—" : `${totalActiveJobsCount}/${MAX_ACTIVE_JOBS}`}
           </p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
@@ -189,6 +207,31 @@ export default function AgentOffersPage() {
           <p className="mt-1.5 text-2xl font-bold text-emerald-900">{loading ? "—" : completedThisMonth.length}</p>
         </div>
       </div>
+
+      {particularsOffers.length > 0 && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-[#28A745] shrink-0">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-emerald-900">
+                {particularsOffers.length} Vehicle Particulars Offer{particularsOffers.length > 1 ? "s" : ""} Available
+              </h3>
+              <p className="text-[12.5px] text-emerald-700">
+                Document offers released to your state are ready for review and acceptance.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/agent/particulars"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all shadow-sm shrink-0"
+          >
+            <span>Review Particulars Offers</span>
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -218,7 +261,7 @@ export default function AgentOffersPage() {
       {atJobCap && (
         <div className="flex items-center gap-2.5 rounded-xl bg-red-50 p-3.5 text-[13px] text-red-700 ring-1 ring-inset ring-red-200 font-medium">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          You have {activeJobs.length} active jobs — the maximum is {MAX_ACTIVE_JOBS}. Complete some before accepting new ones.
+          You have {totalActiveJobsCount} active jobs — the maximum is {MAX_ACTIVE_JOBS}. Complete some before accepting new ones.
         </div>
       )}
 

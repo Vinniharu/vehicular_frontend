@@ -158,7 +158,17 @@ export default function SupportApplicationsPage() {
           <option value="fresh">Fresh</option>
           <option value="renewal">Renewal</option>
           <option value="reissue">Reissue</option>
+          <option value="international_permit">International Permit</option>
           <option value="tinted_permit">Tinted Permit</option>
+          <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
+          <option value="roadworthiness_express">Roadworthiness Express</option>
+          <option value="vehicle_particulars">Vehicle Particulars</option>
+          <option value="physical_condition_inspection">Physical Condition Inspection</option>
+          <option value="number_plate_new">Number Plate — New</option>
+          <option value="number_plate_replacement">Number Plate — Replacement</option>
+          <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
+          <option value="number_plate_fancy">Number Plate — Fancy</option>
+          <option value="number_plate_dealership">Number Plate — Dealership</option>
         </select>
         <select
           value={statusFilter}
