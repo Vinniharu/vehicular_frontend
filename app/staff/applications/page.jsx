@@ -15,6 +15,7 @@ import {
   UserCheck,
   Timer,
   Zap,
+  GraduationCap,
 } from "lucide-react";
 import { getStaffQueue, staffClaimApplication, getCachedUser, koboToNaira } from "@/lib/api";
 
@@ -25,8 +26,8 @@ const STAFF_STATUS = {
   staff_review: { label: "Under verification", tone: "warning" },
   released_to_agents: { label: "Released to agents", tone: "success" },
   in_progress: { label: "Agents working", tone: "success" },
-  driving_school_enrolled: { label: "In driving school pool", tone: "purple" },
-  driving_school_graduation: { label: "Awaiting graduation certificate", tone: "purple" },
+  driving_school_enrolled: { label: "In driving school (Countdown active)", tone: "purple" },
+  driving_school_graduation: { label: "Driving school — Graduated (Awaiting cert)", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete — Ready to route", tone: "teal" },
   routed: { label: "Routed to field agent", tone: "success" },
   agent_assigned: { label: "Agent assigned", tone: "success" },
@@ -170,8 +171,9 @@ function StaffApplicationsQueueInner() {
       if (activeTab === "submitted") return app.status === "submitted";
       if (activeTab === "staff_review") return app.status === "staff_review";
       if (activeTab === "driving_school") return app.status === "driving_school_enrolled" || app.status === "driving_school_graduation";
-      if (activeTab === "graduation") return app.status === "driving_school_graduation";
-      if (activeTab === "graduated") return app.status === "driving_school_certificate_ready";
+      if (activeTab === "driving_school_countdown") return app.status === "driving_school_enrolled";
+      if (activeTab === "driving_school_graduation" || activeTab === "graduation") return app.status === "driving_school_graduation";
+      if (activeTab === "graduated" || activeTab === "driving_school_ready") return app.status === "driving_school_certificate_ready";
       if (activeTab === "action_needed") return app.status === "agent_completed";
       if (activeTab === "dispatch") return app.status === "awaiting_customer";
       if (activeTab === "flagged") return app.status === "staff_rejected" || app.status === "needs_correction";
@@ -181,15 +183,22 @@ function StaffApplicationsQueueInner() {
 
   // Counts for top tabs
   const counts = useMemo(() => {
+    const ds_countdown = applications.filter((a) => a.status === "driving_school_enrolled").length;
+    const ds_graduation = applications.filter((a) => a.status === "driving_school_graduation").length;
+    const ds_total = ds_countdown + ds_graduation;
+    const ds_ready = applications.filter((a) => a.status === "driving_school_certificate_ready").length;
+
     return {
       all: applications.length,
       unclaimed: applications.filter((a) => !a.staff_id).length,
       mine: applications.filter((a) => a.staff_id === currentUser?.id).length,
       submitted: applications.filter((a) => a.status === "submitted").length,
       staff_review: applications.filter((a) => a.status === "staff_review").length,
-      driving_school: applications.filter((a) => a.status === "driving_school_enrolled" || a.status === "driving_school_graduation").length,
-      graduation: applications.filter((a) => a.status === "driving_school_graduation").length,
-      graduated: applications.filter((a) => a.status === "driving_school_certificate_ready").length,
+      driving_school: ds_total,
+      driving_school_countdown: ds_countdown,
+      driving_school_graduation: ds_graduation,
+      graduation: ds_graduation,
+      graduated: ds_ready,
       action_needed: applications.filter((a) => a.status === "agent_completed").length,
       dispatch: applications.filter((a) => a.status === "awaiting_customer").length,
       flagged: applications.filter((a) => a.status === "staff_rejected" || a.status === "needs_correction").length,
@@ -253,17 +262,26 @@ function StaffApplicationsQueueInner() {
             onChange={(e) => setActiveTab(e.target.value)}
             className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-medium text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
           >
-            <option value="all">All Statuses ({counts.all})</option>
-            <option value="unclaimed">Unclaimed ({counts.unclaimed})</option>
-            <option value="mine">My Queue ({counts.mine})</option>
-            <option value="submitted">Awaiting Review ({counts.submitted})</option>
-            <option value="staff_review">Under Review ({counts.staff_review})</option>
-            <option value="driving_school">Driving School Mode ({counts.driving_school})</option>
-            <option value="graduation">Graduation — Awaiting Cert ({counts.graduation})</option>
-            <option value="graduated">Ready to Route ({counts.graduated})</option>
-            <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
-            <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
-            <option value="flagged">Flagged ({counts.flagged})</option>
+            <optgroup label="Queue Scope">
+              <option value="all">All Statuses ({counts.all})</option>
+              <option value="unclaimed">Unclaimed Pool ({counts.unclaimed})</option>
+              <option value="mine">My Claimed Queue ({counts.mine})</option>
+            </optgroup>
+            <optgroup label="Initial Verification">
+              <option value="submitted">Awaiting Review ({counts.submitted})</option>
+              <option value="staff_review">Under Review ({counts.staff_review})</option>
+            </optgroup>
+            <optgroup label="Driving School">
+              <option value="driving_school">All Driving School ({counts.driving_school})</option>
+              <option value="driving_school_countdown">↳ In Countdown ({counts.driving_school_countdown})</option>
+              <option value="driving_school_graduation">↳ Graduated / Awaiting Cert ({counts.driving_school_graduation})</option>
+              <option value="graduated">↳ School Complete — Ready to Route ({counts.graduated})</option>
+            </optgroup>
+            <optgroup label="Routing & Dispatch">
+              <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
+              <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
+              <option value="flagged">Flagged ({counts.flagged})</option>
+            </optgroup>
           </select>
 
           {/* Service Type Filter */}
@@ -323,6 +341,60 @@ function StaffApplicationsQueueInner() {
           </label>
         </div>
       </div>
+
+      {/* ─── Driving School Breakdown Sub-Filter Banner ─── */}
+      {["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation"].includes(activeTab) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-violet-50/80 border border-violet-200 p-3.5 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="rounded-lg bg-violet-600 p-2 text-white shadow-xs">
+              <GraduationCap className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-violet-950">Driving School Candidate Breakdown</p>
+              <p className="text-[11.5px] text-violet-700">
+                Quickly separate candidates actively in 26-day countdown vs candidates who graduated and await certification.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("driving_school")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "driving_school"
+                  ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-800"
+                  : "bg-white text-violet-800 border border-violet-200 hover:bg-violet-100/70"
+              }`}
+            >
+              All Driving School ({counts.driving_school})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("driving_school_countdown")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "driving_school_countdown"
+                  ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-800"
+                  : "bg-white text-violet-800 border border-violet-200 hover:bg-violet-100/70"
+              }`}
+            >
+              <Timer className="h-3.5 w-3.5" />
+              In Countdown ({counts.driving_school_countdown})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("driving_school_graduation")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                activeTab === "driving_school_graduation" || activeTab === "graduation"
+                  ? "bg-purple-700 text-white shadow-sm ring-1 ring-purple-800"
+                  : "bg-white text-purple-800 border border-purple-200 hover:bg-purple-100/70"
+              }`}
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              Graduated / Awaiting Cert ({counts.driving_school_graduation})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ─── Error Alert ─── */}
       {error && (

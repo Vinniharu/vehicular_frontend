@@ -40,6 +40,7 @@ const STATUS_TONE = {
   submitted: "bg-sky-50 text-sky-700 ring-sky-200",
   staff_review: "bg-amber-50 text-amber-700 ring-amber-200",
   driving_school_enrolled: "bg-violet-50 text-violet-700 ring-violet-200",
+  driving_school_graduation: "bg-purple-50 text-purple-700 ring-purple-200",
   driving_school_certificate_ready: "bg-teal-50 text-teal-700 ring-teal-200",
   routed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   agent_assigned: "bg-emerald-50 text-emerald-700 ring-emerald-200",

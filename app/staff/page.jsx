@@ -24,6 +24,7 @@ import {
   ListFilter,
   Timer,
   Flame,
+  GraduationCap,
 } from "lucide-react";
 import { getStaffQueue } from "@/lib/api";
 
@@ -32,7 +33,8 @@ const BRAND = "#28A745";
 const STAFF_STATUS = {
   submitted: { label: "Awaiting review", tone: "info" },
   staff_review: { label: "Under verification", tone: "warning" },
-  driving_school_enrolled: { label: "In driving school pool", tone: "purple" },
+  driving_school_enrolled: { label: "In driving school (Countdown active)", tone: "purple" },
+  driving_school_graduation: { label: "Driving school — Graduated (Awaiting cert)", tone: "purple" },
   driving_school_certificate_ready: { label: "School complete — Ready to route", tone: "teal" },
   routed: { label: "Routed to field agent", tone: "success" },
   agent_assigned: { label: "Agent assigned", tone: "success" },
@@ -125,7 +127,9 @@ export default function StaffStatsDashboardPage() {
     const total = applications.length;
     const submitted = applications.filter((a) => a.status === "submitted").length;
     const staff_review = applications.filter((a) => a.status === "staff_review").length;
-    const driving_school = applications.filter((a) => a.status === "driving_school_enrolled").length;
+    const driving_school_countdown = applications.filter((a) => a.status === "driving_school_enrolled").length;
+    const driving_school_graduation = applications.filter((a) => a.status === "driving_school_graduation").length;
+    const driving_school = driving_school_countdown + driving_school_graduation;
     const graduated = applications.filter((a) => a.status === "driving_school_certificate_ready").length;
     const routed = applications.filter((a) => a.status === "routed").length;
     const needsFinalReview = applications.filter((a) => a.status === "agent_completed").length;
@@ -139,6 +143,8 @@ export default function StaffStatsDashboardPage() {
       submitted,
       staff_review,
       driving_school,
+      driving_school_countdown,
+      driving_school_graduation,
       graduated,
       routed,
       needsFinalReview,
@@ -147,6 +153,8 @@ export default function StaffStatsDashboardPage() {
       pctSubmitted: calcPct(submitted),
       pctReview: calcPct(staff_review),
       pctDriving: calcPct(driving_school),
+      pctDrivingCountdown: calcPct(driving_school_countdown),
+      pctDrivingGraduation: calcPct(driving_school_graduation),
       pctGraduated: calcPct(graduated),
       pctRouted: calcPct(routed),
     };
@@ -155,7 +163,16 @@ export default function StaffStatsDashboardPage() {
   // Top recent applications requiring action
   const recentActionApps = useMemo(() => {
     return applications
-      .filter((a) => ["submitted", "staff_review", "driving_school_certificate_ready", "agent_completed", "awaiting_customer"].includes(a.status))
+      .filter((a) =>
+        [
+          "submitted",
+          "staff_review",
+          "driving_school_graduation",
+          "driving_school_certificate_ready",
+          "agent_completed",
+          "awaiting_customer",
+        ].includes(a.status)
+      )
       .slice(0, 6);
   }, [applications]);
 
@@ -233,18 +250,33 @@ export default function StaffStatsDashboardPage() {
             <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.staff_review}</span>
           </Link>
           <Link
-            href="/staff/applications"
-            className="group rounded-xl border border-violet-200 bg-violet-50/60 p-4 hover:border-violet-400 hover:bg-white transition-all shadow-sm"
+            href="/staff/applications?tab=driving_school"
+            className="group rounded-xl border border-violet-200 bg-violet-50/60 p-4 hover:border-violet-400 hover:bg-white transition-all shadow-sm flex flex-col justify-between"
           >
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-violet-700">Driving School</span>
-            <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.driving_school}</span>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-violet-700">Driving School</span>
+                <span className="text-[10px] font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">
+                  {counts.driving_school} Total
+                </span>
+              </div>
+              <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.driving_school}</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-violet-100 flex items-center justify-between text-[11px] font-medium text-slate-500">
+              <span className="text-violet-700 font-semibold">{counts.driving_school_countdown} countdown</span>
+              <span>•</span>
+              <span className="text-purple-700 font-semibold">{counts.driving_school_graduation} graduated</span>
+            </div>
           </Link>
           <Link
-            href="/staff/applications"
-            className="group rounded-xl border border-teal-200 bg-teal-50/60 p-4 hover:border-teal-400 hover:bg-white transition-all shadow-sm"
+            href="/staff/applications?tab=graduated"
+            className="group rounded-xl border border-teal-200 bg-teal-50/60 p-4 hover:border-teal-400 hover:bg-white transition-all shadow-sm flex flex-col justify-between"
           >
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-teal-700">Ready to Route</span>
-            <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.graduated}</span>
+            <div>
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-teal-700">Ready to Route</span>
+              <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.graduated}</span>
+            </div>
+            <span className="mt-2 pt-2 border-t border-teal-100 block text-[11px] text-teal-700 font-semibold">School complete</span>
           </Link>
           <Link
             href="/staff/applications"
@@ -310,16 +342,40 @@ export default function StaffStatsDashboardPage() {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
+            <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-3 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
                 <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-violet-500" />
-                  In Driving School Pool (Countdown Active)
+                  <span className="h-2 w-2 rounded-full bg-violet-600" />
+                  <strong className="text-violet-900">Driving School (All Under School)</strong>
                 </span>
-                <span>{counts.driving_school} ({counts.pctDriving}%)</span>
+                <span className="font-bold text-violet-900">{counts.driving_school} ({counts.pctDriving}%)</span>
               </div>
               <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-violet-500 rounded-full transition-all duration-500" style={{ width: `${counts.pctDriving}%` }} />
+                <div className="h-full bg-violet-600 rounded-full transition-all duration-500" style={{ width: `${counts.pctDriving}%` }} />
+              </div>
+
+              {/* Sub-breakdown separation */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-violet-100 text-xs">
+                <Link
+                  href="/staff/applications?tab=driving_school_countdown"
+                  className="flex items-center justify-between rounded-lg bg-white p-2 border border-violet-200 hover:border-violet-400 hover:shadow-xs transition-all"
+                >
+                  <span className="flex items-center gap-1.5 text-violet-800 font-medium">
+                    <Clock className="h-3.5 w-3.5 text-violet-500" />
+                    In Countdown:
+                  </span>
+                  <span className="font-bold text-violet-900">{counts.driving_school_countdown} ({counts.pctDrivingCountdown}%)</span>
+                </Link>
+                <Link
+                  href="/staff/applications?tab=driving_school_graduation"
+                  className="flex items-center justify-between rounded-lg bg-white p-2 border border-purple-200 hover:border-purple-400 hover:shadow-xs transition-all"
+                >
+                  <span className="flex items-center gap-1.5 text-purple-800 font-medium">
+                    <GraduationCap className="h-3.5 w-3.5 text-purple-500" />
+                    Graduated / Awaiting Cert:
+                  </span>
+                  <span className="font-bold text-purple-900">{counts.driving_school_graduation} ({counts.pctDrivingGraduation}%)</span>
+                </Link>
               </div>
             </div>
 
@@ -364,6 +420,26 @@ export default function StaffStatsDashboardPage() {
           </div>
 
           <div className="space-y-3">
+            {counts.driving_school_graduation > 0 && (
+              <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-4 flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-800">
+                    <GraduationCap className="h-4 w-4 text-purple-600" />
+                    Driving School Graduated — Needs Certificate ({counts.driving_school_graduation})
+                  </span>
+                  <p className="text-xs text-purple-700 leading-relaxed">
+                    These candidates have finished their 26-day driving school countdown. Upload their graduation certificates to advance them to routing.
+                  </p>
+                </div>
+                <Link
+                  href="/staff/applications?tab=driving_school_graduation"
+                  className="shrink-0 rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white hover:bg-purple-700 transition-all shadow-sm"
+                >
+                  Upload Cert
+                </Link>
+              </div>
+            )}
+
             <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800">
