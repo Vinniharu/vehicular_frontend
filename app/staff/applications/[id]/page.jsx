@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -523,8 +523,8 @@ export default function StaffApplicationDetailsPage() {
     application.applicant_details?.passport_photo ||
     application.documents?.find((d) => d.doc_type === "passport_photo")?.file_url;
 
-  const uniqueDocuments = useMemo(() => {
-    if (!application.documents) return [];
+  const uniqueDocuments = (() => {
+    if (!application?.documents) return [];
     const seen = new Set();
     const result = [];
     for (const doc of application.documents) {
@@ -535,7 +535,7 @@ export default function StaffApplicationDetailsPage() {
       }
     }
     return result;
-  }, [application.documents]);
+  })();
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-24">
