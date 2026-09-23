@@ -62,6 +62,7 @@ import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { statusMeta, StatusBadge } from "../../_status";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import AgentChatPanel from "@/app/components/design/AgentChatPanel";
+import ApplicationChatPanel from "@/app/components/dashboard/ApplicationChatPanel";
 
 const BRAND = "#28A745";
 
@@ -1591,13 +1592,21 @@ export default function AgentApplicationDetailPage() {
           ...(application.documents || []),
         ];
 
+        const seenDocs = new Set();
+        const uniqueAllDocs = allDocs.filter((d) => {
+          const key = `${d.doc_type}_${d.file_url || ""}`;
+          if (seenDocs.has(key)) return false;
+          seenDocs.add(key);
+          return true;
+        });
+
         return (
           <Section
-            title={`Customer Uploads & Documents (${allDocs.length})`}
+            title={`Customer Uploads & Documents (${uniqueAllDocs.length})`}
             icon={FileText}
             tone="white"
           >
-            {allDocs.length === 0 ? (
+            {uniqueAllDocs.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
                 <FileText className="mx-auto h-8 w-8 text-slate-300" />
                 <p className="mt-2 text-[13.5px] font-semibold text-slate-600">No documents uploaded</p>
@@ -1605,7 +1614,7 @@ export default function AgentApplicationDetailPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-                {allDocs.map((doc, idx) => {
+                {uniqueAllDocs.map((doc, idx) => {
                   const isImg = isImageFile(doc.file_url);
                   const meta = DOC_TYPE_META[doc.doc_type] || {
                     label: doc.doc_type?.replace(/_/g, " ") || "Document",
@@ -1707,6 +1716,13 @@ export default function AgentApplicationDetailPage() {
           </Section>
         );
       })()}
+
+      {/* Live Chat with Customer (Applicant) */}
+      <ApplicationChatPanel
+        applicationId={application.id}
+        myRole="agent"
+        title="Live Chat with Customer (Applicant)"
+      />
 
       {/* Support chat — no attachments, contact-info blocked both ways */}
       <AgentChatPanel

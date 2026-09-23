@@ -523,6 +523,20 @@ export default function StaffApplicationDetailsPage() {
     application.applicant_details?.passport_photo ||
     application.documents?.find((d) => d.doc_type === "passport_photo")?.file_url;
 
+  const uniqueDocuments = useMemo(() => {
+    if (!application.documents) return [];
+    const seen = new Set();
+    const result = [];
+    for (const doc of application.documents) {
+      const key = `${doc.doc_type}_${doc.file_url || ""}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(doc);
+      }
+    }
+    return result;
+  }, [application.documents]);
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-24">
       <DocumentPreviewModal 
@@ -1644,12 +1658,12 @@ export default function StaffApplicationDetailsPage() {
           )}
           {/* Documents */}
           <section id="documents" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Documents ({application.documents?.length || 0})</h2>
-            {!application.documents || application.documents.length === 0 ? (
+            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Documents ({uniqueDocuments.length})</h2>
+            {uniqueDocuments.length === 0 ? (
               <p className="py-3 text-[13px] text-slate-400">Nothing uploaded on this file yet.</p>
             ) : (
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-2">
-                {(application.documents || []).map((doc, idx) => (
+                {uniqueDocuments.map((doc, idx) => (
                   <div key={idx} className="flex items-center justify-between gap-4 p-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">

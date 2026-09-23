@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -54,6 +54,7 @@ import {
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import PaymentOptions, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PaymentOptions";
+import ApplicationChatPanel from "@/app/components/dashboard/ApplicationChatPanel";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
@@ -2021,6 +2022,20 @@ export default function CustomerApplicationDetailsPage() {
   const [acceptingUpgrade, setAcceptingUpgrade] = useState(false);
   const [decliningUpgrade, setDecliningUpgrade] = useState(false);
 
+  const uniqueDocuments = useMemo(() => {
+    if (!application?.documents) return [];
+    const seen = new Set();
+    const result = [];
+    for (const doc of application.documents) {
+      const key = `${doc.doc_type}_${doc.file_url || ""}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(doc);
+      }
+    }
+    return result;
+  }, [application?.documents]);
+
   const handleDownloadVvReport = async () => {
     if (!application) return;
     setDownloadingVvReport(true);
@@ -2942,6 +2957,15 @@ export default function CustomerApplicationDetailsPage() {
         </div>
       )}
 
+      {/* ── LIVE CHAT WITH FIELD AGENT ── */}
+      {application && (
+        <ApplicationChatPanel
+          applicationId={application.id}
+          myRole="customer"
+          title="Live Chat with Field Agent"
+        />
+      )}
+
       {/* ── YOUR DRIVER'S LICENCE ── */}
       {(application.temporary_licence || application.permanent_licence) && (
         <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
@@ -3366,14 +3390,14 @@ export default function CustomerApplicationDetailsPage() {
       <div className="space-y-5 rounded-2xl border border-[#E5E5E5] bg-white p-5">
         <h3 className="flex items-center gap-1.5 border-b border-slate-100 pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
           <FileText className="h-3.5 w-3.5" style={{ color: BRAND }} />
-          Documents ({application.documents?.length || 0})
+          Documents ({uniqueDocuments.length})
         </h3>
 
-        {!application.documents || application.documents.length === 0 ? (
+        {uniqueDocuments.length === 0 ? (
           <p className="text-[13px] text-slate-400">Nothing uploaded yet.</p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {application.documents.map((doc, idx) => (
+            {uniqueDocuments.map((doc, idx) => (
               <div key={idx} className="flex items-center justify-between gap-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
