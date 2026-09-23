@@ -61,6 +61,7 @@ const COMPENSATION_TYPE_OPTIONS = [
   { value: "proof_of_ownership", label: "Vehicle Particulars — Proof of Ownership" },
   { value: "insurance_third_party", label: "Vehicle Particulars — Third-Party Insurance" },
   { value: "hackney_permit", label: "Vehicle Particulars — Hackney Permit" },
+  { value: "central_motor_registry", label: "Central Motor Registry (ECMR)" },
 ];
 
 const DL_AND_OTHER_SERVICES = [
@@ -70,6 +71,7 @@ const DL_AND_OTHER_SERVICES = [
   { key: "international_permit", label: "International Driving Permit", desc: "International driving permit issuance" },
   { key: "tinted_permit", label: "Tinted Glass Permit", desc: "Police tinted glass permit verification & processing" },
   { key: "vehicle_particulars", label: "Vehicle Particulars (All Documents Bundle)", desc: "Fixed agent settlement when customer renews all documents together as a bundle" },
+  { key: "central_motor_registry", label: "Central Motor Registry (ECMR)", desc: "Nigeria Police Force electronic Central Motor Registry registration" },
 ];
 
 const PARTICULAR_DOC_TYPES = [
@@ -87,6 +89,10 @@ const NUMBER_PLATE_TYPES = [
   { key: "number_plate_change_of_ownership", label: "Change of Ownership", desc: "Plate transfer and vehicle reassignment" },
   { key: "number_plate_fancy", label: "Fancy / Custom Plate", desc: "Personalized custom plate number issuance" },
   { key: "number_plate_dealership", label: "Dealership Plate", desc: "Special commercial auto-dealer temporary plates" },
+];
+
+const ECMR_SERVICES = [
+  { key: "central_motor_registry", label: "Central Motor Registry (ECMR)", desc: "Electronic Central Motor Registry registration and verification certificate" },
 ];
 
 function koboToNaira(kobo) {
@@ -196,7 +202,7 @@ export default function AdminCompensationPage() {
           <Car className="w-4 h-4 text-[#28A745]" />
           Vehicle Type Settlement
           <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold bg-[#28A745]/10 text-[#28A745]">
-            10 Services
+            12 Services
           </span>
         </button>
 
@@ -414,9 +420,9 @@ function SyncUndisbursedModal({ onClose, showToast, onSuccess }) {
 // ── 2. Vehicle Type Settlement Section (Vehicle Particulars & Number Plates) ──
 function VehicleTypeCompensationSection({ showToast }) {
   const [loading, setLoading] = useState(true);
-  const [subFamily, setSubFamily] = useState("particulars"); // "particulars" | "plate"
+  const [subFamily, setSubFamily] = useState("particulars"); // "particulars" | "plate" | "ecmr"
   const [cellMap, setCellMap] = useState({}); // `${service_key}|${vehicle_category ?? ""}` -> kobo
-  const [expandedKeys, setExpandedKeys] = useState(new Set(["vehicle_licence", "number_plate_new"]));
+  const [expandedKeys, setExpandedKeys] = useState(new Set(["vehicle_licence", "number_plate_new", "central_motor_registry"]));
   const [editingServiceKey, setEditingServiceKey] = useState(null);
   const [draftValues, setDraftValues] = useState({});
   const [quickFillVal, setQuickFillVal] = useState("");
@@ -542,7 +548,12 @@ function VehicleTypeCompensationSection({ showToast }) {
     showToast("success", "Settlement rates updated for " + serviceKey);
   };
 
-  const activeServices = subFamily === "particulars" ? PARTICULAR_DOC_TYPES : NUMBER_PLATE_TYPES;
+  const activeServices =
+    subFamily === "particulars"
+      ? PARTICULAR_DOC_TYPES
+      : subFamily === "plate"
+      ? NUMBER_PLATE_TYPES
+      : ECMR_SERVICES;
 
   if (loading) {
     return (
@@ -585,6 +596,20 @@ function VehicleTypeCompensationSection({ showToast }) {
               5 Types
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSubFamily("ecmr")}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${
+              subFamily === "ecmr" ? "bg-[#28A745] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            Electronic CMR (ECMR)
+            <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-bold ${subFamily === "ecmr" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"}`}>
+              12 Categories
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-slate-500 px-3">
@@ -618,7 +643,7 @@ function VehicleTypeCompensationSection({ showToast }) {
               <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5 min-w-0">
                   <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-                    {subFamily === "particulars" ? <FileText className="h-5 w-5" /> : <Car className="h-5 w-5" />}
+                    {subFamily === "particulars" ? <FileText className="h-5 w-5" /> : subFamily === "plate" ? <Car className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -1046,8 +1071,8 @@ function PerAgentOverrideSection({ showToast, triggerGlobalRefresh }) {
 
   // Sub-tabs for selected agent
   const [agentTab, setAgentTab] = useState("vehicle_type"); // "vehicle_type" | "licence" | "fallback"
-  const [agentVehicleSubFamily, setAgentVehicleSubFamily] = useState("particulars"); // "particulars" | "plate"
-  const [expandedServices, setExpandedServices] = useState(new Set(["vehicle_licence", "number_plate_new"]));
+  const [agentVehicleSubFamily, setAgentVehicleSubFamily] = useState("particulars"); // "particulars" | "plate" | "ecmr"
+  const [expandedServices, setExpandedServices] = useState(new Set(["vehicle_licence", "number_plate_new", "central_motor_registry"]));
 
   // Editing state for vehicle type grid for this agent
   const [editingServiceKey, setEditingServiceKey] = useState(null);
@@ -1349,7 +1374,12 @@ function PerAgentOverrideSection({ showToast, triggerGlobalRefresh }) {
       a.agent_profile?.vio_office?.toLowerCase().includes(q)
   );
 
-  const activeServices = agentVehicleSubFamily === "particulars" ? PARTICULAR_DOC_TYPES : NUMBER_PLATE_TYPES;
+  const activeServices =
+    agentVehicleSubFamily === "particulars"
+      ? PARTICULAR_DOC_TYPES
+      : agentVehicleSubFamily === "plate"
+      ? NUMBER_PLATE_TYPES
+      : ECMR_SERVICES;
 
   return (
     <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
@@ -1521,7 +1551,7 @@ function PerAgentOverrideSection({ showToast, triggerGlobalRefresh }) {
                 >
                   <Car className="w-3.5 h-3.5" />
                   Vehicle Type Settlement
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-white/20">10 Services</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-white/20">12 Services</span>
                 </button>
 
                 <button
@@ -1533,7 +1563,7 @@ function PerAgentOverrideSection({ showToast, triggerGlobalRefresh }) {
                 >
                   <FileText className="w-3.5 h-3.5" />
                   Licence & Other Services
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-white/20">5 Types</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold bg-white/20">7 Types</span>
                 </button>
 
                 <button
@@ -1575,6 +1605,15 @@ function PerAgentOverrideSection({ showToast, triggerGlobalRefresh }) {
                       >
                         Plate Numbers (5 Types)
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setAgentVehicleSubFamily("ecmr")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                          agentVehicleSubFamily === "ecmr" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Central Motor Registry (ECMR)
+                      </button>
                     </div>
 
                     <div className="text-[11px] text-slate-500 px-2 flex items-center gap-3">
@@ -1606,7 +1645,7 @@ function PerAgentOverrideSection({ showToast, triggerGlobalRefresh }) {
                           <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="w-8 h-8 rounded-lg bg-[#28A745]/10 text-[#28A745] flex items-center justify-center shrink-0">
-                                {agentVehicleSubFamily === "particulars" ? <FileText className="w-4 h-4" /> : <Car className="w-4 h-4" />}
+                                {agentVehicleSubFamily === "particulars" ? <FileText className="w-4 h-4" /> : agentVehicleSubFamily === "plate" ? <Car className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
