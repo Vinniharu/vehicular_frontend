@@ -18,12 +18,18 @@ import { StatusBadge } from "../_status";
 
 const TAB_FILTERS = {
   all: () => true,
-  needs_capture: (app) => ["agent_accepted", "capture_scheduled", "capturing_scheduled"].includes(app.status) && app.application_type !== "vehicle_particulars",
+  needs_capture: (app) => app.application_type === "fresh" && ["agent_accepted", "agent_assigned", "capture_scheduled", "capturing_scheduled"].includes(app.status),
   awaiting_upload: (app) => {
     if (app.application_type === "vehicle_particulars") {
-      return ["agent_accepted", "in_progress", "needs_correction"].includes(app.status) || (app.items && app.items.some((i) => ["agent_accepted", "rejected"].includes(i.status)));
+      return (
+        ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction", "released_to_agents"].includes(app.status) ||
+        (app.items && app.items.some((i) => ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status)))
+      );
     }
-    return ["captured", "capturing_completed", "temp_licence_pending_review", "temp_licence_issued", "needs_correction", "agent_accepted"].includes(app.status);
+    if (app.application_type === "fresh") {
+      return ["captured", "capturing_completed", "temp_licence_pending_review", "temp_licence_issued", "needs_correction"].includes(app.status);
+    }
+    return ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction", "captured", "capturing_completed"].includes(app.status);
   },
   ready_for_pickup: (app) => ["agent_completed", "staff_final_review", "ready_for_pickup"].includes(app.status),
   completed: (app) => ["completed", "awaiting_customer"].includes(app.status),

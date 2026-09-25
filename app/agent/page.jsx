@@ -29,16 +29,57 @@ import {
   authGetMe,
 } from "@/lib/api";
 
-const NEEDS_ACTION_STATUSES = ["agent_accepted", "captured", "capturing_completed", "temp_licence_pending_review"];
-// Mirrors AGENT_ACTIVE_JOB_STATUSES in app/routers/agent.py — statuses where
-// the agent still owes active work. Excludes ready_for_pickup/
-// awaiting_customer/agent_completed/staff_final_review since the agent's own
-// part is already done on those, so they don't count toward the job cap.
-const ACTIVE_JOB_STATUSES = [
-  "agent_accepted", "capture_scheduled", "capturing_scheduled", "captured",
+export const ACTIVE_JOB_STATUSES = [
+  "agent_accepted", "agent_assigned", "in_progress", "in_process",
+  "capture_scheduled", "capturing_scheduled", "captured",
   "capturing_completed", "temp_licence_pending_review", "temp_licence_issued",
-  "needs_correction", "in_process",
+  "needs_correction",
 ];
+
+export function isApplicationActive(app) {
+  if (!app) return false;
+  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer"].includes(app.status)) {
+    return false;
+  }
+  if (app.application_type === "vehicle_particulars") {
+    const items = app.items || [];
+    if (items.length > 0) {
+      const hasPendingOrRejectedItems = items.some((it) =>
+        ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence", "in_progress"].includes(it.status)
+      );
+      if (hasPendingOrRejectedItems) return true;
+      const allDone = items.every((it) => ["agent_completed", "approved"].includes(it.status));
+      if (allDone) return false;
+    }
+    return ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction", "released_to_agents"].includes(app.status);
+  }
+
+  if (app.status === "agent_completed" || app.status === "staff_final_review") {
+    const isDocRejected = (app.documents || []).some((d) => d.status === "rejected");
+    if (isDocRejected || app.status === "needs_correction") return true;
+    return false;
+  }
+
+  return ACTIVE_JOB_STATUSES.includes(app.status);
+}
+
+export function doesApplicationNeedAction(app) {
+  if (!isApplicationActive(app)) return false;
+  if (app.application_type === "vehicle_particulars") {
+    const items = app.items || [];
+    return items.some((it) => ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence", "in_progress"].includes(it.status));
+  }
+  return [
+    "agent_accepted",
+    "agent_assigned",
+    "in_progress",
+    "in_process",
+    "captured",
+    "capturing_completed",
+    "temp_licence_pending_review",
+    "needs_correction",
+  ].includes(app.status);
+}
 const MAX_ACTIVE_JOBS = 10;
 
 function isThisMonth(iso) {
@@ -90,11 +131,11 @@ export default function AgentOffersPage() {
     setRefreshing(false);
   };
 
-  const activeJobs = applications.filter((a) => ACTIVE_JOB_STATUSES.includes(a.status));
+  const activeJobs = applications.filter(isApplicationActive);
   const totalActiveJobsCount = activeJobs.length;
   const totalOffersCount = offers.length;
   const atJobCap = totalActiveJobsCount >= MAX_ACTIVE_JOBS;
-  const needsAction = applications.filter((a) => NEEDS_ACTION_STATUSES.includes(a.status));
+  const needsAction = applications.filter(doesApplicationNeedAction);
   const completedThisMonth = applications.filter((a) => a.status === "completed" && isThisMonth(a.updated_at));
 
   useEffect(() => {

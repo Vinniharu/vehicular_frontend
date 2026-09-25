@@ -1651,8 +1651,8 @@ export default function AgentApplicationDetailPage() {
   const canUploadProof = !isPermanentLicenceApproved && (
     ["captured", "capturing_completed"].includes(application.status)
     || (isFreshApp && ["temp_licence_pending_review", "temp_licence_issued"].includes(application.status))
-    || (isRenewalOrReissue && ["agent_accepted", "agent_assigned", "needs_correction"].includes(application.status))
-    || ((isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned", "needs_correction"].includes(application.status))
+    || (isRenewalOrReissue && ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction"].includes(application.status))
+    || ((isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction"].includes(application.status))
     || (application.status === "needs_correction")
     || isPermanentLicenceRejected
   );

@@ -8,6 +8,8 @@
 export const AGENT_STATUS = {
   agent_assigned: { label: "Assigned", tone: "info" },
   agent_accepted: { label: "Accepted — schedule capture", tone: "warning" },
+  in_progress: { label: "In progress — upload documents", tone: "warning" },
+  in_process: { label: "In progress — upload documents", tone: "warning" },
   capture_scheduled: { label: "Capture scheduled", tone: "indigo" },
   capturing_scheduled: { label: "Capture scheduled", tone: "indigo" },
   captured: { label: "Captured — upload proof", tone: "teal" },
@@ -46,15 +48,18 @@ export const TONE_DOT = {
 export function statusMeta(status, appType = "") {
   const normalizedType = (appType || "").toLowerCase();
   // Biometric capture is a fresh-only concept — every other type (renewal,
-  // reissue, international_permit, tinted_permit, number_plate_*) skips
-  // straight to proof upload after acceptance, so the base "schedule
-  // capture" label from AGENT_STATUS only applies to fresh. Gated positively
-  // on "not fresh" (not on a hardcoded renewal-family list) so this covers
-  // every non-fresh type, including tinted_permit/number_plate_*.
+  // reissue, international_permit, tinted_permit, number_plate_*, particulars)
+  // skips straight to proof upload after acceptance, so the base "schedule
+  // capture" label from AGENT_STATUS only applies to fresh.
   const isNotFresh = normalizedType !== "fresh";
   const meta = { ...(AGENT_STATUS[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" }) };
 
-  if (isNotFresh && status === "agent_accepted") {
+  if (normalizedType === "vehicle_particulars") {
+    if (["in_progress", "agent_accepted", "agent_assigned"].includes(status)) {
+      meta.label = "In progress — upload documents";
+      meta.tone = "warning";
+    }
+  } else if (isNotFresh && (status === "agent_accepted" || status === "agent_assigned")) {
     meta.label = normalizedType === "international_permit" ? "Accepted — upload document" : "Accepted — upload proof";
   }
 
