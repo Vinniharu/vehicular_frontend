@@ -296,7 +296,9 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const canEdit = application.status === "agent_accepted";
+  const isEvidenceApproved = existingEvidence?.status === "approved" || application.status === "completed";
+  const isEvidenceRejected = existingEvidence?.status === "rejected" || application.status === "needs_correction";
+  const canEdit = !isEvidenceApproved && (["agent_accepted", "needs_correction"].includes(application.status) || isEvidenceRejected);
 
   const handleEvidenceUpload = async (file) => {
     if (!file) return;
@@ -377,6 +379,33 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
         )}
       </div>
 
+      {isEvidenceRejected && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-[13px] text-red-800 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-red-100 p-2 text-red-700 ring-1 ring-red-200">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <strong className="text-[14px] font-bold text-red-900">Revision Required: Staff Rejected Verification</strong>
+                <span className="rounded-full bg-red-200/80 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-red-800">
+                  Revision
+                </span>
+              </div>
+              <p className="text-[12.5px] text-red-700">
+                Staff reviewed this verification checklist and requested a revision. Please re-check the vehicle records, upload revised evidence, and resubmit.
+              </p>
+              {(existingEvidence?.review_note || application.review_note) && (
+                <div className="mt-2 rounded-xl border border-red-200 bg-white/80 p-2.5">
+                  <span className="block text-[10.5px] font-bold uppercase tracking-wide text-red-800">Staff Note:</span>
+                  <p className="mt-0.5 font-mono text-[12.5px] text-red-900 whitespace-pre-wrap">{existingEvidence?.review_note || application.review_note}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Section title="Vehicle Verification" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="Check type" value={detail.check_type?.replace(/_/g, " ")} capitalize />
@@ -399,7 +428,7 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
 
       {!canEdit && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-800">
-          {application.status === "agent_completed" ? "Checklist already submitted — awaiting staff confirmation." : `This job is at status "${application.status}" and can't be edited here.`}
+          {application.status === "agent_completed" ? "Checklist already submitted — awaiting staff confirmation." : isEvidenceApproved ? "Verification approved by staff — this job is completed and locked." : `This job is at status "${application.status}" and can't be edited here.`}
         </div>
       )}
 
@@ -407,10 +436,30 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
         <p className="mb-3 text-[12.5px] text-slate-500">
           {isCustomsDuty ? "Attach a screenshot/photo of your customs records verification." : "Attach a screenshot/photo of your registry check."}
         </p>
-        {evidenceUrl ? (
-          <button type="button" onClick={() => onViewDoc(resolveMediaUrl(evidenceUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
-            <ImageIcon className="h-3.5 w-3.5" /> Evidence attached — view
-          </button>
+        {isEvidenceApproved ? (
+          <div className="space-y-2">
+            {evidenceUrl && (
+              <button type="button" onClick={() => onViewDoc(resolveMediaUrl(evidenceUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
+                <ImageIcon className="h-3.5 w-3.5" /> Evidence attached — view
+              </button>
+            )}
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11.5px] font-semibold text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Approved by staff (Locked)
+            </div>
+          </div>
+        ) : evidenceUrl ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => onViewDoc(resolveMediaUrl(evidenceUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
+              <ImageIcon className="h-3.5 w-3.5" /> Evidence attached — view
+            </button>
+            {canEdit && (
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50">
+                {uploadingEvidence ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {uploadingEvidence ? "Uploading revision…" : isEvidenceRejected ? "Re-upload evidence (Revision)" : "Replace evidence"}
+                <input type="file" accept="image/*,application/pdf" disabled={uploadingEvidence} onChange={(e) => handleEvidenceUpload(e.target.files?.[0])} className="hidden" />
+              </label>
+            )}
+          </div>
         ) : canEdit ? (
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
             {uploadingEvidence ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -466,7 +515,7 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
       {canEdit && (
         <button type="button" onClick={handleSubmit} disabled={submitting} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {submitting ? "Submitting…" : "Submit checklist"}
+          {submitting ? "Submitting…" : isEvidenceRejected ? "Resubmit Verification Checklist (Revision)" : "Submit checklist"}
         </button>
       )}
     </div>
@@ -486,7 +535,9 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const canEdit = application.status === "agent_accepted";
+  const isDocApproved = existingDoc?.status === "approved" || application.status === "completed";
+  const isDocRejected = existingDoc?.status === "rejected" || application.status === "needs_correction";
+  const canEdit = !isDocApproved && (["agent_accepted", "needs_correction"].includes(application.status) || isDocRejected);
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -543,6 +594,33 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
         )}
       </div>
 
+      {isDocRejected && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-[13px] text-red-800 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-red-100 p-2 text-red-700 ring-1 ring-red-200">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <strong className="text-[14px] font-bold text-red-900">Revision Required: Staff Rejected ECMR Certificate</strong>
+                <span className="rounded-full bg-red-200/80 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-red-800">
+                  Revision
+                </span>
+              </div>
+              <p className="text-[12.5px] text-red-700">
+                Staff reviewed this completion document and requested a revision. Please re-upload a clear, valid certificate below and resubmit.
+              </p>
+              {(existingDoc?.review_note || application.review_note) && (
+                <div className="mt-2 rounded-xl border border-red-200 bg-white/80 p-2.5">
+                  <span className="block text-[10.5px] font-bold uppercase tracking-wide text-red-800">Staff Note:</span>
+                  <p className="mt-0.5 font-mono text-[12.5px] text-red-900 whitespace-pre-wrap">{existingDoc?.review_note || application.review_note}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Section title="ECMR" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="Vehicle ID" value={application.vehicle_id} mono />
@@ -558,7 +636,7 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
 
       {!canEdit && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-800">
-          {application.status === "agent_completed" ? "Completion document already submitted — awaiting staff confirmation." : `This job is at status "${application.status}" and can't be edited here.`}
+          {application.status === "agent_completed" ? "Completion document already submitted — awaiting staff confirmation." : isDocApproved ? "ECMR certificate approved by staff — this job is completed and locked." : `This job is at status "${application.status}" and can't be edited here.`}
         </div>
       )}
 
@@ -566,10 +644,32 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
         <p className="mb-3 text-[12.5px] text-slate-500">
           Attach the registry document that confirms this vehicle's ECMR entry.
         </p>
-        {fileUrl ? (
-          <button type="button" onClick={() => onViewDoc(resolveMediaUrl(fileUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
-            <ImageIcon className="h-3.5 w-3.5" /> Document attached — view
-          </button>
+        {isDocApproved ? (
+          <div className="space-y-2">
+            {fileUrl && (
+              <button type="button" onClick={() => onViewDoc(resolveMediaUrl(fileUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
+                <ImageIcon className="h-3.5 w-3.5" /> Document attached — view
+              </button>
+            )}
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11.5px] font-semibold text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Approved by staff (Locked)
+            </div>
+          </div>
+        ) : fileUrl ? (
+          <div className="space-y-2">
+            <button type="button" onClick={() => onViewDoc(resolveMediaUrl(fileUrl))} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
+              <ImageIcon className="h-3.5 w-3.5" /> Document attached — view
+            </button>
+            {canEdit && (
+              <div>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {uploading ? "Uploading revision…" : isDocRejected ? "Re-upload ECMR Certificate (Revision)" : "Replace document"}
+                  <input type="file" accept="image/*,application/pdf" disabled={uploading} onChange={(e) => handleUpload(e.target.files?.[0])} className="hidden" />
+                </label>
+              </div>
+            )}
+          </div>
         ) : canEdit ? (
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
@@ -579,12 +679,6 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
         ) : (
           <p className="text-[12.5px] text-slate-400">No document attached.</p>
         )}
-        {fileUrl && canEdit && (
-          <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:underline">
-            {uploading ? "Uploading…" : "Replace document"}
-            <input type="file" accept="image/*,application/pdf" disabled={uploading} onChange={(e) => handleUpload(e.target.files?.[0])} className="hidden" />
-          </label>
-        )}
       </Section>
 
       {error && <p className="text-[13px] font-medium text-red-600">{error}</p>}
@@ -592,7 +686,7 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
       {canEdit && (
         <button type="button" onClick={handleSubmit} disabled={submitting} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {submitting ? "Submitting…" : "Submit completion document"}
+          {submitting ? "Submitting…" : isDocRejected ? "Re-upload ECMR Certificate & Submit (Revision)" : "Submit completion document"}
         </button>
       )}
     </div>
@@ -664,6 +758,35 @@ export default function AgentApplicationDetailPage() {
   const [markCapturedLoading, setMarkCapturedLoading] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [downloadingBiodataPdf, setDownloadingBiodataPdf] = useState(false);
+  const [uploadingDocType, setUploadingDocType] = useState(null);
+
+  const handleReuploadDocument = async (docType, file) => {
+    if (!file || !application) return;
+    setNotice(null);
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setNotice({ type: "error", message: validation.error });
+      return;
+    }
+    setUploadingDocType(docType);
+    const uploaded = await uploadApplicationFile(file);
+    if (uploaded.error || !uploaded.data?.file_url) {
+      setUploadingDocType(null);
+      setNotice({ type: "error", message: uploaded.error || "Upload failed. Please try again." });
+      return;
+    }
+    const res = await addApplicationDocument(application.id, {
+      doc_type: docType,
+      file_url: uploaded.data.file_url,
+    });
+    setUploadingDocType(null);
+    if (res.error) {
+      setNotice({ type: "error", message: res.error });
+      return;
+    }
+    setNotice({ type: "success", message: "Revised document uploaded successfully. Awaiting staff review." });
+    await loadDetail(true);
+  };
 
   const handleDownloadBiodataPdf = async () => {
     if (!application) return;
@@ -983,6 +1106,24 @@ export default function AgentApplicationDetailPage() {
   const hasMinimumPayment = isPaid || !!application?.payment_options?.has_minimum_payment || ((application?.payment_options?.amount_paid_kobo || 0) >= 1000000);
   const isRenewalOrReissue = ["renewal", "reissue", "international_permit"].includes(application.application_type);
   const isFreshApp = application.application_type === "fresh";
+
+  const isPermanentLicenceRejected = application.permanent_licence?.review_status === "rejected" ||
+    (application.documents || []).some((d) => (d.doc_type === "permanent_driver_licence" || d.doc_type?.startsWith("proof_") || d.doc_type === "central_registry_certificate" || d.doc_type === "registration_history_evidence" || d.doc_type === "customs_duty_evidence") && d.status === "rejected");
+
+  const isTempLicenceRejected = application.temporary_licence?.review_status === "rejected" ||
+    (application.documents || []).some((d) => d.doc_type === "temporary_driver_licence" && d.status === "rejected");
+
+  const isPermanentLicenceApproved = application.permanent_licence?.review_status === "approved" ||
+    application.status === "completed" ||
+    (application.documents || []).some((d) => (d.doc_type === "permanent_driver_licence" || d.doc_type?.startsWith("proof_")) && d.status === "approved");
+
+  const isTempLicenceApproved = application.temporary_licence?.review_status === "approved" ||
+    (application.documents || []).some((d) => d.doc_type === "temporary_driver_licence" && d.status === "approved");
+
+  const rejectedDocs = (application.documents || []).filter((d) => d.status === "rejected");
+  const isRevisionRequired = application.status === "needs_correction" || isPermanentLicenceRejected || isTempLicenceRejected || rejectedDocs.length > 0;
+  const staffRejectionNote = application.review_note || rejectedDocs[0]?.review_note || "";
+
   // Biometric capture is a fresh-only concept — renewal/reissue's state
   // machine has no capture_scheduled/captured leg at all (confirmed against
   // RENEWAL_REISSUE_TRANSITIONS: agent_accepted has no legal transition to
@@ -995,7 +1136,9 @@ export default function AgentApplicationDetailPage() {
   // Optional step for fresh apps only: issue the interim temp licence any
   // time right after capture. Skippable — the permanent-card upload stays
   // reachable below regardless of whether this happens.
-  const canIssueTempLicence = isFreshApp && ["captured", "capturing_completed"].includes(application.status);
+  const canIssueTempLicence = isFreshApp && !isTempLicenceApproved && (
+    ["captured", "capturing_completed"].includes(application.status) || isTempLicenceRejected
+  );
   // Fresh must go through capture first (the temp-licence detour is
   // optional, so this stays reachable through its pending/issued states
   // too); renewal/reissue can go straight from acceptance (or after a
@@ -1009,10 +1152,14 @@ export default function AgentApplicationDetailPage() {
   // tinted_permit and number_plate_* have no biometric-capture leg at all —
   // proof (interim progress evidence, then the finished document/plate) is
   // reachable straight from acceptance, same shape as renewal/reissue.
-  const canUploadProof = ["captured", "capturing_completed"].includes(application.status)
+  const canUploadProof = !isPermanentLicenceApproved && (
+    ["captured", "capturing_completed"].includes(application.status)
     || (isFreshApp && ["temp_licence_pending_review", "temp_licence_issued"].includes(application.status))
-    || (isRenewalOrReissue && ["agent_accepted", "agent_assigned"].includes(application.status))
-    || ((isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status));
+    || (isRenewalOrReissue && ["agent_accepted", "agent_assigned", "needs_correction"].includes(application.status))
+    || ((isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned", "needs_correction"].includes(application.status))
+    || (application.status === "needs_correction")
+    || isPermanentLicenceRejected
+  );
   const canFlagIssue = (isRenewalOrReissue || isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status);
   const canUploadProgressEvidence = (isTintedPermit || isNumberPlate) && ["agent_accepted", "agent_assigned"].includes(application.status);
 
@@ -1179,6 +1326,36 @@ export default function AgentApplicationDetailPage() {
         </div>
       )}
 
+      {/* Revision Required Alert Banner */}
+      {isRevisionRequired && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-red-100 p-2.5 text-red-700 ring-1 ring-red-200">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-[15px] font-bold text-red-900">
+                  Revision Required — Staff Rejected Submission
+                </h3>
+                <span className="rounded-full bg-red-200/80 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-red-800">
+                  Revision
+                </span>
+              </div>
+              <p className="text-[13px] text-red-700">
+                The staff reviewer has rejected one or more submitted documents / operations and requested a revision. Only rejected items may be revised and re-uploaded. Accepted items remain locked.
+              </p>
+              {staffRejectionNote && (
+                <div className="mt-2 rounded-xl border border-red-200 bg-white/80 p-3">
+                  <span className="block text-[11px] font-bold uppercase tracking-wide text-red-800">Staff Rejection Reason / Note:</span>
+                  <p className="mt-1 font-mono text-[13px] text-red-900 whitespace-pre-wrap">{staffRejectionNote}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Capture info */}
       {isFreshApp && (application.capture_centre_name || canReassign) && (
         <Section title="Capture appointment" icon={Building2} iconColor="#4f46e5" tone="indigo">
@@ -1213,8 +1390,8 @@ export default function AgentApplicationDetailPage() {
             </ActionButton>
           )}
           {canIssueTempLicence && (
-            <ActionButton variant="info" icon={FileText} onClick={() => openModal("issue-temp-licence")}>
-              Issue temporary licence
+            <ActionButton variant={isTempLicenceRejected ? "danger" : "info"} icon={FileText} onClick={() => openModal("issue-temp-licence")}>
+              {isTempLicenceRejected ? "Re-issue temporary licence (Revision)" : "Issue temporary licence"}
             </ActionButton>
           )}
           {isTintedPermit && (
@@ -1248,8 +1425,11 @@ export default function AgentApplicationDetailPage() {
             </>
           )}
           {canUploadProof && (
-            <ActionButton variant="accent" icon={Upload} onClick={() => openModal("upload-proof")}>
-              {isFreshApp ? "Upload permanent licence" : isTintedPermit ? "Upload the finished permit" : isNumberPlate ? "Upload the finished plate" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof")}
+            <ActionButton variant={isPermanentLicenceRejected || application.status === "needs_correction" ? "danger" : "accent"} icon={Upload} onClick={() => openModal("upload-proof")}>
+              {isPermanentLicenceRejected || application.status === "needs_correction"
+                ? (isFreshApp ? "Re-upload permanent licence (Revision)" : isTintedPermit ? "Re-upload finished permit (Revision)" : isNumberPlate ? "Re-upload finished plate (Revision)" : (application.application_type === "international_permit" ? "Re-upload International Permit Document (Revision)" : "Re-upload finished proof (Revision)"))
+                : (isFreshApp ? "Upload permanent licence" : isTintedPermit ? "Upload the finished permit" : isNumberPlate ? "Upload the finished plate" : (application.application_type === "international_permit" ? "Upload International Permit Document" : "Upload proof"))
+              }
             </ActionButton>
           )}
           {canFlagIssue && (
@@ -1689,6 +1869,12 @@ export default function AgentApplicationDetailPage() {
                             {new Date(doc.uploaded_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}
                           </p>
                         )}
+                        {doc.status === "rejected" && doc.review_note && (
+                          <div className="mt-2 rounded-lg border border-red-200 bg-red-50/80 p-2 text-[11.5px] text-red-700">
+                            <span className="font-semibold text-red-800">Staff Note: </span>
+                            {doc.review_note}
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
@@ -1708,6 +1894,38 @@ export default function AgentApplicationDetailPage() {
                           Open <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
+
+                      {/* Revision / Approved status action */}
+                      {doc.status === "approved" ? (
+                        <div className="mt-2.5 flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-1.5 text-[11px] font-semibold text-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Approved by staff (Locked)</span>
+                        </div>
+                      ) : doc.status === "rejected" ? (
+                        <label className="mt-2.5 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-[12px] font-semibold text-red-700 hover:bg-red-100 transition-colors">
+                          {uploadingDocType === doc.doc_type ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <span>Uploading revision…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-3.5 w-3.5" />
+                              <span>Re-upload document (Revision)</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            disabled={uploadingDocType === doc.doc_type}
+                            onChange={(e) => {
+                              handleReuploadDocument(doc.doc_type, e.target.files?.[0]);
+                              e.target.value = "";
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      ) : null}
                     </div>
                   );
                 })}

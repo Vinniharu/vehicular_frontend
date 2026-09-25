@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   XCircle,
   Camera,
@@ -169,7 +170,9 @@ export default function AgentRwxChecklistPage() {
   const itemsByKey = Object.fromEntries((application?.rwx_checklist_items || []).map((i) => [i.item_key, i]));
   const completedCount = CHECKLIST_ITEMS.filter((c) => itemsByKey[c.key]?.result && itemsByKey[c.key]?.evidence_url).length;
   const allComplete = completedCount === CHECKLIST_ITEMS.length;
-  const canEdit = application?.status === "agent_accepted";
+  const isNeedsCorrection = application?.status === "needs_correction";
+  const isApproved = application?.status === "completed";
+  const canEdit = !isApproved && ["agent_accepted", "needs_correction"].includes(application?.status);
 
   const handleSaveItem = async (itemKey, payload) => {
     const res = await submitRwxChecklistItem(appId, itemKey, payload);
@@ -216,6 +219,33 @@ export default function AgentRwxChecklistPage() {
       <button onClick={() => router.push("/agent/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
+
+      {isNeedsCorrection && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-[13px] text-red-800 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-red-100 p-2 text-red-700 ring-1 ring-red-200">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <strong className="text-[14px] font-bold text-red-900">Revision Required: Staff Rejected Inspection</strong>
+                <span className="rounded-full bg-red-200/80 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-red-800">
+                  Revision
+                </span>
+              </div>
+              <p className="text-[12.5px] text-red-700">
+                Staff reviewed this inspection and requested corrections. Please update the necessary checklist items and photos below, then resubmit.
+              </p>
+              {application.review_note && (
+                <div className="mt-2 rounded-xl border border-red-200 bg-white/80 p-2.5">
+                  <span className="block text-[10.5px] font-bold uppercase tracking-wide text-red-800">Staff Note:</span>
+                  <p className="mt-0.5 font-mono text-[12.5px] text-red-900 whitespace-pre-wrap">{application.review_note}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h1 className="text-[19px] font-bold tracking-tight text-slate-900">Roadworthiness inspection #{application.id}</h1>
@@ -272,7 +302,7 @@ export default function AgentRwxChecklistPage() {
             style={{ background: BRAND }}
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {submitting ? "Submitting…" : allComplete ? "Submit inspection" : `Complete all ${CHECKLIST_ITEMS.length} items to submit`}
+            {submitting ? "Submitting…" : isNeedsCorrection ? "Resubmit inspection (Revision)" : allComplete ? "Submit inspection" : `Complete all ${CHECKLIST_ITEMS.length} items to submit`}
           </button>
         </div>
       )}
