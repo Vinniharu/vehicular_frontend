@@ -62,8 +62,7 @@ import {
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { statusMeta, StatusBadge } from "../../_status";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
-import AgentChatPanel from "@/app/components/design/AgentChatPanel";
-import ApplicationChatPanel from "@/app/components/dashboard/ApplicationChatPanel";
+import AgentApplicationChatSection from "@/app/components/design/AgentApplicationChatSection";
 
 const BRAND = "#28A745";
 
@@ -519,6 +518,8 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
           {submitting ? "Submitting…" : isEvidenceRejected ? "Resubmit Verification Checklist (Revision)" : "Submit checklist"}
         </button>
       )}
+
+      <AgentApplicationChatSection application={application} />
     </div>
   );
 }
@@ -690,6 +691,8 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
           {submitting ? "Submitting…" : isDocRejected ? "Re-upload ECMR Certificate & Submit (Revision)" : "Submit completion document"}
         </button>
       )}
+
+      <AgentApplicationChatSection application={application} />
     </div>
   );
 }
@@ -712,7 +715,6 @@ function VehicleParticularsAgentDetail({
 
   const totalCompensation = items.reduce((acc, i) => acc + (i.agent_compensation_kobo || 0), 0);
 
-  const [activeChatTab, setActiveChatTab] = useState("customer"); // 'customer' | 'support'
   const [uploadingItemId, setUploadingItemId] = useState(null);
   const [expiryDates, setExpiryDates] = useState(() => {
     const map = {};
@@ -1130,43 +1132,7 @@ function VehicleParticularsAgentDetail({
       </div>
 
       {/* Live Communication Tabs (Customer & Staff Chat) */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveChatTab("customer")}
-              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                activeChatTab === "customer"
-                  ? "bg-[#28A745] text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              Chat with Customer
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveChatTab("support")}
-              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                activeChatTab === "support"
-                  ? "bg-[#28A745] text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              Chat with Vehiculars Support
-            </button>
-          </div>
-          <span className="text-xs text-slate-400 hidden sm:inline">
-            {activeChatTab === "customer" ? "Direct applicant messaging" : "Internal agent support line"}
-          </span>
-        </div>
-
-        {activeChatTab === "customer" ? (
-          <ApplicationChatPanel application={application} />
-        ) : (
-          <AgentChatPanel application={application} />
-        )}
-      </div>
+      <AgentApplicationChatSection application={application} />
     </div>
   );
 }
@@ -1336,9 +1302,6 @@ export default function AgentApplicationDetailPage() {
       router.replace(`/agent/rwx/${appId}`);
     }
   }, [application, appId, router]);
-
-  const loadChatThread = useCallback(() => getAgentSupportChat(appId), [appId]);
-  const sendChatMessage = useCallback((body) => sendAgentSupportChatMessage(appId, { body }), [appId]);
 
   const openModal = (type) => {
     setActionError(null);
@@ -2431,20 +2394,8 @@ export default function AgentApplicationDetailPage() {
         );
       })()}
 
-      {/* Live Chat with Customer (Applicant) */}
-      <ApplicationChatPanel
-        applicationId={application.id}
-        myRole="agent"
-        title="Live Chat with Customer (Applicant)"
-      />
-
-      {/* Support chat — no attachments, contact-info blocked both ways */}
-      <AgentChatPanel
-        myRole="agent"
-        headerLabel="Chat with Support"
-        loadThread={loadChatThread}
-        sendMessage={sendChatMessage}
-      />
+      {/* Live Communication Tabs (Customer & Support Chat) */}
+      <AgentApplicationChatSection application={application} />
 
       {/* Action modal */}
       {modalType && (

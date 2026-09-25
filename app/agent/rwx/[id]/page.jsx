@@ -18,6 +18,7 @@ import {
 import { getApplication, submitRwxChecklistItem, submitRwxChecklist, uploadApplicationFile, resolveMediaUrl } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
+import AgentApplicationChatSection from "@/app/components/design/AgentApplicationChatSection";
 
 const BRAND = "#28A745";
 
@@ -306,6 +307,9 @@ export default function AgentRwxChecklistPage() {
           </button>
         </div>
       )}
+
+      {/* Live Communication Tabs (Customer & Support Chat) */}
+      <AgentApplicationChatSection application={application} />
     </div>
   );
 }
