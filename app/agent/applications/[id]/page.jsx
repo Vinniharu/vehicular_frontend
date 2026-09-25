@@ -57,6 +57,7 @@ import {
   submitVehicleVerificationChecklist,
   completeCentralMotorRegistryApplication,
   downloadAgentBiodataPdf,
+  uploadParticularsItemFinal,
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { statusMeta, StatusBadge } from "../../_status";
@@ -694,6 +695,483 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
 }
 
 
+function VehicleParticularsAgentDetail({
+  application,
+  vehicle,
+  onViewDoc,
+  onDownloadBiodataPdf,
+  downloadingBiodataPdf,
+  onUpdated,
+}) {
+  const items = application.items || [];
+  const totalItems = items.length;
+  const approvedItems = items.filter((i) => i.status === "approved").length;
+  const rejectedItems = items.filter((i) => i.status === "rejected").length;
+  const underReviewItems = items.filter((i) => i.status === "agent_completed").length;
+  const pendingUploadItems = items.filter((i) => ["agent_accepted", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status)).length;
+
+  const totalCompensation = items.reduce((acc, i) => acc + (i.agent_compensation_kobo || 0), 0);
+
+  const [activeChatTab, setActiveChatTab] = useState("customer"); // 'customer' | 'support'
+  const [uploadingItemId, setUploadingItemId] = useState(null);
+  const [expiryDates, setExpiryDates] = useState(() => {
+    const map = {};
+    items.forEach((it) => {
+      if (it.expiry_date) {
+        map[it.id] = it.expiry_date.slice(0, 10);
+      } else if (it.document_type !== "proof_of_ownership") {
+        const nextYear = new Date();
+        nextYear.setFullYear(nextYear.getFullYear() + 1);
+        map[it.id] = nextYear.toISOString().slice(0, 10);
+      }
+    });
+    return map;
+  });
+  const [itemErrors, setItemErrors] = useState({});
+  const [itemNotices, setItemNotices] = useState({});
+
+  const handleExpiryChange = (itemId, val) => {
+    setExpiryDates((prev) => ({ ...prev, [itemId]: val }));
+  };
+
+  const handleItemUpload = async (item, file) => {
+    if (!file) return;
+    setItemErrors((prev) => ({ ...prev, [item.id]: null }));
+    setItemNotices((prev) => ({ ...prev, [item.id]: null }));
+
+    const requiresExpiry = item.document_type !== "proof_of_ownership";
+    const expiryVal = expiryDates[item.id];
+    if (requiresExpiry && !expiryVal) {
+      setItemErrors((prev) => ({ ...prev, [item.id]: "Expiry date is required for this document." }));
+      return;
+    }
+
+    const validation = validateUploadFile(file, { maxSizeMb: 10 });
+    if (!validation.valid) {
+      setItemErrors((prev) => ({ ...prev, [item.id]: validation.error }));
+      return;
+    }
+
+    setUploadingItemId(item.id);
+    const { data, error: uploadError } = await uploadApplicationFile(file);
+    if (uploadError || !data?.file_url) {
+      setUploadingItemId(null);
+      setItemErrors((prev) => ({ ...prev, [item.id]: uploadError || "File upload failed. Please try again." }));
+      return;
+    }
+
+    const res = await uploadParticularsItemFinal(item.id, {
+      file_url: data.file_url,
+      expiry_date: requiresExpiry ? expiryVal : undefined,
+    });
+    setUploadingItemId(null);
+
+    if (res.error) {
+      setItemErrors((prev) => ({ ...prev, [item.id]: res.error }));
+    } else {
+      setItemNotices((prev) => ({
+        ...prev,
+        [item.id]: item.status === "rejected" ? "Revision uploaded successfully! Awaiting staff review." : "Document uploaded successfully! Awaiting staff review.",
+      }));
+      if (onUpdated) {
+        await onUpdated();
+      }
+    }
+  };
+
+  const PARTICULAR_DOC_LABELS = {
+    vehicle_licence: "Vehicle Licence",
+    road_worthiness: "Road Worthiness Certificate",
+    proof_of_ownership: "Proof of Ownership",
+    insurance_third_party: "Third-Party Insurance",
+    hackney_permit: "Hackney Permit",
+  };
+
+  const applicant = application.applicant_details || {};
+  const progressPercent = totalItems > 0 ? Math.round(((approvedItems + underReviewItems) / totalItems) * 100) : 0;
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 pb-20">
+      {/* Top action bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <Link
+          href="/agent/applications"
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to my applications
+        </Link>
+        {onDownloadBiodataPdf && (
+          <button
+            type="button"
+            onClick={onDownloadBiodataPdf}
+            disabled={downloadingBiodataPdf}
+            className={btnSecondary}
+            style={{ padding: "0.45rem 0.85rem", fontSize: "12.5px" }}
+            title="Download applicant biodata and vehicle dossier PDF"
+          >
+            {downloadingBiodataPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+            {downloadingBiodataPdf ? "Preparing Dossier PDF…" : "Download Dossier PDF"}
+          </button>
+        )}
+      </div>
+
+      {/* Main Header / Status Banner */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="font-mono text-lg font-bold text-slate-900">App #{application.id}</span>
+              <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800">
+                Vehicle Particulars Bundle
+              </span>
+              <StatusBadge status={application.status} appType="vehicle_particulars" size="sm" />
+              {application.sla && (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  application.sla.is_breached
+                    ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
+                    : application.sla.is_nearing
+                    ? "bg-amber-100 text-amber-700 border border-amber-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}>
+                  <Timer className="h-3 w-3 shrink-0" />
+                  {application.sla.label} ({application.sla.days_elapsed}/{application.sla.days_allocated}d)
+                </span>
+              )}
+            </div>
+            <p className="text-[13px] text-slate-600">
+              Customer: <strong>{applicant.account_name || `${applicant.first_name || ""} ${applicant.last_name || ""}`.trim() || application.applicant_name || "Applicant"}</strong> · LGA: <strong>{application.lga || "—"}</strong>
+            </p>
+          </div>
+
+          {totalCompensation > 0 && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-right shrink-0">
+              <span className="block text-[11px] font-bold uppercase tracking-wide text-emerald-800">Total Compensation</span>
+              <span className="font-mono text-xl font-bold text-[#28A745]">{koboToNaira(totalCompensation)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Progress bar and metrics */}
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+            <span>Bundle Progress ({progressPercent}%)</span>
+            <span>
+              {approvedItems} of {totalItems} Approved · {pendingUploadItems} Pending Upload
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progressPercent}%`,
+                background: rejectedItems > 0 ? "#e11d48" : BRAND,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Revision Required Alert Banner */}
+      {rejectedItems > 0 && (
+        <div className="rounded-2xl border-2 border-rose-300 bg-rose-50 p-5 text-rose-900 shadow-sm space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-rose-100 p-2.5 text-rose-700 ring-1 ring-rose-200 shrink-0">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <strong className="text-base font-bold text-rose-950">
+                  Revision Required: {rejectedItems} Document{rejectedItems !== 1 ? "s" : ""} Rejected by Staff
+                </strong>
+                <span className="rounded-full bg-rose-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-800">
+                  Action Needed
+                </span>
+              </div>
+              <p className="text-[13px] text-rose-800 leading-relaxed">
+                Staff reviewed your uploaded documents and sent back {rejectedItems} document{rejectedItems !== 1 ? "s" : ""} for revision.
+                Please check the staff feedback notes below, re-upload the corrected document(s), and resubmit. Only rejected documents allow re-uploading; approved ones remain locked.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer & Vehicle Specifications */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <h3 className="flex items-center gap-2 border-b border-slate-100 pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+          <Car className="h-4 w-4 text-[#28A745]" /> Vehicle Specifications & Customer Details
+        </h3>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Field label="Plate Number" value={vehicle?.plate_number || application.vehicle?.plate_number} mono />
+          <Field label="Make & Model" value={vehicle ? `${vehicle.make || ""} ${vehicle.model || ""}`.trim() : (application.vehicle ? `${application.vehicle.make || ""} ${application.vehicle.model || ""}`.trim() : "—")} />
+          <Field label="Year & Color" value={vehicle ? `${vehicle.year || "—"} / ${vehicle.color || vehicle.colour || "—"}` : "—"} />
+          <Field label="VIN / Chassis" value={vehicle?.vin || vehicle?.chassis_number || application.vehicle?.chassis_number} mono />
+          <Field label="Customer Phone" value={applicant.phone || application.phone} />
+          <Field label="Customer Email" value={applicant.email || application.email} />
+          <Field label="State / LGA" value={`${application.state_of_residence || "—"} / ${application.lga || "—"}`} />
+          <Field label="Delivery Address" value={application.delivery_address || applicant.delivery_address} />
+        </div>
+
+        {/* Customer's initial submitted evidence */}
+        {(application.documents || []).length > 0 && (
+          <div className="pt-3 border-t border-slate-100 space-y-2">
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Customer Uploaded Evidence & Identity Documents
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {(application.documents || [])
+                .filter((d) => !d.doc_type?.endsWith("_final") && d.doc_type !== "vehicle_particulars_proof")
+                .map((d, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => onViewDoc(resolveMediaUrl(d.file_url))}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-all shadow-sm"
+                  >
+                    <Eye className="h-3.5 w-3.5 text-slate-500" />
+                    <span>{(d.doc_type || "document").replace(/_/g, " ")}</span>
+                    <ExternalLink className="h-3 w-3 text-slate-400" />
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Documents Management Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-[#28A745]" />
+            Particulars Documents ({totalItems})
+          </h2>
+          <span className="text-xs text-slate-500 font-medium">
+            Upload completed documents for each requested item
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {items.map((item) => {
+            const isApproved = item.status === "approved";
+            const isRejected = item.status === "rejected";
+            const isUnderReview = item.status === "agent_completed";
+            const isPendingUpload = ["agent_accepted", "evidence_submitted", "submitted", "pending_evidence"].includes(item.status);
+            const requiresExpiry = item.document_type !== "proof_of_ownership";
+
+            const finalDoc = (application.documents || []).find(
+              (d) => d.doc_type === `${item.document_type}_final` || d.doc_type === "vehicle_particulars_proof"
+            );
+            const uploadedUrl = finalDoc?.file_url;
+            const isUploading = uploadingItemId === item.id;
+            const err = itemErrors[item.id];
+            const notice = itemNotices[item.id];
+
+            return (
+              <div
+                key={item.id}
+                className={`rounded-2xl border p-5 shadow-sm transition-all space-y-4 ${
+                  isRejected
+                    ? "border-rose-300 bg-rose-50/30 ring-1 ring-rose-200"
+                    : isApproved
+                    ? "border-emerald-200 bg-emerald-50/20"
+                    : "border-slate-200 bg-white"
+                }`}
+              >
+                {/* Item Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5">
+                      <h4 className="text-base font-bold text-slate-900">
+                        {PARTICULAR_DOC_LABELS[item.document_type] || item.document_type?.replace(/_/g, " ")}
+                      </h4>
+                      {isApproved && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[11px] font-bold border border-emerald-200">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Approved by staff (Locked)
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 px-2.5 py-0.5 text-[11px] font-bold border border-rose-200 animate-pulse">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-600" /> Revision Required
+                        </span>
+                      )}
+                      {isUnderReview && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 px-2.5 py-0.5 text-[11px] font-bold border border-sky-200">
+                          <Clock className="h-3.5 w-3.5 text-sky-600" /> Under Staff Review
+                        </span>
+                      )}
+                      {isPendingUpload && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[11px] font-bold border border-amber-200">
+                          <Clock className="h-3.5 w-3.5 text-amber-600" /> Awaiting Upload
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Document Type: <span className="font-mono text-slate-700">{item.document_type}</span>
+                      {item.agent_compensation_kobo > 0 && (
+                        <> · Earnings: <strong className="text-[#28A745] font-mono">{koboToNaira(item.agent_compensation_kobo)}</strong></>
+                      )}
+                    </p>
+                  </div>
+
+                  {uploadedUrl && (
+                    <button
+                      type="button"
+                      onClick={() => onViewDoc(resolveMediaUrl(uploadedUrl))}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm self-start sm:self-center"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-slate-500" />
+                      <span>View uploaded file</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Staff Rejection Reason Callout */}
+                {isRejected && (item.staff_review_note || finalDoc?.review_note) && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-100/60 p-3.5 text-[13px] text-rose-900 space-y-1">
+                    <span className="block text-[11px] font-bold uppercase tracking-wider text-rose-800">
+                      Staff Feedback / Rejection Reason:
+                    </span>
+                    <p className="font-mono text-xs whitespace-pre-wrap leading-relaxed">
+                      {item.staff_review_note || finalDoc?.review_note}
+                    </p>
+                  </div>
+                )}
+
+                {/* Inline Notices / Errors */}
+                {err && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                    <span>{err}</span>
+                  </div>
+                )}
+                {notice && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{notice}</span>
+                  </div>
+                )}
+
+                {/* Existing Expiry date if set */}
+                {item.expiry_date && (
+                  <p className="text-xs text-slate-600">
+                    Expiry Date on Record: <strong>{new Date(item.expiry_date).toLocaleDateString("en-NG", { dateStyle: "long" })}</strong>
+                  </p>
+                )}
+
+                {/* Action Controls */}
+                {isApproved ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-[12.5px] text-emerald-800 flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>This document has been accepted and approved by staff. It is finalized and locked.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                      {requiresExpiry && (
+                        <div>
+                          <label className="block text-[11.5px] font-semibold uppercase tracking-wide text-slate-600 mb-1">
+                            Document Expiry Date *
+                          </label>
+                          <input
+                            type="date"
+                            value={expiryDates[item.id] || ""}
+                            onChange={(e) => handleExpiryChange(item.id, e.target.value)}
+                            disabled={isUploading}
+                            className={inputBase}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label
+                          className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer transition-all shadow-sm w-full ${
+                            isUploading ? "opacity-60 cursor-not-allowed" : "active:scale-[0.98]"
+                          }`}
+                          style={{
+                            background: isRejected ? "#e11d48" : BRAND,
+                          }}
+                        >
+                          {isUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-white" />
+                          ) : (
+                            <Upload className="h-4 w-4 text-white" />
+                          )}
+                          <span>
+                            {isUploading
+                              ? "Uploading finished document…"
+                              : isRejected
+                              ? "Re-upload Finished Document (Revision)"
+                              : isUnderReview
+                              ? "Update / Replace Uploaded Document"
+                              : "Upload Finished Document"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            disabled={isUploading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleItemUpload(item, file);
+                                e.target.value = "";
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Live Communication Tabs (Customer & Staff Chat) */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveChatTab("customer")}
+              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                activeChatTab === "customer"
+                  ? "bg-[#28A745] text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Chat with Customer
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveChatTab("support")}
+              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                activeChatTab === "support"
+                  ? "bg-[#28A745] text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Chat with Vehiculars Support
+            </button>
+          </div>
+          <span className="text-xs text-slate-400 hidden sm:inline">
+            {activeChatTab === "customer" ? "Direct applicant messaging" : "Internal agent support line"}
+          </span>
+        </div>
+
+        {activeChatTab === "customer" ? (
+          <ApplicationChatPanel application={application} />
+        ) : (
+          <AgentChatPanel application={application} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 const DOC_TYPE_META = {
   proof_of_ownership: { label: "Proof of Ownership", category: "Ownership" },
   vehicle_licence: { label: "Vehicle Licence", category: "Licence" },
@@ -1098,6 +1576,24 @@ export default function AgentApplicationDetailPage() {
         <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND }} />
         <p className="text-[13px] font-medium text-slate-500">Redirecting…</p>
       </div>
+    );
+  }
+
+  if (application.application_type === "vehicle_particulars") {
+    return (
+      <>
+        <DocumentPreviewModal isOpen={!!previewDocUrl} onClose={() => setPreviewDocUrl(null)} fileUrl={previewDocUrl} />
+        <VehicleParticularsAgentDetail
+          application={application}
+          vehicle={vehicle}
+          onViewDoc={setPreviewDocUrl}
+          onDownloadBiodataPdf={handleDownloadBiodataPdf}
+          downloadingBiodataPdf={downloadingBiodataPdf}
+          onUpdated={async () => {
+            await loadDetail(true);
+          }}
+        />
+      </>
     );
   }
 

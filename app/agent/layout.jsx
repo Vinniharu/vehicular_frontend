@@ -33,7 +33,6 @@ const AGENT_NAV = [
     section: "Work",
     items: [
       { label: "My Applications", href: "/agent/applications", icon: ClipboardList, exact: false },
-      { label: "Particulars Jobs", href: "/agent/particulars", icon: Briefcase, exact: false },
     ],
   },
   {

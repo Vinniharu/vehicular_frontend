@@ -18,8 +18,13 @@ import { StatusBadge } from "../_status";
 
 const TAB_FILTERS = {
   all: () => true,
-  needs_capture: (app) => ["agent_accepted", "capture_scheduled", "capturing_scheduled"].includes(app.status),
-  awaiting_upload: (app) => ["captured", "capturing_completed", "temp_licence_pending_review", "temp_licence_issued"].includes(app.status),
+  needs_capture: (app) => ["agent_accepted", "capture_scheduled", "capturing_scheduled"].includes(app.status) && app.application_type !== "vehicle_particulars",
+  awaiting_upload: (app) => {
+    if (app.application_type === "vehicle_particulars") {
+      return ["agent_accepted", "in_progress", "needs_correction"].includes(app.status) || (app.items && app.items.some((i) => ["agent_accepted", "rejected"].includes(i.status)));
+    }
+    return ["captured", "capturing_completed", "temp_licence_pending_review", "temp_licence_issued", "needs_correction", "agent_accepted"].includes(app.status);
+  },
   ready_for_pickup: (app) => ["agent_completed", "staff_final_review", "ready_for_pickup"].includes(app.status),
   completed: (app) => ["completed", "awaiting_customer"].includes(app.status),
 };
@@ -129,7 +134,7 @@ export default function AgentApplicationsPage() {
           {[
             { id: "all", label: `All (${counts.all || 0})` },
             { id: "needs_capture", label: `Needs Capture (${counts.needs_capture || 0})` },
-            { id: "awaiting_upload", label: `Awaiting Licence Upload (${counts.awaiting_upload || 0})` },
+            { id: "awaiting_upload", label: `Awaiting Document Upload (${counts.awaiting_upload || 0})` },
             { id: "ready_for_pickup", label: `Ready for Pickup (${counts.ready_for_pickup || 0})` },
             { id: "completed", label: `Completed (${counts.completed || 0})` },
           ].map((tab) => (
@@ -175,6 +180,13 @@ export default function AgentApplicationsPage() {
             const detailHref =
               app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` :
               `/agent/applications/${id}`;
+            const isParticulars = app.application_type === "vehicle_particulars";
+            const items = app.items || [];
+            const totalItems = items.length;
+            const approvedItems = items.filter((i) => i.status === "approved").length;
+            const rejectedItems = items.filter((i) => i.status === "rejected").length;
+            const pendingUploadItems = items.filter((i) => ["agent_accepted", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status)).length;
+
             return (
               <div
                 key={id}
@@ -188,6 +200,26 @@ export default function AgentApplicationsPage() {
                       {(app.application_type || "FRESH").replace(/_/g, " ")}
                     </span>
                     <StatusBadge status={app.status} appType={app.application_type} size="sm" />
+                    {isParticulars && rejectedItems > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
+                        {rejectedItems} Revision Required
+                      </span>
+                    )}
+                    {isParticulars && rejectedItems === 0 && pendingUploadItems > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                        {pendingUploadItems} of {totalItems} Pending Upload
+                      </span>
+                    )}
+                    {isParticulars && rejectedItems === 0 && pendingUploadItems === 0 && totalItems > 0 && approvedItems === totalItems && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        All {totalItems} Approved
+                      </span>
+                    )}
+                    {isParticulars && rejectedItems === 0 && pendingUploadItems === 0 && totalItems > 0 && approvedItems < totalItems && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                        {totalItems} Under Review
+                      </span>
+                    )}
                     {app.sla && (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
                         app.sla.is_breached
@@ -202,17 +234,31 @@ export default function AgentApplicationsPage() {
                     )}
                   </div>
                   <div>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.last_name || "—"}</strong></span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.first_name || "—"}</strong></span>
-                      {app.middle_name && (
-                        <>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.middle_name}</strong></span>
-                        </>
-                      )}
-                    </div>
+                    {isParticulars ? (
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Customer: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">
+                            {app.applicant_name || `${app.first_name || ""} ${app.last_name || ""}`.trim() || "Applicant"}
+                          </strong>
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Bundle: <strong className="text-slate-800">{totalItems} document{totalItems !== 1 ? "s" : ""}</strong>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.last_name || "—"}</strong></span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.first_name || "—"}</strong></span>
+                        {app.middle_name && (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.middle_name}</strong></span>
+                          </>
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
                       <span>LGA: <strong className="text-slate-700">{app.lga || "—"}</strong></span>
                       <span>•</span>

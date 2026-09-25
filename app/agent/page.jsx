@@ -63,8 +63,6 @@ const btnSecondary =
 
 export default function AgentOffersPage() {
   const [offers, setOffers] = useState([]);
-  const [particularsOffers, setParticularsOffers] = useState([]);
-  const [particularsItems, setParticularsItems] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [applications, setApplications] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
@@ -77,29 +75,24 @@ export default function AgentOffersPage() {
   const loadOffers = async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
-    const [offersRes, walletRes, appsRes, meRes, partOffersRes, partItemsRes] = await Promise.all([
+    const [offersRes, walletRes, appsRes, meRes] = await Promise.all([
       getAgentOffers(), 
       getAgentWallet(), 
       getAgentApplications(),
       authGetMe(),
-      getAgentParticularsOffers(),
-      getAgentParticularsItems(),
     ]);
     if (offersRes.error) setError(offersRes.error);
     else if (Array.isArray(offersRes.data)) setOffers(offersRes.data);
     if (walletRes.data) setWallet(walletRes.data);
     if (Array.isArray(appsRes.data)) setApplications(appsRes.data);
     if (meRes.data) setUserProfile(meRes.data);
-    if (Array.isArray(partOffersRes?.data)) setParticularsOffers(partOffersRes.data);
-    if (Array.isArray(partItemsRes?.data)) setParticularsItems(partItemsRes.data);
     setLoading(false);
     setRefreshing(false);
   };
 
   const activeJobs = applications.filter((a) => ACTIVE_JOB_STATUSES.includes(a.status));
-  const activeParticulars = particularsItems.filter((i) => ["agent_accepted", "agent_completed", "rejected"].includes(i.status));
-  const totalActiveJobsCount = activeJobs.length + activeParticulars.length;
-  const totalOffersCount = offers.length + particularsOffers.length;
+  const totalActiveJobsCount = activeJobs.length;
+  const totalOffersCount = offers.length;
   const atJobCap = totalActiveJobsCount >= MAX_ACTIVE_JOBS;
   const needsAction = applications.filter((a) => NEEDS_ACTION_STATUSES.includes(a.status));
   const completedThisMonth = applications.filter((a) => a.status === "completed" && isThisMonth(a.updated_at));
@@ -208,31 +201,6 @@ export default function AgentOffersPage() {
         </div>
       </div>
 
-      {particularsOffers.length > 0 && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-[#28A745] shrink-0">
-              <Briefcase className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-[14px] font-bold text-emerald-900">
-                {particularsOffers.length} Vehicle Particulars Offer{particularsOffers.length > 1 ? "s" : ""} Available
-              </h3>
-              <p className="text-[12.5px] text-emerald-700">
-                Document offers released to your state are ready for review and acceptance.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/agent/particulars"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all shadow-sm shrink-0"
-          >
-            <span>Review Particulars Offers</span>
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      )}
-
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -305,6 +273,11 @@ export default function AgentOffersPage() {
                   <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                     {(offer.application_type || "FRESH").replace(/_/g, " ")}
                   </span>
+                  {offer.application_type === "vehicle_particulars" && offer.items_count && (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                      {offer.items_count} Document{offer.items_count > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </div>
                 <p className="flex items-center gap-1.5 text-[13px] text-slate-500">
                   <MapPin className="h-3.5 w-3.5 text-slate-400" />
