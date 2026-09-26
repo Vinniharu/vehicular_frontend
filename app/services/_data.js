@@ -345,12 +345,12 @@ export const SERVICES = [
     applyHref: "/dashboard/apply/requirements?type=roadworthiness_express",
     feeScheduleType: "roadworthiness_express",
     title: "Roadworthiness Express (RWX)",
-    tagline: "Same-day roadworthiness certificate at a Vehiculars bay — distinct from the standard road worthiness renewal in Vehicle Particulars.",
+    tagline: "Same-day roadworthiness certificate & inspection at a registered Vehiculars bay — for ride-hailing (Uber/Bolt), commercial, and private vehicles.",
     intro:
-      "When you need road worthiness fast — fleet renewal, expired papers, or you've just been pulled over — RWX moves you to the front of the queue and turns it around the same day at our own inspection bay, rather than the ~5 working day standard renewal under Vehicle Particulars.",
+      "When you need road worthiness or ride-hailing vehicle inspection fast — fleet renewal, Uber/Bolt onboarding, expired papers, or routine clearance — RWX moves you to the front of the queue and turns it around same-day at our registered inspection bays, rather than standard multi-day processing.",
     whatsIncluded: [
-      "Same-day vehicle inspection at a Vehiculars bay",
-      "Roadworthiness certificate (12 months)",
+      "Same-day vehicle inspection at a registered Vehiculars bay",
+      "Roadworthiness certificate (12 months) and ride-hailing compliance",
       "Soft copy uploaded immediately, hard copy delivered",
     ],
     whatYouBring: ["Current vehicle particulars", "Valid ID", "The vehicle (for the inspection slot)"],

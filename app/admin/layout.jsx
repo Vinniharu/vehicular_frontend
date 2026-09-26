@@ -42,7 +42,7 @@ const ADMIN_NAV = [
       { label: "SLA Countdown", href: "/admin/countdown", icon: Timer, desc: "Monitor active countdowns and SLA breaches" },
       { label: "Deadlines & SLA", href: "/admin/deadlines", icon: Clock, desc: "Configure service delivery turnaround times and day types" },
       { label: "Tickets", href: "/admin/tickets", icon: MessageCircle, desc: "Every support conversation and who's handling it" },
-      // { label: "RWX Bays", href: "/admin/rwx/bays", icon: MapPin, desc: "Inspection bay locations, slot capacity, and assigned agents" },
+      { label: "Bay Areas", href: "/admin/rwx/bays", icon: MapPin, desc: "Registered inspection bay locations, daily slot capacity, and assigned agents" },
       { label: "PCI Reference Photos", href: "/admin/pci-reference-images", icon: Camera, desc: "\"What good looks like\" comparison photos for the field mechanic's checklist" },
       { label: "Activity Log", href: "/admin/activity-log", icon: AlertTriangle, desc: "Real-time feed of customer-facing errors and failures" },
     ],

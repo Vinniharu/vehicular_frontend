@@ -15,6 +15,7 @@ import {
 import {
   getCachedUser,
   getReferenceStates,
+  getReferenceLgas,
   getRwxBaysByState,
   getRwxBayAvailability,
   listVehicles,
@@ -92,6 +93,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
   const [servicePrices, setServicePrices] = useState(null);
 
   const [bayStateId, setBayStateId] = useState("");
+  const [bayLgaId, setBayLgaId] = useState("");
+  const [bayLgas, setBayLgas] = useState([]);
   const [bays, setBays] = useState([]);
   const [loadingBays, setLoadingBays] = useState(false);
   const [selectedBayId, setSelectedBayId] = useState(null);
@@ -140,6 +143,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
     if (draftFormData) {
       if (draftFormData.selectedVehicleId != null) setSelectedVehicleId(draftFormData.selectedVehicleId);
       if (draftFormData.bayStateId) setBayStateId(draftFormData.bayStateId);
+      if (draftFormData.bayLgaId) setBayLgaId(draftFormData.bayLgaId);
       if (draftFormData.bookingDate) setBookingDate(draftFormData.bookingDate);
       if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
       if (draftFormData.papers) setPapers(draftFormData.papers);
@@ -152,8 +156,20 @@ export default function RoadworthinessExpressNewApplicationPage() {
   }, [draftHydrated, draftFormData]);
 
   const buildDraftSnapshot = (targetStep) => ({
-    selectedVehicleId, bayStateId, selectedBayId, bookingDate, selectedSlotId, deliveryAddress, papers, step: targetStep,
+    selectedVehicleId, bayStateId, bayLgaId, selectedBayId, bookingDate, selectedSlotId, deliveryAddress, papers, step: targetStep,
   });
+
+  // Fetch LGAs when bay state changes
+  useEffect(() => {
+    if (!bayStateId) {
+      setBayLgas([]);
+      setBayLgaId("");
+      return;
+    }
+    getReferenceLgas(bayStateId).then((res) => {
+      setBayLgas(res.data || []);
+    });
+  }, [bayStateId]);
 
   // RWX is a flat fee (ServicePrice, not vehicle-category-based) priced per
   // the BAY's state, not the vehicle's (the backend resolves the charge off
@@ -174,19 +190,19 @@ export default function RoadworthinessExpressNewApplicationPage() {
       return;
     }
     setLoadingBays(true);
-    getRwxBaysByState(bayStateId).then((res) => {
+    getRwxBaysByState(bayStateId, bayLgaId || undefined).then((res) => {
       const items = res.data?.items || [];
       setBays(items);
       const pendingBayId = pendingBayRestoreRef.current;
       if (pendingBayId != null && items.some((b) => b.id === pendingBayId)) {
         setSelectedBayId(pendingBayId);
       } else {
-        setSelectedBayId(null);
+        setSelectedBayId((prev) => (items.some((b) => b.id === prev) ? prev : null));
       }
       pendingBayRestoreRef.current = null;
       setLoadingBays(false);
     });
-  }, [bayStateId]);
+  }, [bayStateId, bayLgaId]);
 
   useEffect(() => {
     if (!selectedBayId || !bookingDate) {
@@ -609,12 +625,33 @@ export default function RoadworthinessExpressNewApplicationPage() {
             <MapPin className="h-4 w-4" style={{ color: BRAND }} /> Bay &amp; time slot
           </h2>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className={label}>State</label>
-              <select className={inputBase} value={bayStateId} onChange={(e) => setBayStateId(e.target.value)}>
+              <select
+                className={inputBase}
+                value={bayStateId}
+                onChange={(e) => {
+                  setBayStateId(e.target.value);
+                  setBayLgaId("");
+                }}
+              >
                 <option value="">Select state</option>
                 {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={label}>LGA (optional)</label>
+              <select
+                className={inputBase}
+                value={bayLgaId}
+                onChange={(e) => setBayLgaId(e.target.value)}
+                disabled={!bayStateId || bayLgas.length === 0}
+              >
+                <option value="">All LGAs</option>
+                {bayLgas.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -630,7 +667,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
               {loadingBays ? (
                 <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
               ) : bays.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No bays in this state yet.</p>
+                <p className="py-2 text-[12.5px] text-slate-400">No bays found for this location.</p>
               ) : (
                 <div className="space-y-2">
                   {bays.map((bay) => {
@@ -645,7 +682,10 @@ export default function RoadworthinessExpressNewApplicationPage() {
                       >
                         <div>
                           <p className="text-[13.5px] font-semibold text-[#111111]">{bay.name}</p>
-                          <p className="text-[12px] text-slate-500">{bay.address}</p>
+                          <p className="text-[12px] text-slate-500">
+                            {bay.address}
+                            {bay.lga_name ? ` · ${bay.lga_name}` : ""}
+                          </p>
                         </div>
                         {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: BRAND }} />}
                       </button>
