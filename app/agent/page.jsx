@@ -32,53 +32,99 @@ import {
 export const ACTIVE_JOB_STATUSES = [
   "agent_accepted", "agent_assigned", "in_progress", "in_process",
   "capture_scheduled", "capturing_scheduled", "captured",
-  "capturing_completed", "temp_licence_pending_review", "temp_licence_issued",
-  "needs_correction",
+  "capturing_completed",
 ];
+
+export function hasAgentUploadedAllDocuments(app) {
+  if (!app) return false;
+  const status = (app.status || "").toLowerCase();
+  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer", "agent_completed", "staff_final_review"].includes(status)) {
+    return true;
+  }
+  const appType = (app.application_type || "").toLowerCase();
+  const docs = app.documents || [];
+
+  if (appType === "vehicle_particulars") {
+    const items = app.items || [];
+    if (items.length === 0) return false;
+    // An item is uploaded if its status is agent_completed, approved, or rejected (revision requested after upload),
+    // or if a final document has been uploaded for it
+    return items.every((it) =>
+      ["agent_completed", "approved", "rejected"].includes(it.status) ||
+      docs.some((d) => d.doc_type === `${it.document_type}_final` || d.doc_type === "vehicle_particulars_proof")
+    );
+  }
+
+  if (appType === "fresh") {
+    // For fresh DL, agent uploads temp licence or permanent licence proof
+    if (
+      app.temporary_licence?.licence_number ||
+      app.temporary_licence?.document_url ||
+      app.permanent_licence?.licence_number ||
+      app.permanent_licence?.document_url ||
+      ["temp_licence_pending_review", "temp_licence_issued"].includes(status) ||
+      docs.some((d) => ["temporary_licence", "finished_licence_card", "proof"].includes(d.doc_type))
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  if (appType === "central_motor_registry") {
+    return docs.some((d) => d.doc_type === "central_motor_registry_certificate");
+  }
+
+  // All other types: tinted_permit, number_plate_*, renewal, reissue, international_permit, etc.
+  if (
+    app.permanent_licence?.licence_number ||
+    app.permanent_licence?.document_url ||
+    docs.some((d) => ["finished_licence_card", "proof", "tinted_permit_proof", "plate_proof"].includes(d.doc_type))
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 export function isApplicationActive(app) {
   if (!app) return false;
-  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer"].includes(app.status)) {
+  const status = (app.status || "").toLowerCase();
+  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer"].includes(status)) {
     return false;
   }
-  if (app.application_type === "vehicle_particulars") {
-    const items = app.items || [];
-    if (items.length > 0) {
-      const hasPendingOrRejectedItems = items.some((it) =>
-        ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence", "in_progress"].includes(it.status)
-      );
-      if (hasPendingOrRejectedItems) return true;
-      const allDone = items.every((it) => ["agent_completed", "approved"].includes(it.status));
-      if (allDone) return false;
-    }
-    return ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction", "released_to_agents"].includes(app.status);
-  }
-
-  if (app.status === "agent_completed" || app.status === "staff_final_review") {
-    const isDocRejected = (app.documents || []).some((d) => d.status === "rejected");
-    if (isDocRejected || app.status === "needs_correction") return true;
+  // If agent has uploaded all documents completely, even though it's pending review
+  // and even if the pending was rejected (needs_correction), it does NOT count as an active job
+  if (hasAgentUploadedAllDocuments(app)) {
     return false;
   }
-
-  return ACTIVE_JOB_STATUSES.includes(app.status);
+  return ACTIVE_JOB_STATUSES.includes(status) || status === "needs_correction";
 }
 
 export function doesApplicationNeedAction(app) {
-  if (!isApplicationActive(app)) return false;
-  if (app.application_type === "vehicle_particulars") {
-    const items = app.items || [];
-    return items.some((it) => ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence", "in_progress"].includes(it.status));
+  if (!app) return false;
+  const status = (app.status || "").toLowerCase();
+  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer"].includes(status)) {
+    return false;
   }
-  return [
-    "agent_accepted",
-    "agent_assigned",
-    "in_progress",
-    "in_process",
-    "captured",
-    "capturing_completed",
-    "temp_licence_pending_review",
-    "needs_correction",
-  ].includes(app.status);
+  // Staff rejected something or requested correction - needs agent attention
+  if (status === "needs_correction") return true;
+  if ((app.documents || []).some((d) => d.status === "rejected")) return true;
+  if ((app.items || []).some((it) => it.status === "rejected")) return true;
+
+  // Still owes initial upload or action
+  if (!hasAgentUploadedAllDocuments(app)) {
+    return [
+      "agent_accepted",
+      "agent_assigned",
+      "in_progress",
+      "in_process",
+      "capture_scheduled",
+      "capturing_scheduled",
+      "captured",
+      "capturing_completed",
+    ].includes(status);
+  }
+  return false;
 }
 const MAX_ACTIVE_JOBS = 10;
 

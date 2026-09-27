@@ -15,21 +15,23 @@ import {
 } from "lucide-react";
 import { getAgentApplications } from "@/lib/api";
 import { StatusBadge } from "../_status";
+import { hasAgentUploadedAllDocuments } from "../page";
 
 const TAB_FILTERS = {
   all: () => true,
   needs_capture: (app) => app.application_type === "fresh" && ["agent_accepted", "agent_assigned", "capture_scheduled", "capturing_scheduled"].includes(app.status),
   awaiting_upload: (app) => {
+    if (app.status === "needs_correction") return true;
+    if ((app.documents || []).some((d) => d.status === "rejected")) return true;
     if (app.application_type === "vehicle_particulars") {
-      return (
-        ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction", "released_to_agents"].includes(app.status) ||
-        (app.items && app.items.some((i) => ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status)))
-      );
+      const items = app.items || [];
+      return items.some((i) => ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status));
     }
+    if (hasAgentUploadedAllDocuments(app)) return false;
     if (app.application_type === "fresh") {
-      return ["captured", "capturing_completed", "temp_licence_pending_review", "temp_licence_issued", "needs_correction"].includes(app.status);
+      return ["captured", "capturing_completed"].includes(app.status);
     }
-    return ["agent_accepted", "agent_assigned", "in_progress", "in_process", "needs_correction", "captured", "capturing_completed"].includes(app.status);
+    return ["agent_accepted", "agent_assigned", "in_progress", "in_process", "captured", "capturing_completed"].includes(app.status);
   },
   ready_for_pickup: (app) => ["agent_completed", "staff_final_review", "ready_for_pickup"].includes(app.status),
   completed: (app) => ["completed", "awaiting_customer"].includes(app.status),
