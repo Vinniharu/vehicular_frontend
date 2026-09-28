@@ -61,6 +61,7 @@ import {
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { statusMeta, StatusBadge } from "../../_status";
+import { hasAgentUploadedAllDocuments } from "../../page";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import AgentApplicationChatSection from "@/app/components/design/AgentApplicationChatSection";
 
@@ -1702,7 +1703,7 @@ export default function AgentApplicationDetailPage() {
       </div>
 
       {/* ─── Service SLA Countdown Banner ─── */}
-      {isPaid && application.sla && (
+      {isPaid && application.sla && !application.sla.is_completed && !hasAgentUploadedAllDocuments(application) && (
         <div className={`rounded-2xl border p-5 shadow-sm transition-all ${
           application.sla.is_breached
             ? "border-rose-300 bg-rose-50/75"
