@@ -260,111 +260,125 @@ function StaffApplicationsQueueInner() {
         </div>
       </div>
 
-      {/* ─── Search Bar & Filter Dropdowns ─── */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-        <div className="relative flex-1 min-w-[280px]">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by ID, candidate name, state, or LGA..."
-            className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 shadow-sm transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+      {/* ─── Search Bar & Filter Controls ─── */}
+      <div className="space-y-3">
+        {/* Row 1: Search & Fast Track Toggle */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by ID, candidate name, state, or LGA..."
+              className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 shadow-sm transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
 
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
-          {/* Status Types Dropdown */}
-          <select
-            value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value)}
-            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[13px] font-medium text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-          >
-            <optgroup label="Queue Scope">
-              <option value="all">All Statuses ({counts.all})</option>
-              <option value="unclaimed">Unclaimed Pool ({counts.unclaimed})</option>
-              <option value="mine">My Claimed Queue ({counts.mine})</option>
-            </optgroup>
-            <optgroup label="Initial Verification">
-              <option value="submitted">Awaiting Review ({counts.submitted})</option>
-              <option value="staff_review">Under Review ({counts.staff_review})</option>
-            </optgroup>
-            <optgroup label="Driving School">
-              <option value="driving_school">All Driving School ({counts.driving_school})</option>
-              <option value="driving_school_countdown">↳ In Countdown ({counts.driving_school_countdown})</option>
-              <option value="driving_school_graduation">↳ Graduated / Awaiting Cert ({counts.driving_school_graduation})</option>
-              <option value="graduated">↳ School Complete — Ready to Route ({counts.graduated})</option>
-            </optgroup>
-            <optgroup label="Routing & Dispatch">
-              <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
-              <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
-              <option value="flagged">Flagged ({counts.flagged})</option>
-            </optgroup>
-          </select>
-
-          {/* Service Type Filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-          >
-            <option value="all">All Types</option>
-            <option value="fresh">Fresh</option>
-            <option value="renewal">Renewal</option>
-            <option value="reissue">Reissue</option>
-            <option value="international_permit">International Permit</option>
-            <option value="tinted_permit">Tinted Permit</option>
-            <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
-            <option value="roadworthiness_express">Roadworthiness Express</option>
-            <option value="vehicle_particulars">Vehicle Particulars</option>
-            <option value="physical_condition_inspection">Physical Condition Inspection</option>
-            <option value="number_plate_new">Number Plate — New</option>
-            <option value="number_plate_replacement">Number Plate — Replacement</option>
-            <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
-            <option value="number_plate_fancy">Number Plate — Fancy</option>
-            <option value="number_plate_dealership">Number Plate — Dealership</option>
-          </select>
-
-          {/* Payment Status Filter */}
-          <select
-            value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value)}
-            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-          >
-            <option value="all">All Payments</option>
-            <option value="paid">Paid Fee</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partially Paid</option>
-          </select>
-
-          {/* Sort By Filter */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-          >
-            <option value="updated_at">Recently updated</option>
-            <option value="id">ID number</option>
-            <option value="name">Applicant name</option>
-          </select>
-
-          <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-amber-900 select-none cursor-pointer bg-amber-50/70 border border-amber-200 px-3 py-2 rounded-lg hover:bg-amber-100/60 transition-colors">
+          <label className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold text-amber-950 select-none cursor-pointer bg-amber-50/90 border border-amber-300 px-3.5 py-2.5 rounded-lg hover:bg-amber-100 transition-colors shrink-0 shadow-xs">
             <input
               type="checkbox"
               checked={isUrgentOnly}
               onChange={(e) => setIsUrgentOnly(e.target.checked)}
-              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
+              className="rounded border-amber-400 text-amber-600 focus:ring-amber-500 h-4 w-4"
             />
-            <Zap className="h-3.5 w-3.5 text-amber-600 fill-amber-500" /> Fast Track only
+            <Zap className="h-4 w-4 text-amber-600 fill-amber-500" />
+            <span>Fast Track only</span>
           </label>
+        </div>
+
+        {/* Row 2: Responsive Filter Dropdowns */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* Status Types Dropdown */}
+          <div className="w-full">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] font-medium text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+            >
+              <optgroup label="Queue Scope">
+                <option value="all">All Statuses ({counts.all})</option>
+                <option value="unclaimed">Unclaimed Pool ({counts.unclaimed})</option>
+                <option value="mine">My Claimed Queue ({counts.mine})</option>
+              </optgroup>
+              <optgroup label="Initial Verification">
+                <option value="submitted">Awaiting Review ({counts.submitted})</option>
+                <option value="staff_review">Under Review ({counts.staff_review})</option>
+              </optgroup>
+              <optgroup label="Driving School">
+                <option value="driving_school">All Driving School ({counts.driving_school})</option>
+                <option value="driving_school_countdown">↳ In Countdown ({counts.driving_school_countdown})</option>
+                <option value="driving_school_graduation">↳ Graduated / Awaiting Cert ({counts.driving_school_graduation})</option>
+                <option value="graduated">↳ School Complete — Ready to Route ({counts.graduated})</option>
+              </optgroup>
+              <optgroup label="Routing & Dispatch">
+                <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
+                <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
+                <option value="flagged">Flagged ({counts.flagged})</option>
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Service Type Filter */}
+          <div className="w-full">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+            >
+              <option value="all">All Types</option>
+              <option value="fresh">Fresh</option>
+              <option value="renewal">Renewal</option>
+              <option value="reissue">Reissue</option>
+              <option value="international_permit">International Permit</option>
+              <option value="tinted_permit">Tinted Permit</option>
+              <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
+              <option value="roadworthiness_express">Roadworthiness Express</option>
+              <option value="vehicle_particulars">Vehicle Particulars</option>
+              <option value="physical_condition_inspection">Physical Condition Inspection</option>
+              <option value="number_plate_new">Number Plate — New</option>
+              <option value="number_plate_replacement">Number Plate — Replacement</option>
+              <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
+              <option value="number_plate_fancy">Number Plate — Fancy</option>
+              <option value="number_plate_dealership">Number Plate — Dealership</option>
+            </select>
+          </div>
+
+          {/* Payment Status Filter */}
+          <div className="w-full">
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+            >
+              <option value="all">All Payments</option>
+              <option value="paid">Paid Fee</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="partial">Partially Paid</option>
+            </select>
+          </div>
+
+          {/* Sort By Filter */}
+          <div className="w-full">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+            >
+              <option value="updated_at">Recently updated</option>
+              <option value="id">ID number</option>
+              <option value="name">Applicant name</option>
+            </select>
+          </div>
         </div>
       </div>
 
