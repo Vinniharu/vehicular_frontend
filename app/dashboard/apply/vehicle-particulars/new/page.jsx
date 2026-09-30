@@ -12,6 +12,7 @@ import {
   Wallet,
 } from "lucide-react";
 import {
+  getCachedUser,
   getReferenceStates,
   listVehicles,
   createVehicle,
@@ -92,9 +93,10 @@ const DOC_TYPE_BY_KEY = Object.fromEntries(DOCUMENT_TYPES.map((d) => [d.document
 
 export default function VehicleParticularsNewApplicationPage() {
   const router = useRouter();
+  const cachedUser = getCachedUser();
 
   const [step, setStep] = useState(1);
-  const STEP_LABELS = ["Vehicle", "Pick documents", "Documents", "Review & submit"];
+  const STEP_LABELS = ["Vehicle", "Pick documents", "Documents & Details", "Review & submit"];
   const [processingSpeed, setProcessingSpeed] = useState("normal");
   const [fastTrackInfo, setFastTrackInfo] = useState(null);
 
@@ -112,6 +114,15 @@ export default function VehicleParticularsNewApplicationPage() {
   });
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
+
+  const [firstName, setFirstName] = useState(() => (cachedUser?.name || "").split(" ")[0] || "");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState(() => {
+    const parts = (cachedUser?.name || "").split(" ");
+    return parts.length > 1 ? parts.slice(1).join(" ") : "";
+  });
+  const [applicantEmail, setApplicantEmail] = useState(() => cachedUser?.email || "");
+  const [applicantPhone, setApplicantPhone] = useState(() => cachedUser?.phone || "");
 
   // { [document_type]: { amount_kobo, eligible, reason, current_expiry_date, eligible_from_date } }
   const [eligibility, setEligibility] = useState(null);
@@ -152,6 +163,11 @@ export default function VehicleParticularsNewApplicationPage() {
     if (!draftFormData || draftAppliedRef.current) return;
     draftAppliedRef.current = true;
     if (draftFormData.selectedVehicleId) setSelectedVehicleId(draftFormData.selectedVehicleId);
+    if (draftFormData.firstName !== undefined) setFirstName(draftFormData.firstName);
+    if (draftFormData.middleName !== undefined) setMiddleName(draftFormData.middleName);
+    if (draftFormData.lastName !== undefined) setLastName(draftFormData.lastName);
+    if (draftFormData.applicantEmail !== undefined) setApplicantEmail(draftFormData.applicantEmail);
+    if (draftFormData.applicantPhone !== undefined) setApplicantPhone(draftFormData.applicantPhone);
     if (draftFormData.selectedTypes) setSelectedTypes(draftFormData.selectedTypes);
     if (draftFormData.evidenceByDocType) setEvidenceByDocType(draftFormData.evidenceByDocType);
     if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
@@ -279,6 +295,12 @@ export default function VehicleParticularsNewApplicationPage() {
     if (n === 3) {
       const allUploaded = evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
       if (!allUploaded) errors.evidence = "Upload every required document to continue.";
+      if (!firstName.trim()) errors.first_name = "First name is required.";
+      if (!middleName.trim()) errors.middle_name = "Middle name is required.";
+      if (!lastName.trim()) errors.last_name = "Surname is required.";
+      if (!applicantEmail.trim()) errors.applicant_email = "Email is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
+      if (!applicantPhone.trim()) errors.applicant_phone = "Phone number is required.";
       if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     return errors;
@@ -294,13 +316,18 @@ export default function VehicleParticularsNewApplicationPage() {
     const nextStep = Math.min(4, step + 1);
     setStep(nextStep);
     save(
-      { selectedVehicleId, selectedTypes, evidenceByDocType, deliveryAddress, step: nextStep },
+      { selectedVehicleId, firstName, middleName, lastName, applicantEmail, applicantPhone, selectedTypes, evidenceByDocType, deliveryAddress, step: nextStep },
       `Step ${nextStep} of ${STEP_LABELS.length}`
     );
   };
 
   const canSubmit =
     selectedVehicleId &&
+    firstName.trim() &&
+    middleName.trim() &&
+    lastName.trim() &&
+    applicantEmail.trim() &&
+    applicantPhone.trim() &&
     selectedTypes.length > 0 &&
     deliveryAddress.trim() &&
     selectedTypes.every((dt) => eligibility?.[dt]?.eligible) &&
@@ -330,6 +357,11 @@ export default function VehicleParticularsNewApplicationPage() {
     const res = await submitVehicleParticularsApplication({
       vehicle_id: selectedVehicleId,
       items,
+      first_name: firstName.trim(),
+      middle_name: middleName.trim(),
+      last_name: lastName.trim(),
+      applicant_email: applicantEmail.trim(),
+      applicant_phone: applicantPhone.trim(),
       delivery_address: deliveryAddress.trim(),
       is_urgent: processingSpeed === "fast_track",
       processing_speed: processingSpeed,
@@ -642,8 +674,8 @@ export default function VehicleParticularsNewApplicationPage() {
       {/* Step 3 — Evidence upload */}
       {step === 3 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents</h2>
-          <p className="mb-4 text-[12px] text-slate-500">Upload evidence for each document you're renewing.</p>
+          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents &amp; Applicant Details</h2>
+          <p className="mb-4 text-[12px] text-slate-500">Upload evidence for each document you're renewing and confirm your contact details.</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {evidenceSlots.map((slot) => (
               <UploadSlot
@@ -656,16 +688,75 @@ export default function VehicleParticularsNewApplicationPage() {
           </div>
           <FieldError message={fieldErrors.evidence} />
 
-          <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
-            <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
-            <input
-              className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
-              value={deliveryAddress}
-              onChange={(e) => setDeliveryAddress(e.target.value)}
-              placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
-            />
-            <p className="text-[11.5px] text-slate-500">Your renewed physical vehicle documents will be dispatched to this address.</p>
-            <FieldError message={fieldErrors.deliveryAddress} />
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+            <h3 className="text-[13px] font-semibold text-[#111111]">Applicant Details</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.first_name)}`}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Ada"
+                />
+                <FieldError message={fieldErrors.first_name} />
+              </div>
+              <div>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="Chinedu"
+                />
+                <FieldError message={fieldErrors.middle_name} />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.last_name)}`}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Obi"
+                />
+                <FieldError message={fieldErrors.last_name} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={label}>Email Address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                  value={applicantEmail}
+                  onChange={(e) => setApplicantEmail(e.target.value)}
+                  placeholder="ada@example.com"
+                />
+                <FieldError message={fieldErrors.applicant_email} />
+              </div>
+              <div>
+                <label className={label}>Mobile / Phone Number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
+                  value={applicantPhone}
+                  onChange={(e) => setApplicantPhone(e.target.value)}
+                  placeholder="08012345678"
+                />
+                <FieldError message={fieldErrors.applicant_phone} />
+              </div>
+            </div>
+            <div>
+              <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
+              />
+              <p className="text-[11.5px] text-slate-500">Your renewed physical vehicle documents will be dispatched to this address.</p>
+              <FieldError message={fieldErrors.deliveryAddress} />
+            </div>
           </div>
         </section>
       )}
@@ -676,6 +767,14 @@ export default function VehicleParticularsNewApplicationPage() {
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your request</h2>
             <div className="divide-y divide-slate-100">
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Applicant</span>
+                <span className="font-semibold text-[#111111]">{[firstName, middleName, lastName].filter(Boolean).join(" ") || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Email &amp; Phone</span>
+                <span className="font-semibold text-[#111111]">{applicantEmail} · {applicantPhone}</span>
+              </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Vehicle</span>
                 <span className="font-semibold text-[#111111]">

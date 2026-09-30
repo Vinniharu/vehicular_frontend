@@ -2541,6 +2541,37 @@ export default function CustomerApplicationDetailsPage() {
       {/* Vehicle-centric types only (tinted_permit, number_plate_*) — the
           vehicle this application is for, in place of the licence-class/
           driving-school fields that don't apply. */}
+      {/* Applicant Identity Card */}
+      {(application.first_name || application.last_name || application.applicant_email || application.applicant_phone) && (
+        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">
+              Applicant Details
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full Name</span>
+              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+                {[application.first_name, application.middle_name, application.last_name].filter(Boolean).join(" ") || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email Address</span>
+              <span className="mt-1 block text-[13.5px] font-semibold text-slate-900 truncate" title={application.applicant_email || ""}>
+                {application.applicant_email || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Mobile Number</span>
+              <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">
+                {application.applicant_phone || application.phone_number || "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delivery Address Card — shown for all services requiring delivery (exempt: fresh & renewal DL) */}
       {hasDeliveryAddress && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">

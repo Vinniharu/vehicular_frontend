@@ -185,19 +185,23 @@ function TintedPermitCalculator({ feeSchedule }) {
   );
 }
 
-function NumberPlateCalculator({ feeSchedule }) {
+function NumberPlateCalculator({ feeSchedule, vehicleCategoryPrices = [] }) {
   const [variant, setVariant] = useState("number_plate_new");
+  const [category, setCategory] = useState("saloon_private");
   const [vehicleCount, setVehicleCount] = useState(1);
-  // Dealership plates have no vehicle at all, so "price per vehicle × count"
-  // doesn't apply — flat single price, no vehicle-count field.
   const isDealership = variant === "number_plate_dealership";
+  const isCategoryPriced = variant === "number_plate_new" || variant === "number_plate_change_of_ownership";
 
-  // Flat, state-aware price now (no vehicle-category dimension) — same
-  // feeSchedule lookup shape as TintedPermitCalculator.
   const perVehicle = useMemo(() => {
+    if (isCategoryPriced && category) {
+      const catRow = vehicleCategoryPrices.find(
+        (p) => p.service_key === variant && p.vehicle_category === category
+      );
+      if (catRow && catRow.amount_kobo != null) return catRow.amount_kobo;
+    }
     const row = feeSchedule.find((p) => p.application_type === variant && p.validity_period == null);
     return row ? row.amount_kobo : null;
-  }, [feeSchedule, variant]);
+  }, [feeSchedule, vehicleCategoryPrices, variant, category, isCategoryPriced]);
 
   const total = perVehicle != null ? perVehicle * (isDealership ? 1 : vehicleCount) : null;
 
@@ -221,6 +225,7 @@ function NumberPlateCalculator({ feeSchedule }) {
           ))}
         </select>
       </div>
+      {isCategoryPriced && <CategorySelect value={category} onChange={setCategory} />}
       <PriceLine label={isDealership ? "Price" : "Price per vehicle"} value={perVehicle} />
       {!isDealership && <VehicleCountField value={vehicleCount} onChange={setVehicleCount} />}
       <TotalBar total={total} note={isDealership ? "No vehicle required — a plate issued against your dealership's identity." : null} />

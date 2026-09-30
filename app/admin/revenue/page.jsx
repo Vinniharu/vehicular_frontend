@@ -313,9 +313,11 @@ export default function AdminRevenuePage() {
 
   const stats = [
     {
-      label: "Total Inflow",
+      label: "Total Inflow (Monnify Wallet)",
       value: overview ? koboToNaira(overview.gross_payments_kobo) : "—",
-      sub: "Gross successful payments",
+      sub: overview?.total_monnify_fees_kobo
+        ? `${koboToNaira(overview.gross_collected_kobo)} gross (−${koboToNaira(overview.total_monnify_fees_kobo)} fee)`
+        : "Net settled in Monnify wallet",
       icon: TrendingUp,
       accent: "text-slate-900",
     },
@@ -620,7 +622,6 @@ export default function AdminRevenuePage() {
               className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
               <option value="">All types</option>
-              <option value="wallet_deposit">Wallet Deposit</option>
               <option value="fresh">Fresh DL</option>
               <option value="renewal">Renewal DL</option>
               <option value="reissue">Reissue DL</option>
@@ -644,83 +645,98 @@ export default function AdminRevenuePage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                  <th className="py-3 px-5 font-semibold">Applicant</th>
-                  <th className="py-3 px-5 font-semibold">Type</th>
-                  <th className="py-3 px-5 font-semibold">Reference</th>
-                  <th className="py-3 px-5 font-semibold">Total Paid</th>
-                  <th className="py-3 px-5 font-semibold text-emerald-700">Net Profit</th>
-                  <th className="py-3 px-5 font-semibold text-blue-700">Gov Payment</th>
-                  <th className="py-3 px-5 font-semibold">Agent Fee</th>
-                  <th className="py-3 px-5 font-semibold">Status</th>
-                  <th className="py-3 px-5 font-semibold">Transfer</th>
-                  <th className="py-3 px-5 font-semibold">Date</th>
+                  <th className="py-3 px-4 font-semibold">Applicant</th>
+                  <th className="py-3 px-4 font-semibold">Type</th>
+                  <th className="py-3 px-4 font-semibold">Reference</th>
+                  <th className="py-3 px-4 font-semibold">Amount Paid</th>
+                  <th className="py-3 px-4 font-semibold text-rose-600">Monnify Fee</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900">Net Inflow</th>
+                  <th className="py-3 px-4 font-semibold text-emerald-700">Net Profit</th>
+                  <th className="py-3 px-4 font-semibold text-blue-700">Gov Payment</th>
+                  <th className="py-3 px-4 font-semibold">Agent Fee</th>
+                  <th className="py-3 px-4 font-semibold">Status</th>
+                  <th className="py-3 px-4 font-semibold">Transfer</th>
+                  <th className="py-3 px-4 font-semibold">Date</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((tx) => (
-                  <tr key={tx.payment_id || tx.reference} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3.5 px-5">
-                      <p className="text-[13px] font-semibold text-slate-900">{tx.applicant_name}</p>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        {tx.application_id ? `App #${tx.application_id}` : "Wallet Deposit"}
-                      </p>
-                    </td>
-                    <td className="py-3.5 px-5">
-                      <p className="text-[12.5px] text-slate-700 capitalize">
-                        {tx.application_type === "wallet_deposit" ? "Wallet Deposit" : tx.application_type}
-                      </p>
-                      <p className="text-[11px] text-slate-400">{tx.validity_period || "—"}</p>
-                    </td>
-                    <td className="py-3.5 px-5">
-                      <span className="font-mono text-[11.5px] text-slate-500">{tx.reference}</span>
-                    </td>
-                    <td className="py-3.5 px-5">
-                      <p className="text-[13px] font-semibold text-slate-900">
-                        {koboToNaira(tx.amount_paid_kobo > 0 ? tx.amount_paid_kobo : tx.amount_kobo)}
-                      </p>
-                      {tx.status === "partial" || (tx.amount_paid_kobo > 0 && tx.amount_paid_kobo < tx.amount_kobo) ? (
-                        <p className="text-[11px] text-amber-600 font-medium">
-                          of {koboToNaira(tx.amount_kobo)} (partial)
+                {items.map((tx) => {
+                  const grossPaid = tx.amount_paid_kobo > 0 ? tx.amount_paid_kobo : tx.amount_kobo;
+                  const feeKobo = tx.monnify_fee_kobo || 0;
+                  const netInflow = tx.net_amount_kobo != null ? tx.net_amount_kobo : Math.max(0, grossPaid - feeKobo);
+
+                  return (
+                    <tr key={tx.payment_id || tx.reference} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <p className="text-[13px] font-semibold text-slate-900">{tx.applicant_name}</p>
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          {tx.application_id ? `App #${tx.application_id}` : "—"}
                         </p>
-                      ) : (
-                        <p className="text-[11px] text-slate-400">Full payment</p>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-5">
-                      {tx.net_profit_kobo != null ? (
-                        <span className="text-[13px] font-semibold text-emerald-700">{koboToNaira(tx.net_profit_kobo)}</span>
-                      ) : (
-                        <span className="text-[13px] text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-5">
-                      {tx.government_payment_kobo != null ? (
-                        <span className="text-[13px] font-semibold text-blue-700">{koboToNaira(tx.government_payment_kobo)}</span>
-                      ) : (
-                        <span className="text-[13px] text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-5 text-[12.5px] text-slate-700">
-                      {tx.service_fee_kobo != null ? (
-                        koboToNaira(tx.service_fee_kobo)
-                      ) : (
-                        <span className="text-[13px] text-slate-300">—</span>
-                      )}
-                      {tx.agent_name && <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{tx.agent_name}</p>}
-                    </td>
-                    <td className="py-3.5 px-5">
-                      <StatusBadge status={tx.status} />
-                    </td>
-                    <td className="py-3.5 px-5">
-                      {tx.application_type === "wallet_deposit" ? (
-                        <span className="text-[12px] text-slate-300">—</span>
-                      ) : (
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <p className="text-[12.5px] text-slate-700 capitalize">
+                          {tx.application_type}
+                        </p>
+                        <p className="text-[11px] text-slate-400">{tx.validity_period || "—"}</p>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono text-[11.5px] text-slate-500">{tx.reference}</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <p className="text-[13px] font-semibold text-slate-900">
+                          {koboToNaira(grossPaid)}
+                        </p>
+                        {tx.status === "partial" || (tx.amount_paid_kobo > 0 && tx.amount_paid_kobo < tx.amount_kobo) ? (
+                          <p className="text-[11px] text-amber-600 font-medium">
+                            of {koboToNaira(tx.amount_kobo)} (partial)
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-400">Gross paid</p>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-[12.5px] font-medium text-rose-600">
+                          {feeKobo > 0 ? `−${koboToNaira(feeKobo)}` : "₦0.00"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-[13px] font-bold text-slate-900">
+                          {koboToNaira(netInflow)}
+                        </span>
+                        <p className="text-[10px] text-slate-400">Monnify wallet</p>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {tx.net_profit_kobo != null ? (
+                          <span className="text-[13px] font-semibold text-emerald-700">{koboToNaira(tx.net_profit_kobo)}</span>
+                        ) : (
+                          <span className="text-[13px] text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {tx.government_payment_kobo != null ? (
+                          <span className="text-[13px] font-semibold text-blue-700">{koboToNaira(tx.government_payment_kobo)}</span>
+                        ) : (
+                          <span className="text-[13px] text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-[12.5px] text-slate-700">
+                        {tx.service_fee_kobo != null ? (
+                          koboToNaira(tx.service_fee_kobo)
+                        ) : (
+                          <span className="text-[13px] text-slate-300">—</span>
+                        )}
+                        {tx.agent_name && <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{tx.agent_name}</p>}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <StatusBadge status={tx.status} />
+                      </td>
+                      <td className="py-3.5 px-4">
                         <StatusBadge status={tx.agent_transfer_status} fallback="No transfer" />
-                      )}
-                    </td>
-                    <td className="py-3.5 px-5 text-[12px] text-slate-500 whitespace-nowrap">{formatDate(tx.created_at)}</td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3.5 px-4 text-[12px] text-slate-500 whitespace-nowrap">{formatDate(tx.created_at)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

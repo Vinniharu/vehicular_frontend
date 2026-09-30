@@ -26,6 +26,7 @@ import {
   getCachedUser,
   koboToNaira,
   getFastTrackPricingPublic,
+  getVehicleCategoryPricing,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
@@ -79,13 +80,8 @@ const PLATE_TYPES = {
 
 const PLATE_RE = /^[A-Za-z0-9-]{4,15}$/;
 const NIN_RE = /^\d{11}$/;
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-// What the Number Plate fee actually covers, end to end — shown to the
-// applicant up front so the price doesn't look like "just a plate." New/
-// change-of-ownership get the full list; replacement (a lost/damaged-plate
-// reissue, not a fresh registration) only ever produces a plate number.
-// Dealership plates cover the same plate-number allocation, just against a
-// company identity rather than a specific vehicle.
 function getWhatsCovered(planKey) {
   if (planKey === "replacement") return ["Plate number"];
   if (planKey === "dealership") return ["Plate number", "Plate number allocation"];
@@ -111,20 +107,6 @@ const STEP_KEY_LABELS = {
   review: "Review & submit",
 };
 
-// Reference-photo guides for each upload box — reuses the same generic
-// placeholder set as the tinted-permit flow (public/placeholder/).
-//
-// Fresh registration and change of ownership require exactly these
-// documents (replaced, not augmented, per the document-requirements
-// overhaul) — no vehicle registration document or owner ID, since a fresh
-// registration has no prior registration document to submit. Replacement
-// needs only proof of ownership — a lost/damaged-plate reissue for an
-// already-registered vehicle, per the confirmed simplification.
-// isRegisteredCompany only matters for the dealership plan — the CAC
-// certificate slot only appears once the customer has said "yes" to being a
-// registered company. Both dealership doc slots are optional regardless
-// (never a hard submission requirement — see DLApplicationCreate's schema
-// comments), so this never affects the required-docs gate.
 function getDocSlots(planKey, isRegisteredCompany) {
   if (planKey === "dealership") {
     const slots = [
@@ -161,14 +143,8 @@ export default function NumberPlateNewApplicationPage() {
   const isChangeOfOwnership = planKey === "change-of-ownership";
   const isDealership = planKey === "dealership";
   const isStandardPlate = planKey === "new" || planKey === "change-of-ownership";
-  // Dealership plates are the only plan with no vehicle at all.
   const requiresVehicle = plan.requiresVehicle !== false;
-  // Fresh registration and change of ownership collect full applicant
-  // identity (tester feedback) — replacement stays a lightweight
-  // vehicle+documents submission for an already-registered plate.
-  // Dealership has its own dedicated step for its (different) identity
-  // fields, so it's excluded here too.
-  const needsApplicantDetails = planKey !== "replacement" && !isDealership;
+  const needsApplicantDetails = !isDealership;
 
   const [step, setStep] = useState(1);
 
@@ -186,39 +162,39 @@ export default function NumberPlateNewApplicationPage() {
 
   const [selectedStateId, setSelectedStateId] = useState("");
   const [previousOwnerDetails, setPreviousOwnerDetails] = useState("");
+  const [categoryPrices, setCategoryPrices] = useState([]);
   const [applicantForm, setApplicantForm] = useState(() => {
     const cachedUser = getCachedUser();
     return {
-      first_name: "",
-      middle_name: "",
-      last_name: "",
+      first_name: cachedUser?.first_name || "",
+      middle_name: cachedUser?.middle_name || "",
+      last_name: cachedUser?.last_name || "",
       address: "",
       residential_address: "",
       chassis_number: "",
-      vehicle_type: "",
+      vehicle_category: "saloon_private",
+      vehicle_type: "Private",
       make: "",
       colour: "",
       applicant_phone: cachedUser?.phone || "",
+      applicant_email: cachedUser?.email || "",
       nin: "",
       former_registration_number: "",
       model: "",
       year: "",
-      vehicle_body_type: "",
+      vehicle_body_type: "Saloon Car",
       previous_owner_details: "",
     };
   });
-  // Requested plate number -- fancy plate only (a standalone plan now, not
-  // a toggle inside new/change-of-ownership).
   const [fancyPlateNumber, setFancyPlateNumber] = useState("");
 
-  // Dealership only — no vehicle at all, a distinct set of identity fields.
-  // CAC certificate stays optional even when isRegisteredCompany is true
-  // (per the confirmed requirement) — it only controls whether the upload
-  // slot is offered, never a submission requirement.
   const [isRegisteredCompany, setIsRegisteredCompany] = useState(true);
   const [dealershipForm, setDealershipForm] = useState(() => {
     const cachedUser = getCachedUser();
     return {
+      first_name: cachedUser?.first_name || "",
+      middle_name: cachedUser?.middle_name || "",
+      last_name: cachedUser?.last_name || "",
       dealership_name: "", residential_address: "",
       applicant_phone: cachedUser?.phone || "", applicant_email: cachedUser?.email || "", nin: "",
     };
@@ -322,8 +298,22 @@ export default function NumberPlateNewApplicationPage() {
   // refetched whenever the selected vehicle or registration state changes.
   // Falls back to plan.fallbackFeeKobo (set above) until both are chosen.
   useEffect(() => {
-    if (isDealership || isStandardPlate) {
-      getDriverLicenceFeeSchedule({ state_id: selectedStateId ? Number(selectedStateId) : undefined }).then((res) => {
+    const stateNum = selectedStateId ? Number(selectedStateId) : undefined;
+    if (isStandardPlate) {
+      getVehicleCategoryPricing({ state_id: stateNum }).then((res) => {
+        if (res.data?.prices) setCategoryPrices(res.data.prices);
+      });
+      getNumberPlateFee({
+        application_type: plan.application_type,
+        vehicle_category: applicantForm.vehicle_category || "saloon_car_1",
+        state_id: stateNum,
+      }).then((res) => {
+        if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
+      });
+      return;
+    }
+    if (isDealership) {
+      getDriverLicenceFeeSchedule({ state_id: stateNum }).then((res) => {
         const row = res.data?.prices?.find((p) => p.application_type === plan.application_type);
         if (row?.amount_kobo != null) setFeeKobo(row.amount_kobo);
       });
@@ -338,7 +328,7 @@ export default function NumberPlateNewApplicationPage() {
       if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVehicleId, selectedStateId, isDealership, isStandardPlate, plan.application_type]);
+  }, [selectedVehicleId, selectedStateId, isDealership, isStandardPlate, plan.application_type, applicantForm.vehicle_category]);
 
   const handleCreateVehicle = async () => {
     const errors = {};
@@ -384,7 +374,9 @@ export default function NumberPlateNewApplicationPage() {
     // reliable way to know which step is actually being validated.
     if (isStandardPlate && stepKeys[n - 1] === "details") {
       if (!selectedStateId) errors.state = "Select the state to register this plate in.";
+      if (!applicantForm.vehicle_category) errors.vehicle_category = "Select a vehicle category.";
       if (!applicantForm.first_name.trim()) errors.first_name = "First name is required.";
+      if (!applicantForm.middle_name.trim()) errors.middle_name = "Middle name is required.";
       if (!applicantForm.last_name.trim()) errors.last_name = "Surname is required.";
       if (!applicantForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!applicantForm.chassis_number.trim()) errors.chassis_number = "Chassis number is required.";
@@ -392,6 +384,8 @@ export default function NumberPlateNewApplicationPage() {
       if (!applicantForm.make.trim()) errors.make = "Vehicle make is required.";
       if (!applicantForm.colour.trim()) errors.colour = "Vehicle colour is required.";
       if (!applicantForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      if (!applicantForm.applicant_email?.trim()) errors.applicant_email = "Email is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantForm.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
       const trimmedNin = applicantForm.nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
@@ -414,10 +408,14 @@ export default function NumberPlateNewApplicationPage() {
       if (!selectedStateId) errors.state = "Select the state to register this plate in.";
     }
     if (stepKeys[n - 1] === "dealership") {
+      if (!dealershipForm.first_name?.trim()) errors.first_name = "First name is required.";
+      if (!dealershipForm.middle_name?.trim()) errors.middle_name = "Middle name is required.";
+      if (!dealershipForm.last_name?.trim()) errors.last_name = "Surname is required.";
       if (!dealershipForm.dealership_name.trim()) errors.dealership_name = "Dealership name is required.";
       if (!dealershipForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!dealershipForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
       if (!dealershipForm.applicant_email.trim()) errors.applicant_email = "Email is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dealershipForm.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
       const trimmedNin = dealershipForm.nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
@@ -425,9 +423,12 @@ export default function NumberPlateNewApplicationPage() {
     }
     if (n === stepIndex("applicant")) {
       if (!applicantForm.first_name.trim()) errors.first_name = "First name is required.";
+      if (!applicantForm.middle_name.trim()) errors.middle_name = "Middle name is required.";
       if (!applicantForm.last_name.trim()) errors.last_name = "Surname is required.";
       if (!applicantForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!applicantForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      if (!applicantForm.applicant_email?.trim()) errors.applicant_email = "Email is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantForm.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
       const trimmedNin = applicantForm.nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
@@ -476,7 +477,9 @@ export default function NumberPlateNewApplicationPage() {
   const canSubmit = isStandardPlate
     ? (
         selectedStateId &&
+        applicantForm.vehicle_category &&
         applicantForm.first_name.trim() &&
+        applicantForm.middle_name.trim() &&
         applicantForm.last_name.trim() &&
         applicantForm.residential_address.trim() &&
         applicantForm.chassis_number.trim() &&
@@ -484,6 +487,7 @@ export default function NumberPlateNewApplicationPage() {
         applicantForm.make.trim() &&
         applicantForm.colour.trim() &&
         applicantForm.applicant_phone.trim() &&
+        applicantForm.applicant_email?.trim() &&
         NIN_RE.test(applicantForm.nin.trim()) &&
         (!isChangeOfOwnership || applicantForm.former_registration_number.trim()) &&
         applicantForm.model.trim() &&
@@ -497,13 +501,15 @@ export default function NumberPlateNewApplicationPage() {
         (!needsApplicantDetails || selectedVehicle?.chassis_number) &&
         selectedStateId &&
         (!needsApplicantDetails || (
-          applicantForm.first_name.trim() && applicantForm.last_name.trim() &&
+          applicantForm.first_name.trim() && applicantForm.middle_name.trim() && applicantForm.last_name.trim() &&
           applicantForm.residential_address.trim() && applicantForm.applicant_phone.trim() &&
+          applicantForm.applicant_email?.trim() &&
           NIN_RE.test(applicantForm.nin.trim())
         )) &&
         (planKey !== "fancy" || (fancyPlateNumber.trim() && fancyPlateNumber.trim().length <= 8)) &&
         (!isChangeOfOwnership || previousOwnerDetails.trim()) &&
         (!isDealership || (
+          dealershipForm.first_name?.trim() && dealershipForm.middle_name?.trim() && dealershipForm.last_name?.trim() &&
           dealershipForm.dealership_name.trim() && dealershipForm.residential_address.trim() &&
           dealershipForm.applicant_phone.trim() && dealershipForm.applicant_email.trim() &&
           NIN_RE.test(dealershipForm.nin.trim()) && dealershipPassportPhoto
@@ -541,7 +547,7 @@ export default function NumberPlateNewApplicationPage() {
           chassis_number: applicantForm.chassis_number.trim(),
           year: applicantForm.year ? Number(applicantForm.year) : undefined,
           state_id: Number(selectedStateId),
-          vehicle_category: resolveVehicleCategory(applicantForm.vehicle_body_type, applicantForm.vehicle_type),
+          vehicle_category: applicantForm.vehicle_category || resolveVehicleCategory(applicantForm.vehicle_body_type, applicantForm.vehicle_type),
           plate_number: applicantForm.former_registration_number?.trim() || (isChangeOfOwnership ? "TRANS-PEND" : undefined),
         });
         if (vRes.error) {
@@ -559,20 +565,21 @@ export default function NumberPlateNewApplicationPage() {
     const res = await submitDriverLicenceApplication({
       application_type: plan.application_type,
       vehicle_id: isDealership ? undefined : targetVehicleId,
+      vehicle_category: isStandardPlate ? (applicantForm.vehicle_category || "saloon_car_1") : selectedVehicle?.vehicle_category,
       state_id: Number(selectedStateId),
       previous_owner_details: isChangeOfOwnership ? (previousOwnerDetails || applicantForm.previous_owner_details || undefined) : undefined,
-      first_name: (needsApplicantDetails || isStandardPlate) ? applicantForm.first_name.trim() : undefined,
-      middle_name: (needsApplicantDetails || isStandardPlate) ? applicantForm.middle_name.trim() || undefined : undefined,
-      last_name: (needsApplicantDetails || isStandardPlate) ? applicantForm.last_name.trim() : undefined,
+      first_name: isDealership ? dealershipForm.first_name.trim() : applicantForm.first_name.trim(),
+      middle_name: isDealership ? dealershipForm.middle_name.trim() : applicantForm.middle_name.trim(),
+      last_name: isDealership ? dealershipForm.last_name.trim() : applicantForm.last_name.trim(),
       residential_address: isDealership ? dealershipForm.residential_address.trim() : applicantForm.residential_address.trim(),
       delivery_address: isDealership ? dealershipForm.residential_address.trim() : applicantForm.residential_address.trim(),
       applicant_phone: isDealership ? dealershipForm.applicant_phone.trim() : applicantForm.applicant_phone.trim(),
+      applicant_email: isDealership ? dealershipForm.applicant_email.trim() : applicantForm.applicant_email.trim(),
       nin: isDealership ? dealershipForm.nin.trim() : applicantForm.nin.trim(),
       former_registration_number: applicantForm.former_registration_number.trim() || undefined,
       vehicle_type: applicantForm.vehicle_type.trim() || undefined,
       vehicle_body_type: applicantForm.vehicle_body_type.trim() || undefined,
       fancy_plate_number: planKey === "fancy" ? fancyPlateNumber.trim() : undefined,
-      applicant_email: isDealership ? dealershipForm.applicant_email.trim() : undefined,
       dealership_name: isDealership ? dealershipForm.dealership_name.trim() : undefined,
       is_registered_company: isDealership ? isRegisteredCompany : undefined,
       passport_photo: isDealership ? dealershipPassportPhoto : undefined,
@@ -724,17 +731,53 @@ export default function NumberPlateNewApplicationPage() {
             <p className="text-[12px] text-slate-500 mt-0.5">Please provide your details and vehicle specifications accurately.</p>
           </div>
 
-          <div>
-            <label className={label}>State of Registration <span className="text-red-500">*</span></label>
-            <select
-              className={`${inputBase} ${errInputClass(!!fieldErrors.state)}`}
-              value={selectedStateId}
-              onChange={(e) => setSelectedStateId(e.target.value)}
-            >
-              <option value="">Select state to register this plate in</option>
-              {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <FieldError message={fieldErrors.state} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>State of Registration <span className="text-red-500">*</span></label>
+              <select
+                className={`${inputBase} ${errInputClass(!!fieldErrors.state)}`}
+                value={selectedStateId}
+                onChange={(e) => setSelectedStateId(e.target.value)}
+              >
+                <option value="">Select state to register this plate in</option>
+                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <FieldError message={fieldErrors.state} />
+            </div>
+
+            <div>
+              <label className={label}>Vehicle Category (sets price) <span className="text-red-500">*</span></label>
+              <select
+                className={`${inputBase} ${errInputClass(!!fieldErrors.vehicle_category)}`}
+                value={applicantForm.vehicle_category || "saloon_car_1"}
+                onChange={(e) => {
+                  const cat = e.target.value;
+                  const opt = VEHICLE_CATEGORY_OPTIONS.find((o) => o.value === cat);
+                  setApplicantForm((f) => ({
+                    ...f,
+                    vehicle_category: cat,
+                    vehicle_body_type: f.vehicle_body_type || opt?.label || "",
+                    vehicle_type: f.vehicle_type || (cat.includes("commercial") ? "Commercial" : "Private"),
+                  }));
+                }}
+              >
+                {VEHICLE_CATEGORY_OPTIONS.map((opt) => {
+                  const priceRow = categoryPrices.find(
+                    (p) => p.service_key === plan.application_type && p.vehicle_category === opt.value
+                  );
+                  const priceText = priceRow?.amount_kobo != null ? ` — ${formatKobo(priceRow.amount_kobo)}` : "";
+                  return (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label} ({opt.desc}){priceText}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="mt-1 text-[11.5px] font-medium text-emerald-700">
+                Selected category price: {formatKobo(feeKobo)}
+              </p>
+              <FieldError message={fieldErrors.vehicle_category} />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -750,7 +793,19 @@ export default function NumberPlateNewApplicationPage() {
               <FieldError message={fieldErrors.first_name} />
             </div>
 
-            {/* 2. Surname */}
+            {/* 2. Middle Name */}
+            <div>
+              <label className={label}>Middle Name: <span className="text-red-500">*</span></label>
+              <input
+                className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
+                value={applicantForm.middle_name}
+                onChange={(e) => setApplicantForm((f) => ({ ...f, middle_name: e.target.value }))}
+                placeholder="e.g. David"
+              />
+              <FieldError message={fieldErrors.middle_name} />
+            </div>
+
+            {/* 3. Surname */}
             <div>
               <label className={label}>Surname: <span className="text-red-500">*</span></label>
               <input
@@ -762,15 +817,17 @@ export default function NumberPlateNewApplicationPage() {
               <FieldError message={fieldErrors.last_name} />
             </div>
 
-            {/* 3. Other name */}
+            {/* 3b. Email Address */}
             <div>
-              <label className={label}>Other name: <span className="font-normal text-slate-400">(optional)</span></label>
+              <label className={label}>Email Address: <span className="text-red-500">*</span></label>
               <input
-                className={inputBase}
-                value={applicantForm.middle_name}
-                onChange={(e) => setApplicantForm((f) => ({ ...f, middle_name: e.target.value }))}
-                placeholder="e.g. David"
+                type="email"
+                className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                value={applicantForm.applicant_email}
+                onChange={(e) => setApplicantForm((f) => ({ ...f, applicant_email: e.target.value }))}
+                placeholder="e.g. chukwuma@example.com"
               />
+              <FieldError message={fieldErrors.applicant_email} />
             </div>
 
             {/* 4. Address */}
@@ -1113,6 +1170,38 @@ export default function NumberPlateNewApplicationPage() {
             <Building2 className="h-4 w-4" style={{ color: BRAND }} /> Dealership details
           </h2>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.first_name)}`}
+                  value={dealershipForm.first_name || ""}
+                  onChange={(e) => setDealershipForm((f) => ({ ...f, first_name: e.target.value }))}
+                  placeholder="Ada"
+                />
+                <FieldError message={fieldErrors.first_name} />
+              </div>
+              <div>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
+                  value={dealershipForm.middle_name || ""}
+                  onChange={(e) => setDealershipForm((f) => ({ ...f, middle_name: e.target.value }))}
+                  placeholder="Chinedu"
+                />
+                <FieldError message={fieldErrors.middle_name} />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.last_name)}`}
+                  value={dealershipForm.last_name || ""}
+                  onChange={(e) => setDealershipForm((f) => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Obi"
+                />
+                <FieldError message={fieldErrors.last_name} />
+              </div>
+            </div>
             <div>
               <label className={label}>Is this a registered company?</label>
               <div className="mt-1.5 flex gap-2">
@@ -1207,7 +1296,7 @@ export default function NumberPlateNewApplicationPage() {
         </section>
       )}
 
-      {/* Step — Applicant details (fresh registration + change of ownership only) */}
+      {/* Step — Applicant details (replacement & fancy plates) */}
       {needsApplicantDetails && step === stepIndex("applicant") && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
@@ -1224,12 +1313,14 @@ export default function NumberPlateNewApplicationPage() {
                 <FieldError message={fieldErrors.first_name} />
               </div>
               <div>
-                <label className={label}>Other name <span className="font-normal text-slate-400">(optional)</span></label>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
                 <input
-                  className={inputBase}
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
                   value={applicantForm.middle_name}
                   onChange={(e) => setApplicantForm((f) => ({ ...f, middle_name: e.target.value }))}
+                  placeholder="Chinedu"
                 />
+                <FieldError message={fieldErrors.middle_name} />
               </div>
               <div>
                 <label className={label}>Surname <span className="text-red-400">*</span></label>
@@ -1252,7 +1343,18 @@ export default function NumberPlateNewApplicationPage() {
               />
               <FieldError message={fieldErrors.residential_address} />
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>Email <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                  value={applicantForm.applicant_email}
+                  onChange={(e) => setApplicantForm((f) => ({ ...f, applicant_email: e.target.value }))}
+                  placeholder="ada@example.com"
+                />
+                <FieldError message={fieldErrors.applicant_email} />
+              </div>
               <div>
                 <label className={label}>Phone number <span className="text-red-400">*</span></label>
                 <input

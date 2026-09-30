@@ -73,6 +73,14 @@ export default function TintedPermitNewApplicationPage() {
   const [creatingVehicle, setCreatingVehicle] = useState(false);
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
 
+  const [firstName, setFirstName] = useState(() => (user?.name || "").split(" ")[0] || "");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState(() => {
+    const parts = (user?.name || "").split(" ");
+    return parts.length > 1 ? parts.slice(1).join(" ") : "";
+  });
+  const [applicantEmail, setApplicantEmail] = useState(() => user?.email || "");
+  const [applicantPhone, setApplicantPhone] = useState(() => user?.phone || "");
   const [nin, setNin] = useState("");
   const [justification, setJustification] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -101,6 +109,11 @@ export default function TintedPermitNewApplicationPage() {
     if (!hydrated || draftApplied) return;
     if (draftFormData) {
       if (draftFormData.selectedVehicleId) setSelectedVehicleId(draftFormData.selectedVehicleId);
+      if (draftFormData.firstName !== undefined) setFirstName(draftFormData.firstName);
+      if (draftFormData.middleName !== undefined) setMiddleName(draftFormData.middleName);
+      if (draftFormData.lastName !== undefined) setLastName(draftFormData.lastName);
+      if (draftFormData.applicantEmail !== undefined) setApplicantEmail(draftFormData.applicantEmail);
+      if (draftFormData.applicantPhone !== undefined) setApplicantPhone(draftFormData.applicantPhone);
       if (draftFormData.nin) setNin(draftFormData.nin);
       if (draftFormData.justification) setJustification(draftFormData.justification);
       if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
@@ -181,6 +194,12 @@ export default function TintedPermitNewApplicationPage() {
       else if (eligibility && !eligibility.eligible) errors.vehicle = "This vehicle isn't eligible for a new tinted permit request right now — see above.";
     }
     if (n === 2) {
+      if (!firstName.trim()) errors.first_name = "First name is required.";
+      if (!middleName.trim()) errors.middle_name = "Middle name is required.";
+      if (!lastName.trim()) errors.last_name = "Surname is required.";
+      if (!applicantEmail.trim()) errors.applicant_email = "Email address is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
+      if (!applicantPhone.trim()) errors.applicant_phone = "Phone number is required.";
       const trimmedNin = nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!/^\d{11}$/.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
@@ -202,10 +221,19 @@ export default function TintedPermitNewApplicationPage() {
     setFieldErrors({});
     const nextStep = Math.min(4, step + 1);
     setStep(nextStep);
-    save({ selectedVehicleId, nin, justification, deliveryAddress, docs }, STEP_LABELS[nextStep - 1]);
+    save({ selectedVehicleId, firstName, middleName, lastName, applicantEmail, applicantPhone, nin, justification, deliveryAddress, docs }, STEP_LABELS[nextStep - 1]);
   };
 
-  const canSubmit = selectedVehicleId && /^\d{11}$/.test(nin) && deliveryAddress.trim() && DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
+  const canSubmit =
+    selectedVehicleId &&
+    firstName.trim() &&
+    middleName.trim() &&
+    lastName.trim() &&
+    applicantEmail.trim() &&
+    applicantPhone.trim() &&
+    /^\d{11}$/.test(nin) &&
+    deliveryAddress.trim() &&
+    DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
 
   const handleSubmit = async () => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3) };
@@ -223,6 +251,11 @@ export default function TintedPermitNewApplicationPage() {
     const res = await submitDriverLicenceApplication({
       application_type: "tinted_permit",
       vehicle_id: selectedVehicleId,
+      first_name: firstName.trim(),
+      middle_name: middleName.trim(),
+      last_name: lastName.trim(),
+      applicant_email: applicantEmail.trim(),
+      applicant_phone: applicantPhone.trim(),
       nin,
       justification: justification || undefined,
       delivery_address: deliveryAddress.trim(),
@@ -486,23 +519,75 @@ export default function TintedPermitNewApplicationPage() {
       {step === 2 && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className={label}>Email address</label>
-              <input className={inputBase} value={user?.email || ""} disabled />
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.first_name)}`}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Ada"
+                />
+                <FieldError message={fieldErrors.first_name} />
+              </div>
+              <div>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="Chinedu"
+                />
+                <FieldError message={fieldErrors.middle_name} />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.last_name)}`}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Obi"
+                />
+                <FieldError message={fieldErrors.last_name} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>Email address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                  value={applicantEmail}
+                  onChange={(e) => setApplicantEmail(e.target.value)}
+                  placeholder="ada@example.com"
+                />
+                <FieldError message={fieldErrors.applicant_email} />
+              </div>
+              <div>
+                <label className={label}>Mobile / Phone number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
+                  value={applicantPhone}
+                  onChange={(e) => setApplicantPhone(e.target.value)}
+                  placeholder="08012345678"
+                />
+                <FieldError message={fieldErrors.applicant_phone} />
+              </div>
+              <div>
+                <label className={label}>NIN <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.nin)}`}
+                  value={nin}
+                  onChange={(e) => setNin(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  placeholder="11-digit NIN"
+                  inputMode="numeric"
+                />
+                <FieldError message={fieldErrors.nin} />
+              </div>
             </div>
             <div>
-              <label className={label}>NIN</label>
-              <input
-                className={`${inputBase} ${errInputClass(!!fieldErrors.nin)}`}
-                value={nin}
-                onChange={(e) => setNin(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                placeholder="11-digit National Identification Number"
-                inputMode="numeric"
-              />
-              <FieldError message={fieldErrors.nin} />
-            </div>
-            <div className="sm:col-span-2">
               <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
               <input
                 className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
@@ -513,7 +598,7 @@ export default function TintedPermitNewApplicationPage() {
               <p className="mt-1 text-[11.5px] text-slate-500">Physical tinted permit documents will be delivered to this address.</p>
               <FieldError message={fieldErrors.deliveryAddress} />
             </div>
-            <div className="sm:col-span-2">
+            <div>
               <label className={label}>Justification <span className="font-normal text-slate-400">(optional)</span></label>
               <textarea
                 className={inputBase}
@@ -551,6 +636,14 @@ export default function TintedPermitNewApplicationPage() {
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your application</h2>
             <div className="divide-y divide-slate-100">
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Applicant</span>
+                <span className="font-semibold text-[#111111]">{[firstName, middleName, lastName].filter(Boolean).join(" ") || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Email &amp; Phone</span>
+                <span className="font-semibold text-[#111111]">{applicantEmail} · {applicantPhone}</span>
+              </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Vehicle</span>
                 <span className="font-semibold text-[#111111]">

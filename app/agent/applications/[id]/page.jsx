@@ -409,6 +409,9 @@ function VehicleVerificationChecklist({ application, onSubmitted, onViewDoc, onD
 
       <Section title="Vehicle Verification" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Applicant name" value={`${application.first_name || ""} ${application.middle_name || ""} ${application.last_name || ""}`.trim() || application.applicant_name} />
+          <Field label="Applicant phone" value={application.applicant_phone || application.phone_number} />
+          <Field label="Applicant email" value={application.applicant_email} />
           <Field label="Check type" value={detail.check_type?.replace(/_/g, " ")} capitalize />
           <Field label="Make / Model" value={`${detail.make || ""} ${detail.model || ""}`.trim()} />
           <Field label="Plate number" value={detail.plate_number} mono />
@@ -626,9 +629,11 @@ function CentralMotorRegistryComplete({ application, onSubmitted, onViewDoc, onD
 
       <Section title="ECMR" icon={BadgeCheck}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Applicant name" value={`${application.first_name || ""} ${application.middle_name || ""} ${application.last_name || ""}`.trim() || application.applicant_name} />
+          <Field label="Applicant phone" value={application.applicant_phone || application.phone_number} />
+          <Field label="Applicant email" value={application.applicant_email} />
           <Field label="Vehicle ID" value={application.vehicle_id} mono />
           <Field label="NIN" value={application.nin} mono />
-          <Field label="Applicant email" value={application.applicant_email} />
         </div>
         {(application.documents || []).filter((d) => d.doc_type === "vehicle_licence").map((d, i) => (
           <button key={i} type="button" onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(d.file_url)); }} className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold hover:underline" style={{ color: BRAND }}>

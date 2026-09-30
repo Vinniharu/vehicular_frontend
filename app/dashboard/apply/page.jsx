@@ -228,6 +228,8 @@ export default function ApplyPage() {
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [applicantEmail, setApplicantEmail] = useState(() => getCachedUser()?.email || "");
+  const [applicantPhone, setApplicantPhone] = useState(() => getCachedUser()?.phone || "");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("");
   const [nationality, setNationality] = useState("Nigerian");
@@ -268,7 +270,8 @@ export default function ApplyPage() {
   const draftRestoredRef = useRef(false);
 
   const buildDraftSnapshot = () => ({
-    applicationType, licenceClass, validityPeriod, firstName, middleName, lastName, dob, gender,
+    applicationType, licenceClass, validityPeriod, firstName, middleName, lastName,
+    applicantEmail, applicantPhone, dob, gender,
     nationality, maritalStatus, mothersMaidenName, residentialAddress, city, country, nin,
     bloodGroup, heightCm, hasFacialMark, facialMarkDesc, hasDisability, disabilityDesc,
     passportPhoto, selectedState, selectedLga, selectedOriginState, selectedOriginLga,
@@ -288,6 +291,8 @@ export default function ApplyPage() {
     if (d.firstName !== undefined) setFirstName(d.firstName);
     if (d.middleName !== undefined) setMiddleName(d.middleName);
     if (d.lastName !== undefined) setLastName(d.lastName);
+    if (d.applicantEmail !== undefined) setApplicantEmail(d.applicantEmail);
+    if (d.applicantPhone !== undefined) setApplicantPhone(d.applicantPhone);
     if (d.dob !== undefined) setDob(d.dob);
     if (d.gender !== undefined) setGender(d.gender);
     if (d.nationality !== undefined) setNationality(d.nationality);
@@ -366,6 +371,8 @@ export default function ApplyPage() {
           setFirstName(pick(latestApp.first_name, fallbackFn));
           setMiddleName(pick(latestApp.middle_name, fallbackMn));
           setLastName(pick(latestApp.last_name, fallbackLn));
+          setApplicantEmail(pick(latestApp.applicant_email, meRes.data.email || ""));
+          setApplicantPhone(pick(latestApp.applicant_phone, meRes.data.phone || ""));
           setDob(pick(latestApp.date_of_birth, ""));
           setGender(pick(latestApp.gender, ""));
           setNationality(pick(latestApp.nationality, "Nigerian"));
@@ -468,27 +475,36 @@ export default function ApplyPage() {
     if (n === 2) {
       if (!selectedState) errors.selectedState = "Select your state of residence.";
       if (!selectedLga) errors.selectedLga = "Select your LGA.";
-      
-      if (applicationType === "fresh") {
+
       const trimmedFirst = firstName.trim();
+      const trimmedMiddle = middleName.trim();
       const trimmedLast = lastName.trim();
-      const trimmedMaiden = mothersMaidenName.trim();
+      const trimmedEmail = applicantEmail.trim();
+      const trimmedPhone = applicantPhone.trim();
       if (!trimmedFirst) errors.firstName = "First name is required.";
       else if (!NAME_RE.test(trimmedFirst)) errors.firstName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
+      if (!trimmedMiddle) errors.middleName = "Middle name is required.";
+      else if (!NAME_RE.test(trimmedMiddle)) errors.middleName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
       if (!trimmedLast) errors.lastName = "Surname is required.";
       else if (!NAME_RE.test(trimmedLast)) errors.lastName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
-      if (trimmedMaiden && !NAME_RE.test(trimmedMaiden)) errors.mothersMaidenName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
-      if (!dob) errors.dob = "Date of birth is required.";
-      else {
-        const age = ageFromDob(dob);
-        if (age === null || age < MIN_APPLICANT_AGE) errors.dob = `Applicant must be at least ${MIN_APPLICANT_AGE} years old.`;
-      }
+      if (!trimmedEmail) errors.applicantEmail = "Email address is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmedEmail)) errors.applicantEmail = "Enter a valid email address.";
+      if (!trimmedPhone) errors.applicantPhone = "Phone number is required.";
 
-      const trimmedNin = nin.trim();
-      if (trimmedNin && !NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
-      if (heightCm && (Number(heightCm) < 100 || Number(heightCm) > 250)) errors.heightCm = "Height must be between 100 and 250 cm.";
-      if (hasFacialMark && !facialMarkDesc.trim()) errors.facialMarkDesc = "Describe the facial mark, or uncheck this box.";
-      if (hasDisability && !disabilityDesc.trim()) errors.disabilityDesc = "Describe the disability, or uncheck this box.";
+      if (applicationType === "fresh") {
+        const trimmedMaiden = mothersMaidenName.trim();
+        if (trimmedMaiden && !NAME_RE.test(trimmedMaiden)) errors.mothersMaidenName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
+        if (!dob) errors.dob = "Date of birth is required.";
+        else {
+          const age = ageFromDob(dob);
+          if (age === null || age < MIN_APPLICANT_AGE) errors.dob = `Applicant must be at least ${MIN_APPLICANT_AGE} years old.`;
+        }
+
+        const trimmedNin = nin.trim();
+        if (trimmedNin && !NIN_RE.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
+        if (heightCm && (Number(heightCm) < 100 || Number(heightCm) > 250)) errors.heightCm = "Height must be between 100 and 250 cm.";
+        if (hasFacialMark && !facialMarkDesc.trim()) errors.facialMarkDesc = "Describe the facial mark, or uncheck this box.";
+        if (hasDisability && !disabilityDesc.trim()) errors.disabilityDesc = "Describe the disability, or uncheck this box.";
       }
     }
     if (n === 3 && applicationType === "fresh") {
@@ -584,6 +600,8 @@ export default function ApplyPage() {
           first_name: firstName.trim(),
           middle_name: middleName.trim(),
           last_name: lastName.trim(),
+          applicant_email: applicantEmail.trim(),
+          applicant_phone: applicantPhone.trim(),
           date_of_birth: dob,
           gender,
           nationality,
@@ -616,6 +634,11 @@ export default function ApplyPage() {
       : await submitDriverLicenceApplication({
           application_type: applicationType,
           validity_period: validityPeriod,
+          first_name: firstName.trim(),
+          middle_name: middleName.trim(),
+          last_name: lastName.trim(),
+          applicant_email: applicantEmail.trim(),
+          applicant_phone: applicantPhone.trim(),
           state_id: parseInt(selectedState, 10),
           lga_id: parseInt(selectedLga, 10),
           state_of_residence: states.find(s => s.id === parseInt(selectedState, 10))?.name || "",
@@ -901,20 +924,7 @@ export default function ApplyPage() {
               </div>
             </div>
 
-            {applicationType === "fresh" && (
-              <>
-                <p className="text-[13px] text-slate-500 mt-4">Pre-filled from your profile — check everything's correct.</p>
-            {user && (
-              <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: BRAND }}>
-                  {user.name?.charAt(0).toUpperCase() || "U"}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-semibold text-[#111111]">{user.name}</p>
-                  <p className="truncate text-[11.5px] text-slate-500">{user.email} · {user.phone}</p>
-                </div>
-              </div>
-            )}
+            <p className="text-[13px] text-slate-500 mt-4">Applicant identity &amp; contact details (compulsory for all applications).</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label className={label}>First name <span className="text-red-400">*</span></label>
@@ -922,8 +932,9 @@ export default function ApplyPage() {
                 <FieldError message={fieldErrors.firstName} />
               </div>
               <div>
-                <label className={label}>Middle name</label>
-                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="(optional)" className={inputBase} />
+                <label className={label}>Middle name <span className="text-red-400">*</span></label>
+                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="Chinedu" className={`${inputBase} ${errInputClass(!!fieldErrors.middleName)}`} />
+                <FieldError message={fieldErrors.middleName} />
               </div>
               <div>
                 <label className={label}>Surname <span className="text-red-400">*</span></label>
@@ -931,6 +942,21 @@ export default function ApplyPage() {
                 <FieldError message={fieldErrors.lastName} />
               </div>
             </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label}>Email address <span className="text-red-400">*</span></label>
+                <input type="email" value={applicantEmail} onChange={(e) => setApplicantEmail(e.target.value)} placeholder="ada@example.com" className={`${inputBase} ${errInputClass(!!fieldErrors.applicantEmail)}`} />
+                <FieldError message={fieldErrors.applicantEmail} />
+              </div>
+              <div>
+                <label className={label}>Mobile / Phone number <span className="text-red-400">*</span></label>
+                <input type="tel" value={applicantPhone} onChange={(e) => setApplicantPhone(e.target.value)} placeholder="08012345678" className={`${inputBase} ${errInputClass(!!fieldErrors.applicantPhone)}`} />
+                <FieldError message={fieldErrors.applicantPhone} />
+              </div>
+            </div>
+
+            {applicationType === "fresh" && (
+              <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={label}>Date of birth <span className="text-red-400">*</span></label>
@@ -1186,8 +1212,10 @@ export default function ApplyPage() {
                       section: "Personal details",
                       rows: [
                         ["First name", firstName || "—"],
-                        ...(middleName ? [["Middle name", middleName]] : []),
+                        ["Middle name", middleName || "—"],
                         ["Surname", lastName || "—"],
+                        ["Email", applicantEmail || "—"],
+                        ["Phone", applicantPhone || "—"],
                         ["Date of birth", dob],
                         ["Gender", gender || "—"],
                         ["NIN", nin || "—"],
@@ -1219,6 +1247,11 @@ export default function ApplyPage() {
                         section: "Application",
                         rows: [
                           ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                          ["First name", firstName || "—"],
+                          ["Middle name", middleName || "—"],
+                          ["Surname", lastName || "—"],
+                          ["Email", applicantEmail || "—"],
+                          ["Phone", applicantPhone || "—"],
                           ["State / LGA", (selectedState && selectedLga) ? `${states.find(s => s.id === parseInt(selectedState, 10))?.name || ""} / ${lgas.find(l => l.id === parseInt(selectedLga, 10))?.name || ""}` : "—"],
                         ],
                       },
@@ -1237,6 +1270,11 @@ export default function ApplyPage() {
                         section: "Application",
                         rows: [
                           ["Type", APPLICATION_TYPES.find((t) => t.value === applicationType)?.label],
+                          ["First name", firstName || "—"],
+                          ["Middle name", middleName || "—"],
+                          ["Surname", lastName || "—"],
+                          ["Email", applicantEmail || "—"],
+                          ["Phone", applicantPhone || "—"],
                           ["Validity period", validityPeriod || "—"],
                         ],
                       },

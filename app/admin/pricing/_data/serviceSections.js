@@ -68,12 +68,13 @@ export const SERVICE_SECTIONS = [
   {
     slug: "number-plate",
     title: "Number / Dealership Plate Services",
-    subtitle: "One flat, state-aware price per plate type — not a fallback under a category grid.",
+    subtitle: "New plate and change-of-ownership prices are set per vehicle category (with a flat fallback). Replacement, fancy, and dealership plates use one flat state-aware price.",
     subServices: [
       {
         key: "new-registration",
         label: "New Number Plate Registration",
-        rows: [{ mechanism: "dl", key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Amount", amountRequired: true }],
+        rows: [{ mechanism: "dl", key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Fallback price (all categories)", amountRequired: true }],
+        categoryGrid: { service_key: "number_plate_new" },
       },
       {
         key: "replacement",
@@ -88,7 +89,8 @@ export const SERVICE_SECTIONS = [
       {
         key: "change-of-ownership",
         label: "Change of Ownership + New Plate",
-        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Amount", amountRequired: true }],
+        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Fallback price (all categories)", amountRequired: true }],
+        categoryGrid: { service_key: "number_plate_change_of_ownership" },
       },
       {
         key: "dealership",

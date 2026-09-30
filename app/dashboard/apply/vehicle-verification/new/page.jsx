@@ -12,6 +12,7 @@ import {
   Upload,
 } from "lucide-react";
 import {
+  getCachedUser,
   getReferenceStates,
   submitVehicleVerificationApplication,
   getDriverLicenceFeeSchedule,
@@ -57,6 +58,7 @@ const REASONS = [
 export default function VehicleVerificationNewApplicationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const user = getCachedUser();
   const { draftFormData, hydrated, save, clearDraft, markSubmitting } = useApplicationDraft("vehicle_verification");
 
   const [step, setStep] = useState(1);
@@ -66,6 +68,8 @@ export default function VehicleVerificationNewApplicationPage() {
 
   const [checkType, setCheckType] = useState("registration_history");
   const [form, setForm] = useState({
+    first_name: "", middle_name: "", last_name: "",
+    applicant_email: user?.email || "", applicant_phone: user?.phone || "",
     plate_number: "", make: "", model: "", year: "", colour: "",
     chassis_number: "", state_id: "", delivery_address: "", reason: "pre_purchase",
   });
@@ -155,6 +159,12 @@ export default function VehicleVerificationNewApplicationPage() {
 
   const validateStep1 = () => {
     const errors = {};
+    if (!form.first_name?.trim()) errors.first_name = "First name is required.";
+    if (!form.middle_name?.trim()) errors.middle_name = "Middle name is required.";
+    if (!form.last_name?.trim()) errors.last_name = "Surname is required.";
+    if (!form.applicant_email?.trim()) errors.applicant_email = "Email address is required.";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
+    if (!form.applicant_phone?.trim()) errors.applicant_phone = "Mobile number is required.";
     if (!form.plate_number.trim()) errors.plate_number = "Plate number is required.";
     if (!form.make.trim()) errors.make = "Make is required.";
     if (!form.model.trim()) errors.model = "Model is required.";
@@ -196,6 +206,11 @@ export default function VehicleVerificationNewApplicationPage() {
     setSubmitting(true);
     markSubmitting();
     const res = await submitVehicleVerificationApplication({
+      first_name: form.first_name.trim(),
+      middle_name: form.middle_name.trim(),
+      last_name: form.last_name.trim(),
+      applicant_email: form.applicant_email.trim(),
+      applicant_phone: form.applicant_phone.trim(),
       state_id: Number(form.state_id),
       check_type: checkType,
       plate_number: form.plate_number.trim(),
@@ -353,6 +368,71 @@ export default function VehicleVerificationNewApplicationPage() {
 
           <div>
             <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+              <Car className="h-4 w-4" style={{ color: BRAND }} /> Applicant details
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.first_name)}`}
+                  name="first_name"
+                  value={form.first_name || ""}
+                  onChange={handleChange}
+                  placeholder="e.g. Adebayo"
+                />
+                <FieldError message={fieldErrors.first_name} />
+              </div>
+              <div>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
+                  name="middle_name"
+                  value={form.middle_name || ""}
+                  onChange={handleChange}
+                  placeholder="e.g. Olawale"
+                />
+                <FieldError message={fieldErrors.middle_name} />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.last_name)}`}
+                  name="last_name"
+                  value={form.last_name || ""}
+                  onChange={handleChange}
+                  placeholder="e.g. Ogunleye"
+                />
+                <FieldError message={fieldErrors.last_name} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={label}>Email Address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                  name="applicant_email"
+                  value={form.applicant_email || ""}
+                  onChange={handleChange}
+                  placeholder="e.g. adebayo@example.com"
+                />
+                <FieldError message={fieldErrors.applicant_email} />
+              </div>
+              <div>
+                <label className={label}>Mobile Number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
+                  name="applicant_phone"
+                  value={form.applicant_phone || ""}
+                  onChange={handleChange}
+                  placeholder="e.g. 08012345678"
+                />
+                <FieldError message={fieldErrors.applicant_phone} />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
               <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle details
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -448,6 +528,14 @@ export default function VehicleVerificationNewApplicationPage() {
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your submission</h2>
             <div className="divide-y divide-slate-100">
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Applicant</span>
+                <span className="font-semibold text-[#111111]">{form.first_name} {form.middle_name} {form.last_name}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Contact</span>
+                <span className="font-semibold text-[#111111]">{form.applicant_email} · {form.applicant_phone}</span>
+              </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Check type</span>
                 <span className="font-semibold text-[#111111]">{CHECK_TYPES.find((c) => c.value === checkType)?.label}</span>

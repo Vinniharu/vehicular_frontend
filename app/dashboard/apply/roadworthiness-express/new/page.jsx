@@ -103,6 +103,11 @@ export default function RoadworthinessExpressNewApplicationPage() {
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [applicantEmail, setApplicantEmail] = useState(user?.email || "");
+  const [applicantPhone, setApplicantPhone] = useState(user?.phone || "");
 
   const [papers, setPapers] = useState(null);
   const [uploadingPapers, setUploadingPapers] = useState(false);
@@ -146,6 +151,11 @@ export default function RoadworthinessExpressNewApplicationPage() {
       if (draftFormData.bayLgaId) setBayLgaId(draftFormData.bayLgaId);
       if (draftFormData.bookingDate) setBookingDate(draftFormData.bookingDate);
       if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
+      if (draftFormData.firstName) setFirstName(draftFormData.firstName);
+      if (draftFormData.middleName) setMiddleName(draftFormData.middleName);
+      if (draftFormData.lastName) setLastName(draftFormData.lastName);
+      if (draftFormData.applicantEmail) setApplicantEmail(draftFormData.applicantEmail);
+      if (draftFormData.applicantPhone) setApplicantPhone(draftFormData.applicantPhone);
       if (draftFormData.papers) setPapers(draftFormData.papers);
       if (draftFormData.step) setStep(draftFormData.step);
       pendingBayRestoreRef.current = draftFormData.selectedBayId ?? null;
@@ -156,7 +166,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
   }, [draftHydrated, draftFormData]);
 
   const buildDraftSnapshot = (targetStep) => ({
-    selectedVehicleId, bayStateId, bayLgaId, selectedBayId, bookingDate, selectedSlotId, deliveryAddress, papers, step: targetStep,
+    selectedVehicleId, bayStateId, bayLgaId, selectedBayId, bookingDate, selectedSlotId, deliveryAddress, firstName, middleName, lastName, applicantEmail, applicantPhone, papers, step: targetStep,
   });
 
   // Fetch LGAs when bay state changes
@@ -310,6 +320,12 @@ export default function RoadworthinessExpressNewApplicationPage() {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
     }
     if (n === 2) {
+      if (!firstName.trim()) errors.firstName = "First name is required.";
+      if (!middleName.trim()) errors.middleName = "Middle name is required.";
+      if (!lastName.trim()) errors.lastName = "Surname is required.";
+      if (!applicantEmail.trim()) errors.applicantEmail = "Email address is required.";
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicantEmail = "Enter a valid email address.";
+      if (!applicantPhone.trim()) errors.applicantPhone = "Mobile number is required.";
       if (!selectedBayId) errors.bay = "Pick a bay to continue.";
       if (!bookingDate) errors.date = "Pick a date.";
       if (!selectedSlotId) errors.slot = "Pick a time slot.";
@@ -348,7 +364,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
     setPapers({ fileName: file.name, url: data.file_url });
   };
 
-  const canSubmit = selectedVehicleId && selectedBayId && bookingDate && selectedSlotId && deliveryAddress.trim();
+  const canSubmit = selectedVehicleId && selectedBayId && bookingDate && selectedSlotId && deliveryAddress.trim() && firstName.trim() && middleName.trim() && lastName.trim() && applicantEmail.trim() && applicantPhone.trim();
 
   const handleSubmit = async () => {
     const allErrors = { ...validateStep(1), ...validateStep(2) };
@@ -364,6 +380,11 @@ export default function RoadworthinessExpressNewApplicationPage() {
     setSubmitting(true);
     markSubmitting();
     const res = await submitRoadworthinessApplication({
+      first_name: firstName.trim(),
+      middle_name: middleName.trim(),
+      last_name: lastName.trim(),
+      applicant_email: applicantEmail.trim(),
+      applicant_phone: applicantPhone.trim(),
       vehicle_id: selectedVehicleId,
       bay_id: selectedBayId,
       slot_template_id: selectedSlotId,
@@ -729,6 +750,64 @@ export default function RoadworthinessExpressNewApplicationPage() {
             </div>
           )}
 
+          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+            <h3 className="text-[13px] font-bold text-slate-900">Applicant Details</h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.firstName)}`}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="e.g. Adebayo"
+                />
+                <FieldError message={fieldErrors.firstName} />
+              </div>
+              <div>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middleName)}`}
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="e.g. Olawale"
+                />
+                <FieldError message={fieldErrors.middleName} />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.lastName)}`}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="e.g. Ogunleye"
+                />
+                <FieldError message={fieldErrors.lastName} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={label}>Email Address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicantEmail)}`}
+                  value={applicantEmail}
+                  onChange={(e) => setApplicantEmail(e.target.value)}
+                  placeholder="e.g. adebayo@example.com"
+                />
+                <FieldError message={fieldErrors.applicantEmail} />
+              </div>
+              <div>
+                <label className={label}>Mobile Number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicantPhone)}`}
+                  value={applicantPhone}
+                  onChange={(e) => setApplicantPhone(e.target.value)}
+                  placeholder="e.g. 08012345678"
+                />
+                <FieldError message={fieldErrors.applicantPhone} />
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
             <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
             <input
@@ -749,6 +828,14 @@ export default function RoadworthinessExpressNewApplicationPage() {
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your booking</h2>
             <div className="divide-y divide-slate-100">
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Applicant</span>
+                <span className="font-semibold text-[#111111]">{firstName} {middleName} {lastName}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Contact</span>
+                <span className="font-semibold text-[#111111]">{applicantEmail} · {applicantPhone}</span>
+              </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Vehicle</span>
                 <span className="font-semibold text-[#111111]">{selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} — ${selectedVehicle.plate_number}` : "—"}</span>

@@ -11,6 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import {
+  getCachedUser,
   getReferenceStates,
   listVehicles,
   createVehicle,
@@ -47,6 +48,7 @@ const DOC_SLOT = {
 
 export default function CentralMotorRegistryNewApplicationPage() {
   const router = useRouter();
+  const cachedUser = getCachedUser();
   const { draftFormData, hydrated: draftHydrated, save: saveDraft, clearDraft, markSubmitting } = useApplicationDraft("central_motor_registry");
   const [draftRestored, setDraftRestored] = useState(false);
 
@@ -63,8 +65,15 @@ export default function CentralMotorRegistryNewApplicationPage() {
   const [vehicleFieldErrors, setVehicleFieldErrors] = useState({});
 
   const [selectedStateId, setSelectedStateId] = useState("");
+  const [firstName, setFirstName] = useState(() => (cachedUser?.name || "").split(" ")[0] || "");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState(() => {
+    const parts = (cachedUser?.name || "").split(" ");
+    return parts.length > 1 ? parts.slice(1).join(" ") : "";
+  });
   const [nin, setNin] = useState("");
-  const [applicantEmail, setApplicantEmail] = useState("");
+  const [applicantEmail, setApplicantEmail] = useState(() => cachedUser?.email || "");
+  const [applicantPhone, setApplicantPhone] = useState(() => cachedUser?.phone || "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [doc, setDoc] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -115,8 +124,12 @@ export default function CentralMotorRegistryNewApplicationPage() {
     if (draftFormData) {
       if (draftFormData.selectedVehicleId != null) setSelectedVehicleId(draftFormData.selectedVehicleId);
       if (draftFormData.selectedStateId) setSelectedStateId(draftFormData.selectedStateId);
+      if (draftFormData.firstName !== undefined) setFirstName(draftFormData.firstName);
+      if (draftFormData.middleName !== undefined) setMiddleName(draftFormData.middleName);
+      if (draftFormData.lastName !== undefined) setLastName(draftFormData.lastName);
       if (draftFormData.nin) setNin(draftFormData.nin);
-      if (draftFormData.applicantEmail) setApplicantEmail(draftFormData.applicantEmail);
+      if (draftFormData.applicantEmail !== undefined) setApplicantEmail(draftFormData.applicantEmail);
+      if (draftFormData.applicantPhone !== undefined) setApplicantPhone(draftFormData.applicantPhone);
       if (draftFormData.deliveryAddress) setDeliveryAddress(draftFormData.deliveryAddress);
       if (draftFormData.doc) setDoc(draftFormData.doc);
       if (draftFormData.step) setStep(draftFormData.step);
@@ -126,7 +139,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
   }, [draftHydrated, draftFormData]);
 
   const buildDraftSnapshot = (targetStep) => ({
-    selectedVehicleId, selectedStateId, nin, applicantEmail, deliveryAddress, doc, step: targetStep,
+    selectedVehicleId, selectedStateId, firstName, middleName, lastName, nin, applicantEmail, applicantPhone, deliveryAddress, doc, step: targetStep,
   });
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || null;
@@ -182,10 +195,14 @@ export default function CentralMotorRegistryNewApplicationPage() {
     }
     if (n === 2) {
       if (!selectedStateId) errors.state = "Select the state to register in.";
+      if (!firstName.trim()) errors.first_name = "First name is required.";
+      if (!middleName.trim()) errors.middle_name = "Middle name is required.";
+      if (!lastName.trim()) errors.last_name = "Surname is required.";
       if (!nin.trim()) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(nin.trim())) errors.nin = "NIN must be exactly 11 digits.";
       if (!applicantEmail.trim()) errors.applicant_email = "Email is required.";
       else if (!EMAIL_RE.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
+      if (!applicantPhone.trim()) errors.applicant_phone = "Phone number is required.";
       if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     if (n === DOC_STEP) {
@@ -208,7 +225,13 @@ export default function CentralMotorRegistryNewApplicationPage() {
 
   const canSubmit =
     selectedVehicleId &&
-    selectedStateId && NIN_RE.test(nin.trim()) && EMAIL_RE.test(applicantEmail.trim()) &&
+    selectedStateId &&
+    firstName.trim() &&
+    middleName.trim() &&
+    lastName.trim() &&
+    NIN_RE.test(nin.trim()) &&
+    EMAIL_RE.test(applicantEmail.trim()) &&
+    applicantPhone.trim() &&
     deliveryAddress.trim() &&
     !!doc?.url;
 
@@ -229,8 +252,12 @@ export default function CentralMotorRegistryNewApplicationPage() {
     const res = await submitCentralMotorRegistryApplication({
       vehicle_id: selectedVehicleId,
       state_id: Number(selectedStateId),
+      first_name: firstName.trim(),
+      middle_name: middleName.trim(),
+      last_name: lastName.trim(),
       nin: nin.trim(),
       applicant_email: applicantEmail.trim(),
+      applicant_phone: applicantPhone.trim(),
       delivery_address: deliveryAddress.trim(),
       vehicle_licence: { doc_type: "vehicle_licence", file_url: doc.url },
       is_urgent: processingSpeed === "fast_track",
@@ -492,41 +519,88 @@ export default function CentralMotorRegistryNewApplicationPage() {
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Your details</h2>
           <div className="space-y-4">
-            <div>
-              <label className={label}>State <span className="text-red-400">*</span></label>
-              <select
-                className={`${inputBase} ${errInputClass(!!fieldErrors.state)}`}
-                value={selectedStateId}
-                onChange={(e) => setSelectedStateId(e.target.value)}
-              >
-                <option value="">Select state</option>
-                {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <FieldError message={fieldErrors.state} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={label}>First Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.first_name)}`}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Ada"
+                />
+                <FieldError message={fieldErrors.first_name} />
+              </div>
+              <div>
+                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="Chinedu"
+                />
+                <FieldError message={fieldErrors.middle_name} />
+              </div>
+              <div>
+                <label className={label}>Surname <span className="text-red-400">*</span></label>
+                <input
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.last_name)}`}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Obi"
+                />
+                <FieldError message={fieldErrors.last_name} />
+              </div>
             </div>
-            <div>
-              <label className={label}>NIN <span className="text-red-400">*</span></label>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={11}
-                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
-                value={nin}
-                onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
-                placeholder="12345678901"
-              />
-              <FieldError message={fieldErrors.nin} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={label}>State <span className="text-red-400">*</span></label>
+                <select
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.state)}`}
+                  value={selectedStateId}
+                  onChange={(e) => setSelectedStateId(e.target.value)}
+                >
+                  <option value="">Select state</option>
+                  {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <FieldError message={fieldErrors.state} />
+              </div>
+              <div>
+                <label className={label}>NIN <span className="text-red-400">*</span></label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={11}
+                  className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.nin)}`}
+                  value={nin}
+                  onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="12345678901"
+                />
+                <FieldError message={fieldErrors.nin} />
+              </div>
             </div>
-            <div>
-              <label className={label}>Email <span className="text-red-400">*</span></label>
-              <input
-                type="email"
-                className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
-                value={applicantEmail}
-                onChange={(e) => setApplicantEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
-              <FieldError message={fieldErrors.applicant_email} />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={label}>Email <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_email)}`}
+                  value={applicantEmail}
+                  onChange={(e) => setApplicantEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+                <FieldError message={fieldErrors.applicant_email} />
+              </div>
+              <div>
+                <label className={label}>Mobile / Phone Number <span className="text-red-400">*</span></label>
+                <input
+                  type="tel"
+                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
+                  value={applicantPhone}
+                  onChange={(e) => setApplicantPhone(e.target.value)}
+                  placeholder="08012345678"
+                />
+                <FieldError message={fieldErrors.applicant_phone} />
+              </div>
             </div>
             <div>
               <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
@@ -559,6 +633,10 @@ export default function CentralMotorRegistryNewApplicationPage() {
             <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your application</h2>
             <div className="divide-y divide-slate-100">
               <div className="flex items-center justify-between py-2.5 text-[13px]">
+                <span className="text-slate-500">Applicant</span>
+                <span className="font-semibold text-[#111111]">{[firstName, middleName, lastName].filter(Boolean).join(" ") || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Vehicle</span>
                 <span className="font-semibold text-[#111111]">
                   {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.plate_number ? ` — ${selectedVehicle.plate_number}` : ""}` : "—"}
@@ -573,8 +651,8 @@ export default function CentralMotorRegistryNewApplicationPage() {
                 <span className="font-mono font-semibold text-[#111111]">{nin || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Email</span>
-                <span className="font-semibold text-[#111111]">{applicantEmail || "—"}</span>
+                <span className="text-slate-500">Email &amp; Phone</span>
+                <span className="font-semibold text-[#111111]">{applicantEmail || "—"} · {applicantPhone || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-slate-500">Delivery address</span>
