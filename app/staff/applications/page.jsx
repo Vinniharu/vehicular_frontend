@@ -104,12 +104,21 @@ function StaffApplicationsQueueInner() {
   // Filters & Search — initial tab can be deep-linked via ?tab=
   const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "unclaimed");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const [typeFilter, setTypeFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
 
-  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly, payFilter = paymentFilter, tab = activeTab, type = typeFilter) => {
+  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly, payFilter = paymentFilter, tab = activeTab, type = typeFilter, searchStr = debouncedSearch) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -146,6 +155,7 @@ function StaffApplicationsQueueInner() {
         status: queryStatus,
         staff_id: queryStaffId,
         show_all: shouldShowAll,
+        search: searchStr || undefined,
       }),
       getStaffCounts(),
     ]);
@@ -165,9 +175,9 @@ function StaffApplicationsQueueInner() {
   };
 
   useEffect(() => {
-    loadData(false, sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter);
+    loadData(false, sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter, debouncedSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter]);
+  }, [sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter, debouncedSearch]);
 
   const handleClaim = async (e, appId) => {
     e.stopPropagation();
