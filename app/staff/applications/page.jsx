@@ -122,9 +122,18 @@ function StaffApplicationsQueueInner() {
       queryStaffId = 0;
     } else if (tab === "mine") {
       if (currentUser?.id) queryStaffId = currentUser.id;
-    } else if (["submitted", "staff_review", "driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready", "action_needed", "dispatch", "flagged"].includes(tab)) {
+    } else if ([
+      "submitted", "staff_review", "driving_school", "driving_school_countdown",
+      "driving_school_graduation", "graduation", "graduated", "driving_school_ready",
+      "action_needed", "dispatch", "flagged",
+    ].includes(tab)) {
       queryStatus = tab;
     }
+
+    // For the "all" tab and any status-specific tab, bypass claim-scope filtering
+    // so ALL applications in those statuses are visible — not just unclaimed + mine.
+    // Only the "unclaimed" and "mine" tabs should retain job-lock scoping.
+    const shouldShowAll = tab !== "unclaimed" && tab !== "mine";
 
     const [queueRes, countsRes] = await Promise.all([
       getStaffQueue({
@@ -136,6 +145,7 @@ function StaffApplicationsQueueInner() {
         application_type: type === "all" ? undefined : type,
         status: queryStatus,
         staff_id: queryStaffId,
+        show_all: shouldShowAll,
       }),
       getStaffCounts(),
     ]);
