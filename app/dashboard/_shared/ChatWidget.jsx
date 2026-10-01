@@ -30,6 +30,10 @@ export default function ChatWidget() {
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const documentVisibleRef = useRef(true);
+  const messagesRef = useRef([]);
+  const prevUnreadCountRef = useRef(0);
+  const lastNotifiedMessageIdRef = useRef(null);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     openRef.current = open;
@@ -43,33 +47,60 @@ export default function ChatWidget() {
     return () => document.removeEventListener("visibilitychange", track);
   }, []);
 
+  const handleOpen = useCallback(() => {
+    setOpen(true);
+    setUnreadCount(0);
+    prevUnreadCountRef.current = 0;
+    const msgs = messagesRef.current;
+    const lastMessage = msgs[msgs.length - 1];
+    if (lastMessage?.created_at) {
+      localStorage.setItem(lastSeenKey(user?.id), String(new Date(lastMessage.created_at).getTime()));
+    }
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
+  }, [user?.id]);
+
   const applyThread = useCallback(
     (data, { scrollToBottom = false } = {}) => {
-      setTicket(data.ticket || null);
-      setMessages(data.messages || []);
-
       const msgs = data.messages || [];
+      messagesRef.current = msgs;
+      setTicket(data.ticket || null);
+      setMessages(msgs);
+
       const lastMessage = msgs[msgs.length - 1];
       const lastSeenAt = Number(localStorage.getItem(lastSeenKey(user?.id)) || 0);
 
       if (openRef.current) {
         const lastMessageAt = lastMessage?.created_at ? new Date(lastMessage.created_at).getTime() : 0;
         if (lastMessage) localStorage.setItem(lastSeenKey(user?.id), String(lastMessageAt));
+        prevUnreadCountRef.current = 0;
         setUnreadCount(0);
       } else {
         const newUnreadCount = msgs.filter(
           (m) => m.sender_role !== "customer" && m.created_at && new Date(m.created_at).getTime() > lastSeenAt
         ).length;
-        setUnreadCount((prev) => {
-          if (newUnreadCount > 0 && prev === 0) {
-            pushToast({
-              title: "New message from support",
-              body: lastMessage?.body || "Tap to view your conversation.",
-              onClick: handleOpen,
-            });
-          }
-          return newUnreadCount;
-        });
+
+        const isNewSupportMessage =
+          lastMessage &&
+          lastMessage.sender_role !== "customer" &&
+          lastMessage.id !== lastNotifiedMessageIdRef.current &&
+          lastMessage.created_at &&
+          new Date(lastMessage.created_at).getTime() > lastSeenAt;
+
+        if (isNewSupportMessage && !initialLoadRef.current) {
+          lastNotifiedMessageIdRef.current = lastMessage.id;
+          pushToast({
+            title: "New message from support",
+            body: lastMessage.body || "Tap to view your conversation.",
+            onClick: handleOpen,
+          });
+        } else if (lastMessage) {
+          lastNotifiedMessageIdRef.current = lastMessage.id;
+        }
+
+        prevUnreadCountRef.current = newUnreadCount;
+        setUnreadCount(newUnreadCount);
       }
 
       if (scrollToBottom) {
@@ -78,8 +109,7 @@ export default function ChatWidget() {
         });
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user?.id, pushToast]
+    [user?.id, pushToast, handleOpen]
   );
 
   // Continuous polling while the widget is mounted — runs regardless of
@@ -100,6 +130,7 @@ export default function ChatWidget() {
         applyThread(res.data, { scrollToBottom: openRef.current && nearBottom });
       }
       setInitialLoading(false);
+      initialLoadRef.current = false;
 
       const active = documentVisibleRef.current && openRef.current && res.data?.ticket?.status === "open";
       timeoutId = setTimeout(tick, active ? ACTIVE_POLL_MS : IDLE_POLL_MS);
@@ -112,18 +143,6 @@ export default function ChatWidget() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applyThread]);
-
-  const handleOpen = () => {
-    setOpen(true);
-    setUnreadCount(0);
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.created_at) {
-      localStorage.setItem(lastSeenKey(user?.id), String(new Date(lastMessage.created_at).getTime()));
-    }
-    requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    });
-  };
 
   const handleSend = async () => {
     const body = draft.trim();

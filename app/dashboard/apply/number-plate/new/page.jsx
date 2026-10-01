@@ -29,6 +29,7 @@ import {
   getVehicleCategoryPricing,
 } from "@/lib/api";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -224,6 +225,8 @@ export default function NumberPlateNewApplicationPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
+  const [minDepositKobo, setMinDepositKobo] = useState(null);
+  const [partialAllowed, setPartialAllowed] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -309,6 +312,8 @@ export default function NumberPlateNewApplicationPage() {
         state_id: stateNum,
       }).then((res) => {
         if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
+        if (res.data?.initial_deposit_kobo != null) setMinDepositKobo(res.data.initial_deposit_kobo);
+        if (res.data?.partial_payment_allowed != null) setPartialAllowed(res.data.partial_payment_allowed);
       });
       return;
     }
@@ -316,6 +321,8 @@ export default function NumberPlateNewApplicationPage() {
       getDriverLicenceFeeSchedule({ state_id: stateNum }).then((res) => {
         const row = res.data?.prices?.find((p) => p.application_type === plan.application_type);
         if (row?.amount_kobo != null) setFeeKobo(row.amount_kobo);
+        if (row?.initial_deposit_kobo != null) setMinDepositKobo(row.initial_deposit_kobo);
+        if (row?.partial_payment_allowed != null) setPartialAllowed(row.partial_payment_allowed);
       });
       return;
     }
@@ -326,6 +333,8 @@ export default function NumberPlateNewApplicationPage() {
       state_id: Number(selectedStateId),
     }).then((res) => {
       if (res.data?.amount_kobo != null) setFeeKobo(res.data.amount_kobo);
+      if (res.data?.initial_deposit_kobo != null) setMinDepositKobo(res.data.initial_deposit_kobo);
+      if (res.data?.partial_payment_allowed != null) setPartialAllowed(res.data.partial_payment_allowed);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVehicleId, selectedStateId, isDealership, isStandardPlate, plan.application_type, applicantForm.vehicle_category]);
@@ -517,7 +526,7 @@ export default function NumberPlateNewApplicationPage() {
         requiredDocSlots.every((slot) => docs[slot.doc_type]?.url)
       );
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (paymentOpts = null) => {
     const stepsToCheck = Array.from({ length: totalSteps - 1 }, (_, i) => i + 1);
     const allErrors = stepsToCheck.reduce((acc, s) => ({ ...acc, ...validateStep(s) }), {});
     if (Object.keys(allErrors).length > 0) {
@@ -531,6 +540,9 @@ export default function NumberPlateNewApplicationPage() {
     setSubmitError(null);
     setSubmitting(true);
     markSubmitting();
+
+    const payment_method = paymentOpts?.payment_method || "card";
+    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || totalEstimatedFeeKobo;
 
     let targetVehicleId = selectedVehicleId;
     if (isStandardPlate) {
@@ -563,6 +575,8 @@ export default function NumberPlateNewApplicationPage() {
     }
 
     const res = await submitDriverLicenceApplication({
+      payment_method,
+      payment_amount_kobo,
       application_type: plan.application_type,
       vehicle_id: isDealership ? undefined : targetVehicleId,
       vehicle_category: isStandardPlate ? (applicantForm.vehicle_category || "saloon_car_1") : selectedVehicle?.vehicle_category,
@@ -595,6 +609,17 @@ export default function NumberPlateNewApplicationPage() {
     await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
+
+    if (payment_method === "wallet") {
+      const walletRes = await getWallet();
+      if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    } else if (res.data?.payment_options?.checkout_url) {
+      const authUrl = res.data.payment_options.checkout_url;
+      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        window.location.href = authUrl;
+      }
+    }
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -765,7 +790,7 @@ export default function NumberPlateNewApplicationPage() {
                   const priceRow = categoryPrices.find(
                     (p) => p.service_key === plan.application_type && p.vehicle_category === opt.value
                   );
-                  const priceText = priceRow?.amount_kobo != null ? ` — ${formatKobo(priceRow.amount_kobo)}` : "";
+                  const priceText = priceRow?.amount_kobo != null ? ` — ${koboToNaira(priceRow.amount_kobo)}` : "";
                   return (
                     <option key={opt.value} value={opt.value}>
                       {opt.label} ({opt.desc}){priceText}
@@ -774,7 +799,7 @@ export default function NumberPlateNewApplicationPage() {
                 })}
               </select>
               <p className="mt-1 text-[11.5px] font-medium text-emerald-700">
-                Selected category price: {formatKobo(feeKobo)}
+                Selected category price: {koboToNaira(feeKobo)}
               </p>
               <FieldError message={fieldErrors.vehicle_category} />
             </div>
@@ -1572,27 +1597,39 @@ export default function NumberPlateNewApplicationPage() {
           />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">{plan.title}</span>
-              <span className="font-semibold text-[#111111]">{koboToNaira(estimatedFeeKobo)}</span>
-            </div>
-            {processingSpeed === "fast_track" && (
-              <div className="flex items-center justify-between text-[13px] mt-1">
-                <span className="text-slate-500">Fast Track Surcharge</span>
-                <span className="font-semibold text-emerald-600">+{koboToNaira(fastTrackSurchargeKobo)}</span>
+            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Submission</h2>
+            <p className="mb-4 text-[12px] text-slate-500">
+              Applications require an initial deposit or full payment to begin processing.
+            </p>
+            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">{plan.title}</span>
+                <span className="font-semibold text-[#111111]">{koboToNaira(estimatedFeeKobo)}</span>
               </div>
-            )}
-            <p className="mt-2 text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalEstimatedFeeKobo)}</p>
-            <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
+              {processingSpeed === "fast_track" && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Fast Track Surcharge</span>
+                  <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+                <span>Total Fee</span>
+                <span className="font-mono">{koboToNaira(totalEstimatedFeeKobo)}</span>
+              </div>
+            </div>
+
+            {submitError && <p className="mb-3 text-[13px] font-medium text-red-600">{submitError}</p>}
+
+            <PaymentOptions
+              submitMode={true}
+              remainingKobo={totalEstimatedFeeKobo || 0}
+              walletBalanceKobo={walletBalance}
+              partialAllowed={partialAllowed}
+              minDepositKobo={minDepositKobo}
+              submitting={submitting}
+              onSubmitWithPayment={handleSubmit}
+            />
           </section>
-
-          {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
-
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {submitting ? "Submitting…" : "Submit application"}
-          </button>
         </section>
       )}
 

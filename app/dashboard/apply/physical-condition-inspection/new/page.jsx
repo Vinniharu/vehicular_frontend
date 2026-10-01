@@ -25,6 +25,7 @@ import {
   koboToNaira,
 } from "@/lib/api";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
@@ -133,10 +134,13 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     setSupportingDoc({ fileName: file.name, url: data.file_url });
   };
 
-  const priceKobo = useMemo(() => {
+  const pciPriceRow = useMemo(() => {
     if (!servicePrices) return null;
-    return servicePrices.find((p) => p.slug === PCI_SLUG)?.amount_kobo ?? null;
+    return servicePrices.find((p) => p.slug === PCI_SLUG);
   }, [servicePrices]);
+  const priceKobo = pciPriceRow?.amount_kobo ?? null;
+  const minDepositKobo = pciPriceRow?.initial_deposit_kobo ?? null;
+  const partialAllowed = pciPriceRow?.partial_payment_allowed ?? false;
 
   const [processingSpeed, setProcessingSpeed] = useState("normal");
   const [fastTrackInfo, setFastTrackInfo] = useState(null);
@@ -196,7 +200,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
   const canSubmit = Object.keys(validateStep1()).length === 0 && Object.keys(validateStep2()).length === 0;
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (paymentOpts = null) => {
     const errors = { ...validateStep1(), ...validateStep2() };
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -208,7 +212,13 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     setSubmitError(null);
     setSubmitting(true);
     markSubmitting();
+
+    const payment_method = paymentOpts?.payment_method || "card";
+    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || totalFeeKobo;
+
     const res = await submitPhysicalConditionInspectionApplication({
+      payment_method,
+      payment_amount_kobo,
       first_name: form.first_name.trim(),
       middle_name: form.middle_name.trim(),
       last_name: form.last_name.trim(),
@@ -241,6 +251,17 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
+
+    if (payment_method === "wallet") {
+      const walletRes = await getWallet();
+      if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    } else if (res.data?.payment_options?.checkout_url) {
+      const authUrl = res.data.payment_options.checkout_url;
+      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        window.location.href = authUrl;
+      }
+    }
   };
 
   const handlePayFromWallet = async () => {
@@ -301,6 +322,18 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
               <span className="text-slate-500">Total</span>
               <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? priceKobo ?? 0)}</span>
             </div>
+            {(payOpts?.amount_paid_kobo ?? 0) > 0 && (
+              <div className="flex items-center justify-between text-[13px] text-emerald-600 font-medium">
+                <span>Paid</span>
+                <span className="font-mono font-bold">{koboToNaira(payOpts.amount_paid_kobo)}</span>
+              </div>
+            )}
+            {(payOpts?.remaining_kobo ?? 0) > 0 && (
+              <div className="flex items-center justify-between text-[13px] text-slate-700 font-medium">
+                <span>Balance Remaining</span>
+                <span className="font-mono font-bold">{koboToNaira(payOpts.remaining_kobo)}</span>
+              </div>
+            )}
           </div>
 
           {!isPaid && payOpts && (
@@ -626,18 +659,25 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
             {totalFeeKobo != null ? (
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(totalFeeKobo)}</p>
+              <p className="text-[20px] font-bold text-[#111111] mb-4">Total: {koboToNaira(totalFeeKobo)}</p>
             ) : (
-              <p className="text-[13px] font-semibold text-amber-700">Not yet priced — contact support.</p>
+              <p className="text-[13px] font-semibold text-amber-700 mb-4">Not yet priced — contact support.</p>
             )}
+
+            {submitError && <p className="mb-3 text-[13px] font-medium text-red-600">{submitError}</p>}
+
+            {totalFeeKobo != null ? (
+              <PaymentOptions
+                submitMode={true}
+                remainingKobo={totalFeeKobo || 0}
+                walletBalanceKobo={walletBalance}
+                partialAllowed={partialAllowed}
+                minDepositKobo={minDepositKobo}
+                submitting={submitting}
+                onSubmitWithPayment={handleSubmit}
+              />
+            ) : null}
           </section>
-
-          {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
-
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit || totalFeeKobo == null} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {submitting ? "Submitting…" : "Submit & continue to payment"}
-          </button>
         </section>
       )}
 

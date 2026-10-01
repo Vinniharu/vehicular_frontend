@@ -26,6 +26,7 @@ import {
   koboToNaira,
 } from "@/lib/api";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -88,6 +89,8 @@ export default function TintedPermitNewApplicationPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
+  const [minDepositKobo, setMinDepositKobo] = useState(null);
+  const [partialAllowed, setPartialAllowed] = useState(false);
   const [processingSpeed, setProcessingSpeed] = useState("normal");
   const [fastTrackInfo, setFastTrackInfo] = useState(null);
   // { eligible, reason: "in_flight" | "not_due" | null, current_expiry_date, eligible_from_date }
@@ -134,8 +137,10 @@ export default function TintedPermitNewApplicationPage() {
           setAddingVehicle(true);
         }
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-        const tintedPrice = feeRes.data?.prices?.find((p) => p.application_type === "tinted_permit")?.amount_kobo;
-        if (tintedPrice != null) setFeeKobo(tintedPrice);
+        const tintedRow = feeRes.data?.prices?.find((p) => p.application_type === "tinted_permit");
+        if (tintedRow?.amount_kobo != null) setFeeKobo(tintedRow.amount_kobo);
+        if (tintedRow?.initial_deposit_kobo != null) setMinDepositKobo(tintedRow.initial_deposit_kobo);
+        if (tintedRow?.partial_payment_allowed != null) setPartialAllowed(tintedRow.partial_payment_allowed);
         setLoadingVehicles(false);
       }
     );
@@ -235,7 +240,7 @@ export default function TintedPermitNewApplicationPage() {
     deliveryAddress.trim() &&
     DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (paymentOpts = null) => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3) };
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
@@ -248,7 +253,13 @@ export default function TintedPermitNewApplicationPage() {
     setSubmitError(null);
     setSubmitting(true);
     markSubmitting();
+
+    const payment_method = paymentOpts?.payment_method || "card";
+    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || displayFeeKobo;
+
     const res = await submitDriverLicenceApplication({
+      payment_method,
+      payment_amount_kobo,
       application_type: "tinted_permit",
       vehicle_id: selectedVehicleId,
       first_name: firstName.trim(),
@@ -268,9 +279,20 @@ export default function TintedPermitNewApplicationPage() {
       setSubmitError(res.error);
       return;
     }
+    await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
-    await clearDraft();
+
+    if (payment_method === "wallet") {
+      const walletRes = await getWallet();
+      if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    } else if (res.data?.payment_options?.checkout_url) {
+      const authUrl = res.data.payment_options.checkout_url;
+      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        window.location.href = authUrl;
+      }
+    }
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -688,17 +710,39 @@ export default function TintedPermitNewApplicationPage() {
           />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(displayFeeKobo)}</p>
-            <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
+            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Submission</h2>
+            <p className="mb-4 text-[12px] text-slate-500">
+              Applications require an initial deposit or full payment to begin processing.
+            </p>
+            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Tinted Permit Fee</span>
+                <span className="font-semibold text-[#111111]">{koboToNaira(feeKobo ?? TOTAL_FEE_KOBO)}</span>
+              </div>
+              {processingSpeed === "fast_track" && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Fast Track Surcharge</span>
+                  <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+                <span>Total Fee</span>
+                <span className="font-mono">{koboToNaira(displayFeeKobo)}</span>
+              </div>
+            </div>
+
+            {submitError && <p className="mb-3 text-[13px] font-medium text-red-600">{submitError}</p>}
+
+            <PaymentOptions
+              submitMode={true}
+              remainingKobo={displayFeeKobo || 0}
+              walletBalanceKobo={walletBalance}
+              partialAllowed={partialAllowed}
+              minDepositKobo={minDepositKobo}
+              submitting={submitting}
+              onSubmitWithPayment={handleSubmit}
+            />
           </section>
-
-          {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
-
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {submitting ? "Submitting…" : "Submit application"}
-          </button>
         </section>
       )}
 

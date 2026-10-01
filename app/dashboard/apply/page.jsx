@@ -578,7 +578,7 @@ export default function ApplyPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (paymentOpts = null) => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3), ...validateStep(4) };
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
@@ -592,8 +592,22 @@ export default function ApplyPage() {
     setSubmitting(true);
     setSubmitError(null);
 
+    const liveItem = liveFeeSchedule?.find(
+      (p) => p.application_type === applicationType && (p.validity_period === validityPeriod || !validityPeriod || !p.validity_period)
+    );
+    const resolvedFee = liveItem?.amount_kobo ?? estimateFeeKobo(applicationType, validityPeriod, liveFeeSchedule);
+
+    const payment_method = paymentOpts?.payment_method || "card";
+    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || resolvedFee;
+
+    const paymentPayload = {
+      payment_method,
+      payment_amount_kobo,
+    };
+
     const res = applicationType === "fresh"
       ? await submitDriverLicenceApplication({
+          ...paymentPayload,
           application_type: applicationType,
           licence_class: licenceClass,
           validity_period: validityPeriod,
@@ -632,6 +646,7 @@ export default function ApplyPage() {
           documents: [],
         })
       : await submitDriverLicenceApplication({
+          ...paymentPayload,
           application_type: applicationType,
           validity_period: validityPeriod,
           first_name: firstName.trim(),
@@ -659,9 +674,26 @@ export default function ApplyPage() {
     if (res.error) {
       setSubmitError(res.error);
     } else {
+      await clearDraft();
       setSuccessApp(res.data);
       setExistingApplications([res.data, ...existingApplications]);
-      await clearDraft();
+      if (payment_method === "wallet") {
+        showToast(
+          "success",
+          res.data?.status === "paid"
+            ? `Paid ${koboToNaira(payment_amount_kobo)} from wallet — application submitted!`
+            : `Initial deposit of ${koboToNaira(payment_amount_kobo)} paid from wallet — application submitted!`
+        );
+        const walletRes = await getWallet();
+        if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+      } else if (res.data?.payment_options?.checkout_url) {
+        const authUrl = res.data.payment_options.checkout_url;
+        const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+        if (!popup || popup.closed || typeof popup.closed === "undefined") {
+          window.location.href = authUrl;
+        }
+        showToast("success", `Opening payment checkout for ${koboToNaira(payment_amount_kobo)}...`);
+      }
     }
   };
 
@@ -1308,15 +1340,32 @@ export default function ApplyPage() {
               ))}
             </div>
 
-            <div
-              className="flex items-start gap-2.5 rounded-xl border p-3.5 text-[12.5px]"
-              style={{ borderColor: "rgba(40, 167, 69,0.25)", background: BRAND_TINT, color: "#065f46" }}
-            >
-              <Info className="mt-0.5 h-4 w-4 shrink-0" style={{ color: BRAND }} />
-              <span>
-                After you submit, a payment of <strong>{koboToNaira(estimateFeeKobo(applicationType, validityPeriod, liveFeeSchedule))}</strong> will
-                be generated — pay by card, bank transfer, or straight from your Vehiculars wallet.
-              </span>
+            {/* Payment & Submission */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <h3 className="mb-1 text-[14px] font-bold text-slate-900">Payment & Submission</h3>
+              <p className="mb-4 text-[12px] text-slate-500">
+                Select your payment method and submit your application. Applications require an initial deposit or full payment to begin processing.
+              </p>
+              {(() => {
+                const liveItem = liveFeeSchedule?.find(
+                  (p) => p.application_type === applicationType && (p.validity_period === validityPeriod || !validityPeriod || !p.validity_period)
+                );
+                const currentFeeKobo = liveItem?.amount_kobo ?? estimateFeeKobo(applicationType, validityPeriod, liveFeeSchedule);
+                const currentPartialAllowed = liveItem?.partial_payment_allowed ?? (applicationType === "fresh");
+                const currentMinDepositKobo = liveItem?.initial_deposit_kobo ?? (applicationType === "fresh" ? 1000000 : currentFeeKobo);
+
+                return (
+                  <PaymentOptions
+                    submitMode={true}
+                    remainingKobo={currentFeeKobo}
+                    walletBalanceKobo={walletBalance}
+                    partialAllowed={currentPartialAllowed}
+                    minDepositKobo={currentMinDepositKobo}
+                    submitting={submitting}
+                    onSubmitWithPayment={handleSubmit}
+                  />
+                );
+              })()}
             </div>
           </div>
         )}
@@ -1359,10 +1408,9 @@ export default function ApplyPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
-            <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {submitting ? "Submitting…" : "Submit application"}
-            </button>
+            <span className="text-[12px] text-slate-500 font-medium">
+              Choose your payment above to submit
+            </span>
           )}
         </div>
       </div>

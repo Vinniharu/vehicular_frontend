@@ -25,6 +25,7 @@ import {
   koboToNaira,
 } from "@/lib/api";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/app/dashboard/_shared/apply-helpers";
@@ -333,7 +334,7 @@ export default function VehicleParticularsNewApplicationPage() {
     selectedTypes.every((dt) => eligibility?.[dt]?.eligible) &&
     evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (paymentOpts = null) => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3) };
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
@@ -346,6 +347,10 @@ export default function VehicleParticularsNewApplicationPage() {
     setSubmitError(null);
     setSubmitting(true);
     markSubmitting();
+
+    const payment_method = paymentOpts?.payment_method || "card";
+    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || finalTotalKobo;
+
     const items = selectedTypes.map((dt) => {
       const config = DOC_TYPE_BY_KEY[dt];
       const evidence_documents = config.evidence.map((slot) => ({
@@ -355,6 +360,8 @@ export default function VehicleParticularsNewApplicationPage() {
       return { document_type: dt, evidence_documents };
     });
     const res = await submitVehicleParticularsApplication({
+      payment_method,
+      payment_amount_kobo,
       vehicle_id: selectedVehicleId,
       items,
       first_name: firstName.trim(),
@@ -374,6 +381,17 @@ export default function VehicleParticularsNewApplicationPage() {
     await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options || null);
+
+    if (payment_method === "wallet") {
+      const walletRes = await getWallet();
+      if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    } else if (res.data?.payment_options?.checkout_url) {
+      const authUrl = res.data.payment_options.checkout_url;
+      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        window.location.href = authUrl;
+      }
+    }
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -821,24 +839,44 @@ export default function VehicleParticularsNewApplicationPage() {
           />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <div className="flex items-baseline gap-2">
-              <p className="text-[20px] font-bold text-[#111111]">Total: {koboToNaira(finalTotalKobo)}</p>
+            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Submission</h2>
+            <p className="mb-4 text-[12px] text-slate-500">
+              Applications require payment to begin processing.
+            </p>
+            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Documents Total</span>
+                <span className="font-semibold text-[#111111]">{koboToNaira(totalKobo)}</span>
+              </div>
               {isAllSelected && bundleAmountKobo > 0 && (
-                <span className="rounded-full bg-[#28A745]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#28A745]">
-                  Fixed package price
-                </span>
+                <div className="flex items-center justify-between text-emerald-700 text-[12px]">
+                  <span>Package Discount</span>
+                  <span className="font-bold">Applied</span>
+                </div>
               )}
+              {processingSpeed === "fast_track" && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Fast Track Surcharge</span>
+                  <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+                <span>Total Fee</span>
+                <span className="font-mono">{koboToNaira(finalTotalKobo)}</span>
+              </div>
             </div>
-            <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
+
+            {submitError && <p className="mb-3 text-[13px] font-medium text-red-600">{submitError}</p>}
+
+            <PaymentOptions
+              submitMode={true}
+              remainingKobo={finalTotalKobo || 0}
+              walletBalanceKobo={walletBalance}
+              partialAllowed={false}
+              submitting={submitting}
+              onSubmitWithPayment={handleSubmit}
+            />
           </section>
-
-          {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
-
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {submitting ? "Submitting…" : "Submit request"}
-          </button>
         </section>
       )}
 

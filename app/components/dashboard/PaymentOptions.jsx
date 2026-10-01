@@ -30,19 +30,28 @@ export default function PaymentOptions({
   onPayWallet,
   onPayCard,
   partialAllowed = true,
+  minDepositKobo,
+  submitMode = false,
+  submitting = false,
+  onSubmitWithPayment,
+  depositLabel,
 }) {
   const [method, setMethod] = useState("card");
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [customNaira, setCustomNaira] = useState("");
   const [activePayType, setActivePayType] = useState(null);
 
-  const minKobo = minPayableKobo(remainingKobo, amountPaidKobo);
+  const minKobo = minDepositKobo && minDepositKobo > 0
+    ? Math.min(minDepositKobo, remainingKobo)
+    : minPayableKobo(remainingKobo, amountPaidKobo);
+
+  const effectivePartialAllowed = partialAllowed && minKobo < remainingKobo;
   const customKobo = Math.round((parseFloat(customNaira) || 0) * 100);
 
   const customTooLow = customKobo > 0 && customKobo < minKobo;
   const customTooHigh = customKobo > remainingKobo;
   const customInvalid = customKobo <= 0 || customTooLow || customTooHigh;
-  const busy = payingWallet || payingCard;
+  const busy = payingWallet || payingCard || submitting;
 
   useEffect(() => {
     if (!busy) setActivePayType(null);
@@ -57,6 +66,11 @@ export default function PaymentOptions({
   const handlePay = (amount, payType = null) => {
     if (!amount || busy) return;
     setActivePayType(payType);
+    if (submitMode) {
+      if (method === "wallet" && amount > walletBalanceKobo) return;
+      onSubmitWithPayment?.({ payment_method: method, payment_amount_kobo: amount });
+      return;
+    }
     if (method === "wallet") {
       if (amount > walletBalanceKobo) return;
       onPayWallet?.(amount);
@@ -65,7 +79,7 @@ export default function PaymentOptions({
     }
   };
 
-  const isFirstDeposit = partialAllowed && amountPaidKobo === 0;
+  const isFirstDeposit = effectivePartialAllowed && amountPaidKobo === 0;
 
   return (
     <div className="space-y-4">
@@ -111,7 +125,7 @@ export default function PaymentOptions({
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
                     <Check className="h-3 w-3 text-emerald-700" />
-                    Minimum 10% Deposit
+                    {depositLabel || "Initial Deposit"}
                   </span>
                   {method === "wallet" ? (
                     <Wallet className="h-4 w-4 text-emerald-700" />
@@ -124,7 +138,7 @@ export default function PaymentOptions({
                   {koboToNaira(minKobo)}
                 </p>
                 <p className="mt-1 text-[11.5px] leading-relaxed text-emerald-800 font-medium">
-                  Enroll in accredited driving school immediately. Pay remainder before routing.
+                  Start processing immediately with an initial deposit. Pay remaining balance before final routing/delivery.
                 </p>
               </div>
 
@@ -149,7 +163,13 @@ export default function PaymentOptions({
                   <CreditCard className="h-4 w-4" />
                 )}
                 {busy && activePayType === "min"
-                  ? "Opening Monnify…"
+                  ? submitMode
+                    ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
+                    : (method === "wallet" ? "Processing…" : "Opening Monnify…")
+                  : submitMode
+                  ? (method === "wallet"
+                    ? `Pay ${koboToNaira(minKobo)} from Wallet & Submit`
+                    : `Pay ${koboToNaira(minKobo)} with Card & Submit`)
                   : `Pay ${koboToNaira(minKobo)} Minimum`}
               </button>
             </div>
@@ -172,7 +192,7 @@ export default function PaymentOptions({
                   {koboToNaira(remainingKobo)}
                 </p>
                 <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500 font-medium">
-                  Covers driving school, agent field processing, capture, and card dispatch.
+                  Covers entire service processing, documentation, and completion.
                 </p>
               </div>
 
@@ -196,7 +216,13 @@ export default function PaymentOptions({
                   <CreditCard className="h-4 w-4" />
                 )}
                 {busy && activePayType === "full"
-                  ? "Opening Monnify…"
+                  ? submitMode
+                    ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
+                    : (method === "wallet" ? "Processing…" : "Opening Monnify…")
+                  : submitMode
+                  ? (method === "wallet"
+                    ? `Pay ${koboToNaira(remainingKobo)} in Full from Wallet & Submit`
+                    : `Pay ${koboToNaira(remainingKobo)} in Full with Card & Submit`)
                   : `Pay ${koboToNaira(remainingKobo)} in Full`}
               </button>
             </div>
@@ -259,8 +285,22 @@ export default function PaymentOptions({
                   className="w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
                   style={{ background: BRAND }}
                 >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                  {busy ? "Processing…" : `Pay ${koboToNaira(customKobo || 0)}`}
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : method === "wallet" ? (
+                    <Wallet className="h-4 w-4" />
+                  ) : (
+                    <CreditCard className="h-4 w-4" />
+                  )}
+                  {busy
+                    ? submitMode
+                      ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
+                      : "Processing…"
+                    : submitMode
+                    ? (method === "wallet"
+                      ? `Pay ${koboToNaira(customKobo || 0)} from Wallet & Submit`
+                      : `Pay ${koboToNaira(customKobo || 0)} with Card & Submit`)
+                    : `Pay ${koboToNaira(customKobo || 0)}`}
                 </button>
               </div>
             )}
@@ -336,11 +376,22 @@ export default function PaymentOptions({
               <CreditCard className="h-4 w-4" />
             )}
             {busy
-              ? "Preparing Checkout…"
+              ? submitMode
+                ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
+                : "Preparing Checkout…"
+              : submitMode
+              ? (method === "wallet"
+                ? `Pay ${koboToNaira(remainingKobo)} from Wallet & Submit Application`
+                : `Pay ${koboToNaira(remainingKobo)} with Card & Submit Application`)
               : method === "wallet"
               ? `Pay ${koboToNaira(remainingKobo)} from Wallet`
               : `Pay ${koboToNaira(remainingKobo)} with Card or Transfer`}
           </button>
+          {method === "wallet" && remainingKobo > walletBalanceKobo && (
+            <p className="text-[12px] text-center font-medium text-amber-700">
+              Exceeds wallet balance ({koboToNaira(walletBalanceKobo)}). Fund your wallet or switch to Card/Transfer.
+            </p>
+          )}
           <p className="text-[11.5px] text-center text-slate-500">
             Full upfront payment is required for this service before processing begins.
           </p>

@@ -24,6 +24,7 @@ import {
   koboToNaira,
 } from "@/lib/api";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import UploadSlot from "@/app/components/dashboard/UploadSlot";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
@@ -79,6 +80,8 @@ export default function CentralMotorRegistryNewApplicationPage() {
   const [fieldErrors, setFieldErrors] = useState({});
 
   const [feeKobo, setFeeKobo] = useState(null);
+  const [minDepositKobo, setMinDepositKobo] = useState(null);
+  const [partialAllowed, setPartialAllowed] = useState(false);
   const [processingSpeed, setProcessingSpeed] = useState("normal");
   const [fastTrackInfo, setFastTrackInfo] = useState(null);
 
@@ -152,6 +155,8 @@ export default function CentralMotorRegistryNewApplicationPage() {
     getServicePricing(Number(selectedStateId)).then((res) => {
       const row = res.data?.prices?.find((p) => p.slug === "central-motor-registry");
       setFeeKobo(row?.amount_kobo ?? null);
+      if (row?.initial_deposit_kobo != null) setMinDepositKobo(row.initial_deposit_kobo);
+      if (row?.partial_payment_allowed != null) setPartialAllowed(row.partial_payment_allowed);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStateId]);
@@ -235,7 +240,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     deliveryAddress.trim() &&
     !!doc?.url;
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (paymentOpts = null) => {
     const stepsToCheck = [1, 2, 3];
     const allErrors = stepsToCheck.reduce((acc, s) => ({ ...acc, ...validateStep(s) }), {});
     if (Object.keys(allErrors).length > 0) {
@@ -249,7 +254,13 @@ export default function CentralMotorRegistryNewApplicationPage() {
     setSubmitError(null);
     setSubmitting(true);
     markSubmitting();
+
+    const payment_method = paymentOpts?.payment_method || "card";
+    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || totalFeeKobo;
+
     const res = await submitCentralMotorRegistryApplication({
+      payment_method,
+      payment_amount_kobo,
       vehicle_id: selectedVehicleId,
       state_id: Number(selectedStateId),
       first_name: firstName.trim(),
@@ -268,9 +279,20 @@ export default function CentralMotorRegistryNewApplicationPage() {
       setSubmitError(res.error);
       return;
     }
+    await clearDraft();
     setSuccessApp(res.data);
     setPayOpts(res.data.payment_options);
-    clearDraft();
+
+    if (payment_method === "wallet") {
+      const walletRes = await getWallet();
+      if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
+    } else if (res.data?.payment_options?.checkout_url) {
+      const authUrl = res.data.payment_options.checkout_url;
+      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        window.location.href = authUrl;
+      }
+    }
   };
 
   const handlePayFromWallet = async (amountKobo) => {
@@ -680,17 +702,39 @@ export default function CentralMotorRegistryNewApplicationPage() {
           />
 
           <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
-            <p className="text-[20px] font-bold text-[#111111]">Total: {totalFeeKobo != null ? koboToNaira(totalFeeKobo) : "—"}</p>
-            <p className="mt-1 text-[12px] text-slate-500">Pay in full, or at least the ₦10,000 minimum to get started — the rest can follow.</p>
+            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Submission</h2>
+            <p className="mb-4 text-[12px] text-slate-500">
+              Applications require an initial deposit or full payment to begin processing.
+            </p>
+            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">CMR Registration Fee</span>
+                <span className="font-semibold text-[#111111]">{feeKobo != null ? koboToNaira(feeKobo) : "—"}</span>
+              </div>
+              {processingSpeed === "fast_track" && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Fast Track Surcharge</span>
+                  <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+                <span>Total Fee</span>
+                <span className="font-mono">{totalFeeKobo != null ? koboToNaira(totalFeeKobo) : "—"}</span>
+              </div>
+            </div>
+
+            {submitError && <p className="mb-3 text-[13px] font-medium text-red-600">{submitError}</p>}
+
+            <PaymentOptions
+              submitMode={true}
+              remainingKobo={totalFeeKobo || 0}
+              walletBalanceKobo={walletBalance}
+              partialAllowed={partialAllowed}
+              minDepositKobo={minDepositKobo}
+              submitting={submitting}
+              onSubmitWithPayment={handleSubmit}
+            />
           </section>
-
-          {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
-
-          <button type="button" onClick={handleSubmit} disabled={submitting || !canSubmit} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {submitting ? "Submitting…" : "Submit application"}
-          </button>
         </section>
       )}
 
