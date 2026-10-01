@@ -316,7 +316,7 @@ export default function AdminRevenuePage() {
       label: "Total Inflow (Monnify Wallet)",
       value: overview ? koboToNaira(overview.gross_payments_kobo) : "—",
       sub: overview?.total_monnify_fees_kobo
-        ? `${koboToNaira(overview.gross_collected_kobo)} gross (−${koboToNaira(overview.total_monnify_fees_kobo)} fee)`
+        ? `${koboToNaira(overview.gross_collected_kobo)} gross (−${koboToNaira(overview.total_monnify_fees_kobo)} fee)${overview.wallet_deposits_kobo ? ` • Incl. ${koboToNaira(overview.wallet_deposits_kobo)} deposits` : ""}`
         : "Net settled in Monnify wallet",
       icon: TrendingUp,
       accent: "text-slate-900",
@@ -612,7 +612,7 @@ export default function AdminRevenuePage() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
-              <option value="">All statuses (Paid)</option>
+              <option value="">Successful Only (Revenue)</option>
               <option value="success">Success (Full Payment)</option>
               <option value="partial">Partial Payment</option>
             </select>
@@ -622,6 +622,7 @@ export default function AdminRevenuePage() {
               className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
               <option value="">All types</option>
+              <option value="wallet_deposit">Wallet Deposits</option>
               <option value="fresh">Fresh DL</option>
               <option value="renewal">Renewal DL</option>
               <option value="reissue">Reissue DL</option>
@@ -670,14 +671,14 @@ export default function AdminRevenuePage() {
                       <td className="py-3.5 px-4">
                         <p className="text-[13px] font-semibold text-slate-900">{tx.applicant_name}</p>
                         <p className="text-[11px] text-slate-400 font-mono">
-                          {tx.application_id ? `App #${tx.application_id}` : "—"}
+                          {tx.application_id ? `App #${tx.application_id}` : (tx.application_type === "wallet_deposit" ? "Wallet Deposit" : "—")}
                         </p>
                       </td>
                       <td className="py-3.5 px-4">
                         <p className="text-[12.5px] text-slate-700 capitalize">
-                          {tx.application_type}
+                          {tx.application_type ? tx.application_type.replace(/_/g, " ") : "—"}
                         </p>
-                        <p className="text-[11px] text-slate-400">{tx.validity_period || "—"}</p>
+                        <p className="text-[11px] text-slate-400">{tx.validity_period || (tx.application_type === "wallet_deposit" ? "Direct Inflow" : "—")}</p>
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="font-mono text-[11.5px] text-slate-500">{tx.reference}</span>

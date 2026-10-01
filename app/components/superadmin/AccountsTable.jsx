@@ -16,7 +16,9 @@ import {
   Copy,
   Wallet,
   FileText,
+  Eye,
 } from "lucide-react";
+import Link from "next/link";
 import {
   superAdminGetUsers,
   superAdminUpdateUser,
@@ -349,7 +351,16 @@ export default function AccountsTable({ role, title, description }) {
                       <div className="flex items-center gap-3">
                         <Avatar name={account.name} />
                         <div>
-                          <p className="text-[13px] font-semibold text-slate-900">{account.name}</p>
+                          {role === "customer" ? (
+                            <Link
+                              href={`/super-admin/customers/${account.id}`}
+                              className="text-[13px] font-semibold text-slate-900 hover:text-[#28A745] hover:underline"
+                            >
+                              {account.name}
+                            </Link>
+                          ) : (
+                            <p className="text-[13px] font-semibold text-slate-900">{account.name}</p>
+                          )}
                           <p className="text-[11px] font-mono text-slate-400">{account.email}</p>
                         </div>
                       </div>
@@ -363,6 +374,16 @@ export default function AccountsTable({ role, title, description }) {
                     </td>
                     <td className="py-3.5 px-5 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {role === "customer" && (
+                          <Link
+                            href={`/super-admin/customers/${account.id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                            title="View customer applications, payments & deletion audit log"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Overview
+                          </Link>
+                        )}
                         <button
                           type="button"
                           onClick={() => openEdit(account)}
