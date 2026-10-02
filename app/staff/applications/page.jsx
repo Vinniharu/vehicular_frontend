@@ -16,8 +16,9 @@ import {
   Timer,
   Zap,
   GraduationCap,
+  Briefcase,
 } from "lucide-react";
-import { getStaffQueue, staffClaimApplication, getCachedUser, koboToNaira, getStaffCounts } from "@/lib/api";
+import { getStaffQueue, staffClaimApplication, getCachedUser, authGetMe, koboToNaira, getStaffCounts } from "@/lib/api";
 
 const BRAND = "#28A745";
 
@@ -99,10 +100,29 @@ function StaffApplicationsQueueInner() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [claimingId, setClaimingId] = useState(null);
-  const currentUser = useMemo(() => getCachedUser(), []);
+  const [currentUser, setCurrentUser] = useState(() => getCachedUser());
 
-  // Filters & Search — initial tab can be deep-linked via ?tab=
-  const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "unclaimed");
+  useEffect(() => {
+    const cached = getCachedUser();
+    if (cached) setCurrentUser(cached);
+    authGetMe().then((res) => {
+      if (res?.data) setCurrentUser(res.data);
+    }).catch(() => {});
+  }, []);
+
+  // Queue Scope & Status Filter:
+  // Scope controls job-locking/assignment: 'mine' (Assigned to Me), 'unclaimed' (Unclaimed Pool), 'all' (All Applications)
+  // When scope is 'mine', staff sees ALL applications assigned to them NO MATTER THE STATUS (when statusFilter is 'all').
+  const initialParam = searchParams?.get("tab") || searchParams?.get("scope") || "mine";
+  const [scope, setScope] = useState(() => {
+    if (["unclaimed", "mine", "all"].includes(initialParam)) return initialParam;
+    return "mine";
+  });
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (!["unclaimed", "mine", "all"].includes(initialParam)) return initialParam;
+    return "all";
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -118,31 +138,31 @@ function StaffApplicationsQueueInner() {
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
 
-  const loadData = async (isRefresh = false, sort = sortBy, urgentOnly = isUrgentOnly, payFilter = paymentFilter, tab = activeTab, type = typeFilter, searchStr = debouncedSearch) => {
+  const loadData = async (
+    isRefresh = false,
+    sort = sortBy,
+    urgentOnly = isUrgentOnly,
+    payFilter = paymentFilter,
+    currentScope = scope,
+    currStatus = statusFilter,
+    type = typeFilter,
+    searchStr = debouncedSearch
+  ) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
 
-    // Map tab to backend status or staff_id params if applicable
-    let queryStatus = undefined;
+    let queryStatus = currStatus === "all" ? undefined : currStatus;
     let queryStaffId = undefined;
+    let shouldShowAll = false;
 
-    if (tab === "unclaimed") {
+    if (currentScope === "unclaimed") {
       queryStaffId = 0;
-    } else if (tab === "mine") {
-      if (currentUser?.id) queryStaffId = currentUser.id;
-    } else if ([
-      "submitted", "staff_review", "driving_school", "driving_school_countdown",
-      "driving_school_graduation", "graduation", "graduated", "driving_school_ready",
-      "action_needed", "dispatch", "flagged",
-    ].includes(tab)) {
-      queryStatus = tab;
+    } else if (currentScope === "mine") {
+      queryStaffId = currentUser?.id || -1;
+    } else if (currentScope === "all") {
+      shouldShowAll = true;
     }
-
-    // For the "all" tab and any status-specific tab, bypass claim-scope filtering
-    // so ALL applications in those statuses are visible — not just unclaimed + mine.
-    // Only the "unclaimed" and "mine" tabs should retain job-lock scoping.
-    const shouldShowAll = tab !== "unclaimed" && tab !== "mine";
 
     const [queueRes, countsRes] = await Promise.all([
       getStaffQueue({
@@ -175,9 +195,9 @@ function StaffApplicationsQueueInner() {
   };
 
   useEffect(() => {
-    loadData(false, sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter, debouncedSearch);
+    loadData(false, sortBy, isUrgentOnly, paymentFilter, scope, statusFilter, typeFilter, debouncedSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, isUrgentOnly, paymentFilter, activeTab, typeFilter, debouncedSearch]);
+  }, [sortBy, isUrgentOnly, paymentFilter, scope, statusFilter, typeFilter, debouncedSearch, currentUser?.id]);
 
   const handleClaim = async (e, appId) => {
     e.stopPropagation();
@@ -191,7 +211,7 @@ function StaffApplicationsQueueInner() {
     }
   };
 
-  // Filtered list based on search and tab
+  // Filtered list based on search, scope, and status
   const filteredApps = useMemo(() => {
     return applications.filter((app) => {
       const q = searchQuery.toLowerCase().trim();
@@ -202,6 +222,8 @@ function StaffApplicationsQueueInner() {
         (app.first_name || "").toLowerCase().includes(q) ||
         (app.middle_name || "").toLowerCase().includes(q) ||
         (app.applicant_name || "").toLowerCase().includes(q) ||
+        (app.applicant_email || "").toLowerCase().includes(q) ||
+        (app.applicant_phone || "").toLowerCase().includes(q) ||
         (app.lga || "").toLowerCase().includes(q) ||
         (app.state_of_residence || "").toLowerCase().includes(q);
 
@@ -210,23 +232,28 @@ function StaffApplicationsQueueInner() {
       const matchType = typeFilter === "all" || app.application_type === typeFilter;
       if (!matchType) return false;
 
-      if (activeTab === "all") return true;
-      if (activeTab === "unclaimed") return !app.staff_id;
-      if (activeTab === "mine") return app.staff_id === currentUser?.id;
-      if (activeTab === "submitted") return app.status === "submitted";
-      if (activeTab === "staff_review") return app.status === "staff_review";
-      if (activeTab === "driving_school") return app.status === "driving_school_enrolled" || app.status === "driving_school_graduation" || app.status === "driving_school_certificate_ready";
-      if (activeTab === "driving_school_countdown") return app.status === "driving_school_enrolled";
-      if (activeTab === "driving_school_graduation" || activeTab === "graduation") return app.status === "driving_school_graduation";
-      if (activeTab === "graduated" || activeTab === "driving_school_ready") return app.status === "driving_school_certificate_ready";
-      if (activeTab === "action_needed") return app.status === "agent_completed" || app.status === "staff_final_review";
-      if (activeTab === "dispatch") return app.status === "awaiting_customer";
-      if (activeTab === "flagged") return app.status === "staff_rejected" || app.status === "needs_correction";
-      return true;
-    });
-  }, [applications, activeTab, searchQuery, currentUser, typeFilter]);
+      // Scope filtering
+      if (scope === "unclaimed" && app.staff_id) return false;
+      if (scope === "mine" && currentUser?.id && String(app.staff_id) !== String(currentUser.id)) return false;
 
-  // Counts for top tabs
+      // Status filtering
+      if (statusFilter === "all") return true;
+      if (statusFilter === "submitted") return app.status === "submitted";
+      if (statusFilter === "staff_review") return app.status === "staff_review";
+      if (statusFilter === "driving_school") return ["driving_school_enrolled", "driving_school_graduation", "driving_school_certificate_ready"].includes(app.status);
+      if (statusFilter === "driving_school_countdown") return app.status === "driving_school_enrolled";
+      if (statusFilter === "driving_school_graduation" || statusFilter === "graduation") return app.status === "driving_school_graduation";
+      if (statusFilter === "graduated" || statusFilter === "driving_school_ready") return app.status === "driving_school_certificate_ready";
+      if (statusFilter === "agent_working") return ["routed", "agent_assigned", "agent_accepted", "in_progress", "capturing_scheduled", "captured", "temp_licence_issued"].includes(app.status);
+      if (statusFilter === "action_needed") return ["agent_completed", "staff_final_review"].includes(app.status);
+      if (statusFilter === "dispatch") return app.status === "awaiting_customer";
+      if (statusFilter === "completed") return app.status === "completed";
+      if (statusFilter === "flagged") return ["staff_rejected", "needs_correction"].includes(app.status);
+      return app.status === statusFilter;
+    });
+  }, [applications, scope, statusFilter, searchQuery, currentUser, typeFilter]);
+
+  // Counts for tabs and dropdowns
   const counts = useMemo(() => {
     const total = stats?.all ?? applications.length;
     const ds_countdown = stats?.driving_school_countdown ?? applications.filter((a) => a.status === "driving_school_enrolled").length;
@@ -237,7 +264,7 @@ function StaffApplicationsQueueInner() {
     return {
       all: total,
       unclaimed: stats?.unclaimed ?? applications.filter((a) => !a.staff_id).length,
-      mine: stats?.mine ?? applications.filter((a) => a.staff_id === currentUser?.id).length,
+      mine: stats?.mine ?? (currentUser?.id ? applications.filter((a) => String(a.staff_id) === String(currentUser.id)).length : 0),
       submitted: stats?.submitted ?? applications.filter((a) => a.status === "submitted").length,
       staff_review: stats?.staff_review ?? applications.filter((a) => a.status === "staff_review").length,
       driving_school: ds_total,
@@ -245,8 +272,10 @@ function StaffApplicationsQueueInner() {
       driving_school_graduation: ds_graduation,
       graduation: ds_graduation,
       graduated: ds_ready,
+      agent_working: stats?.agent_working ?? applications.filter((a) => ["routed", "agent_assigned", "agent_accepted", "in_progress", "capturing_scheduled", "captured", "temp_licence_issued"].includes(a.status)).length,
       action_needed: stats?.needs_final_review ?? applications.filter((a) => ["agent_completed", "staff_final_review"].includes(a.status)).length,
       dispatch: stats?.awaiting_customer ?? applications.filter((a) => a.status === "awaiting_customer").length,
+      completed: stats?.completed ?? applications.filter((a) => a.status === "completed").length,
       flagged: stats?.flagged ?? applications.filter((a) => a.status === "staff_rejected" || a.status === "needs_correction").length,
     };
   }, [applications, stats, currentUser]);
@@ -282,6 +311,57 @@ function StaffApplicationsQueueInner() {
 
       {/* ─── Search Bar & Filter Controls ─── */}
       <div className="space-y-3">
+        {/* Scope Selector Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setScope("mine")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all shadow-xs ${
+              scope === "mine"
+                ? "bg-[#28A745] text-white shadow-emerald-500/20"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <UserCheck className="h-4 w-4" />
+            <span>Assigned to Me</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${scope === "mine" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
+              {counts.mine}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setScope("unclaimed")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all shadow-xs ${
+              scope === "unclaimed"
+                ? "bg-[#28A745] text-white shadow-emerald-500/20"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span>Unclaimed Pool</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${scope === "unclaimed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
+              {counts.unclaimed}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setScope("all")}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all shadow-xs ${
+              scope === "all"
+                ? "bg-[#28A745] text-white shadow-emerald-500/20"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <Briefcase className="h-4 w-4" />
+            <span>All Applications</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${scope === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
+              {counts.all}
+            </span>
+          </button>
+        </div>
+
         {/* Row 1: Search & Fast Track Toggle */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
@@ -290,7 +370,7 @@ function StaffApplicationsQueueInner() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by ID, candidate name, state, or LGA..."
+              placeholder="Search by ID, candidate name, email, phone, state, or LGA..."
               className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 shadow-sm transition-all"
             />
             {searchQuery && (
@@ -321,15 +401,13 @@ function StaffApplicationsQueueInner() {
           {/* Status Types Dropdown */}
           <div className="w-full">
             <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value)}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] font-medium text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
             >
-              <optgroup label="Queue Scope">
-                <option value="all">All Statuses ({counts.all})</option>
-                <option value="unclaimed">Unclaimed Pool ({counts.unclaimed})</option>
-                <option value="mine">My Claimed Queue ({counts.mine})</option>
-              </optgroup>
+              <option value="all">
+                All Statuses {scope === "mine" ? `(Assigned to Me: ${counts.mine})` : scope === "unclaimed" ? `(Unclaimed: ${counts.unclaimed})` : `(${counts.all})`}
+              </option>
               <optgroup label="Initial Verification">
                 <option value="submitted">Awaiting Review ({counts.submitted})</option>
                 <option value="staff_review">Under Review ({counts.staff_review})</option>
@@ -340,9 +418,13 @@ function StaffApplicationsQueueInner() {
                 <option value="driving_school_graduation">↳ Graduated / Awaiting Cert ({counts.driving_school_graduation})</option>
                 <option value="graduated">↳ School Complete — Ready to Route ({counts.graduated})</option>
               </optgroup>
+              <optgroup label="Field Processing">
+                <option value="agent_working">Agent Working / En Route ({counts.agent_working})</option>
+              </optgroup>
               <optgroup label="Routing & Dispatch">
                 <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
                 <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
+                <option value="completed">Completed ({counts.completed})</option>
                 <option value="flagged">Flagged ({counts.flagged})</option>
               </optgroup>
             </select>
@@ -403,7 +485,7 @@ function StaffApplicationsQueueInner() {
       </div>
 
       {/* ─── Driving School Breakdown Sub-Filter Banner ─── */}
-      {["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready"].includes(activeTab) && (
+      {["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready"].includes(statusFilter) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-violet-50/80 border border-violet-200 p-3.5 shadow-xs">
           <div className="flex items-center gap-2.5">
             <div className="rounded-lg bg-violet-600 p-2 text-white shadow-xs">
@@ -419,9 +501,9 @@ function StaffApplicationsQueueInner() {
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              onClick={() => setActiveTab("driving_school")}
+              onClick={() => setStatusFilter("driving_school")}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                activeTab === "driving_school"
+                statusFilter === "driving_school"
                   ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-800"
                   : "bg-white text-violet-800 border border-violet-200 hover:bg-violet-100/70"
               }`}
@@ -430,9 +512,9 @@ function StaffApplicationsQueueInner() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("driving_school_countdown")}
+              onClick={() => setStatusFilter("driving_school_countdown")}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                activeTab === "driving_school_countdown"
+                statusFilter === "driving_school_countdown"
                   ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-800"
                   : "bg-white text-violet-800 border border-violet-200 hover:bg-violet-100/70"
               }`}
@@ -442,9 +524,9 @@ function StaffApplicationsQueueInner() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("driving_school_graduation")}
+              onClick={() => setStatusFilter("driving_school_graduation")}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                activeTab === "driving_school_graduation" || activeTab === "graduation"
+                statusFilter === "driving_school_graduation" || statusFilter === "graduation"
                   ? "bg-purple-700 text-white shadow-sm ring-1 ring-purple-800"
                   : "bg-white text-purple-800 border border-purple-200 hover:bg-purple-100/70"
               }`}
@@ -454,9 +536,9 @@ function StaffApplicationsQueueInner() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("graduated")}
+              onClick={() => setStatusFilter("graduated")}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                activeTab === "graduated" || activeTab === "driving_school_ready"
+                statusFilter === "graduated" || statusFilter === "driving_school_ready"
                   ? "bg-teal-700 text-white shadow-sm ring-1 ring-teal-800"
                   : "bg-white text-teal-800 border border-teal-200 hover:bg-teal-100/70"
               }`}
@@ -496,7 +578,7 @@ function StaffApplicationsQueueInner() {
           filteredApps.map((app) => {
             const isPaid = (app.payment_status === "success" || app.payment_status === "paid") && (!app.remaining_kobo || app.remaining_kobo <= 0);
             const isUnclaimed = !app.staff_id;
-            const isMine = app.staff_id === currentUser?.id;
+            const isMine = currentUser?.id ? String(app.staff_id) === String(currentUser.id) : (scope === "mine");
 
             return (
               <div
@@ -546,9 +628,13 @@ function StaffApplicationsQueueInner() {
                     ) : isMine ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-[#28A745]/30 bg-[#E9F7EC] px-2 py-0.5 text-[10.5px] font-bold text-[#166B2C]">
                         <UserCheck className="h-3 w-3" />
-                        Claimed by you
+                        Assigned to you
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10.5px] font-bold text-slate-600">
+                        Assigned: Staff #{app.staff_id}
+                      </span>
+                    )}
                   </div>
 
                   <div>

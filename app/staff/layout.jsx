@@ -301,7 +301,7 @@ export default function StaffLayout({ children }) {
 
       {/* Content */}
       <main className="flex min-h-screen flex-1 flex-col pt-16 lg:pl-64 lg:pt-0">
-        <div className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-4 sm:p-6 lg:p-8">{children}</div>
+        <div className="mx-auto w-full max-w-[1800px] flex-1 space-y-6 p-4 sm:p-6 lg:p-8 xl:p-10">{children}</div>
       </main>
 
       {/* Password change modal */}
