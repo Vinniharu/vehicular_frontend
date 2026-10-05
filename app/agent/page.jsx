@@ -16,8 +16,10 @@ import {
   ClipboardList,
   Hourglass,
   BadgeCheck,
+  ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
+import { StatusBadge } from "./_status";
 import {
   getAgentOffers,
   acceptOffer,
@@ -215,7 +217,10 @@ export default function AgentOffersPage() {
           </div>
           <p className="mt-1.5 text-2xl font-bold text-slate-900">{loading ? "—" : totalOffersCount}</p>
         </div>
-        <div className={`rounded-2xl border p-4 shadow-sm ${atJobCap ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"}`}>
+        <Link
+          href="/agent/applications"
+          className={`rounded-2xl border p-4 shadow-sm hover:border-[#28A745]/50 transition-all cursor-pointer ${atJobCap ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"}`}
+        >
           <div className={`flex items-center gap-2 ${atJobCap ? "text-red-600" : "text-slate-400"}`}>
             <ClipboardList className="h-4 w-4" />
             <span className="text-[11px] font-bold uppercase tracking-wide">Active jobs</span>
@@ -223,22 +228,103 @@ export default function AgentOffersPage() {
           <p className={`mt-1.5 text-2xl font-bold ${atJobCap ? "text-red-900" : "text-slate-900"}`}>
             {loading ? "—" : `${totalActiveJobsCount}/${MAX_ACTIVE_JOBS}`}
           </p>
-        </div>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm">
+        </Link>
+        <Link
+          href="/agent/applications"
+          className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm hover:border-amber-400 transition-all cursor-pointer"
+        >
           <div className="flex items-center gap-2 text-amber-600">
             <Hourglass className="h-4 w-4" />
             <span className="text-[11px] font-bold uppercase tracking-wide">Needs your action</span>
           </div>
           <p className="mt-1.5 text-2xl font-bold text-amber-900">{loading ? "—" : needsAction.length}</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm">
+        </Link>
+        <Link
+          href="/agent/applications"
+          className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm hover:border-emerald-400 transition-all cursor-pointer"
+        >
           <div className="flex items-center gap-2 text-emerald-600">
             <BadgeCheck className="h-4 w-4" />
             <span className="text-[11px] font-bold uppercase tracking-wide">Completed this month</span>
           </div>
           <p className="mt-1.5 text-2xl font-bold text-emerald-900">{loading ? "—" : completedThisMonth.length}</p>
-        </div>
+        </Link>
       </div>
+
+      {/* Active Assigned Jobs Section */}
+      {activeJobs.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-50 text-[#28A745]">
+                <ClipboardList className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Your Active Assigned Jobs ({activeJobs.length})</h2>
+                <p className="text-xs text-slate-500">Jobs currently assigned to you awaiting capturing or document uploads</p>
+              </div>
+            </div>
+            <Link
+              href="/agent/applications"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#28A745] hover:text-[#218838] transition-colors self-start sm:self-auto"
+            >
+              <span>View all in applications table</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {activeJobs.map((app) => {
+              const id = app.raw_id ?? (typeof app.id === "string" ? app.id.replace("app_", "") : app.id);
+              const detailHref =
+                app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` : `/agent/applications/${id}`;
+              const applicantName =
+                app.applicant_name ||
+                `${app.first_name || ""} ${app.last_name || ""}`.trim() ||
+                "Applicant";
+
+              return (
+                <div
+                  key={id}
+                  className="rounded-xl border border-slate-200 p-4 hover:border-[#28A745]/60 hover:shadow-sm transition-all bg-slate-50/40 flex flex-col justify-between gap-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-slate-900">#{id}</span>
+                        <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                          {(app.application_type || "FRESH").replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <StatusBadge status={app.status} appType={app.application_type} size="sm" />
+                    </div>
+
+                    <div>
+                      <p className="text-[13px] font-semibold text-slate-900">{applicantName}</p>
+                      <p className="text-[11.5px] text-slate-500 mt-0.5">
+                        {app.lga ? `${app.lga} LGA` : "—"} {app.phone ? `• ${app.phone}` : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-slate-400 capitalize">
+                      {(app.status || "").replace(/_/g, " ")}
+                    </span>
+                    <Link
+                      href={detailHref}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#28A745] hover:bg-[#218838] text-white transition-colors shadow-xs"
+                    >
+                      <span>Open Job</span>
+                      <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

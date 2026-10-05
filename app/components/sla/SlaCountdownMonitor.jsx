@@ -14,6 +14,7 @@ import {
   Filter,
   RefreshCw,
   Loader2,
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
   ShieldAlert,
@@ -32,14 +33,17 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
     summary: { total_active: 0, on_track: 0, nearing_deadline: 0, breached: 0, completed: 0 },
     items: [],
     total: 0,
+    page: 1,
+    page_size: 25,
+    total_pages: 1,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all"); // 'all', 'breached', 'nearing_deadline', 'on_track', 'completed'
+  const [activeTab, setActiveTab] = useState("all"); // 'all', 'breached', 'nearing_deadline', 'on_track'
   const [selectedService, setSelectedService] = useState("all");
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [pageSize, setPageSize] = useState(25);
 
   const fetchCountdown = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -64,7 +68,7 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
   useEffect(() => {
     fetchCountdown();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedService, page]);
+  }, [activeTab, selectedService, page, pageSize]);
 
   // Debounce search
   useEffect(() => {
@@ -317,21 +321,6 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             On Track ({summary.on_track})
           </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("completed");
-              setPage(1);
-            }}
-            className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeTab === "completed"
-                ? "bg-slate-700 text-white shadow-sm"
-                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            Completed ({summary.completed})
-          </button>
         </div>
 
         {/* Search */}
@@ -528,6 +517,59 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {!loading && (data.items || []).length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+              <span>
+                Showing <strong className="font-semibold text-slate-800">{Math.min((page - 1) * pageSize + 1, data.total)}</strong> to{" "}
+                <strong className="font-semibold text-slate-800">{Math.min(page * pageSize, data.total)}</strong> of{" "}
+                <strong className="font-semibold text-slate-800">{data.total}</strong> applications
+              </span>
+              <span className="text-slate-300">•</span>
+              <div className="flex items-center gap-1.5">
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-[#28A745]"
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 mr-1">
+                Page {page} of {data.total_pages || 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(data.total_pages || 1, p + 1))}
+                disabled={page >= (data.total_pages || 1)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         )}
       </div>

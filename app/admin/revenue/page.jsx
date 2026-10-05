@@ -18,12 +18,16 @@ import {
   Building,
   ChevronDown,
   ChevronUp,
+  X,
+  BadgeCheck,
+  Loader2,
 } from "lucide-react";
 import {
   adminGetMetricsOverview,
   adminGetRevenueTransactions,
   adminGetServiceProfits,
   adminUpdateServiceProfits,
+  adminReconcileCustomerPayment,
   koboToNaira,
 } from "@/lib/api";
 
@@ -116,6 +120,20 @@ export default function AdminRevenuePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Reconcile Customer Payment Modal state
+  const [showReconcileModal, setShowReconcileModal] = useState(false);
+  const [reconcileQuery, setReconcileQuery] = useState("");
+  const [reconcileAmount, setReconcileAmount] = useState("");
+  const [reconcileNotes, setReconcileNotes] = useState("");
+  const [reconcileForce, setReconcileForce] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState(null);
+  const [reconcileError, setReconcileError] = useState(null);
+
   // Service Net Profits state
   const [serviceProfits, setServiceProfits] = useState([]);
   const [profitInputs, setProfitInputs] = useState({});
@@ -158,7 +176,12 @@ export default function AdminRevenuePage() {
     }
   };
 
-  const loadTransactions = async (targetPage = page, targetFrom = fromDate, targetTo = effectiveToDate) => {
+  const loadTransactions = async (
+    targetPage = page,
+    targetFrom = fromDate,
+    targetTo = effectiveToDate,
+    targetSearch = debouncedSearch,
+  ) => {
     setTableLoading(true);
     const seq = ++txnSeqRef.current;
     try {
@@ -169,6 +192,7 @@ export default function AdminRevenuePage() {
         application_type: typeFilter || undefined,
         from_date: targetFrom || undefined,
         to_date: targetTo,
+        search: targetSearch || undefined,
       });
       if (seq === txnSeqRef.current) {
         if (res.data) {
@@ -218,11 +242,18 @@ export default function AdminRevenuePage() {
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
     setPage(1);
     loadOverview(fromDate, effectiveToDate);
-    loadTransactions(1, fromDate, effectiveToDate);
+    loadTransactions(1, fromDate, effectiveToDate, debouncedSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, typeFilter, fromDate, toDate]);
+  }, [statusFilter, typeFilter, fromDate, toDate, debouncedSearch]);
 
   const isInitialMount = useRef(true);
   useEffect(() => {
@@ -230,7 +261,7 @@ export default function AdminRevenuePage() {
       isInitialMount.current = false;
       return;
     }
-    loadTransactions(page, fromDate, effectiveToDate);
+    loadTransactions(page, fromDate, effectiveToDate, debouncedSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -261,10 +292,40 @@ export default function AdminRevenuePage() {
     setRefreshing(true);
     await Promise.all([
       loadOverview(fromDate, effectiveToDate),
-      loadTransactions(page, fromDate, effectiveToDate),
+      loadTransactions(page, fromDate, effectiveToDate, debouncedSearch),
       loadServiceProfits(),
     ]);
     setRefreshing(false);
+  };
+
+  const handleReconcileSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!reconcileQuery.trim()) return;
+    setIsReconciling(true);
+    setReconcileResult(null);
+    setReconcileError(null);
+    try {
+      const amountKobo = reconcileAmount ? Math.round(parseFloat(reconcileAmount) * 100) : null;
+      const res = await adminReconcileCustomerPayment({
+        query: reconcileQuery.trim(),
+        amount_kobo: amountKobo,
+        notes: reconcileNotes.trim() || undefined,
+        force_credit: reconcileForce,
+      });
+      if (res.data) {
+        setReconcileResult(res.data);
+        await Promise.all([
+          loadOverview(fromDate, effectiveToDate),
+          loadTransactions(1, fromDate, effectiveToDate, debouncedSearch),
+        ]);
+      } else if (res.error) {
+        setReconcileError(res.error);
+      }
+    } catch (err) {
+      setReconcileError(err.message || "Failed to reconcile payment");
+    } finally {
+      setIsReconciling(false);
+    }
   };
 
   const handleProfitInputChange = (serviceKey, value) => {
@@ -360,6 +421,18 @@ export default function AdminRevenuePage() {
           </p>
         </div>
         <div className="flex items-center gap-2.5 self-start">
+          <button
+            type="button"
+            onClick={() => {
+              setShowReconcileModal(true);
+              setReconcileResult(null);
+              setReconcileError(null);
+            }}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-semibold border border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 transition-all shadow-xs"
+          >
+            <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Reconcile Payment</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowSettingsPanel(!showSettingsPanel)}
@@ -602,24 +675,46 @@ export default function AdminRevenuePage() {
 
       {/* ─── Transaction Log ─── */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100">
-          <p className="text-[13px] font-semibold text-slate-700">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100">
+          <p className="text-[13px] font-semibold text-slate-700 shrink-0">
             Transactions <span className="text-slate-400 font-normal">({total})</span>
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[210px] sm:min-w-[260px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search email, ref, applicant..."
+                className="w-full pl-8 pr-8 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+              className="px-3 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
               <option value="">Successful Only (Revenue)</option>
+              <option value="all">All Statuses (incl. pending/failed)</option>
               <option value="success">Success (Full Payment)</option>
               <option value="partial">Partial Payment</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
             </select>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+              className="px-3 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
             >
               <option value="">All types</option>
               <option value="wallet_deposit">Wallet Deposits</option>
@@ -772,6 +867,163 @@ export default function AdminRevenuePage() {
           </div>
         )}
       </div>
+
+      {/* ─── Payment Reconciliation Modal ─── */}
+      {showReconcileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <BadgeCheck className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-slate-900">Reconcile Customer Payment</h3>
+                  <p className="text-[12px] text-slate-500">Query Monnify or sync missing customer payments</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReconcileModal(false)}
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleReconcileSubmit} className="p-6 space-y-4">
+              {reconcileResult && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-[12.5px] text-emerald-800 space-y-1.5 animate-in fade-in">
+                  <div className="flex items-center gap-2 font-bold text-emerald-900">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>{reconcileResult.message}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-2 text-[12px] border-t border-emerald-200/60 mt-2 font-mono">
+                    {reconcileResult.application_id && (
+                      <div>
+                        <span className="text-emerald-700 font-sans">App ID:</span> #{reconcileResult.application_id}
+                      </div>
+                    )}
+                    {reconcileResult.amount_kobo && (
+                      <div>
+                        <span className="text-emerald-700 font-sans">Amount:</span> {koboToNaira(reconcileResult.amount_kobo)}
+                      </div>
+                    )}
+                    {reconcileResult.customer_email && (
+                      <div className="col-span-2">
+                        <span className="text-emerald-700 font-sans">Customer:</span> {reconcileResult.customer_email}
+                      </div>
+                    )}
+                    {reconcileResult.reference && (
+                      <div className="col-span-2 truncate">
+                        <span className="text-emerald-700 font-sans">Ref:</span> {reconcileResult.reference}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {reconcileError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-[12.5px] text-rose-800 flex items-start gap-2.5 animate-in fade-in">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{reconcileError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Customer Email or Payment / Transaction Reference <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. cindytobeamos@gmail.com, MNFY|..., or vhc_ref_..."
+                  value={reconcileQuery}
+                  onChange={(e) => setReconcileQuery(e.target.value)}
+                  className="w-full px-3.5 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Enter customer email or any Monnify reference. The system will search Monnify and link to the application.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Override Amount in Naira <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[13px] font-bold">₦</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Leave empty to use Monnify or application amount"
+                    value={reconcileAmount}
+                    onChange={(e) => setReconcileAmount(e.target.value)}
+                    className="w-full pl-8 pr-3.5 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
+                  Internal Notes <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Verified customer support query"
+                  value={reconcileNotes}
+                  onChange={(e) => setReconcileNotes(e.target.value)}
+                  className="w-full px-3.5 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
+                />
+              </div>
+
+              <div className="pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reconcileForce}
+                    onChange={(e) => setReconcileForce(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
+                  />
+                  <div>
+                    <span className="text-[12.5px] font-semibold text-slate-800">Force Credit / Manual Settlement</span>
+                    <p className="text-[11px] text-slate-500">
+                      Check this if you confirmed the payment directly on the Monnify dashboard or bank account and wish to credit the application immediately without an automated API handshake.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowReconcileModal(false)}
+                  className="px-4 py-2 text-[13px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReconciling || !reconcileQuery.trim()}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-[#28A745] hover:bg-[#218838] rounded-lg shadow-sm disabled:opacity-50 transition-colors"
+                >
+                  {isReconciling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Reconciling...</span>
+                    </>
+                  ) : (
+                    <>
+                      <BadgeCheck className="h-4 w-4" />
+                      <span>Reconcile Payment</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
