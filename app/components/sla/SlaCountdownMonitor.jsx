@@ -40,6 +40,8 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // The search actually sent to the server, updated after typing pauses.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all"); // 'all', 'breached', 'nearing_deadline', 'on_track'
   const [selectedService, setSelectedService] = useState("all");
   const [page, setPage] = useState(1);
@@ -53,7 +55,7 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
     const res = await fetcher({
       sla_status: activeTab,
       service_key: selectedService,
-      search: searchQuery,
+      search: debouncedSearch,
       page,
       page_size: pageSize,
     });
@@ -68,13 +70,14 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
   useEffect(() => {
     fetchCountdown();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedService, page, pageSize]);
+  }, [activeTab, selectedService, page, pageSize, debouncedSearch]);
 
-  // Debounce search
+  // Debounce search. Updating the search and resetting to page 1 together
+  // triggers a single fetch above with the new page, not the old one.
   useEffect(() => {
     const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
       setPage(1);
-      fetchCountdown();
     }, 350);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -521,7 +524,7 @@ export default function SlaCountdownMonitor({ portal = "admin" }) {
         )}
 
         {/* Pagination Footer */}
-        {!loading && (data.items || []).length > 0 && (
+        {!loading && (data?.total || 0) > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
               <span>
