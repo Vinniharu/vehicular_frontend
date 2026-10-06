@@ -80,7 +80,7 @@ export default function SubmissionSuccess({ application, title = "Application su
             {message ||
               (paidInFull
                 ? "It's fully paid. We'll keep you updated here and by email as it moves along."
-                : "Pay the balance whenever you're ready. Processing has started.")}
+                : "Your deposit is in. Pay the balance when you can; paying in full avoids delays in review.")}
           </p>
         </div>
 

@@ -123,7 +123,7 @@ function PaymentReturn() {
 
   const message = {
     paid: `Your ${service} is fully paid and moving to processing.`,
-    partial: `Your ${service} has started. The remaining ${options ? koboToNaira(options.remaining_kobo) : "balance"} is due before final routing or delivery.`,
+    partial: `Your deposit for ${service} is in. Pay the remaining ${options ? koboToNaira(options.remaining_kobo) : "balance"} to avoid delays in review and delivery.`,
     failed: "No money was taken. You can try again by card, or pay from your wallet.",
     pending: "Monnify hasn't confirmed this payment yet. If you've just paid, it usually takes under a minute.",
   }[outcome];

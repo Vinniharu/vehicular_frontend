@@ -148,7 +148,7 @@ export default function PaymentOptions({
                   {koboToNaira(minKobo)}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-emerald-800 font-medium">
-                  Start processing immediately with an initial deposit. Pay remaining balance before final routing/delivery.
+                  Submit with an initial deposit and pay the rest later. Paying more up front avoids delays in review.
                 </p>
               </div>
 
