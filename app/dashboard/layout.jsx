@@ -160,7 +160,7 @@ export default function DashboardLayout({ children }) {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-cx-line bg-cx-surface md:flex">
         <div className="px-5 pb-4 pt-6">
           <Link href="/" className="cx-focus inline-flex items-center gap-2.5 rounded-cx">
-            <span className="flex h-9 w-9 items-center justify-center rounded-cx-sm bg-cx-brand text-[15px] font-black text-white">V</span>
+            <img src="/logo.png" alt="" className="h-8 w-auto object-contain" />
             <span className="font-display text-xl text-cx-ink">Vehiculars</span>
           </Link>
         </div>
@@ -228,7 +228,7 @@ export default function DashboardLayout({ children }) {
       {/* ── Mobile top bar ──────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-cx-line bg-cx-surface/95 px-4 backdrop-blur md:hidden">
         <Link href="/dashboard" className="cx-focus inline-flex items-center gap-2 rounded-cx">
-          <span className="flex h-8 w-8 items-center justify-center rounded-cx-sm bg-cx-brand text-sm font-black text-white">V</span>
+          <img src="/logo.png" alt="" className="h-7 w-auto object-contain" />
           <span className="font-display text-lg text-cx-ink">Vehiculars</span>
         </Link>
         <button

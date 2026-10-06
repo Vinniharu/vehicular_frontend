@@ -102,7 +102,7 @@ export default function PaymentOptions({
             onClick={() => setMethod("card")}
             className={segBtn(method === "card")}
           >
-            Pay with Card or Transfer (Monnify)
+            Pay with card or transfer
           </button>
           <button
             type="button"
@@ -174,8 +174,8 @@ export default function PaymentOptions({
                 )}
                 {busy && activePayType === "min"
                   ? submitMode
-                    ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
-                    : (method === "wallet" ? "Processing…" : "Opening Monnify…")
+                    ? (method === "wallet" ? "Submitting Application…" : "Opening checkout…")
+                    : (method === "wallet" ? "Processing…" : "Opening checkout…")
                   : submitMode
                   ? (method === "wallet"
                     ? `Pay ${koboToNaira(minKobo)} from Wallet & Submit`
@@ -227,8 +227,8 @@ export default function PaymentOptions({
                 )}
                 {busy && activePayType === "full"
                   ? submitMode
-                    ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
-                    : (method === "wallet" ? "Processing…" : "Opening Monnify…")
+                    ? (method === "wallet" ? "Submitting Application…" : "Opening checkout…")
+                    : (method === "wallet" ? "Processing…" : "Opening checkout…")
                   : submitMode
                   ? (method === "wallet"
                     ? `Pay ${koboToNaira(remainingKobo)} in Full from Wallet & Submit`
@@ -304,7 +304,7 @@ export default function PaymentOptions({
                   )}
                   {busy
                     ? submitMode
-                      ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
+                      ? (method === "wallet" ? "Submitting Application…" : "Opening checkout…")
                       : "Processing…"
                     : submitMode
                     ? (method === "wallet"
@@ -387,7 +387,7 @@ export default function PaymentOptions({
             )}
             {busy
               ? submitMode
-                ? (method === "wallet" ? "Submitting Application…" : "Opening Monnify…")
+                ? (method === "wallet" ? "Submitting Application…" : "Opening checkout…")
                 : "Preparing Checkout…"
               : submitMode
               ? (method === "wallet"
