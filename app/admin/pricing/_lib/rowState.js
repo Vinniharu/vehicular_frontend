@@ -25,7 +25,11 @@ export function rowStateFromApiItem(item) {
     financing_amount_kobo: item.financing_amount_kobo != null ? (item.financing_amount_kobo / 100).toString() : "",
     interest_percent: item.interest_percent != null ? String(item.interest_percent) : "",
     initial_deposit_amount_kobo: item.initial_deposit_amount_kobo != null ? (item.initial_deposit_amount_kobo / 100).toString() : "",
-    initial_deposit_percent: item.initial_deposit_percent != null ? String(item.initial_deposit_percent) : "10",
+    // Blank = not set on this row: a state override then follows the general
+    // row, anything else uses the 10% default. effective_deposit_percent is
+    // what customers are actually charged (computed by the backend).
+    initial_deposit_percent: item.initial_deposit_percent != null ? String(item.initial_deposit_percent) : "",
+    effective_deposit_percent: item.effective_initial_deposit_percent ?? null,
     duration_days: item.duration_days != null ? String(item.duration_days) : "",
     price_lock_percent: item.price_lock_percent != null ? String(item.price_lock_percent) : "",
     va_price_kobo: item.va_price_kobo != null ? (item.va_price_kobo / 100).toString() : "",

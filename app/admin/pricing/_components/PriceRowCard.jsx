@@ -16,6 +16,14 @@ const smallInputCls = "w-full rounded-lg px-3 py-2 text-[13px] bg-slate-50 borde
 // belongs to.
 export default function PriceRowCard({ label, row, onChange, editing, amountPlaceholder = "Not set", amountRequired = false, onDelete, isGeneralScope }) {
   const set = (field, value) => onChange({ ...row, [field]: value });
+  // Setting a % replaces any fixed deposit amount saved on this row earlier
+  // (this form doesn't show that field, and a fixed amount would otherwise
+  // take priority over the % at checkout).
+  const setDepositPercent = (value) => onChange({ ...row, initial_deposit_percent: value, initial_deposit_amount_kobo: "" });
+  const inheritedLabel =
+    row.effective_deposit_percent != null
+      ? `${row.effective_deposit_percent}% (${isGeneralScope ? "default" : "same as general"})`
+      : isGeneralScope ? "10% (default)" : "Same as general";
   return (
     <div className="rounded-xl border border-[#E5E5E5] p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -75,14 +83,17 @@ export default function PriceRowCard({ label, row, onChange, editing, amountPlac
           )}
         </div>
         <div>
-          <label className="block text-[11px] font-medium text-slate-500 mb-1">Initial Deposit (%)</label>
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">Initial deposit (%)</label>
           {editing ? (
             <input
-              type="number" min="0" max="100" value={row.initial_deposit_percent} placeholder="10"
-              onChange={(e) => set("initial_deposit_percent", e.target.value)} className={smallInputCls}
+              type="number" min="0" max="100" value={row.initial_deposit_percent} placeholder={inheritedLabel}
+              onChange={(e) => setDepositPercent(e.target.value)} className={smallInputCls}
+              aria-label={`Initial deposit percent for ${label}`}
             />
           ) : (
-            <p className="text-[14px] text-slate-600">{row.initial_deposit_percent || "10"}%</p>
+            <p className="text-[14px] text-slate-600">
+              {row.initial_deposit_percent !== "" ? `${row.initial_deposit_percent}%` : inheritedLabel}
+            </p>
           )}
         </div>
       </div>

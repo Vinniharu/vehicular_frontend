@@ -73,7 +73,7 @@ export const SERVICE_SECTIONS = [
       {
         key: "new-registration",
         label: "New Number Plate Registration",
-        rows: [{ mechanism: "dl", key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Fallback price (all categories)", amountRequired: true }],
+        rows: [{ mechanism: "dl", key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Fallback price (only when a category has no price)", amountRequired: true }],
         categoryGrid: { service_key: "number_plate_new" },
       },
       {
@@ -89,7 +89,7 @@ export const SERVICE_SECTIONS = [
       {
         key: "change-of-ownership",
         label: "Change of Ownership + New Plate",
-        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Fallback price (all categories)", amountRequired: true }],
+        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Fallback price (only when a category has no price)", amountRequired: true }],
         categoryGrid: { service_key: "number_plate_change_of_ownership" },
       },
       {
@@ -116,31 +116,31 @@ export const SERVICE_SECTIONS = [
       {
         key: "vehicle-licence",
         label: "Vehicle Licence",
-        rows: [{ mechanism: "particulars", key: "vehicle_licence", document_type: "vehicle_licence", label: "Fallback price (all categories)" }],
+        rows: [{ mechanism: "particulars", key: "vehicle_licence", document_type: "vehicle_licence", label: "Fallback price (only when a category has no price)" }],
         categoryGrid: { service_key: "vehicle_licence" },
       },
       {
         key: "road-worthiness",
         label: "Road Worthiness Certificate",
-        rows: [{ mechanism: "particulars", key: "road_worthiness", document_type: "road_worthiness", label: "Fallback price (all categories)" }],
+        rows: [{ mechanism: "particulars", key: "road_worthiness", document_type: "road_worthiness", label: "Fallback price (only when a category has no price)" }],
         categoryGrid: { service_key: "road_worthiness" },
       },
       {
         key: "hackney-permit",
         label: "Hackney Permit",
-        rows: [{ mechanism: "particulars", key: "hackney_permit", document_type: "hackney_permit", label: "Fallback price (all categories)" }],
+        rows: [{ mechanism: "particulars", key: "hackney_permit", document_type: "hackney_permit", label: "Fallback price (only when a category has no price)" }],
         categoryGrid: { service_key: "hackney_permit" },
       },
       {
         key: "third-party-insurance",
         label: "Third-Party Insurance",
-        rows: [{ mechanism: "particulars", key: "insurance_third_party", document_type: "insurance_third_party", label: "Fallback price (all categories)" }],
+        rows: [{ mechanism: "particulars", key: "insurance_third_party", document_type: "insurance_third_party", label: "Fallback price (only when a category has no price)" }],
         categoryGrid: { service_key: "insurance_third_party" },
       },
       {
         key: "proof-of-ownership",
         label: "Proof of Ownership",
-        rows: [{ mechanism: "particulars", key: "proof_of_ownership", document_type: "proof_of_ownership", label: "Fallback price (all categories)" }],
+        rows: [{ mechanism: "particulars", key: "proof_of_ownership", document_type: "proof_of_ownership", label: "Fallback price (only when a category has no price)" }],
         categoryGrid: { service_key: "proof_of_ownership" },
       },
     ],
