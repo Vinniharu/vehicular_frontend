@@ -73,7 +73,7 @@ export default function ApplicationCard({ app, walletBalance, payingFromWallet, 
               </div>
             )}
             <div className="mt-2.5">
-              <StatusBadge status={app.status} size="sm" />
+              <StatusBadge status={app.status} applicationType={app.application_type} size="sm" />
             </div>
           </div>
         </div>

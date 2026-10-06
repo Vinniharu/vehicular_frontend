@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, ArrowRight, Clock, Loader2, X } from "lucide-react";
-import { listApplicationDrafts, deleteApplicationDraft } from "@/lib/api";
+import { ArrowRight, NotebookPen, Trash2 } from "lucide-react";
+import { deleteApplicationDraft, listApplicationDrafts } from "@/lib/api";
 import { getWizardKeyMeta } from "@/lib/draft-registry";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { Button, Card, EmptyState, ErrorState, IconButton, PageHeader, SkeletonList } from "@/app/dashboard/_kit";
 
-const BRAND = "#28A745";
-
-// See ContinueApplicationCard.jsx's parseServerDate comment — the backend
-// serializes updated_at without a timezone suffix even though it's UTC.
+// The backend serializes updated_at without a timezone suffix even though
+// it's UTC — see ContinueApplicationCard.jsx.
 function parseServerDate(iso) {
   const hasZone = /Z$|[+-]\d{2}:?\d{2}$/.test(iso);
   return new Date(hasZone ? iso : `${iso}Z`);
@@ -17,87 +16,84 @@ function parseServerDate(iso) {
 
 function relativeTime(iso) {
   if (!iso) return "";
-  const diffMs = Date.now() - parseServerDate(iso).getTime();
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  const mins = Math.round((Date.now() - parseServerDate(iso).getTime()) / 60000);
+  if (mins < 1) return "Saved just now";
+  if (mins < 60) return `Saved ${mins} min ago`;
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `Saved ${hours} h ago`;
   const days = Math.round(hours / 24);
-  return `${days}d ago`;
+  return `Saved ${days} day${days === 1 ? "" : "s"} ago`;
 }
 
 export default function DraftsListPage() {
+  const pushToast = useToast();
   const [drafts, setDrafts] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
-  useEffect(() => {
-    listApplicationDrafts().then((res) => setDrafts(res.data || []));
-  }, []);
+  const load = () => {
+    setLoadError(null);
+    listApplicationDrafts().then((res) => {
+      if (res.error) setLoadError(res.error);
+      else setDrafts(res.data || []);
+    });
+  };
 
-  const handleDismiss = async (wizardKey) => {
-    setDrafts((prev) => (prev || []).filter((d) => d.wizard_key !== wizardKey));
-    await deleteApplicationDraft(wizardKey);
+  useEffect(load, []);
+
+  const discard = async (draft) => {
+    const previous = drafts;
+    setDrafts((prev) => (prev || []).filter((d) => d.wizard_key !== draft.wizard_key));
+    const res = await deleteApplicationDraft(draft.wizard_key);
+    if (res?.error) {
+      setDrafts(previous);
+      pushToast({ tone: "error", title: "Couldn't discard that draft", body: res.error });
+    }
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-6 pb-20">
-      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-cx-muted hover:text-cx-ink-2">
-        <ArrowLeft className="h-4 w-4" />
-        Back to dashboard
-      </Link>
+    <div className="mx-auto max-w-2xl">
+      <PageHeader
+        title="Saved drafts"
+        description="Applications you started but haven't submitted. Pick up where you left off."
+        backHref="/dashboard/account"
+        backLabel="Account"
+      />
 
-      <h1
-        className="text-[26px] tracking-tight text-cx-ink"
-        style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-      >
-        Unfinished applications
-      </h1>
-
-      {drafts === null ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
-        </div>
+      {loadError ? (
+        <ErrorState title="Your drafts didn't load" message={loadError} onRetry={load} />
+      ) : drafts === null ? (
+        <SkeletonList rows={2} />
       ) : drafts.length === 0 ? (
-        <p className="py-16 text-center text-sm text-cx-muted">You don't have any unfinished applications.</p>
+        <EmptyState
+          icon={NotebookPen}
+          title="No saved drafts"
+          description="When you leave an application part-way through, it's saved here automatically."
+          action={<Button href="/dashboard/services">Apply for a service</Button>}
+        />
       ) : (
-        <div className="space-y-2.5">
+        <ul className="space-y-3">
           {drafts.map((draft) => {
             const meta = getWizardKeyMeta(draft.wizard_key);
             return (
-              <div
-                key={draft.wizard_key}
-                className="flex items-center justify-between gap-3 rounded-cx-lg border border-cx-line bg-white px-5 py-4"
-              >
-                <div>
-                  <p className="text-[14px] font-semibold text-cx-ink">{meta.label}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-cx-muted">
-                    {draft.step_label && <span>{draft.step_label} · </span>}
-                    <Clock className="h-3 w-3" />
-                    {relativeTime(draft.updated_at)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Link
-                    href={meta.resumeUrl}
-                    className="inline-flex items-center gap-1 rounded-lg px-3.5 py-2 text-[12.5px] font-semibold text-white"
-                    style={{ background: BRAND }}
-                  >
+              <li key={draft.wizard_key}>
+                <Card className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-semibold text-cx-ink">{meta.label}</p>
+                    <p className="mt-0.5 text-sm text-cx-muted">
+                      {draft.step_label ? `${draft.step_label}. ` : ""}
+                      {relativeTime(draft.updated_at)}
+                    </p>
+                  </div>
+                  <IconButton label={`Discard ${meta.label} draft`} icon={Trash2} onClick={() => discard(draft)} />
+                  <Button href={meta.resumeUrl} size="md">
                     Resume
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleDismiss(draft.wizard_key)}
-                    aria-label="Discard draft"
-                    className="rounded-lg p-2 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Button>
+                </Card>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

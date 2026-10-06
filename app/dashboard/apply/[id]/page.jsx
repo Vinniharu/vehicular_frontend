@@ -55,6 +55,8 @@ import {
 import { validateUploadFile } from "@/lib/utils/fileValidation";
 import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import { resolveMinimumKobo } from "@/app/components/dashboard/PartialPayControls";
+import { renewHref } from "@/app/dashboard/_shared/application-category";
+import DrawerShell from "@/app/dashboard/_kit/DrawerShell";
 import ApplicationChatPanel from "@/app/components/dashboard/ApplicationChatPanel";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
@@ -68,42 +70,6 @@ const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
 const PCI_VERDICT_LABELS = { buy: "Recommended to buy", proceed_with_caution: "Proceed with caution", dont_buy: "Not recommended" };
 
-// Mirrors the backend's FEE_SCHEDULE (app/core/payment_helpers.py) — only
-// used as a fallback while payment_options hasn't loaded yet; the real
-// amount always comes from the backend once available.
-const FEE_SCHEDULE_KOBO = {
-  fresh: { "3 years": 3867500, "5 years": 4577500 },
-  renewal: { "3 years": 3000000, "5 years": 3500000 },
-};
-const TINTED_PERMIT_FEE_KOBO = 2_705_000;
-const NUMBER_PLATE_FEE_KOBO = {
-  number_plate_new: 10_500_000,
-  number_plate_replacement: 10_500_000,
-  number_plate_change_of_ownership: 12_000_000,
-  number_plate_fancy: 12_500_000,
-  number_plate_dealership: 10_500_000,
-};
-// Maps a real backend application_type back to the ?type= query param the
-// apply/number-plate/new wizard expects (see PLATE_TYPES there).
-const NUMBER_PLATE_QUERY_TYPE = {
-  number_plate_new: "new",
-  number_plate_replacement: "replacement",
-  number_plate_change_of_ownership: "change-of-ownership",
-  number_plate_fancy: "fancy",
-  number_plate_dealership: "dealership",
-};
-function estimateFeeKobo(appType, period) {
-  if (appType === "tinted_permit") return TINTED_PERMIT_FEE_KOBO;
-  if (NUMBER_PLATE_FEE_KOBO[appType]) return NUMBER_PLATE_FEE_KOBO[appType];
-  // vehicle_particulars has no fixed fee — it's the sum of whichever items
-  // the customer selected, and payment_options is always created at
-  // submission time for this type, so this fallback should never actually
-  // be reached. 0 (not the renewal bucket below) avoids silently mispricing
-  // a bundle display the one time this estimator IS hit before load.
-  if (appType === "vehicle_particulars" || appType?.startsWith("vehicle_verification_") || appType === "central_motor_registry" || appType === "physical_condition_inspection") return 0;
-  const bucket = appType === "fresh" ? FEE_SCHEDULE_KOBO.fresh : FEE_SCHEDULE_KOBO.renewal;
-  return bucket[period] || bucket["5 years"];
-}
 
 // Exact doc_type strings the backend requires before a renewal/reissue
 // application can pass staff review and route to a field agent
@@ -322,7 +288,7 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
           <p className="text-[12px] font-semibold text-cx-ink-2 mb-2">Reference Example (Your screenshot should look like this):</p>
           <div className="relative overflow-hidden rounded-lg border border-cx-line bg-black/5 max-w-xs cursor-pointer group" onClick={() => setShowReferenceModal(true)}>
             <img src="/images/possap-verification-example.jpg" alt="POSSAP Verification Reference Example" className="max-h-48 w-auto object-contain transition-transform group-hover:scale-105" />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
               <span className="rounded-md bg-white px-2.5 py-1 text-xs font-bold text-cx-ink shadow">Click to Expand Example</span>
             </div>
           </div>
@@ -811,6 +777,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   };
 
   return (
+    <DrawerShell title="Edit & Reapply" onClose={onClose}>
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div
         className="relative flex h-full w-full max-w-xl flex-col bg-white shadow-2xl overflow-hidden"
@@ -1218,6 +1185,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+    </DrawerShell>
   );
 }
 
@@ -1276,6 +1244,7 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
   };
 
   return (
+    <DrawerShell title="Fix &amp; Resubmit" onClose={onClose}>
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
@@ -1359,6 +1328,7 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+    </DrawerShell>
   );
 }
 
@@ -1411,6 +1381,7 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
   };
 
   return (
+    <DrawerShell title="Fix &amp; Resubmit" onClose={onClose}>
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
@@ -1483,6 +1454,7 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+    </DrawerShell>
   );
 }
 
@@ -1553,6 +1525,7 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
   };
 
   return (
+    <DrawerShell title="Pick a new bay &amp; slot" onClose={onClose}>
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
@@ -1662,6 +1635,7 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+    </DrawerShell>
   );
 }
 
@@ -1732,6 +1706,7 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
   };
 
   return (
+    <DrawerShell title="Rebook your free re-inspection" onClose={onClose}>
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
@@ -1841,6 +1816,7 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+    </DrawerShell>
   );
 }
 
@@ -1903,6 +1879,7 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
   };
 
   return (
+    <DrawerShell title="Edit &amp; Reapply" onClose={onClose}>
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
@@ -1975,6 +1952,7 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+    </DrawerShell>
   );
 }
 
@@ -2086,6 +2064,8 @@ export default function CustomerApplicationDetailsPage() {
 
   const handleCustomerFileChange = async (e) => {
     const file = e.target.files?.[0];
+    // Clear the input so picking the same file again (after an error) still fires.
+    e.target.value = "";
     if (!file) return;
     const validation = validateUploadFile(file, { maxSizeMb: 10 });
     if (!validation.valid) {
@@ -2103,6 +2083,14 @@ export default function CustomerApplicationDetailsPage() {
     }
     setDocUrlInput(data.file_url);
   };
+
+  // Default "attach another document" to the first document this service
+  // actually needs, not a generic type no service requires.
+  const applicationTypeForDocs = application?.application_type;
+  useEffect(() => {
+    const first = REQUIRED_DOCS_BY_TYPE[applicationTypeForDocs]?.[0]?.value;
+    if (first) setDocTypeInput(first);
+  }, [applicationTypeForDocs]);
 
   const loadData = async (isRefresh = false) => {
     if (!appId) {
@@ -2161,7 +2149,9 @@ export default function CustomerApplicationDetailsPage() {
       }
     };
     tick();
-    const interval = setInterval(tick, 1000);
+    // Minute precision is plenty for a 26-day countdown, and re-rendering
+    // this whole page every second was wasteful on phones.
+    const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
   }, [application]);
 
@@ -2271,7 +2261,16 @@ export default function CustomerApplicationDetailsPage() {
   const isRwx = application.application_type === "roadworthiness_express";
   const isVehicleVerification = Boolean(application.application_type?.startsWith("vehicle_verification_"));
   const isPci = application.application_type === "physical_condition_inspection";
-  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars || isRwx || isVehicleVerification || isPci;
+  const isCmr = application.application_type === "central_motor_registry";
+  // What the customer is actually getting, for "ready" wording.
+  const readyNoun = isTinted ? "tinted permit"
+    : isNumberPlate ? "number plate"
+    : isVehicleParticulars ? "vehicle documents"
+    : isVehicleVerification ? "verification report"
+    : isPci ? "inspection report"
+    : isCmr ? "registry record"
+    : "driver's licence";
+  const isVehicleCentric = isTinted || isNumberPlate || isVehicleParticulars || isRwx || isVehicleVerification || isPci || isCmr;
 
   const deliveryAddress = application.delivery_address || application.applicant_details?.delivery_address;
   const hasDeliveryAddress = Boolean(deliveryAddress && String(deliveryAddress).trim());
@@ -2296,9 +2295,10 @@ export default function CustomerApplicationDetailsPage() {
   const isFreeRwxRebook = isRwx && !!application.rwx_detail?.prior_application_id && !application.payment_options;
   const isPaid = isFreeRwxRebook || ["paid", "success"].includes(application.payment_status) || ["paid", "success"].includes(application.payment_options?.payment_status);
   const isPaymentFailed = !isFreeRwxRebook && (application.payment_status === "failed" || application.payment_options?.payment_status === "failed");
-  const amountKobo = application.payment_options?.amount_kobo || estimateFeeKobo(application.application_type, application.validity_period);
+  // Never a made-up figure: when the backend hasn't sent payment details, show "—".
+  const amountKobo = application.payment_options?.amount_kobo ?? null;
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
-  const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
+  const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo ?? 0;
   const partialPaymentAllowed = application.payment_options?.partial_payment_allowed ?? true;
   // The service's own initial deposit (or 1 kobo once something is paid) —
   // not a fixed ₦10,000.
@@ -2325,6 +2325,15 @@ export default function CustomerApplicationDetailsPage() {
     (ev) => ev.status === "staff_rejected" || ev.new_status === "staff_rejected" || ev.new_status === "needs_correction"
   );
   const rejectionReason = rejectionEvent?.note || application.staff_note || null;
+  // needs_correction is also used when staff send an agent's work back at
+  // final review ("Final review rejected: …"). That's the agent's to fix —
+  // resubmitting from here would move the job on and leave the agent unable
+  // to submit. Only these types can be flagged back to the customer.
+  const CUSTOMER_FIXABLE_TYPES = ["renewal", "reissue", "international_permit", "tinted_permit"];
+  const isInternalRework = needsCorrection && (
+    !CUSTOMER_FIXABLE_TYPES.includes(application.application_type) ||
+    (rejectionEvent?.note || "").startsWith("Final review rejected:")
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 pb-16">
@@ -2394,7 +2403,7 @@ export default function CustomerApplicationDetailsPage() {
             >
               {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-cx-muted">#{application.id}</span>
             </h1>
-            <StatusBadge status={application.status} />
+            <StatusBadge status={application.status} applicationType={application.application_type} />
             {application.is_urgent && (
               <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800 shadow-xs">
                 <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
@@ -2535,7 +2544,7 @@ export default function CustomerApplicationDetailsPage() {
             <div>
               <span className="block text-xs font-semibold text-cx-muted">Total Service Fee</span>
               <span className="mt-1 flex items-center gap-1 font-mono text-[15px] font-bold text-cx-ink">
-                {koboToNaira(amountKobo)}
+                {amountKobo != null ? koboToNaira(amountKobo) : "—"}
                 {isPaid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
               </span>
             </div>
@@ -2870,7 +2879,22 @@ export default function CustomerApplicationDetailsPage() {
       )}
 
       {/* ── REJECTION / CORRECTION BANNER ── */}
-      {(isRejected || needsCorrection) && (
+      {/* ── WORK BEING REDONE (nothing for the customer to do) ── */}
+      {isInternalRework && (
+        <div className="flex items-start gap-3 rounded-cx-lg border border-cx-line bg-cx-surface p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-cx bg-cx-amber-soft text-cx-amber">
+            <RefreshCw className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-cx-ink">We're redoing part of this</h3>
+            <p className="mt-1 text-sm text-cx-muted">
+              Our team found something that needs fixing on our side. There's nothing you need to do. We'll update you here when it moves on.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {(isRejected || (needsCorrection && !isInternalRework)) && (
         <div className={`rounded-cx-lg border-2 p-5 shadow-sm ${isRejected ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50" : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3">
@@ -2938,25 +2962,17 @@ export default function CustomerApplicationDetailsPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-red-900">{isTinted ? "Your permit has expired" : isNumberPlate ? "Your plate application has expired" : isVehicleParticulars ? "One or more documents have expired" : "Your licence has expired"}</h3>
+                <h3 className="text-[15px] font-bold text-red-900">{isTinted ? "Your permit has expired" : isNumberPlate ? "Your plate application has expired" : isVehicleParticulars ? "One or more documents have expired" : isVehicleCentric ? "This has expired" : "Your licence has expired"}</h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-red-700/90">
                   {!isVehicleCentric && application.permanent_licence?.expiry_date
                     ? `It was valid until ${new Date(application.permanent_licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}. `
                     : ""}
-                  {isTinted ? "Submit a new tinted permit application to get a new one." : isNumberPlate ? "Submit a new number plate application to get a new one." : isVehicleParticulars ? "Submit a new renewal request to get updated documents." : "Apply for a renewal to get a new one."}
+                  {isTinted ? "Submit a new tinted permit application to get a new one." : isNumberPlate ? "Submit a new number plate application to get a new one." : isVehicleParticulars ? "Submit a new renewal request to get updated documents." : isVehicleCentric ? "Start a new application to get an up-to-date one." : "Apply for a renewal to get a new one."}
                 </p>
               </div>
             </div>
             <Link
-              href={
-                isTinted
-                  ? "/dashboard/apply/tinted-permit/new"
-                  : isNumberPlate
-                  ? `/dashboard/apply/number-plate/new?type=${NUMBER_PLATE_QUERY_TYPE[application.application_type] || "new"}`
-                  : isVehicleParticulars
-                  ? "/dashboard/apply/vehicle-particulars/new"
-                  : "/dashboard/apply?type=renewal"
-              }
+              href={renewHref(application)}
               className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" }}
             >
@@ -3005,8 +3021,8 @@ export default function CustomerApplicationDetailsPage() {
         </div>
       )}
 
-      {/* ── LIVE CHAT WITH FIELD AGENT ── */}
-      {application && (
+      {/* ── LIVE CHAT WITH FIELD AGENT ── (inspections have no agent) */}
+      {application && !isPci && (
         <ApplicationChatPanel
           applicationId={application.id}
           myRole="customer"
@@ -3040,10 +3056,9 @@ export default function CustomerApplicationDetailsPage() {
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-[15px] font-bold text-emerald-900">Your licence is ready</h3>
+              <h3 className="text-[15px] font-bold text-emerald-900">Your {readyNoun} {readyNoun.endsWith("s") ? "are" : "is"} ready</h3>
               <p className="mt-1 text-[13px] leading-relaxed text-emerald-700/90">
-                Your Driver's Licence document has been handed to our team — you will be notified as
-                soon as it's confirmed received and your application is marked complete.
+                It's with our team for handover. We'll let you know once it's been received and this application is marked complete.
               </p>
             </div>
           </div>
@@ -3159,7 +3174,7 @@ export default function CustomerApplicationDetailsPage() {
                 <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-cx-ink-2">
                   {isFreeRwxRebook
                     ? "This re-sitting is free within your 7-day window — nothing to pay."
-                    : <>You have paid <strong className="font-mono text-cx-ink">{koboToNaira(amountKobo)}</strong> for this application.</>}
+                    : amountKobo != null ? <>You have paid <strong className="font-mono text-cx-ink">{koboToNaira(amountKobo)}</strong> for this application.</> : "This application is fully paid."}
                   {isNumberPlate && application.application_type !== "number_plate_fancy" && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
@@ -3292,8 +3307,8 @@ export default function CustomerApplicationDetailsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    {[["Days", timeLeft.days], ["Hrs", timeLeft.hours], ["Min", timeLeft.minutes], ["Sec", timeLeft.seconds]].map(([lbl, val]) => (
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {[["Days", timeLeft.days], ["Hours", timeLeft.hours], ["Minutes", timeLeft.minutes]].map(([lbl, val]) => (
                       <div key={lbl} className="rounded-lg bg-cx-sunken py-2.5">
                         <span className="block font-mono text-[20px] font-bold text-cx-ink">{val}</span>
                         <span className="block text-xs font-semibold text-cx-muted">{lbl}</span>

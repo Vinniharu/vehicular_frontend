@@ -1,205 +1,221 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { FileCheck2, Clock, ExternalLink } from "lucide-react";
-import { getMyApplications, resolveMediaUrl } from "@/lib/api";
-import { formatDate, koboToNaira, freshnessMeta } from "@/app/dashboard/_shared/apply-helpers";
-import { CategoryChip } from "@/app/dashboard/_shared/ServicesList";
-import { TONE_CLASSES } from "@/app/dashboard/_shared/status-config";
+import { useEffect, useMemo, useState } from "react";
+import { Clock, Download, Eye, FileCheck2 } from "lucide-react";
+import {
+  downloadPciReportPdf,
+  downloadRwxCertificatePdf,
+  downloadVehicleVerificationReportPdf,
+  getMyApplications,
+  resolveMediaUrl,
+} from "@/lib/api";
+import { formatDate, freshnessMeta } from "@/app/dashboard/_shared/apply-helpers";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
-import { colors } from "@/lib/design-tokens";
-
-const BRAND = colors.primary.DEFAULT;
-const PAPER_BORDER = colors.paper.border;
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, SkeletonList } from "@/app/dashboard/_kit";
 
 const PARTICULARS_LABELS = {
-  vehicle_licence: "Vehicle Licence",
-  road_worthiness: "Road Worthiness Certificate",
-  proof_of_ownership: "Proof of Ownership",
-  insurance_third_party: "Third-Party Insurance",
-  hackney_permit: "Hackney Permit",
+  vehicle_licence: "Vehicle licence",
+  road_worthiness: "Roadworthiness certificate",
+  proof_of_ownership: "Proof of ownership",
+  insurance_third_party: "Third-party insurance",
+  hackney_permit: "Hackney permit",
 };
 
+// Services whose finished document is an approved permanent_licence.
 const LICENCE_TYPE_META = {
-  fresh: { category: "Driver's Licence", label: "Driver's Licence" },
-  renewal: { category: "Driver's Licence", label: "Driver's Licence (Renewal)" },
-  reissue: { category: "Driver's Licence", label: "Driver's Licence (Reissue)" },
-  tinted_permit: { category: "Tinted Permit", label: "Tinted Permit" },
-  international_permit: { category: "International Permit", label: "International Driving Permit" },
-  number_plate_new: { category: "Number Plate", label: "Number Plate (New)" },
-  number_plate_replacement: { category: "Number Plate", label: "Number Plate (Replacement)" },
-  number_plate_change_of_ownership: { category: "Number Plate", label: "Number Plate (Change of Ownership)" },
-  number_plate_fancy: { category: "Number Plate", label: "Number Plate (Fancy)" },
+  fresh: { category: "Driver's licence", label: "Driver's licence" },
+  renewal: { category: "Driver's licence", label: "Driver's licence (renewal)" },
+  reissue: { category: "Driver's licence", label: "Driver's licence (reissue)" },
+  international_permit: { category: "Driver's licence", label: "International driving permit" },
+  tinted_permit: { category: "Permits", label: "Tinted permit" },
+  number_plate_new: { category: "Number plates", label: "Number plate (new)" },
+  number_plate_replacement: { category: "Number plates", label: "Number plate (replacement)" },
+  number_plate_change_of_ownership: { category: "Number plates", label: "Number plate (change of ownership)" },
+  number_plate_fancy: { category: "Number plates", label: "Number plate (fancy)" },
+  number_plate_dealership: { category: "Number plates", label: "Number plate (dealership)" },
+  central_motor_registry: { category: "Vehicle records", label: "Central Motor Registry record" },
 };
 
-const CATEGORIES = ["Driver's Licence", "Tinted Permit", "International Permit", "Vehicle Particulars", "Number Plate"];
+const CATEGORY_ORDER = ["Driver's licence", "Vehicle papers", "Number plates", "Permits", "Vehicle records", "Inspections"];
 
-// Flattens every application into one "document row" per completed/approved
-// document. vehicle_particulars is item-shaped (a bundle of independently
-// approved documents); every other type carries a single permanent_licence.
-// Temporary licences are deliberately excluded — a superseded interim
-// credential once the permanent card lands, out of place on a page meant to
-// show a customer's *current* documents.
+// One row per finished document. Temporary licences are left out on purpose:
+// once the permanent one lands they're superseded.
 function flattenDocuments(applications) {
   const rows = [];
   for (const app of applications) {
-    if (app.application_type === "vehicle_particulars") {
+    const t = app.application_type;
+    if (t === "vehicle_particulars") {
       for (const item of app.items || []) {
         if (item.status !== "approved") continue;
         const finalDoc = (app.documents || []).find((d) => d.doc_type === `${item.document_type}_final`);
         rows.push({
           id: `particulars-${item.id}`,
-          category: "Vehicle Particulars",
+          category: "Vehicle papers",
           label: PARTICULARS_LABELS[item.document_type] || item.document_type,
           applicationId: app.id,
           expiryDate: item.expiry_date,
-          priceKobo: item.price_kobo ?? null,
-          documentUrl: finalDoc?.file_url || null,
+          viewUrl: finalDoc?.file_url || null,
           sortDate: item.updated_at || item.created_at || app.created_at,
         });
       }
       continue;
     }
+    if (t === "roadworthiness_express" && app.rwx_detail?.certificate_token) {
+      rows.push({
+        id: `rwx-${app.id}`, category: "Inspections", label: "Roadworthiness certificate", applicationId: app.id,
+        reference: app.rwx_detail.certificate_token, download: () => downloadRwxCertificatePdf(app.id),
+        sortDate: app.updated_at || app.created_at,
+      });
+      continue;
+    }
+    if (t?.startsWith("vehicle_verification_") && app.verification_detail?.verification_token) {
+      rows.push({
+        id: `vv-${app.id}`, category: "Inspections", label: "Vehicle verification report", applicationId: app.id,
+        reference: app.verification_detail.verification_token, download: () => downloadVehicleVerificationReportPdf(app.id),
+        sortDate: app.updated_at || app.created_at,
+      });
+      continue;
+    }
+    if (t === "physical_condition_inspection" && app.pci_detail?.verification_token && app.pci_detail?.verdict) {
+      rows.push({
+        id: `pci-${app.id}`, category: "Inspections", label: "Physical condition inspection report", applicationId: app.id,
+        reference: app.pci_detail.verification_token, download: () => downloadPciReportPdf(app.id),
+        sortDate: app.updated_at || app.created_at,
+      });
+      continue;
+    }
 
-    const meta = LICENCE_TYPE_META[app.application_type];
-    if (!meta) continue;
+    const meta = LICENCE_TYPE_META[t];
     const licence = app.permanent_licence;
-    if (!licence || licence.review_status !== "approved") continue;
+    if (!meta || !licence || licence.review_status !== "approved") continue;
     rows.push({
       id: `licence-${app.id}`,
       category: meta.category,
       label: meta.label,
       applicationId: app.id,
-      licenceNumber: licence.licence_number,
+      reference: licence.licence_number,
       expiryDate: licence.expiry_date,
-      priceKobo: app.payment_options?.amount_kobo ?? null,
-      documentUrl: licence.document_url,
+      viewUrl: licence.document_url,
       sortDate: licence.issued_at || app.created_at,
     });
   }
   return rows.sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0));
 }
 
+const FRESHNESS_TONE = { success: "brand", warning: "amber", danger: "red" };
+
 export default function MyDocumentsPage() {
+  const pushToast = useToast();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [loadError, setLoadError] = useState(null);
+  const [category, setCategory] = useState("All");
   const [previewDocUrl, setPreviewDocUrl] = useState(null);
+  const [downloading, setDownloading] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoadError(null);
     getMyApplications().then((res) => {
-      if (res.data) setApplications(res.data);
+      if (res.error) setLoadError(res.error);
+      else setApplications(res.data || []);
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(load, []);
 
   const documents = useMemo(() => flattenDocuments(applications), [applications]);
+  const categories = CATEGORY_ORDER.filter((c) => documents.some((d) => d.category === c));
+  const visible = category === "All" ? documents : documents.filter((d) => d.category === category);
 
-  const categoryCounts = useMemo(() => {
-    const counts = {};
-    for (const d of documents) counts[d.category] = (counts[d.category] || 0) + 1;
-    return counts;
-  }, [documents]);
-
-  const visibleCategories = CATEGORIES.filter((c) => categoryCounts[c]);
-  const visibleDocuments = activeCategory === "All" ? documents : documents.filter((d) => d.category === activeCategory);
+  const download = async (doc) => {
+    setDownloading(doc.id);
+    try {
+      await doc.download();
+    } catch (err) {
+      pushToast({ tone: "error", title: "Download didn't start", body: err?.message || "Try again in a moment." });
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 py-6 pb-20">
+    <div className="mx-auto max-w-3xl">
       <DocumentPreviewModal isOpen={!!previewDocUrl} onClose={() => setPreviewDocUrl(null)} fileUrl={previewDocUrl} />
-
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
-          <span className="text-xs font-bold text-cx-muted">My documents</span>
-        </div>
-        <h1
-          className="mt-1.5 text-[30px] tracking-tight text-cx-ink"
-          style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-        >
-          Every document you've received
-        </h1>
-        <p className="mt-1 text-sm text-cx-muted">
-          All your approved licences, permits, and vehicle papers in one place — track expiry and download at any time.
-        </p>
-      </div>
-
-      {!loading && documents.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <CategoryChip label="All" count={documents.length} active={activeCategory === "All"} onClick={() => setActiveCategory("All")} />
-          {visibleCategories.map((c) => (
-            <CategoryChip key={c} label={c} count={categoryCounts[c] || 0} active={activeCategory === c} onClick={() => setActiveCategory(c)} />
-          ))}
-        </div>
-      )}
+      <PageHeader
+        title="My documents"
+        description="Licences, permits, certificates and reports you've been issued. Check expiry dates and download them any time."
+      />
 
       {loading ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-cx-lg border border-cx-line bg-cx-sunken" />
-          ))}
-        </div>
+        <SkeletonList rows={3} />
+      ) : loadError ? (
+        <ErrorState title="Your documents didn't load" message={loadError} onRetry={() => { setLoading(true); load(); }} />
       ) : documents.length === 0 ? (
-        <div className="rounded-cx-lg border border-dashed border-cx-line bg-white px-8 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-cx-lg bg-cx-sunken text-cx-muted">
-            <FileCheck2 className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-[16px] font-bold text-cx-ink">No completed documents yet</h3>
-          <p className="mx-auto mt-1 max-w-xs text-[13px] text-cx-muted">
-            Once a document is approved, it'll show up here for you to track and download.
-          </p>
-        </div>
+        <EmptyState
+          icon={FileCheck2}
+          title="No documents yet"
+          description="When an application is completed, its licence, permit or report appears here."
+          action={<Button variant="secondary" href="/dashboard/applications">See my applications</Button>}
+        />
       ) : (
-        <div className="space-y-3">
-          {visibleDocuments.map((doc) => {
-            const freshness = freshnessMeta(doc.expiryDate);
-            return (
-              <div key={doc.id} className="rounded-cx-lg border bg-white p-5" style={{ borderColor: PAPER_BORDER }}>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[15px] font-bold text-cx-ink">{doc.label}</span>
-                      <span className="rounded-md bg-cx-sunken px-1.5 py-0.5 font-mono text-xs font-semibold text-cx-muted">
-                        #{doc.applicationId}
-                      </span>
-                      {freshness && (
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${TONE_CLASSES[freshness.tone]}`}
-                        >
-                          {freshness.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-cx-muted">
-                      <span className="inline-flex items-center rounded-md bg-cx-sunken px-2 py-0.5 font-medium text-cx-muted">
-                        {doc.category}
-                      </span>
-                      {doc.licenceNumber && <span>Licence No: {doc.licenceNumber}</span>}
-                      {doc.priceKobo != null && <span>{koboToNaira(doc.priceKobo)}</span>}
-                      {doc.expiryDate && (
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-cx-muted" />
-                          Expires {formatDate(doc.expiryDate)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+        <>
+          {categories.length > 1 ? (
+            <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Filter documents">
+              {["All", ...categories].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={category === c}
+                  onClick={() => setCategory(c)}
+                  className={`cx-focus min-h-10 shrink-0 rounded-full px-4 text-sm font-medium ${
+                    category === c ? "bg-cx-ink text-white" : "border border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-                  {doc.documentUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setPreviewDocUrl(resolveMediaUrl(doc.documentUrl))}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-cx-line bg-white px-3.5 py-2 text-xs font-bold text-cx-ink-2 hover:bg-[#28A745] hover:text-white hover:border-[#28A745] transition-all shadow-sm"
-                    >
-                      <span>View document</span>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <ul className="space-y-3">
+            {visible.map((doc) => {
+              const freshness = freshnessMeta(doc.expiryDate);
+              return (
+                <li key={doc.id}>
+                  <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-base font-semibold text-cx-ink">{doc.label}</p>
+                        {freshness ? <Badge tone={FRESHNESS_TONE[freshness.tone]}>{freshness.label}</Badge> : null}
+                      </div>
+                      <p className="mt-1 text-sm text-cx-muted">
+                        {doc.category} · Application #{doc.applicationId}
+                        {doc.reference ? ` · ${doc.reference}` : ""}
+                      </p>
+                      {doc.expiryDate ? (
+                        <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-cx-muted">
+                          <Clock className="h-4 w-4" aria-hidden />
+                          Expires {formatDate(doc.expiryDate)}
+                        </p>
+                      ) : null}
+                    </div>
+                    {doc.viewUrl ? (
+                      <Button variant="secondary" icon={Eye} onClick={() => setPreviewDocUrl(resolveMediaUrl(doc.viewUrl))}>
+                        View
+                      </Button>
+                    ) : doc.download ? (
+                      <Button variant="secondary" icon={Download} loading={downloading === doc.id} onClick={() => download(doc)}>
+                        Download PDF
+                      </Button>
+                    ) : null}
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );

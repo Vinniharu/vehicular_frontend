@@ -1,35 +1,47 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { FileText, Layers } from "lucide-react";
+import { FilePlus2, FileText, Search } from "lucide-react";
 import { getMyApplications, getWallet, payFromWalletEndpoint } from "@/lib/api";
 import ApplicationCard from "@/app/dashboard/_shared/ApplicationCard";
-import { koboToNaira, isApplicationPaid } from "@/app/dashboard/_shared/apply-helpers";
-import { APPLICATION_CATEGORIES, categoryForApplicationType } from "@/app/dashboard/_shared/application-category";
-import { colors } from "@/lib/design-tokens";
+import { isApplicationPaid } from "@/app/dashboard/_shared/apply-helpers";
+import { APPLICATION_CATEGORIES, categoryForApplicationType, typeLabel } from "@/app/dashboard/_shared/application-category";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { Button, EmptyState, ErrorState, Input, PageHeader, SkeletonList, koboToNaira } from "@/app/dashboard/_kit";
 
-const BRAND = colors.primary.DEFAULT;
+function Chip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`cx-focus min-h-10 shrink-0 rounded-full px-4 text-sm font-medium transition-colors ${
+        active ? "bg-cx-ink text-white" : "border border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function ApplicationsPage() {
   const router = useRouter();
+  const pushToast = useToast();
   const [applications, setApplications] = useState([]);
-  const [category, setCategory] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
   const [walletBalance, setWalletBalance] = useState(0);
   const [payingFromWallet, setPayingFromWallet] = useState(null);
-  const payingFromWalletRef = useRef(false);
-  const [toast, setToast] = useState(null);
-
-  const showToast = (type, msg) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 5000);
-  };
+  const payingRef = useRef(false);
 
   const load = async () => {
+    setLoadError(null);
     const [appsRes, walletRes] = await Promise.all([getMyApplications({ sort: "updated_at" }), getWallet()]);
-    if (appsRes.data) setApplications(appsRes.data);
+    if (appsRes.error) setLoadError(appsRes.error);
+    else setApplications(appsRes.data || []);
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     setLoading(false);
   };
@@ -39,181 +51,115 @@ export default function ApplicationsPage() {
   }, []);
 
   const handlePayFromWallet = async (appId, amountKobo) => {
-    if (payingFromWalletRef.current) return;
-    payingFromWalletRef.current = true;
+    if (payingRef.current) return;
+    payingRef.current = true;
     setPayingFromWallet(appId);
     const res = await payFromWalletEndpoint(appId, { amount_kobo: amountKobo });
-    payingFromWalletRef.current = false;
+    payingRef.current = false;
     setPayingFromWallet(null);
     if (res.error) {
-      showToast("error", res.error || "Insufficient wallet funds. Please top up your wallet or pay by card.");
+      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
       return;
     }
-    showToast(
-      "success",
-      res.data?.is_fully_paid
-        ? `Paid ${koboToNaira(amountKobo)} from your wallet — application fully paid!`
-        : `Paid ${koboToNaira(amountKobo)} from your wallet. ${koboToNaira(res.data?.remaining_kobo || 0)} still remaining.`
-    );
+    pushToast({
+      tone: "success",
+      title: res.data?.is_fully_paid ? "Paid in full" : `${koboToNaira(amountKobo)} paid`,
+      body: res.data?.is_fully_paid ? undefined : `${koboToNaira(res.data?.remaining_kobo || 0)} still to pay.`,
+    });
     await load();
   };
 
-  // Server sort (updated_at desc) is trusted as the primary order; this is
-  // a stable secondary sort so "most recently updated first" holds
-  // unconditionally rather than depending on an unverified backend
-  // contract for the types that have never been sorted before.
   const sorted = useMemo(
     () => [...applications].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)),
     [applications]
   );
 
-  const categoryCounts = useMemo(() => {
-    const counts = {};
-    for (const app of sorted) {
-      const c = categoryForApplicationType(app.application_type);
-      counts[c] = (counts[c] || 0) + 1;
-    }
-    return counts;
+  const needsPayment = (a) => !isApplicationPaid(a) && !!a.payment_options;
+  const counts = useMemo(() => {
+    const c = { all: sorted.length, payment: sorted.filter(needsPayment).length };
+    for (const cat of APPLICATION_CATEGORIES) c[cat] = sorted.filter((a) => categoryForApplicationType(a.application_type) === cat).length;
+    return c;
   }, [sorted]);
 
-  const filtered = category === "all" ? sorted : sorted.filter((a) => categoryForApplicationType(a.application_type) === category);
-
-  const totalApps = filtered.length;
-  const paidApps = filtered.filter(isApplicationPaid).length;
-  const partiallyPaidApps = filtered.filter((a) => !isApplicationPaid(a) && (a.payment_options?.amount_paid_kobo || 0) > 0).length;
-  const pendingPaymentApps = totalApps - paidApps - partiallyPaidApps;
+  const q = query.trim().toLowerCase().replace(/^#/, "");
+  const visible = sorted.filter((a) => {
+    if (filter === "payment" && !needsPayment(a)) return false;
+    if (filter !== "all" && filter !== "payment" && categoryForApplicationType(a.application_type) !== filter) return false;
+    if (!q) return true;
+    return String(a.id).includes(q) || typeLabel(a).toLowerCase().includes(q);
+  });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 py-6 pb-20">
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 rounded-xl px-4 py-3 text-[13px] font-semibold shadow-lg ${
-            toast.type === "error" ? "bg-red-600 text-white" : "bg-emerald-600 text-white"
-          }`}
-        >
-          {toast.msg}
-        </div>
-      )}
+    <div className="mx-auto max-w-3xl">
+      <PageHeader
+        title="My applications"
+        description="Everything you've applied for, most recently updated first."
+        actions={
+          <Button href="/dashboard/services" icon={FilePlus2} className="hidden sm:inline-flex">
+            New application
+          </Button>
+        }
+      />
 
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
-          <span className="text-xs font-bold text-cx-muted">All services</span>
-        </div>
-        <h1
-          className="mt-1.5 text-[30px] tracking-tight text-cx-ink"
-          style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-        >
-          My Applications
-        </h1>
-        <p className="mt-1 text-sm text-cx-muted">
-          Everything you've started, across every service, most recently updated first.
-        </p>
-      </div>
-
-      {/* Category filter chips */}
-      {applications.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCategory("all")}
-            className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all ${
-              category === "all" ? "text-white" : "border border-cx-line bg-white text-cx-ink-2 hover:bg-cx-sunken"
-            }`}
-            style={category === "all" ? { background: BRAND } : undefined}
-          >
-            All ({applications.length})
-          </button>
-          {APPLICATION_CATEGORIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all ${
-                category === c ? "text-white" : "border border-cx-line bg-white text-cx-ink-2 hover:bg-cx-sunken"
-              }`}
-              style={category === c ? { background: BRAND } : undefined}
-            >
-              {c} ({categoryCounts[c] || 0})
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Summary strip */}
-      {totalApps > 0 && (
-        <div className={`grid grid-cols-1 divide-y divide-slate-100 rounded-cx-lg border border-cx-line bg-white sm:divide-x sm:divide-y-0 ${
-          partiallyPaidApps > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"
-        }`}>
-          <div className="px-5 py-4">
-            <span className="block text-xs font-semibold text-cx-muted">Total</span>
-            <span className="mt-0.5 block text-[22px] font-bold text-cx-ink">{totalApps}</span>
+      {loading ? (
+        <SkeletonList rows={3} />
+      ) : loadError ? (
+        <ErrorState title="Your applications didn't load" message={loadError} onRetry={() => { setLoading(true); load(); }} />
+      ) : applications.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No applications yet"
+          description="Pick a service to get started. Most take a few minutes."
+          action={<Button href="/dashboard/services" icon={FilePlus2}>Apply for a service</Button>}
+        />
+      ) : (
+        <>
+          <div className="mb-3">
+            <label htmlFor="app-search" className="sr-only">Search applications</label>
+            <Input
+              id="app-search"
+              type="search"
+              placeholder="Search by service or reference number"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              prefix={<Search className="h-4 w-4" aria-hidden />}
+            />
           </div>
-          <div className="px-5 py-4">
-            <span className="block text-xs font-semibold text-cx-muted">Fully Paid</span>
-            <span className="mt-0.5 block text-[22px] font-bold text-emerald-600">{paidApps}</span>
+
+          <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Filter applications">
+            <Chip active={filter === "all"} onClick={() => setFilter("all")}>All {counts.all}</Chip>
+            {counts.payment > 0 ? (
+              <Chip active={filter === "payment"} onClick={() => setFilter("payment")}>Needs payment {counts.payment}</Chip>
+            ) : null}
+            {APPLICATION_CATEGORIES.filter((c) => counts[c] > 0).map((c) => (
+              <Chip key={c} active={filter === c} onClick={() => setFilter(c)}>
+                {c} {counts[c]}
+              </Chip>
+            ))}
           </div>
-          {partiallyPaidApps > 0 && (
-            <div className="px-5 py-4">
-              <span className="block text-xs font-semibold text-cx-muted">Partially Paid</span>
-              <span className="mt-0.5 block text-[22px] font-bold text-amber-600">{partiallyPaidApps}</span>
+
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="Nothing matches"
+              description="Try a different filter or search."
+              action={<Button variant="secondary" onClick={() => { setFilter("all"); setQuery(""); }}>Show all applications</Button>}
+            />
+          ) : (
+            <div className="space-y-3">
+              {visible.map((app) => (
+                <ApplicationCard
+                  key={app.id}
+                  app={app}
+                  walletBalance={walletBalance}
+                  payingFromWallet={payingFromWallet}
+                  onPayFromWallet={handlePayFromWallet}
+                  onNavigate={(href) => router.push(href)}
+                />
+              ))}
             </div>
           )}
-          <div className="px-5 py-4">
-            <span className="block text-xs font-semibold text-cx-muted">Awaiting payment</span>
-            <span className="mt-0.5 block text-[22px] font-bold text-cx-ink-2">{pendingPaymentApps}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Applications — card list */}
-      {loading ? (
-        <div className="space-y-3">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-cx-lg border border-cx-line bg-cx-sunken" />
-          ))}
-        </div>
-      ) : applications.length === 0 ? (
-        <div className="rounded-cx-lg border border-dashed border-cx-line bg-white px-8 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-cx-lg bg-cx-sunken text-cx-muted">
-            <FileText className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-[16px] font-bold text-cx-ink">You haven't started any applications yet</h3>
-          <p className="mx-auto mt-1 max-w-xs text-[13px] text-cx-muted">
-            Pick a service to get started — it takes a few minutes.
-          </p>
-          <Link
-            href="/dashboard/services"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]"
-            style={{ background: BRAND }}
-          >
-            Browse services
-          </Link>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-cx-lg border border-dashed border-cx-line bg-white px-8 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-cx-lg bg-cx-sunken text-cx-muted">
-            <Layers className="h-7 w-7" />
-          </div>
-          <h3 className="mt-4 text-[16px] font-bold text-cx-ink">No applications in this category yet</h3>
-          <p className="mx-auto mt-1 max-w-xs text-[13px] text-cx-muted">
-            Try a different category, or view all your applications.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((app) => (
-            <ApplicationCard
-              key={app.id}
-              app={app}
-              walletBalance={walletBalance}
-              payingFromWallet={payingFromWallet}
-              onPayFromWallet={handlePayFromWallet}
-              onNavigate={(href) => router.push(href)}
-            />
-          ))}
-        </div>
+        </>
       )}
     </div>
   );

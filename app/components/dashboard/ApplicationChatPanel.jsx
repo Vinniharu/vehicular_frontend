@@ -52,9 +52,11 @@ export default function ApplicationChatPanel({
     return () => document.removeEventListener("visibilitychange", track);
   }, []);
 
-  // Polling loop
+  // Polling loop. Keeps running (slowly) while the chat isn't open yet or
+  // after a failed request, so it opens by itself once an agent accepts and
+  // recovers from a dropped connection — it used to stop for good.
+  const canChat = !!threadData?.can_chat;
   useEffect(() => {
-    if (error || (threadData && !threadData.can_chat)) return;
     let cancelled = false;
     let timeoutId;
 
@@ -64,24 +66,27 @@ export default function ApplicationChatPanel({
         scrollRef.current.scrollHeight - scrollRef.current.scrollTop - scrollRef.current.clientHeight < NEAR_BOTTOM_PX;
 
       const res = await getCustomerAgentChat(applicationId);
-      if (!cancelled && res.data) {
+      if (cancelled) return;
+      if (res.data) {
         setThreadData(res.data);
         setMessages(res.data.messages || []);
+        setError(null);
         if (nearBottom) {
           requestAnimationFrame(() => {
             if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
           });
         }
       }
-      timeoutId = setTimeout(tick, documentVisibleRef.current ? ACTIVE_POLL_MS : IDLE_POLL_MS);
+      const live = res.data?.can_chat && !res.error;
+      timeoutId = setTimeout(tick, live && documentVisibleRef.current ? ACTIVE_POLL_MS : IDLE_POLL_MS);
     };
 
-    timeoutId = setTimeout(tick, ACTIVE_POLL_MS);
+    timeoutId = setTimeout(tick, canChat && !error ? ACTIVE_POLL_MS : IDLE_POLL_MS);
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [applicationId, error, threadData?.can_chat]);
+  }, [applicationId, canChat, error]);
 
   const handleSend = async () => {
     const body = draft.trim();

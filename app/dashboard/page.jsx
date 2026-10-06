@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Wallet, Plus } from "lucide-react";
-import { getWallet, getCachedUser } from "@/lib/api";
-import { colors } from "@/lib/design-tokens";
-import ServicesList from "./_shared/ServicesList";
+import { AlertCircle, CarFront, ChevronRight, FileStack, IdCard, LayoutGrid, Wallet } from "lucide-react";
+import { getCachedUser, getMyApplications, getWallet } from "@/lib/api";
 import ContinueApplicationCard from "./_shared/ContinueApplicationCard";
-
-const BRAND = colors.primary.DEFAULT;
-const INK = colors.ink.DEFAULT;
-
-function koboToNaira(kobo) {
-  return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
-}
+import { isApplicationPaid } from "@/app/dashboard/_shared/apply-helpers";
+import { typeLabel } from "@/app/dashboard/_shared/application-category";
+import { getNextStepCopy, getStageProgress, statusMeta } from "@/app/dashboard/_shared/status-config";
+import { Button, Card, ErrorState, SectionTitle, Skeleton, koboToNaira } from "@/app/dashboard/_kit";
 
 function greeting() {
   const h = new Date().getHours();
@@ -22,102 +17,186 @@ function greeting() {
   return "Good evening";
 }
 
-export default function DashboardPage() {
-  const [user, setUser] = useState(() => getCachedUser());
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
+const CLOSED = new Set(["completed", "expired", "failed"]);
 
-  useEffect(() => {
+// What, if anything, the customer has to do on this application.
+function actionFor(app) {
+  if (app.status === "staff_rejected") return { label: "Fix and resubmit", tone: "red" };
+  if (app.status === "needs_correction" && ["renewal", "reissue", "international_permit", "tinted_permit"].includes(app.application_type)) {
+    return { label: "Re-upload a document", tone: "amber" };
+  }
+  if (app.payment_options && !isApplicationPaid(app) && !CLOSED.has(app.status)) {
+    const owed = app.payment_options.remaining_kobo ?? app.payment_options.amount_kobo;
+    return { label: `Pay ${koboToNaira(owed)} balance`, tone: "amber" };
+  }
+  return null;
+}
+
+const QUICK = [
+  { href: "/dashboard/apply/drivers-licence", icon: IdCard, title: "Driver's licence", body: "New, renewal or replacement" },
+  { href: "/dashboard/apply/number-plate", icon: CarFront, title: "Number plate", body: "New, change of owner, fancy" },
+  { href: "/dashboard/apply/vehicle-particulars", icon: FileStack, title: "Vehicle papers", body: "Licence, insurance, roadworthiness" },
+  { href: "/dashboard/services", icon: LayoutGrid, title: "All services", body: "Inspections, verification and more" },
+];
+
+export default function DashboardPage() {
+  const [user] = useState(() => getCachedUser());
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [applications, setApplications] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+
+  const load = () => {
+    setLoadError(null);
     getWallet().then((res) => {
       if (res.data) setWalletBalance(res.data.balance_kobo || 0);
-      setLoading(false);
     });
-  }, []);
+    getMyApplications({ sort: "updated_at" }).then((res) => {
+      if (res.error) setLoadError(res.error);
+      else setApplications(res.data || []);
+    });
+  };
 
-  const firstName = user?.name?.split(" ")[0] || "there";
+  useEffect(load, []);
 
-  if (loading && !user) {
-    return (
-      <div className="space-y-5 pb-12 max-w-5xl">
-        <div className="h-48 animate-pulse rounded-cx-lg bg-[#F5F5F5]" />
-        <div className="h-72 animate-pulse rounded-cx-lg bg-[#F5F5F5]" />
-      </div>
-    );
-  }
+  const sorted = useMemo(
+    () => [...(applications || [])].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)),
+    [applications]
+  );
+  const needsAction = sorted.map((app) => ({ app, action: actionFor(app) })).filter((x) => x.action).slice(0, 3);
+  const latest = sorted.find((a) => !CLOSED.has(a.status)) || sorted[0];
+  const firstName = (user?.first_name || user?.name || "").split(" ")[0] || "there";
 
   return (
-    <div className="space-y-6 pb-16 max-w-5xl">
-      {/* ══════════════════════════════════════
-          GREETING
-      ══════════════════════════════════════ */}
-      <div>
-        <p className="text-[12px] font-semibold" style={{ color: BRAND }}>
-          {greeting()}
-        </p>
-        <h1
-          className="mt-1 text-[30px] sm:text-[36px] leading-tight tracking-tight"
-          style={{ color: INK, fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-        >
-          {firstName}
-        </h1>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-7">
+      <header>
+        <p className="text-[15px] text-cx-muted">{greeting()},</p>
+        <h1 className="font-display text-[32px] leading-tight text-cx-ink sm:text-[38px]">{firstName}</h1>
+      </header>
 
-      {/* ══════════════════════════════════════
-          WALLET CARD
-      ══════════════════════════════════════ */}
-      <div
-        className="relative overflow-hidden rounded-[22px] p-6 sm:p-8 text-white shadow-lg"
-        style={{ background: "linear-gradient(155deg, #111111 0%, #0A6B4C 62%, #28A745 100%)" }}
-      >
-        <div
-          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-[0.08]"
-          style={{ background: "radial-gradient(circle, #fff 0%, transparent 70%)" }}
-        />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ background: "rgba(255,255,255,0.12)" }}>
-              <Wallet className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold tracking-[0.14em] text-emerald-200/60">Wallet balance</p>
-              <p className="mt-0.5 font-mono text-[26px] sm:text-[30px] font-bold tracking-tight">
-                {koboToNaira(walletBalance)}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Link
-              href="/dashboard/apply/drivers-licence"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-[13px] font-bold text-emerald-800 shadow-sm transition-all hover:bg-emerald-50 active:scale-[0.98]"
-            >
-              <Plus className="h-4 w-4" />
-              New application
-            </Link>
-            <Link
-              href="/dashboard/wallet"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-[13px] font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 active:scale-[0.98]"
-            >
-              <Wallet className="h-4 w-4" />
-              Fund wallet
-            </Link>
-          </div>
-        </div>
-      </div>
+      {loadError ? <ErrorState title="Your applications didn't load" message={loadError} onRetry={load} /> : null}
 
-      {/* ══════════════════════════════════════
-          CONTINUE WHERE YOU LEFT OFF
-      ══════════════════════════════════════ */}
+      {needsAction.length > 0 ? (
+        <section aria-labelledby="attention">
+          <SectionTitle title={<span id="attention">Needs your attention</span>} />
+          <ul className="space-y-2">
+            {needsAction.map(({ app, action }) => (
+              <li key={app.id}>
+                <Link
+                  href={`/dashboard/apply/${app.id}`}
+                  className={`cx-focus flex min-h-16 items-center gap-3 rounded-cx-lg border px-4 py-3 transition-colors ${
+                    action.tone === "red" ? "border-cx-red/30 bg-cx-red-soft" : "border-cx-amber/30 bg-cx-amber-soft"
+                  }`}
+                >
+                  <AlertCircle className={`h-5 w-5 shrink-0 ${action.tone === "red" ? "text-cx-red" : "text-cx-amber"}`} aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold text-cx-ink">{action.label}</span>
+                    <span className="block truncate text-[13px] text-cx-ink-2">
+                      {typeLabel(app)}, #{app.id}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-cx-muted" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {applications === null && !loadError ? (
+        <Skeleton className="h-44 w-full rounded-cx-lg" />
+      ) : latest ? (
+        <section aria-labelledby="latest">
+          <SectionTitle
+            title={<span id="latest">Your latest application</span>}
+            action={
+              <Link href="/dashboard/applications" className="cx-focus inline-flex min-h-11 items-center rounded-cx px-2 text-sm font-medium text-cx-brand-deep">
+                See all
+              </Link>
+            }
+          />
+          <LatestApplicationPlate app={latest} />
+        </section>
+      ) : loadError ? null : (
+        <Card className="text-center">
+          <p className="text-base font-semibold text-cx-ink">You haven't applied for anything yet</p>
+          <p className="mt-1 text-sm text-cx-muted">Pick a service below. Most applications take a few minutes.</p>
+        </Card>
+      )}
+
       <ContinueApplicationCard />
 
-      {/* ══════════════════════════════════════
-          SERVICES
-      ══════════════════════════════════════ */}
-      <div>
-        <h2 className="text-[16px] font-bold tracking-tight mb-4" style={{ color: INK, fontFamily: "var(--font-display-serif)" }}>
-          Services
-        </h2>
-        <ServicesList />
-      </div>
+      <section aria-labelledby="apply">
+        <SectionTitle title={<span id="apply">Apply for a service</span>} />
+        <div className="grid grid-cols-2 gap-3">
+          {QUICK.map(({ href, icon: Icon, title, body }) => (
+            <Link
+              key={href}
+              href={href}
+              className="cx-focus flex flex-col gap-3 rounded-cx-lg border border-cx-line bg-cx-surface p-4 shadow-cx transition-colors hover:border-cx-line-strong"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-cx bg-cx-brand-soft text-cx-brand-deep">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span>
+                <span className="block text-[15px] font-semibold text-cx-ink">{title}</span>
+                <span className="mt-0.5 block text-[13px] leading-snug text-cx-muted">{body}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <Card className="flex items-center gap-4">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-cx bg-cx-sunken text-cx-ink-2">
+          <Wallet className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-cx-muted">Wallet balance</p>
+          <p className="text-xl font-semibold text-cx-ink">{walletBalance == null ? "…" : koboToNaira(walletBalance)}</p>
+        </div>
+        <Button variant="secondary" href="/dashboard/wallet">
+          Top up
+        </Button>
+      </Card>
     </div>
+  );
+}
+
+// The one bold element of the portal: the latest application styled like
+// the official document it will become — a white plate with a green rule,
+// the service name set large, and how far along it is.
+function LatestApplicationPlate({ app }) {
+  const meta = statusMeta(app.status, app.application_type);
+  const progress = Math.round(getStageProgress(app.status, app.application_type) * 100);
+  return (
+    <Link
+      href={`/dashboard/apply/${app.id}`}
+      className="cx-focus group relative block overflow-hidden rounded-cx-lg border border-cx-line-strong bg-cx-surface shadow-cx-raised"
+    >
+      <span className="absolute inset-y-0 left-0 w-1.5 bg-cx-brand" aria-hidden />
+      <div className="py-5 pl-6 pr-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[13px] text-cx-muted">Application #{app.id}</p>
+            <p className="mt-1 font-display text-[24px] leading-tight text-cx-ink">{typeLabel(app)}</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-cx-brand-soft px-3 py-1 text-[13px] font-medium text-cx-brand-deep">{meta.label}</span>
+        </div>
+        <p className="mt-3 max-w-prose text-[15px] text-cx-ink-2">{getNextStepCopy(app)}</p>
+        <div className="mt-4 flex items-center gap-3">
+          <div
+            className="h-2 flex-1 overflow-hidden rounded-full bg-cx-sunken"
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Progress"
+          >
+            <div className="h-full rounded-full bg-cx-brand" style={{ width: `${Math.max(progress, 4)}%` }} />
+          </div>
+          <span className="shrink-0 text-[13px] text-cx-muted">{progress}%</span>
+        </div>
+      </div>
+    </Link>
   );
 }

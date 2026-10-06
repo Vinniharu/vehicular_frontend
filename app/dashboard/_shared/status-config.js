@@ -28,12 +28,23 @@ export const STATUS_META = {
   released_to_agents: { label: "Released to agents", tone: "success" },
   in_progress: { label: "Agents working on it", tone: "success" },
   ready_for_pickup: { label: "Ready for pickup", tone: "success" },
-  awaiting_customer: { label: "Ready — confirm receipt", tone: "success" },
+  awaiting_customer: { label: "Ready", tone: "success" },
   completed: { label: "Completed", tone: "success" },
   needs_correction: { label: "Action required", tone: "warning" },
   staff_rejected: { label: "Rejected", tone: "danger" },
   failed: { label: "Rejected", tone: "danger" },
-  expired: { label: "Licence expired", tone: "danger" },
+  expired: { label: "Expired", tone: "danger" },
+  // Roadworthiness Express, Physical Condition Inspection and routing
+  // statuses that previously fell through to a raw "visit scheduled" label.
+  draft: { label: "Awaiting payment", tone: "neutral" },
+  paid: { label: "Booked", tone: "success" },
+  visit_scheduled: { label: "Inspection visit scheduled", tone: "indigo" },
+  awaiting_mechanic_verdict: { label: "Inspection being graded", tone: "warning" },
+  agent_declined: { label: "Finding another agent", tone: "warning" },
+};
+
+const TYPE_STATUS_OVERRIDES = {
+  roadworthiness_express: { failed: { label: "Failed inspection", tone: "danger" }, awaiting_customer: { label: "Certificate ready", tone: "success" } },
 };
 
 // Sourced from the status-tone CSS vars wired in app/globals.css's
@@ -75,7 +86,9 @@ export const TONE_HEX = {
   neutral: "#64748B",
 };
 
-export function statusMeta(status) {
+export function statusMeta(status, applicationType) {
+  const override = TYPE_STATUS_OVERRIDES[applicationType]?.[status];
+  if (override) return override;
   return STATUS_META[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" };
 }
 
@@ -100,7 +113,7 @@ const STATUS_DESCRIPTIONS = {
   in_review: "Undergoing final quality assurance check.",
   in_process: "Your application is being processed.",
   ready_for_pickup: "Driver's licence card printed and ready for pickup.",
-  awaiting_customer: "Card ready; please confirm receipt upon pickup.",
+  awaiting_customer: "Card ready for handover.",
   completed: "Driver's licence application finished and closed.",
   needs_correction: "Flagged issue with uploaded documents.",
   staff_rejected: "Application formally rejected or disqualified.",
@@ -112,7 +125,7 @@ const STATUS_DESCRIPTIONS = {
 // handful of descriptions that otherwise read as "driver's licence" copy.
 const TINTED_STATUS_DESCRIPTIONS = {
   ready_for_pickup: "Tinted glass permit ready for pickup.",
-  awaiting_customer: "Permit ready; please confirm receipt upon pickup.",
+  awaiting_customer: "Permit ready for handover.",
   completed: "Tinted glass permit application finished and closed.",
 };
 
@@ -120,7 +133,7 @@ const TINTED_STATUS_DESCRIPTIONS = {
 // override, plate-specific wording.
 const NUMBER_PLATE_STATUS_DESCRIPTIONS = {
   ready_for_pickup: "Number plate ready for pickup.",
-  awaiting_customer: "Plate ready; please confirm receipt upon pickup.",
+  awaiting_customer: "Plate ready for handover.",
   completed: "Number plate application finished and closed.",
 };
 
@@ -137,7 +150,7 @@ const PARTICULARS_STATUS_DESCRIPTIONS = {
   staff_review: "Staff are reviewing your request before it's released to agents.",
   released_to_agents: "Released to eligible agents — waiting for them to accept each document.",
   in_progress: "Agents are working on your documents.",
-  awaiting_customer: "All documents are ready — please confirm receipt below.",
+  awaiting_customer: "All documents are ready. Our team will confirm once they're with you.",
   completed: "Your vehicle particulars renewal is finished and closed.",
   staff_rejected: "Your request was rejected — review the reason below and edit your details to reapply.",
   expired: "One or more documents have expired — apply for a new renewal.",
@@ -181,7 +194,7 @@ const NEXT_STEP_FRESH = {
   agent_completed: "Processing is complete — staff are doing a final review.",
   staff_final_review: "Staff are doing a final review before your licence is dispatched.",
   ready_for_pickup: "Your licence is ready for pickup.",
-  awaiting_customer: "Your licence is ready — please confirm you've received it below.",
+  awaiting_customer: "Your licence is ready. Our team will confirm once it's with you.",
   completed: "Your licence is ready.",
   needs_correction: "One of your documents needs a re-upload — see below.",
   expired: "Your licence has expired — please apply for a renewal.",
@@ -220,7 +233,7 @@ const NEXT_STEP_TINTED = {
   agent_assigned: "An agent is processing your permit.",
   agent_completed: "Processing is complete — staff are doing a final review.",
   staff_final_review: "Staff are doing a final review before your permit is dispatched.",
-  awaiting_customer: "Your permit is ready — please confirm you've received it below.",
+  awaiting_customer: "Your permit is ready. Our team will confirm once it's with you.",
   completed: "Your permit is ready.",
   needs_correction: "One of your documents needs a re-upload — see below.",
   expired: "Your permit has expired — please submit a new application.",
@@ -236,7 +249,7 @@ const NEXT_STEP_NUMBER_PLATE = {
   agent_assigned: "An agent is processing your plate.",
   agent_completed: "Processing is complete — staff are doing a final review.",
   staff_final_review: "Staff are doing a final review before your plate is dispatched.",
-  awaiting_customer: "Your plate is ready — please confirm you've received it below.",
+  awaiting_customer: "Your plate is ready. Our team will confirm once it's with you.",
   completed: "Your plate is ready.",
   needs_correction: "One of your documents needs a re-upload — see below.",
   expired: "Your plate application has expired — please submit a new application.",
@@ -251,9 +264,53 @@ const NEXT_STEP_PARTICULARS = {
   staff_review: "Staff are reviewing your request before it's released to agents.",
   released_to_agents: "Released to eligible agents — waiting for them to accept each document.",
   in_progress: "Agents are working on your documents — see each one's status below.",
-  awaiting_customer: "All documents are ready — please confirm you've received them below.",
+  awaiting_customer: "All documents are ready. Our team will confirm once they're with you.",
   completed: "Your vehicle particulars renewal is finished.",
   expired: "One or more documents have expired — apply for a new renewal.",
+};
+
+// Vehicle services (Vehicle Verification and Central Motor Registry share
+// one state machine; Roadworthiness Express and Physical Condition
+// Inspection have their own) — mirrors app/modules/driver_licence/
+// status_machine.py so none of them reuse driver's-licence wording.
+const NEXT_STEP_VERIFICATION = {
+  submitted: "We're checking your payment and details before staff review it.",
+  staff_review: "Staff are reviewing your request.",
+  routed: "Your request has been sent to an available agent.",
+  agent_accepted: "An agent is working on it.",
+  agent_assigned: "An agent is working on it.",
+  needs_correction: "The agent is redoing part of the work. Nothing for you to do.",
+  agent_completed: "The agent has finished. Staff are doing a final check.",
+  staff_final_review: "Staff are doing a final check before releasing your result.",
+  awaiting_customer: "Your result is ready. Our team will confirm once it's with you.",
+  completed: "Done. Your result is available below.",
+  expired: "This has expired. Start a new request for an up-to-date result.",
+};
+
+const NEXT_STEP_RWX = {
+  draft: "Pay to confirm your booking.",
+  paid: "Your booking is confirmed. Staff will review it shortly.",
+  staff_review: "Staff are reviewing your booking.",
+  routed: "Your inspection has been assigned to an inspector.",
+  agent_accepted: "An inspector will check your vehicle at the booked bay and time.",
+  needs_correction: "The inspector is redoing part of the inspection. Nothing for you to do.",
+  agent_completed: "The inspection is done. Staff are reviewing the result.",
+  staff_final_review: "Staff are reviewing the inspection result.",
+  awaiting_customer: "Your roadworthiness certificate is ready. Confirm you've received it below.",
+  failed: "Your vehicle didn't pass this inspection. See the details and re-inspection options below.",
+  completed: "Done. Your certificate is available below.",
+  expired: "Your certificate has expired. Book a new inspection.",
+};
+
+const NEXT_STEP_PCI = {
+  submitted: "We're checking your payment and details before staff review it.",
+  staff_review: "Staff are reviewing your request and arranging the visit.",
+  visit_scheduled: "A mechanic will inspect your vehicle at the scheduled time and place.",
+  awaiting_mechanic_verdict: "The inspection is done and being graded.",
+  staff_final_review: "Staff are finalising your inspection report.",
+  awaiting_customer: "Your inspection report is ready. Our team will confirm once it's with you.",
+  completed: "Done. Your inspection report is available below.",
+  expired: "This report has expired. Book a new inspection for an up-to-date one.",
 };
 
 export function getNextStepCopy(application) {
@@ -264,6 +321,11 @@ export function getNextStepCopy(application) {
   }
   if (type === "vehicle_particulars") {
     return NEXT_STEP_PARTICULARS[status] || "We'll update this as your request moves forward.";
+  }
+  if (type === "roadworthiness_express") return NEXT_STEP_RWX[status] || "We'll update this as your booking moves forward.";
+  if (type === "physical_condition_inspection") return NEXT_STEP_PCI[status] || "We'll update this as your inspection moves forward.";
+  if (type?.startsWith("vehicle_verification_") || type === "central_motor_registry") {
+    return NEXT_STEP_VERIFICATION[status] || "We'll update this as your request moves forward.";
   }
   const map = type === "tinted_permit"
     ? NEXT_STEP_TINTED
@@ -304,10 +366,29 @@ const STAGE_ORDER_PARTICULARS = [
   "submitted", "staff_review", "released_to_agents", "in_progress", "awaiting_customer", "completed",
 ];
 
+const STAGE_ORDER_VERIFICATION = [
+  "submitted", "staff_review", "routed", "agent_accepted", "agent_assigned", "agent_completed",
+  "staff_final_review", "awaiting_customer", "completed",
+];
+const STAGE_ORDER_RWX = [
+  "draft", "paid", "staff_review", "routed", "agent_accepted", "agent_completed",
+  "staff_final_review", "awaiting_customer", "completed",
+];
+const STAGE_ORDER_PCI = [
+  "submitted", "staff_review", "visit_scheduled", "awaiting_mechanic_verdict",
+  "staff_final_review", "awaiting_customer", "completed",
+];
+
 export function getStageProgress(status, applicationType) {
   if (status === "completed") return 1;
   if (status === "staff_rejected" || status === "failed") return 0;
-  const order = applicationType === "vehicle_particulars"
+  const order = applicationType === "roadworthiness_express"
+    ? STAGE_ORDER_RWX
+    : applicationType === "physical_condition_inspection"
+    ? STAGE_ORDER_PCI
+    : applicationType?.startsWith("vehicle_verification_") || applicationType === "central_motor_registry"
+    ? STAGE_ORDER_VERIFICATION
+    : applicationType === "vehicle_particulars"
     ? STAGE_ORDER_PARTICULARS
     : applicationType === "tinted_permit" || isNumberPlateType(applicationType)
     ? STAGE_ORDER_TINTED
