@@ -2329,7 +2329,7 @@ export default function CustomerApplicationDetailsPage() {
   // final review ("Final review rejected: …"). That's the agent's to fix —
   // resubmitting from here would move the job on and leave the agent unable
   // to submit. Only these types can be flagged back to the customer.
-  const CUSTOMER_FIXABLE_TYPES = ["renewal", "reissue", "international_permit", "tinted_permit"];
+  const CUSTOMER_FIXABLE_TYPES = ["renewal", "reissue", "international_permit", "tinted_permit", "number_plate_new", "number_plate_replacement", "number_plate_change_of_ownership", "number_plate_fancy", "number_plate_dealership"];
   const isInternalRework = needsCorrection && (
     !CUSTOMER_FIXABLE_TYPES.includes(application.application_type) ||
     (rejectionEvent?.note || "").startsWith("Final review rejected:")

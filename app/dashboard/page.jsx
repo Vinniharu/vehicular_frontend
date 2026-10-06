@@ -22,7 +22,7 @@ const CLOSED = new Set(["completed", "expired", "failed"]);
 // What, if anything, the customer has to do on this application.
 function actionFor(app) {
   if (app.status === "staff_rejected") return { label: "Fix and resubmit", tone: "red" };
-  if (app.status === "needs_correction" && ["renewal", "reissue", "international_permit", "tinted_permit"].includes(app.application_type)) {
+  if (app.status === "needs_correction" && (["renewal", "reissue", "international_permit", "tinted_permit"].includes(app.application_type) || app.application_type?.startsWith("number_plate_"))) {
     return { label: "Re-upload a document", tone: "amber" };
   }
   if (app.payment_options && !isApplicationPaid(app) && !CLOSED.has(app.status)) {
