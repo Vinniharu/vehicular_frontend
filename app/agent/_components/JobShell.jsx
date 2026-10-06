@@ -24,7 +24,7 @@ import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { hasAgentUploadedAllDocuments } from "@/lib/utils/sla";
 import { Badge, Button, Card, Notice } from "@/app/dashboard/_kit";
 import { useToast } from "@/app/components/shared/ToastProvider";
-import { applicantName, jobId, serviceLabel } from "./jobs";
+import { AGENT_DELIVERABLE_DOC_TYPES, applicantName, jobId, serviceLabel } from "./jobs";
 import { Collapsible, CopyButton, Info, InfoGrid, ProgressSteps, SlaChip, StagePill } from "./ui";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
@@ -354,9 +354,10 @@ export function DocumentsSection({ application, onPreview, onChanged, defaultOpe
                 </button>
                 <div className="flex flex-1 flex-col gap-1.5 p-2.5">
                   <p className="text-sm font-medium leading-snug text-cx-ink">{docLabel(doc.doc_type)}</p>
-                  {doc.status === "approved" ? <Badge tone="brand">Approved</Badge> : doc.status === "rejected" ? <Badge tone="red">Rejected</Badge> : null}
+                  {doc.status === "approved" ? <Badge tone="brand" className="self-start">Approved</Badge> : doc.status === "rejected" ? <Badge tone="red" className="self-start">Rejected</Badge> : null}
                   {doc.status === "rejected" && doc.review_note ? <p className="text-[13px] text-cx-red">{doc.review_note}</p> : null}
-                  {doc.status === "rejected" && doc.doc_type !== "passport_photo" ? (
+                  {/* The agent's own work is corrected through the finish step, not here. */}
+                  {doc.status === "rejected" && doc.doc_type !== "passport_photo" && !AGENT_DELIVERABLE_DOC_TYPES.includes(doc.doc_type) && doc.doc_type !== "temporary_driver_licence" ? (
                     <label className="mt-auto inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-cx-sm border border-cx-line-strong text-sm font-semibold text-cx-ink focus-within:ring-4 focus-within:ring-[color:var(--cx-focus)] hover:bg-cx-sunken">
                       {busyType === doc.doc_type ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Upload className="h-4 w-4" aria-hidden />}
                       {busyType === doc.doc_type ? "Uploading…" : "Replace"}

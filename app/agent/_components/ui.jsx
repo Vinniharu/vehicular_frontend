@@ -15,7 +15,7 @@ const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 export function StagePill({ stage, className }) {
   return (
-    <Badge tone={stage.tone} className={className}>
+    <Badge tone={stage.tone} className={cx("shrink-0 whitespace-nowrap", className)}>
       <span
         className={cx(
           "h-1.5 w-1.5 rounded-full",
