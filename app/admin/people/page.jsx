@@ -3,26 +3,16 @@
 import { useState, useEffect } from "react";
 import {
   UserPlus,
-  CheckCircle2,
-  AlertCircle,
   Building2,
-  Phone,
-  Mail,
-  MapPin,
   Lock,
-  Search,
-  X,
   RefreshCw,
   Users,
-  Shield,
-  ChevronDown,
   Wallet,
   CreditCard,
   Eye,
-  Calendar,
-  Clock,
   Pencil,
-  ArrowRight,
+  ArrowDown,
+  Check,
 } from "lucide-react";
 import {
   adminGetStaff,
@@ -43,6 +33,24 @@ import {
   adminUpdateAgentEligibility,
 } from "@/lib/api";
 import { AGENT_APPLICATION_TYPES as APPLICATION_TYPE_OPTIONS } from "@/app/admin/_shared/agent-application-types";
+import {
+  Badge,
+  Button,
+  Card,
+  DetailRow,
+  EmptyState,
+  Field,
+  Input,
+  Notice,
+  PageHeader,
+  Select,
+  Sheet,
+  SkeletonList,
+} from "@/app/dashboard/_kit";
+import { ConfirmSheet, ResponsiveTable, StatTile, Tabs, Toolbar } from "@/app/admin/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 /* ─── Helpers ─── */
 function koboToNaira(kobo) {
@@ -56,43 +64,49 @@ function formatDate(iso) {
 
 /* ─── Status Badge ─── */
 function StatusBadge({ active }) {
-  return active ? (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      Active
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-      Deactivated
-    </span>
-  );
+  return active ? <Badge tone="brand">Active</Badge> : <Badge>Deactivated</Badge>;
 }
 
 /* ─── Avatar ─── */
-function Avatar({ name, color = "slate" }) {
+function Avatar({ name, tone = "neutral" }) {
   const letter = name ? name.charAt(0).toUpperCase() : "?";
-  const bg = color === "green"
-    ? "linear-gradient(135deg, #28A745, #0a7a56)"
-    : "linear-gradient(135deg, #334155, #1e293b)";
   return (
     <div
-      className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-white text-[13px] font-bold"
-      style={{ background: bg }}
+      className={cx(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+        tone === "brand" ? "bg-cx-brand-soft text-cx-brand-deep" : "bg-cx-sunken text-cx-ink-2"
+      )}
+      aria-hidden
     >
       {letter}
     </div>
   );
 }
 
-/* ─── Empty State ─── */
-function EmptyState({ message }) {
+/* ─── Application type toggles ─── */
+function TypeToggles({ value, onChange }) {
   return (
-    <div className="py-20 flex flex-col items-center justify-center gap-3">
-      <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-        <Users className="h-5 w-5 text-slate-400" />
-      </div>
-      <p className="text-[14px] text-slate-500 font-medium">{message}</p>
+    <div className="flex flex-wrap gap-2">
+      {APPLICATION_TYPE_OPTIONS.map((opt) => {
+        const checked = value.includes(opt.value);
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={checked}
+            onClick={() => onChange(checked ? value.filter((v) => v !== opt.value) : [...value, opt.value])}
+            className={cx(
+              "cx-focus inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors",
+              checked
+                ? "border-cx-brand bg-cx-brand-soft text-cx-brand-deep"
+                : "border-cx-line-strong bg-cx-surface text-cx-muted hover:bg-cx-sunken"
+            )}
+          >
+            {checked ? <Check className="h-4 w-4" aria-hidden /> : null}
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -136,12 +150,11 @@ export default function AdminPage() {
   const [detailAllowedTypes, setDetailAllowedTypes] = useState([]);
   const [updatingEligibility, setUpdatingEligibility] = useState(false);
 
-  const [toast, setToast] = useState(null);
+  const [confirmRejectRelocation, setConfirmRejectRelocation] = useState(null);
+  const [rejectingRelocation, setRejectingRelocation] = useState(false);
 
-  const showToast = (type, msg) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 5000);
-  };
+  const pushToast = useToast();
+  const showToast = (type, msg) => pushToast({ tone: type, title: msg });
 
   const loadData = async () => {
     const [staffRes, agentsRes, supportRes, statesRes, relocRes] = await Promise.all([
@@ -299,7 +312,7 @@ export default function AdminPage() {
   };
 
   const handleRejectRelocation = async (agentId) => {
-    if (!window.confirm("Are you sure you want to reject this relocation request?")) return;
+    // Confirmed through the ConfirmSheet before this runs.
     const res = await rejectAgentRelocation(agentId);
     if (res.error) showToast("error", res.error);
     else {
@@ -320,862 +333,519 @@ export default function AdminPage() {
     p.name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.phone?.includes(q)
   );
 
-  return (
-    <div className="space-y-6 pb-16" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+  const rowAction = "min-h-11 md:min-h-9";
 
-      {/* ─── Toast ─── */}
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 pl-4 pr-5 py-3.5 rounded-xl shadow-xl border text-[13px] font-medium max-w-sm transition-all ${
-          toast.type === "success"
-            ? "bg-white border-emerald-200 text-slate-800"
-            : "bg-white border-red-200 text-slate-800"
-        }`}>
-          {toast.type === "success"
-            ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-[#28A745]" />
-            : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />}
-          <span className="flex-1 leading-snug">{toast.msg}</span>
-          <button type="button" onClick={() => setToast(null)} className="ml-1 text-slate-400 hover:text-slate-600 transition-colors">
-            <X className="h-4 w-4" />
-          </button>
+  const personColumn = {
+    key: "name",
+    header: "Name",
+    primary: true,
+    render: (p) => (
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar name={p.name} />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-cx-ink">{p.name}</p>
+          <p className="truncate text-[13px] font-normal text-cx-muted">ID #{p.id}</p>
         </div>
-      )}
+      </div>
+    ),
+  };
 
-      {/* ─── Page Header ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">Staff & Agent Directory</h1>
-          <p className="text-[13px] text-slate-500 mt-1">
-            Manage verification staff and VIO field agents operating across Nigeria.
-          </p>
+  const directoryColumns = (role) => [
+    personColumn,
+    {
+      key: "contact",
+      header: "Contact",
+      render: (p) => (
+        <div className="min-w-0">
+          <p className="truncate text-cx-ink">{p.email}</p>
+          <p className="truncate text-[13px] text-cx-muted">{p.phone || "—"}</p>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-sm"
+      ),
+    },
+    { key: "status", header: "Status", render: (p) => <StatusBadge active={p.is_active} /> },
+    {
+      key: "password",
+      header: "Password",
+      render: (p) =>
+        p.must_change_password ? (
+          <Badge tone="amber">
+            <Lock className="h-3.5 w-3.5" aria-hidden />
+            Change required
+          </Badge>
+        ) : (
+          <span className="text-cx-muted">Set</span>
+        ),
+    },
+    {
+      key: "action",
+      header: <span className="sr-only">Actions</span>,
+      className: "md:text-right",
+      render: (p) =>
+        p.is_active ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cx(rowAction, "text-cx-red")}
+            onClick={() => setConfirmDeactivateTarget({ id: p.id, role, accountName: p.name })}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""} text-slate-500`} />
-            Refresh
-          </button>
-          {activeTab !== "relocations" && (
-            <button
-              type="button"
-              onClick={() => openProvisionModal(activeTab === "staff" ? "staff" : activeTab === "support" ? "support" : "agent")}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold text-white shadow-sm transition-all active:scale-[0.98]"
-              style={{ background: "#28A745" }}
+            Deactivate
+          </Button>
+        ) : (
+          <span className="text-cx-muted">Inactive</span>
+        ),
+    },
+  ];
+
+  const agentColumns = [
+    {
+      key: "name",
+      header: "Field agent",
+      primary: true,
+      render: (a) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={a.name} tone="brand" />
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-cx-ink">{a.name}</p>
+            <p className="truncate text-[13px] font-normal text-cx-muted">{a.email}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "office",
+      header: "Assigned office",
+      render: (a) => {
+        const profile = a.agent_profile || {};
+        return (
+          <div className="min-w-0">
+            <p className="truncate font-medium text-cx-ink">{profile.vio_office || "—"}</p>
+            <p className="truncate text-[13px] text-cx-muted">
+              {profile.state && profile.lga ? `${profile.state} · ${profile.lga}` : "Location not set"}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: "wallet",
+      header: "Bank and wallet",
+      render: (a) => {
+        const bank = a.bank_account;
+        const wallet = a.wallet || { balance_kobo: 0, currency: "NGN" };
+        return (
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-cx-ink">{koboToNaira(wallet.balance_kobo)}</p>
+            {bank ? (
+              <p className="truncate text-[13px] text-cx-muted" title={bank.account_name}>
+                {bank.account_number} ({bank.bank_code})
+              </p>
+            ) : (
+              <p className="text-[13px] text-cx-muted">No bank set</p>
+            )}
+          </div>
+        );
+      },
+    },
+    { key: "status", header: "Status", render: (a) => <StatusBadge active={a.is_active} /> },
+    {
+      key: "action",
+      header: <span className="sr-only">Actions</span>,
+      className: "md:text-right",
+      render: (a) => (
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          <Button variant="secondary" size="sm" icon={Eye} className={rowAction} onClick={() => handleViewAgent(a)}>
+            Details
+          </Button>
+          {a.is_active ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cx(rowAction, "text-cx-red")}
+              onClick={() => setConfirmDeactivateTarget({ id: a.id, role: "agent", accountName: a.name })}
             >
-              <UserPlus className="h-3.5 w-3.5" />
-              {activeTab === "staff" ? "Add Staff Member" : activeTab === "support" ? "Add Support Agent" : "Add Field Agent"}
-            </button>
+              Deactivate
+            </Button>
+          ) : (
+            <span className="self-center text-cx-muted">Inactive</span>
           )}
         </div>
-      </div>
+      ),
+    },
+  ];
 
-      {/* ─── Stats Row ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: "Verification Staff", value: staffList.length, sub: `${staffList.filter((s) => s.is_active).length} active` },
-          { label: "VIO Field Agents", value: agentsList.length, sub: `${agentsList.filter((a) => a.is_active).length} active` },
-          { label: "Support Accounts", value: supportList.length, sub: `${supportList.filter((s) => s.is_active).length} active` },
-          { label: "States Covered", value: new Set(agentsList.map((a) => a.agent_profile?.state).filter(Boolean)).size || "—", sub: "Operational areas" },
-          { label: "Inactive Accounts", value: [...staffList, ...agentsList, ...supportList].filter((x) => !x.is_active).length, sub: "Deactivated access" },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-white rounded-xl border border-slate-200 px-4 py-4 shadow-sm">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{stat.label}</p>
-            <p className="text-[28px] font-bold text-slate-900 mt-1 leading-none">{stat.value}</p>
-            <p className="text-[11px] text-slate-400 mt-1">{stat.sub}</p>
-          </div>
-        ))}
-      </div>
+  const addLabel = activeTab === "staff" ? "Add staff member" : activeTab === "support" ? "Add support agent" : "Add field agent";
+  const modalTitle = modalType === "staff" ? "Add verification staff" : modalType === "support" ? "Add support agent" : "Add VIO field agent";
+  const modalDescription =
+    modalType === "staff"
+      ? "The new staff member will set their own password on first sign-in."
+      : modalType === "support"
+      ? "The new support agent will set their own password on first sign-in."
+      : "The field agent will be assigned to a physical VIO office.";
+  const submitLabel = modalType === "staff" ? "Add staff member" : modalType === "support" ? "Add support agent" : "Add field agent";
 
-      {/* ─── Tab Bar & Search ─── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 self-start overflow-x-auto">
-            {[
-              { key: "staff", label: "Internal Staff", count: staffList.length },
-              { key: "agents", label: "Field Agents", count: agentsList.length },
-              { key: "support", label: "Support", count: supportList.length },
-              { key: "relocations", label: "Relocations", count: relocationRequests.length },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-md text-[13px] font-semibold transition-all"
-                style={{
-                  background: activeTab === tab.key ? "#fff" : "transparent",
-                  color: activeTab === tab.key ? "#0f172a" : "#64748b",
-                  boxShadow: activeTab === tab.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                }}
+  const detail = selectedAgentDetail;
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="Staff and agents"
+        description="Manage verification staff, support accounts and VIO field agents across Nigeria."
+        actions={
+          <>
+            <Button variant="secondary" icon={RefreshCw} loading={refreshing} onClick={handleRefresh}>
+              Refresh
+            </Button>
+            {activeTab !== "relocations" && (
+              <Button
+                icon={UserPlus}
+                onClick={() => openProvisionModal(activeTab === "staff" ? "staff" : activeTab === "support" ? "support" : "agent")}
               >
-                {tab.label}
-                <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-bold ${activeTab === tab.key ? "bg-slate-100 text-slate-600" : "bg-slate-200/60 text-slate-400"}`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full sm:w-64 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-              />
-            </div>
-          </div>
-        </div>
+                <span className="hidden sm:inline">{addLabel}</span>
+                <span className="sm:hidden">Add</span>
+              </Button>
+            )}
+          </>
+        }
+      />
 
-        {/* ─── Table ─── */}
+      {/* ─── Stats ─── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatTile label="Verification staff" value={staffList.length} hint={`${staffList.filter((s) => s.is_active).length} active`} />
+        <StatTile label="Field agents" value={agentsList.length} hint={`${agentsList.filter((a) => a.is_active).length} active`} />
+        <StatTile label="Support accounts" value={supportList.length} hint={`${supportList.filter((s) => s.is_active).length} active`} />
+        <StatTile
+          label="States covered"
+          value={new Set(agentsList.map((a) => a.agent_profile?.state).filter(Boolean)).size || "—"}
+          hint="Operational areas"
+        />
+        <StatTile
+          label="Inactive accounts"
+          value={[...staffList, ...agentsList, ...supportList].filter((x) => !x.is_active).length}
+          hint="Deactivated access"
+        />
+      </div>
+
+      {/* ─── Tabs & search ─── */}
+      <Tabs
+        label="Directory"
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { id: "staff", label: "Internal staff", count: staffList.length },
+          { id: "agents", label: "Field agents", count: agentsList.length },
+          { id: "support", label: "Support", count: supportList.length },
+          { id: "relocations", label: "Relocations", count: relocationRequests.length },
+        ]}
+      />
+
+      <div>
+        {activeTab !== "relocations" && (
+          <Toolbar search={searchQuery} onSearch={setSearchQuery} placeholder="Search by name, email or phone" />
+        )}
+
         {loading ? (
-          <div className="py-20 text-center text-[13px] text-slate-400">Loading directory data&hellip;</div>
+          <SkeletonList rows={4} />
         ) : activeTab === "staff" ? (
-          filteredStaff.length === 0 ? (
-            <EmptyState message={searchQuery ? "No staff members match your search." : "No staff members have been provisioned yet."} />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                    <th className="py-3 px-5 font-semibold">Staff Member</th>
-                    <th className="py-3 px-5 font-semibold">Contact</th>
-                    <th className="py-3 px-5 font-semibold">Status</th>
-                    <th className="py-3 px-5 font-semibold">Password</th>
-                    <th className="py-3 px-5 text-right font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStaff.map((person, idx) => (
-                    <tr
-                      key={person.id}
-                      className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors"
-                    >
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={person.name} />
-                          <div>
-                            <p className="text-[13px] font-semibold text-slate-900">{person.name}</p>
-                            <p className="text-[11px] text-slate-400 font-mono">ID #{person.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-5">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5 text-[12px] text-slate-700">
-                            <Mail className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="font-mono">{person.email}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[12px] text-slate-500">
-                            <Phone className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="font-mono">{person.phone || "—"}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-5">
-                        <StatusBadge active={person.is_active} />
-                      </td>
-                      <td className="py-3.5 px-5">
-                        {person.must_change_password ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                            <Lock className="h-3 w-3" />
-                            Change required
-                          </span>
-                        ) : (
-                          <span className="text-[12px] text-slate-400">Set</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-5 text-right">
-                        {person.is_active ? (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeactivateTarget({ id: person.id, role: "staff", accountName: person.name })}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-red-600 bg-red-50 hover:bg-red-100/80 border border-red-200 transition-colors"
-                          >
-                            Deactivate
-                          </button>
-                        ) : (
-                          <span className="text-[12px] text-slate-300 italic">Inactive</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+          <ResponsiveTable
+            columns={directoryColumns("staff")}
+            rows={filteredStaff}
+            rowKey={(p) => p.id}
+            empty={searchQuery ? "No staff members match your search." : "No staff members have been added yet."}
+          />
         ) : activeTab === "support" ? (
-          filteredSupport.length === 0 ? (
-            <EmptyState message={searchQuery ? "No support accounts match your search." : "No support accounts have been provisioned yet."} />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                    <th className="py-3 px-5 font-semibold">Support Agent</th>
-                    <th className="py-3 px-5 font-semibold">Contact</th>
-                    <th className="py-3 px-5 font-semibold">Status</th>
-                    <th className="py-3 px-5 font-semibold">Password</th>
-                    <th className="py-3 px-5 text-right font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSupport.map((person) => (
-                    <tr
-                      key={person.id}
-                      className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors"
-                    >
-                      <td className="py-3.5 px-5">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={person.name} />
-                          <div>
-                            <p className="text-[13px] font-semibold text-slate-900">{person.name}</p>
-                            <p className="text-[11px] text-slate-400 font-mono">ID #{person.id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-5">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5 text-[12px] text-slate-700">
-                            <Mail className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="font-mono">{person.email}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[12px] text-slate-500">
-                            <Phone className="h-3 w-3 text-slate-400 shrink-0" />
-                            <span className="font-mono">{person.phone || "—"}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-5">
-                        <StatusBadge active={person.is_active} />
-                      </td>
-                      <td className="py-3.5 px-5">
-                        {person.must_change_password ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                            <Lock className="h-3 w-3" />
-                            Change required
-                          </span>
-                        ) : (
-                          <span className="text-[12px] text-slate-400">Set</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-5 text-right">
-                        {person.is_active ? (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeactivateTarget({ id: person.id, role: "support", accountName: person.name })}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-red-600 bg-red-50 hover:bg-red-100/80 border border-red-200 transition-colors"
-                          >
-                            Deactivate
-                          </button>
-                        ) : (
-                          <span className="text-[12px] text-slate-300 italic">Inactive</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+          <ResponsiveTable
+            columns={directoryColumns("support")}
+            rows={filteredSupport}
+            rowKey={(p) => p.id}
+            empty={searchQuery ? "No support accounts match your search." : "No support accounts have been added yet."}
+          />
         ) : activeTab === "agents" ? (
-          filteredAgents.length === 0 ? (
-            <EmptyState message={searchQuery ? "No agents match your search." : "No field agents have been provisioned yet."} />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                    <th className="py-3 px-5 font-semibold">Field Agent</th>
-                    <th className="py-3 px-5 font-semibold">Assigned Office</th>
-                    <th className="py-3 px-5 font-semibold">Settlement &amp; Wallet</th>
-                    <th className="py-3 px-5 font-semibold">Status</th>
-                    <th className="py-3 px-5 text-right font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAgents.map((agent) => {
-                    const profile = agent.agent_profile || {};
-                    const bank = agent.bank_account;
-                    const wallet = agent.wallet || { balance_kobo: 0, currency: "NGN" };
-                    return (
-                      <tr
-                        key={agent.id}
-                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors"
-                      >
-                        <td className="py-3.5 px-5">
-                          <div className="flex items-center gap-3">
-                            <Avatar name={agent.name} color="green" />
-                            <div>
-                              <p className="text-[13px] font-semibold text-slate-900">{agent.name}</p>
-                              <p className="text-[11px] font-mono text-slate-400">{agent.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <div>
-                            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-900">
-                              <Building2 className="h-3.5 w-3.5 text-[#28A745] shrink-0" />
-                              {profile.vio_office || "—"}
-                            </div>
-                            <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5 font-mono">
-                              <MapPin className="h-3 w-3" />
-                              {profile.state && profile.lga ? `${profile.state} · ${profile.lga}` : "Location not set"}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 text-[12px]">
-                              <CreditCard className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                              {bank ? (
-                                <span className="font-semibold text-slate-800 truncate max-w-[150px]" title={bank.account_name}>
-                                  {bank.account_number} <span className="text-slate-400 font-normal">({bank.bank_code})</span>
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 italic">No bank set</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[12px]">
-                              <Wallet className="h-3.5 w-3.5 text-[#28A745] shrink-0" />
-                              <span className="font-bold text-slate-900">{koboToNaira(wallet.balance_kobo)}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-5">
-                          <StatusBadge active={agent.is_active} />
-                        </td>
-                        <td className="py-3.5 px-5 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleViewAgent(agent)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              Details
-                            </button>
-                            {agent.is_active ? (
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeactivateTarget({ id: agent.id, role: "agent", accountName: agent.name })}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-red-600 bg-red-50 hover:bg-red-100/80 border border-red-200 transition-colors"
-                              >
-                                Deactivate
-                              </button>
-                            ) : (
-                              <span className="text-[12px] text-slate-300 italic px-2">Inactive</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )
+          <ResponsiveTable
+            columns={agentColumns}
+            rows={filteredAgents}
+            rowKey={(a) => a.id}
+            empty={searchQuery ? "No agents match your search." : "No field agents have been added yet."}
+          />
         ) : activeTab === "relocations" ? (
           relocationRequests.length === 0 ? (
-            <EmptyState message="No pending relocation requests." />
+            <EmptyState icon={Users} title="No relocation requests" description="Agent requests to move office will show up here." />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 p-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {relocationRequests.map((req) => (
-                <div key={req.agent_id} className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm">
+                <Card key={req.agent_id} className="flex flex-col">
                   <div className="flex items-center gap-3">
-                    <Avatar name={req.name} color="green" />
+                    <Avatar name={req.name} tone="brand" />
                     <div className="min-w-0">
-                      <p className="text-[13.5px] font-semibold text-slate-900 truncate">{req.name}</p>
-                      <p className="text-[11.5px] text-slate-500 font-mono">{req.phone}</p>
+                      <p className="truncate text-[15px] font-semibold text-cx-ink">{req.name}</p>
+                      <p className="text-[13px] text-cx-muted">{req.phone}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-2.5 rounded-xl bg-white border border-slate-100 p-3.5">
+                  <div className="mt-4 space-y-2 rounded-cx bg-cx-sunken p-3">
                     <div className="flex items-start gap-2">
-                      <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-cx-muted" aria-hidden />
                       <div className="min-w-0">
-                        <p className="text-[12.5px] font-medium text-slate-700 truncate">{req.current_vio_office || "—"}</p>
-                        <p className="text-[11px] text-slate-400">{req.current_lga}, {req.current_state}</p>
+                        <p className="text-[13px] text-cx-muted">From</p>
+                        <p className="truncate text-sm font-medium text-cx-ink-2">{req.current_vio_office || "—"}</p>
+                        <p className="text-[13px] text-cx-muted">{req.current_lga}, {req.current_state}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center">
-                      <ArrowRight className="h-3.5 w-3.5 text-amber-500 rotate-90" />
-                    </div>
+                    <ArrowDown className="ml-0.5 h-4 w-4 text-cx-amber" aria-hidden />
                     <div className="flex items-start gap-2">
-                      <Building2 className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-cx-amber" aria-hidden />
                       <div className="min-w-0">
-                        <p className="text-[12.5px] font-semibold text-amber-800 truncate">{req.pending_vio_office || "—"}</p>
-                        <p className="text-[11px] text-amber-600">{req.pending_lga}, {req.pending_state}</p>
+                        <p className="text-[13px] text-cx-muted">To</p>
+                        <p className="truncate text-sm font-semibold text-cx-ink">{req.pending_vio_office || "—"}</p>
+                        <p className="text-[13px] text-cx-muted">{req.pending_lga}, {req.pending_state}</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={() => handleApproveRelocation(req.agent_id)}
-                      className="flex-1 rounded-xl bg-[#28A745] text-white px-3 py-2 text-[12.5px] font-semibold hover:bg-[#218838] transition-colors"
-                    >
+                    <Button block onClick={() => handleApproveRelocation(req.agent_id)}>
                       Approve
-                    </button>
-                    <button
-                      onClick={() => handleRejectRelocation(req.agent_id)}
-                      className="flex-1 rounded-xl bg-white border border-red-200 text-red-600 px-3 py-2 text-[12.5px] font-semibold hover:bg-red-50 transition-colors"
-                    >
+                    </Button>
+                    <Button block variant="secondary" className="text-cx-red" onClick={() => setConfirmRejectRelocation(req)}>
                       Reject
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           )
         ) : null}
       </div>
 
-      {/* ─── Provisioning Modal ─── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+      {/* ─── Provisioning sheet ─── */}
+      <Sheet
+        open={isModalOpen}
+        onOpenChange={(o) => !submitting && setIsModalOpen(o)}
+        title={modalTitle}
+        description={modalDescription}
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button block type="submit" form="provision-form" loading={submitting}>
+              {submitLabel}
+            </Button>
+          </>
+        }
+      >
+        <form id="provision-form" onSubmit={handleCreate} className="space-y-4">
+          {modalError && <Notice tone="red">{modalError}</Notice>}
 
-            {/* Modal Header */}
-            <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-[16px] font-bold text-slate-900">
-                  {modalType === "staff" ? "Provision Verification Staff" : modalType === "support" ? "Provision Support Agent" : "Provision VIO Field Agent"}
-                </h2>
-                <p className="text-[12px] text-slate-500 mt-0.5">
-                  {modalType === "staff"
-                    ? "The new staff member will set their own password on first sign-in."
-                    : modalType === "support"
-                    ? "The new support agent will set their own password on first sign-in."
-                    : "The field agent will be assigned to a physical VIO headquarters."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors mt-0.5"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleCreate} className="px-6 py-5 space-y-4 overflow-y-auto max-h-[70vh]">
-              {modalError && (
-                <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-700 font-medium">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
-                  <span>{modalError}</span>
-                </div>
-              )}
-
-              {/* Names: First, Middle, Last */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="e.g. Emeka"
-                    required
-                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Middle Name <span className="text-xs text-slate-400 font-normal">(opt)</span></label>
-                  <input
-                    type="text"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                    placeholder="Optional"
-                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Surname <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="e.g. Adeyemi"
-                    required
-                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Email + Phone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Email Address</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="officer@vio.gov.ng"
-                    required
-                    className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+2348033334444"
-                    required
-                    className="w-full px-3.5 py-2.5 text-[13px] font-mono rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Temp Password */}
-              <div>
-                <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">
-                  Temporary Password
-                </label>
-                <input
-                  type="text"
-                  value={tempPassword}
-                  onChange={(e) => setTempPassword(e.target.value)}
-                  required
-                  className="w-full px-3.5 py-2.5 text-[13px] font-mono rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                />
-                <p className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
-                  <Lock className="h-3 w-3" />
-                  User must change this password upon first login.
-                </p>
-              </div>
-
-              {/* VIO Agent Fields */}
-              {modalType === "agent" && (
-                <div className="pt-3 border-t border-slate-100 space-y-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">VIO Office Assignment</p>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Office / Center Name</label>
-                    <input
-                      type="text"
-                      value={vioOffice}
-                      onChange={(e) => setVioOffice(e.target.value)}
-                      placeholder="e.g. Ikeja VIO Headquarters"
-                      required
-                      className="w-full px-3.5 py-2.5 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">State</label>
-                      <div className="relative">
-                        <select
-                          value={selectedState}
-                          onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }}
-                          required
-                          className="w-full appearance-none px-3.5 py-2.5 pr-8 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all"
-                        >
-                          <option value="" disabled>Select state</option>
-                          {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">LGA</label>
-                      <div className="relative">
-                        <select
-                          value={selectedLga}
-                          onChange={(e) => setSelectedLga(e.target.value)}
-                          disabled={!selectedState || lgas.length === 0}
-                          required
-                          className="w-full appearance-none px-3.5 py-2.5 pr-8 text-[13px] rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745] transition-all disabled:opacity-50"
-                        >
-                          <option value="" disabled>Select LGA</option>
-                          {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[12px] font-semibold text-slate-700 mb-1.5">Allowed Application Types</label>
-                    <div className="flex flex-wrap gap-2">
-                      {APPLICATION_TYPE_OPTIONS.map((opt) => {
-                        const checked = allowedApplicationTypes.includes(opt.value);
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setAllowedApplicationTypes((prev) =>
-                                checked ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
-                              );
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
-                              checked
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                                : "bg-slate-50 text-slate-500 border-slate-200"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-slate-400">
-                      Uncheck a type to prevent this agent from being offered that kind of application. All checked = unrestricted.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-lg text-[13px] font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 rounded-lg text-[13px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60"
-                  style={{ background: "#28A745" }}
-                >
-                  {submitting ? "Provisioning…" : modalType === "staff" ? "Provision Staff Member" : modalType === "support" ? "Provision Support Agent" : "Provision Field Agent"}
-                </button>
-              </div>
-            </form>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="First name" required>
+              {(p) => <Input {...p} value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Emeka" required />}
+            </Field>
+            <Field label="Middle name" optional>
+              {(p) => <Input {...p} value={middleName} onChange={(e) => setMiddleName(e.target.value)} />}
+            </Field>
+            <Field label="Surname" required>
+              {(p) => <Input {...p} value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="e.g. Adeyemi" required />}
+            </Field>
           </div>
-        </div>
-      )}
 
-      {/* ─── Agent Profile Details Modal (`GET /admin/agents/{id}`) ─── */}
-      {selectedAgentDetail && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-              <div className="flex items-center gap-3">
-                <Avatar name={selectedAgentDetail.name} color="green" />
-                <div>
-                  <h3 className="text-[16px] font-bold text-slate-900">{selectedAgentDetail.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] font-mono text-slate-400">ID #{selectedAgentDetail.id}</span>
-                    <span className="text-slate-300">·</span>
-                    <StatusBadge active={selectedAgentDetail.is_active} />
-                    {loadingAgentDetail && (
-                      <span className="text-[11px] text-slate-400 italic">Updating…</span>
-                    )}
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Email" required>
+              {(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="officer@vio.gov.ng" required />}
+            </Field>
+            <Field label="Phone" required>
+              {(p) => <Input {...p} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+2348033334444" required />}
+            </Field>
+          </div>
+
+          <Field label="Temporary password" required hint="They must change this password the first time they sign in.">
+            {(p) => <Input {...p} value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} required />}
+          </Field>
+
+          {modalType === "agent" && (
+            <div className="space-y-4 border-t border-cx-line pt-4">
+              <h3 className="text-[15px] font-semibold text-cx-ink">VIO office</h3>
+
+              <Field label="Office or centre name" required>
+                {(p) => <Input {...p} value={vioOffice} onChange={(e) => setVioOffice(e.target.value)} placeholder="e.g. Ikeja VIO Headquarters" required />}
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="State" required>
+                  {(p) => (
+                    <Select {...p} value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedLga(""); }} required>
+                      <option value="" disabled>Choose a state</option>
+                      {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </Select>
+                  )}
+                </Field>
+                <Field label="LGA" required>
+                  {(p) => (
+                    <Select {...p} value={selectedLga} onChange={(e) => setSelectedLga(e.target.value)} disabled={!selectedState || lgas.length === 0} required>
+                      <option value="" disabled>{selectedState ? "Choose an LGA" : "Choose a state first"}</option>
+                      {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </Select>
+                  )}
+                </Field>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedAgentDetail(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-cx-ink">Allowed application types</p>
+                <TypeToggles value={allowedApplicationTypes} onChange={setAllowedApplicationTypes} />
+                <p className="text-[13px] text-cx-muted">
+                  Turn a type off to stop this agent being offered that kind of application. All on means no restriction.
+                </p>
+              </div>
+            </div>
+          )}
+        </form>
+      </Sheet>
+
+      {/* ─── Agent details sheet (`GET /admin/agents/{id}`) ─── */}
+      <Sheet
+        open={!!detail}
+        onOpenChange={(o) => { if (!o) setSelectedAgentDetail(null); }}
+        title={detail?.name || "Agent"}
+        description={detail ? `ID #${detail.id}${loadingAgentDetail ? " · Updating…" : ""}` : undefined}
+        size="lg"
+        footer={
+          <Button variant="secondary" block onClick={() => setSelectedAgentDetail(null)}>
+            Close
+          </Button>
+        }
+      >
+        {detail && (
+          <div className="space-y-5">
+            <StatusBadge active={detail.is_active} />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex items-center justify-between gap-3 rounded-cx-lg bg-cx-brand-soft p-4">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-cx-brand-deep">Wallet balance</p>
+                  <p className="mt-1 text-[22px] font-semibold text-cx-ink">{koboToNaira(detail.wallet?.balance_kobo || 0)}</p>
+                </div>
+                <Wallet className="h-6 w-6 shrink-0 text-cx-brand-deep" aria-hidden />
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-cx-lg bg-cx-sunken p-4">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-cx-muted">Payout bank account</p>
+                  {detail.bank_account ? (
+                    <div className="mt-1">
+                      <p className="truncate text-sm font-semibold text-cx-ink" title={detail.bank_account.account_name}>
+                        {detail.bank_account.account_name}
+                      </p>
+                      <p className="text-[13px] text-cx-ink-2">
+                        {detail.bank_account.account_number} <span className="text-cx-muted">({detail.bank_account.bank_code})</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-cx-muted">Not added yet</p>
+                  )}
+                </div>
+                <CreditCard className="h-6 w-6 shrink-0 text-cx-muted" aria-hidden />
+              </div>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Wallet & Payout Banner */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Wallet Balance</p>
-                    <p className="text-[22px] font-bold text-slate-900 mt-1">
-                      {koboToNaira(selectedAgentDetail.wallet?.balance_kobo || 0)}
-                    </p>
-                  </div>
-                  <div className="h-11 w-11 rounded-full bg-emerald-100 flex items-center justify-center text-[#28A745]">
-                    <Wallet className="h-6 w-6" />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
-                  <div className="min-w-0 pr-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Payout Bank Account</p>
-                    {selectedAgentDetail.bank_account ? (
-                      <div className="mt-1">
-                        <p className="text-[13px] font-bold text-slate-900 truncate" title={selectedAgentDetail.bank_account.account_name}>
-                          {selectedAgentDetail.bank_account.account_name}
-                        </p>
-                        <p className="text-[12px] font-mono text-slate-600 mt-0.5">
-                          {selectedAgentDetail.bank_account.account_number} <span className="text-slate-400 font-sans">({selectedAgentDetail.bank_account.bank_code})</span>
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-[13px] text-slate-400 italic mt-2">Not registered yet</p>
-                    )}
-                  </div>
-                  <div className="h-11 w-11 rounded-full bg-slate-200/70 flex items-center justify-center text-slate-600 shrink-0">
-                    <CreditCard className="h-6 w-6" />
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div>
+                <h3 className="text-[15px] font-semibold text-cx-ink">VIO office</h3>
+                <dl className="divide-y divide-cx-line">
+                  <DetailRow label="Office" value={detail.agent_profile?.vio_office || "—"} />
+                  <DetailRow label="State" value={detail.agent_profile?.state || "—"} />
+                  <DetailRow label="LGA" value={detail.agent_profile?.lga || "—"} />
+                </dl>
               </div>
-
-              {/* Grid Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100">
-                    VIO Office Assignment
-                  </h4>
-                  <div className="space-y-2.5 text-[13px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">VIO Office:</span>
-                      <span className="font-semibold text-slate-900 text-right">{selectedAgentDetail.agent_profile?.vio_office || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">State:</span>
-                      <span className="font-semibold text-slate-900">{selectedAgentDetail.agent_profile?.state || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">LGA:</span>
-                      <span className="font-semibold text-slate-900">{selectedAgentDetail.agent_profile?.lga || "—"}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-slate-500">Allowed Application Types:</span>
-                        {!editingEligibility ? (
-                          <button onClick={() => setEditingEligibility(true)} className="text-[#28A745] hover:text-[#218838] flex items-center gap-1 text-[11px] bg-[#28A745]/5 px-2 py-0.5 rounded">
-                            <Pencil className="w-3 h-3" /> Edit
-                          </button>
-                        ) : null}
-                      </div>
-                      {!editingEligibility ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {(selectedAgentDetail.agent_profile?.allowed_application_types || APPLICATION_TYPE_OPTIONS.map((o) => o.value)).map((t) => (
-                            <span key={t} className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">
-                              {t.replace(/_/g, " ")}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-2">
-                            {APPLICATION_TYPE_OPTIONS.map((opt) => {
-                              const checked = detailAllowedTypes.includes(opt.value);
-                              return (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setDetailAllowedTypes((prev) =>
-                                      checked ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
-                                    );
-                                  }}
-                                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
-                                    checked
-                                      ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                                      : "bg-slate-50 text-slate-500 border-slate-200"
-                                  }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="flex items-center gap-2 pt-1">
-                            <button onClick={handleSaveEligibility} disabled={updatingEligibility} className="px-3 py-1 bg-[#28A745] text-white rounded text-[11px] font-semibold disabled:opacity-70">
-                              {updatingEligibility ? "Saving..." : "Save"}
-                            </button>
-                            <button onClick={() => setEditingEligibility(false)} disabled={updatingEligibility} className="px-3 py-1 border border-slate-200 text-slate-600 rounded text-[11px] font-medium">
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100">
-                    User Contact &amp; Metadata
-                  </h4>
-                  <div className="space-y-2.5 text-[13px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Email Address:</span>
-                      <span className="font-mono text-slate-900">{selectedAgentDetail.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Phone Number:</span>
-                      <span className="font-mono text-slate-900">{selectedAgentDetail.phone || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Password Status:</span>
-                      <span className={selectedAgentDetail.must_change_password ? "text-amber-600 font-semibold" : "text-emerald-600 font-semibold"}>
-                        {selectedAgentDetail.must_change_password ? "Change Required" : "Set & Verified"}
+              <div>
+                <h3 className="text-[15px] font-semibold text-cx-ink">Contact and account</h3>
+                <dl className="divide-y divide-cx-line">
+                  <DetailRow label="Email" value={detail.email} />
+                  <DetailRow label="Phone" value={detail.phone || "—"} />
+                  <DetailRow
+                    label="Password"
+                    value={
+                      <span className={detail.must_change_password ? "text-cx-amber" : "text-cx-brand-deep"}>
+                        {detail.must_change_password ? "Change required" : "Set"}
                       </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Created:</span>
-                      <span className="text-slate-700">{formatDate(selectedAgentDetail.created_at)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Last Updated:</span>
-                      <span className="text-slate-700">{formatDate(selectedAgentDetail.updated_at)}</span>
-                    </div>
-                  </div>
-                </div>
+                    }
+                  />
+                  <DetailRow label="Created" value={formatDate(detail.created_at)} />
+                  <DetailRow label="Last updated" value={formatDate(detail.updated_at)} />
+                </dl>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end bg-slate-50 rounded-b-2xl">
-              <button
-                type="button"
-                onClick={() => setSelectedAgentDetail(null)}
-                className="px-5 py-2 rounded-lg text-[13px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
-              >
-                Close Details
-              </button>
+            <div className="border-t border-cx-line pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-[15px] font-semibold text-cx-ink">Allowed application types</h3>
+                {!editingEligibility ? (
+                  <Button variant="secondary" size="sm" icon={Pencil} className={rowAction} onClick={() => setEditingEligibility(true)}>
+                    Edit
+                  </Button>
+                ) : null}
+              </div>
+              {!editingEligibility ? (
+                <div className="flex flex-wrap gap-2">
+                  {(detail.agent_profile?.allowed_application_types || APPLICATION_TYPE_OPTIONS.map((o) => o.value)).map((t) => (
+                    <Badge key={t} tone="brand" className="capitalize">
+                      {t.replace(/_/g, " ")}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <TypeToggles value={detailAllowedTypes} onChange={setDetailAllowedTypes} />
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveEligibility} loading={updatingEligibility}>
+                      Save
+                    </Button>
+                    <Button variant="ghost" onClick={() => setEditingEligibility(false)} disabled={updatingEligibility}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Sheet>
 
-      {/* ── Confirm Deactivate Modal ── */}
-      {confirmDeactivateTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
-              <AlertCircle className="h-7 w-7" />
-            </div>
-            <div>
-              <h3 className="text-[17px] font-bold text-slate-900">Deactivate Account?</h3>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-slate-500 max-w-sm mx-auto">
-                Are you sure you want to deactivate <strong className="text-slate-800">{confirmDeactivateTarget.accountName}</strong>? They will immediately lose access to the Vehiculars management system.
-              </p>
-            </div>
-            <div className="pt-2 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmDeactivateTarget(null)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13.5px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:scale-[0.98]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeactivate(confirmDeactivateTarget.id, confirmDeactivateTarget.role, confirmDeactivateTarget.accountName)}
-                className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-[13.5px] font-semibold text-white transition-all hover:bg-red-700 active:scale-[0.98]"
-              >
-                Deactivate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── Confirm deactivate ─── */}
+      <ConfirmSheet
+        open={!!confirmDeactivateTarget}
+        onOpenChange={(o) => { if (!o) setConfirmDeactivateTarget(null); }}
+        title="Deactivate this account?"
+        description={
+          confirmDeactivateTarget
+            ? `${confirmDeactivateTarget.accountName} will immediately lose access to Vehiculars.`
+            : undefined
+        }
+        confirmLabel="Deactivate"
+        tone="danger"
+        onConfirm={() =>
+          handleDeactivate(confirmDeactivateTarget.id, confirmDeactivateTarget.role, confirmDeactivateTarget.accountName)
+        }
+      />
 
+      {/* ─── Confirm reject relocation ─── */}
+      <ConfirmSheet
+        open={!!confirmRejectRelocation}
+        onOpenChange={(o) => { if (!o) setConfirmRejectRelocation(null); }}
+        title="Reject this relocation request?"
+        description={
+          confirmRejectRelocation
+            ? `${confirmRejectRelocation.name} stays at ${confirmRejectRelocation.current_vio_office || "their current office"}.`
+            : undefined
+        }
+        confirmLabel="Reject request"
+        tone="danger"
+        loading={rejectingRelocation}
+        onConfirm={async () => {
+          setRejectingRelocation(true);
+          await handleRejectRelocation(confirmRejectRelocation.agent_id);
+          setRejectingRelocation(false);
+          setConfirmRejectRelocation(null);
+        }}
+      />
     </div>
   );
 }

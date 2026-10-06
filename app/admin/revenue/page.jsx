@@ -8,19 +8,10 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Search,
-  CalendarRange,
-  AlertCircle,
   Sliders,
-  CheckCircle2,
-  Save,
-  ShieldCheck,
-  Building,
-  ChevronDown,
-  ChevronUp,
-  X,
   BadgeCheck,
-  Loader2,
+  Building,
+  CheckCircle2,
 } from "lucide-react";
 import {
   adminGetMetricsOverview,
@@ -28,8 +19,36 @@ import {
   adminGetServiceProfits,
   adminUpdateServiceProfits,
   adminReconcileCustomerPayment,
-  koboToNaira,
 } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  DetailRow,
+  Field,
+  Input,
+  Notice,
+  PageHeader,
+  SectionTitle,
+  Select,
+  Sheet,
+  SkeletonList,
+} from "@/app/dashboard/_kit";
+import {
+  MoneyInput,
+  ResponsiveTable,
+  StatTile,
+  Switch,
+  Tabs,
+  Toolbar,
+  formatNaira,
+  moneyError,
+  toKobo,
+  toNaira,
+} from "@/app/admin/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 /* ─── Helpers ─── */
 function formatDate(iso) {
@@ -60,49 +79,51 @@ function startOfWeek(d) {
 
 const DATE_PRESETS = [
   { id: "today", label: "Today", range: () => { const t = new Date(); return [t, t]; } },
-  { id: "this_week", label: "This Week", range: () => [startOfWeek(new Date()), new Date()] },
-  { id: "this_month", label: "This Month", range: () => [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()] },
-  { id: "all_time", label: "All Time", range: () => [null, null] },
+  { id: "this_week", label: "This week", range: () => [startOfWeek(new Date()), new Date()] },
+  { id: "this_month", label: "This month", range: () => [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()] },
+  { id: "all_time", label: "All time", range: () => [null, null] },
 ];
 
-const PAYMENT_STATUS_STYLES = {
-  success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  partial: "bg-blue-50 text-blue-700 border-blue-200",
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  failed: "bg-rose-50 text-rose-700 border-rose-200",
+const PAYMENT_STATUS_TONES = {
+  success: "brand",
+  partial: "neutral",
+  pending: "amber",
+  failed: "red",
 };
 
 const CATEGORY_METADATA = {
-  driver_licence: { label: "Driver's Licence", badge: "DL Family" },
-  number_plate: { label: "Number Plates", badge: "Plates" },
-  vehicle_particulars: { label: "Vehicle Particulars", badge: "Particulars" },
-  inspection_verification: { label: "Inspections & Verifications", badge: "Inspections" },
+  driver_licence: { label: "Driver's licence", badge: "DL family" },
+  number_plate: { label: "Number plates", badge: "Plates" },
+  vehicle_particulars: { label: "Vehicle particulars", badge: "Particulars" },
+  inspection_verification: { label: "Inspections & verifications", badge: "Inspections" },
 };
 
 function StatusBadge({ status, fallback = "—" }) {
-  if (!status) return <span className="text-[12px] text-slate-300 italic">{fallback}</span>;
-  const cls = PAYMENT_STATUS_STYLES[status] || "bg-slate-100 text-slate-500 border-slate-200";
+  if (!status) return <span className="text-[13px] text-cx-muted">{fallback}</span>;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border capitalize ${cls}`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+    <Badge tone={PAYMENT_STATUS_TONES[status] || "neutral"} className="capitalize">
       {status}
-    </span>
+    </Badge>
   );
 }
 
-function EmptyState({ message }) {
+function ProfitLine({ label, hint, amount, badge, onClick }) {
   return (
-    <div className="py-20 flex flex-col items-center justify-center gap-3">
-      <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-        <Landmark className="h-5 w-5 text-slate-400" />
+    <button type="button" onClick={onClick} className="cx-focus group flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-cx-sunken/70 sm:px-5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-cx-ink">{label}</p>
+        {hint ? <p className="break-all text-[13px] text-cx-muted">{hint}</p> : null}
+        {badge ? <div className="mt-1">{badge}</div> : null}
       </div>
-      <p className="text-[14px] text-slate-500 font-medium">{message}</p>
-    </div>
+      <span className="shrink-0 text-right text-[15px] font-semibold text-cx-ink">{formatNaira(amount)}</span>
+      <ChevronRight className="h-5 w-5 shrink-0 text-cx-muted group-hover:translate-x-0.5" aria-hidden />
+    </button>
   );
 }
 
 /* ─── Main Page ─── */
 export default function AdminRevenuePage() {
+  const pushToast = useToast();
   const [overview, setOverview] = useState(null);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -139,9 +160,13 @@ export default function AdminRevenuePage() {
   const [profitInputs, setProfitInputs] = useState({});
   const [profitsLoading, setProfitsLoading] = useState(true);
   const [isSavingProfits, setIsSavingProfits] = useState(false);
-  const [profitsSaveSuccess, setProfitsSaveSuccess] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [settingsCategoryTab, setSettingsCategoryTab] = useState("all");
+
+  // Service profit edit sheet
+  const [editingService, setEditingService] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [editError, setEditError] = useState(null);
 
   const overviewSeqRef = useRef(0);
   const txnSeqRef = useRef(0);
@@ -298,14 +323,23 @@ export default function AdminRevenuePage() {
     setRefreshing(false);
   };
 
+  const openReconcile = () => {
+    setShowReconcileModal(true);
+    setReconcileResult(null);
+    setReconcileError(null);
+  };
+
+  const reconcileAmountError = moneyError(reconcileAmount);
+
   const handleReconcileSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!reconcileQuery.trim()) return;
+    if (reconcileAmountError) return;
     setIsReconciling(true);
     setReconcileResult(null);
     setReconcileError(null);
     try {
-      const amountKobo = reconcileAmount ? Math.round(parseFloat(reconcileAmount) * 100) : null;
+      const amountKobo = reconcileAmount ? toKobo(reconcileAmount) : null;
       const res = await adminReconcileCustomerPayment({
         query: reconcileQuery.trim(),
         amount_kobo: amountKobo,
@@ -328,20 +362,12 @@ export default function AdminRevenuePage() {
     }
   };
 
-  const handleProfitInputChange = (serviceKey, value) => {
-    // Only permit digits
-    const cleaned = value.replace(/[^0-9]/g, "");
-    setProfitInputs((prev) => ({
-      ...prev,
-      [serviceKey]: cleaned,
-    }));
-  };
-
-  const handleSaveServiceProfits = async () => {
+  // Saves every service's net profit in one call (same payload shape as before).
+  // `inputs` lets the edit sheet pass the edited map without waiting for state.
+  const handleSaveServiceProfits = async (inputs = profitInputs) => {
     setIsSavingProfits(true);
-    setProfitsSaveSuccess(false);
     try {
-      const payload = Object.entries(profitInputs).map(([service_key, val]) => ({
+      const payload = Object.entries(inputs).map(([service_key, val]) => ({
         service_key,
         net_profit_kobo: Math.round((parseFloat(val) || 0) * 100),
       }));
@@ -349,59 +375,81 @@ export default function AdminRevenuePage() {
       const res = await adminUpdateServiceProfits(payload);
       if (res.data?.items) {
         setServiceProfits(res.data.items);
-        const inputs = {};
+        const nextInputs = {};
         res.data.items.forEach((item) => {
-          inputs[item.service_key] = item.net_profit_kobo ? (item.net_profit_kobo / 100).toString() : "0";
+          nextInputs[item.service_key] = item.net_profit_kobo ? (item.net_profit_kobo / 100).toString() : "0";
         });
-        setProfitInputs(inputs);
-        setProfitsSaveSuccess(true);
-        setTimeout(() => setProfitsSaveSuccess(false), 4000);
+        setProfitInputs(nextInputs);
+        pushToast({ tone: "success", title: "Profit saved", body: "Revenue figures now use the new amount." });
 
         // Instantly recalculate revenue overview & transactions with newly saved net profits
         await Promise.all([
           loadOverview(fromDate, effectiveToDate),
           loadTransactions(page, fromDate, effectiveToDate),
         ]);
+        return { ok: true };
       } else if (res.error) {
         setErrorMessage(res.error);
+        return { ok: false, error: res.error };
       }
+      return { ok: false, error: "Couldn't save. Try again." };
     } catch (err) {
-      setErrorMessage(err.message || "Failed to save service net profits");
+      const msg = err.message || "Failed to save service net profits";
+      setErrorMessage(msg);
+      return { ok: false, error: msg };
     } finally {
       setIsSavingProfits(false);
     }
   };
 
+  const openProfitEdit = (service) => {
+    setEditingService(service);
+    setEditValue(profitInputs[service.service_key] ?? toNaira(service.net_profit_kobo || 0));
+    setEditError(null);
+  };
+
+  const saveProfitEdit = async () => {
+    const err = moneyError(editValue, { required: true });
+    if (err) {
+      setEditError(err);
+      return;
+    }
+    const kobo = toKobo(editValue);
+    const next = { ...profitInputs, [editingService.service_key]: String(kobo / 100) };
+    const res = await handleSaveServiceProfits(next);
+    if (res.ok) setEditingService(null);
+    else setEditError(typeof res.error === "string" ? res.error : "Couldn't save. Try again.");
+  };
+
+  const hasFeeBreakdown = !!overview?.total_monnify_fees_kobo;
   const stats = [
     {
-      label: "Total Inflow (Monnify Wallet)",
-      value: overview ? koboToNaira(overview.gross_payments_kobo) : "—",
-      sub: overview?.total_monnify_fees_kobo
-        ? `${koboToNaira(overview.gross_collected_kobo)} gross (−${koboToNaira(overview.total_monnify_fees_kobo)} fee)${overview.wallet_deposits_kobo ? ` • Incl. ${koboToNaira(overview.wallet_deposits_kobo)} deposits` : ""}`
-        : "Net settled in Monnify wallet",
+      label: "Total inflow",
+      value: overview ? formatNaira(overview.gross_payments_kobo) : "—",
+      sub: hasFeeBreakdown ? "Net of Monnify fees" : "Net settled in Monnify wallet",
       icon: TrendingUp,
-      accent: "text-slate-900",
+      tone: "neutral",
     },
     {
-      label: "Platform Net Profit",
-      value: overview ? koboToNaira(overview.net_profit_kobo || 0) : "—",
-      sub: "Vehiculars retained profit",
+      label: "Platform net profit",
+      value: overview ? formatNaira(overview.net_profit_kobo || 0) : "—",
+      sub: "Kept by Vehiculars",
       icon: Landmark,
-      accent: "text-emerald-600",
+      tone: "brand",
     },
     {
-      label: "Government Payment",
-      value: overview ? koboToNaira(overview.government_payment_kobo || 0) : "—",
+      label: "Government payment",
+      value: overview ? formatNaira(overview.government_payment_kobo || 0) : "—",
       sub: "Statutory remittance pool",
       icon: Building,
-      accent: "text-blue-600",
+      tone: "neutral",
     },
     {
-      label: "Agent Service Fees",
-      value: overview ? koboToNaira(overview.agent_service_fees_kobo) : "—",
-      sub: overview ? `${koboToNaira(overview.agent_payables_paid_kobo)} disbursed` : "—",
+      label: "Agent service fees",
+      value: overview ? formatNaira(overview.agent_service_fees_kobo) : "—",
+      sub: overview ? `${formatNaira(overview.agent_payables_paid_kobo)} paid out` : "—",
       icon: Users,
-      accent: "text-slate-700",
+      tone: "neutral",
     },
   ];
 
@@ -410,620 +458,383 @@ export default function AdminRevenuePage() {
     return s.category === settingsCategoryTab;
   });
 
-  return (
-    <div className="space-y-6 pb-16" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* ─── Page Header ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">Revenue & Platform Net Profit</h1>
-          <p className="text-[13px] text-slate-500 mt-1">
-            Total inflow, platform net profit, government remittance, agent payouts, and service-level profit settings.
+  const categoryTabs = [
+    { id: "all", label: "All services", count: serviceProfits.length },
+    ...Object.entries(CATEGORY_METADATA).map(([catKey, meta]) => ({
+      id: catKey,
+      label: meta.label,
+      count: serviceProfits.filter((s) => s.category === catKey).length,
+    })),
+  ];
+
+  const columns = [
+    {
+      key: "applicant",
+      header: "Applicant",
+      primary: true,
+      render: (tx) => (
+        <div className="min-w-0">
+          <p className="font-semibold text-cx-ink">{tx.applicant_name}</p>
+          <p className="text-[13px] font-normal text-cx-muted">
+            {tx.application_id ? `App #${tx.application_id}` : tx.application_type === "wallet_deposit" ? "Wallet deposit" : "—"}
+            {" · "}
+            <span className="capitalize">{tx.application_type ? tx.application_type.replace(/_/g, " ") : "—"}</span>
           </p>
+          <p className="text-[13px] font-normal text-cx-muted">
+            {tx.validity_period || (tx.application_type === "wallet_deposit" ? "Direct inflow" : "")}
+          </p>
+          <p className="break-all font-mono text-[13px] font-normal text-cx-muted">{tx.reference}</p>
         </div>
-        <div className="flex items-center gap-2.5 self-start">
-          <button
-            type="button"
-            onClick={() => {
-              setShowReconcileModal(true);
-              setReconcileResult(null);
-              setReconcileError(null);
-            }}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-semibold border border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 transition-all shadow-xs"
-          >
-            <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Reconcile Payment</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-semibold border transition-all shadow-xs ${
-              showSettingsPanel
-                ? "bg-[#28A745] text-white border-[#28A745]"
-                : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-            }`}
-          >
-            <Sliders className="h-3.5 w-3.5" />
-            <span>Set Profit per Service</span>
-            {showSettingsPanel ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing || statsLoading || tableLoading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-60 transition-colors shadow-sm"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing || statsLoading ? "animate-spin" : ""} text-slate-500`} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+      ),
+    },
+    {
+      key: "paid",
+      header: "Amount paid",
+      render: (tx) => {
+        const grossPaid = tx.amount_paid_kobo > 0 ? tx.amount_paid_kobo : tx.amount_kobo;
+        const feeKobo = tx.monnify_fee_kobo || 0;
+        const isPartial = tx.status === "partial" || (tx.amount_paid_kobo > 0 && tx.amount_paid_kobo < tx.amount_kobo);
+        return (
+          <div>
+            <p className="font-semibold text-cx-ink">{formatNaira(grossPaid)}</p>
+            {isPartial ? <p className="text-[13px] text-cx-amber">of {formatNaira(tx.amount_kobo)} (partial)</p> : null}
+            <p className="text-[13px] text-cx-muted">Fee {feeKobo > 0 ? `−${formatNaira(feeKobo)}` : formatNaira(0)}</p>
+          </div>
+        );
+      },
+    },
+    {
+      key: "net_inflow",
+      header: "Net inflow",
+      render: (tx) => {
+        const grossPaid = tx.amount_paid_kobo > 0 ? tx.amount_paid_kobo : tx.amount_kobo;
+        const feeKobo = tx.monnify_fee_kobo || 0;
+        const netInflow = tx.net_amount_kobo != null ? tx.net_amount_kobo : Math.max(0, grossPaid - feeKobo);
+        return <span className="font-semibold text-cx-ink">{formatNaira(netInflow)}</span>;
+      },
+    },
+    {
+      key: "net_profit",
+      header: "Net profit",
+      render: (tx) =>
+        tx.net_profit_kobo != null ? <span className="font-semibold text-cx-brand-deep">{formatNaira(tx.net_profit_kobo)}</span> : <span className="text-cx-muted">—</span>,
+    },
+    {
+      key: "gov",
+      header: "Government",
+      render: (tx) => (tx.government_payment_kobo != null ? formatNaira(tx.government_payment_kobo) : <span className="text-cx-muted">—</span>),
+    },
+    {
+      key: "agent_fee",
+      header: "Agent fee",
+      render: (tx) => (
+        <div className="min-w-0">
+          <p>{tx.service_fee_kobo != null ? formatNaira(tx.service_fee_kobo) : <span className="text-cx-muted">—</span>}</p>
+          {tx.agent_name ? <p className="truncate text-[13px] text-cx-muted">{tx.agent_name}</p> : null}
         </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Payment / transfer",
+      render: (tx) => (
+        <div className="flex flex-wrap gap-1">
+          <StatusBadge status={tx.status} />
+          <StatusBadge status={tx.agent_transfer_status} fallback="No transfer" />
+        </div>
+      ),
+    },
+    {
+      key: "date",
+      header: "Date",
+      render: (tx) => <span className="text-[13px] text-cx-muted">{formatDate(tx.created_at)}</span>,
+    },
+  ];
+
+  return (
+    <div className="space-y-6 pb-16">
+      <PageHeader
+        title="Revenue"
+        description="Total inflow, platform net profit, government remittance, agent payouts and profit per service."
+        actions={
+          <Button variant="secondary" icon={RefreshCw} onClick={handleRefresh} loading={refreshing} disabled={refreshing || statsLoading || tableLoading}>
+            {refreshing ? "Refreshing" : "Refresh"}
+          </Button>
+        }
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="soft" icon={BadgeCheck} onClick={openReconcile}>
+          Reconcile a payment
+        </Button>
+        <Button
+          variant={showSettingsPanel ? "primary" : "secondary"}
+          icon={Sliders}
+          onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+          aria-expanded={showSettingsPanel}
+        >
+          {showSettingsPanel ? "Hide profit per service" : "Set profit per service"}
+        </Button>
       </div>
 
-      {/* ─── Error Banner ─── */}
-      {errorMessage && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-[13px] flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2 min-w-0">
-            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-            <span className="truncate">{errorMessage}</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="text-[12px] font-semibold text-amber-900 underline hover:no-underline shrink-0"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+      {errorMessage ? (
+        <Notice
+          tone="amber"
+          title="Some figures didn't load"
+          action={
+            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={handleRefresh}>
+              Try again
+            </Button>
+          }
+        >
+          {String(errorMessage)}
+        </Notice>
+      ) : null}
 
-      {/* ─── Service Net Profit Settings Panel (Collapsible) ─── */}
-      {showSettingsPanel && (
-        <div className="bg-white rounded-2xl border border-emerald-100 shadow-md p-5 sm:p-6 transition-all space-y-5 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[12px]">
-                  ₦
-                </span>
-                <h2 className="text-[16px] font-bold text-slate-900">Platform Net Profit Settings</h2>
-              </div>
-              <p className="text-[12.5px] text-slate-500 mt-1">
-                Define the net profit amount kept by Vehiculars per service. The remainder of the platform profit is allocated to statutory government payment.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {profitsSaveSuccess && (
-                <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  Saved & Applied!
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleSaveServiceProfits}
-                disabled={isSavingProfits || profitsLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold bg-[#28A745] hover:bg-[#218838] text-white shadow-sm disabled:opacity-50 transition-colors"
-              >
-                <Save className="h-4 w-4" />
-                {isSavingProfits ? "Saving Changes..." : "Save Profit Settings"}
-              </button>
-            </div>
-          </div>
-
-          {/* Category Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSettingsCategoryTab("all")}
-              className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-                settingsCategoryTab === "all"
-                  ? "bg-slate-900 text-white font-semibold shadow-xs"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-              }`}
-            >
-              All Services ({serviceProfits.length})
-            </button>
-            {Object.entries(CATEGORY_METADATA).map(([catKey, meta]) => {
-              const count = serviceProfits.filter((s) => s.category === catKey).length;
-              const isActive = settingsCategoryTab === catKey;
-              return (
-                <button
-                  key={catKey}
-                  type="button"
-                  onClick={() => setSettingsCategoryTab(catKey)}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-                    isActive
-                      ? "bg-slate-900 text-white font-semibold shadow-xs"
-                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                  }`}
-                >
-                  {meta.label} ({count})
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Service Profits Grid */}
+      {/* ─── Service net profit settings ─── */}
+      {showSettingsPanel ? (
+        <section>
+          <SectionTitle
+            title="Profit per service"
+            description="What Vehiculars keeps from each service. The rest of the platform profit goes to the government payment."
+          />
+          <Tabs tabs={categoryTabs} value={settingsCategoryTab} onChange={setSettingsCategoryTab} label="Service category" className="mb-3" />
           {profitsLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-2">
-              <RefreshCw className="h-5 w-5 text-emerald-600 animate-spin" />
-              <p className="text-[13px] text-slate-500">Loading service profit configurations...</p>
-            </div>
+            <SkeletonList rows={3} />
+          ) : filteredServices.length === 0 ? (
+            <p className="rounded-cx-lg border border-dashed border-cx-line-strong bg-cx-surface px-4 py-8 text-center text-sm text-cx-muted">
+              No services in this category.
+            </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredServices.map((service) => {
-                const meta = CATEGORY_METADATA[service.category] || { label: service.category, badge: service.category };
-                const currentVal = profitInputs[service.service_key] ?? "0";
-                return (
-                  <div
-                    key={service.service_key}
-                    className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 bg-slate-50/50 hover:bg-white transition-all space-y-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-[13px] font-semibold text-slate-900 leading-snug">{service.service_name}</p>
-                        <span className="font-mono text-[11px] text-slate-400">{service.service_key}</span>
-                      </div>
-                      <span className="inline-flex px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-200 text-slate-700 whitespace-nowrap">
-                        {meta.badge}
-                      </span>
-                    </div>
-
-                    <div className="pt-1">
-                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                        Net Profit (₦)
-                      </label>
-                      <div className="relative rounded-lg shadow-xs">
-                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                          <span className="text-slate-400 font-bold text-[13px]">₦</span>
-                        </div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={currentVal === "" ? "" : Number(currentVal).toLocaleString()}
-                          onChange={(e) => handleProfitInputChange(service.service_key, e.target.value)}
-                          placeholder="0"
-                          className="block w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-[13px] font-semibold text-slate-900 placeholder:text-slate-300 focus:border-[#28A745] focus:outline-none focus:ring-1 focus:ring-[#28A745]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <Card padded={false}>
+              <ul className="divide-y divide-cx-line/70">
+                {filteredServices.map((service) => {
+                  const meta = CATEGORY_METADATA[service.category] || { label: service.category, badge: service.category };
+                  return (
+                    <li key={service.service_key}>
+                      <ProfitLine
+                        label={service.service_name}
+                        hint={service.service_key}
+                        amount={service.net_profit_kobo ?? 0}
+                        badge={<Badge>{meta.badge}</Badge>}
+                        onClick={() => openProfitEdit(service)}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
           )}
-        </div>
-      )}
+        </section>
+      ) : null}
 
-      {/* ─── Date Range ─── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex items-center gap-1.5 text-slate-400 shrink-0">
-          <CalendarRange className="h-3.5 w-3.5" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide">Date Range</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* ─── Date range ─── */}
+      <Card>
+        <p className="mb-2 text-[13px] text-cx-muted">Date range</p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Date range">
           {DATE_PRESETS.map((preset) => {
             const isActive = activePreset === preset.id;
             return (
               <button
                 key={preset.id}
                 type="button"
+                aria-pressed={isActive}
                 onClick={() => applyPreset(preset)}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-                  isActive
-                    ? "bg-[#28A745] text-white border border-[#28A745] shadow-xs font-semibold"
-                    : "border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600"
-                }`}
+                className={cx(
+                  "cx-focus min-h-11 rounded-cx px-4 text-[15px] font-medium transition-colors",
+                  isActive ? "bg-cx-brand text-white" : "border border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
+                )}
               >
                 {preset.label}
               </button>
             );
           })}
         </div>
-        <div className="flex items-center gap-2 sm:ml-auto">
-          <input
-            type="date"
-            value={fromDate}
-            max={toDate || undefined}
-            onChange={(e) => handleFromDateChange(e.target.value)}
-            className="px-2.5 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-          />
-          <span className="text-[12px] text-slate-400">to</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            onChange={(e) => handleToDateChange(e.target.value)}
-            className="px-2.5 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-          />
-          {(fromDate || toDate) && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="text-[12px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              Clear
-            </button>
-          )}
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:flex sm:items-end">
+          <Field label="From" className="min-w-0 sm:w-48">
+            {(p) => <Input {...p} type="date" value={fromDate} max={toDate || undefined} onChange={(e) => handleFromDateChange(e.target.value)} />}
+          </Field>
+          <Field label="To" className="min-w-0 sm:w-48">
+            {(p) => <Input {...p} type="date" value={toDate} min={fromDate || undefined} onChange={(e) => handleToDateChange(e.target.value)} />}
+          </Field>
+          {fromDate || toDate ? (
+            <Button variant="ghost" onClick={handleClear} className="col-span-2 sm:col-span-1">
+              Clear dates
+            </Button>
+          ) : null}
         </div>
-      </div>
+      </Card>
 
-      {/* ─── Stats Row (4 Metrics) ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="bg-white rounded-xl border border-slate-200 px-4 py-4 shadow-sm relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{stat.label}</p>
-                <Icon className="h-4 w-4 text-slate-400" />
-              </div>
-              {statsLoading ? (
-                <div className="mt-2 space-y-2 py-0.5">
-                  <div className="h-6 w-32 bg-slate-100 animate-pulse rounded-md" />
-                  <div className="h-3.5 w-24 bg-slate-50 animate-pulse rounded-md" />
-                </div>
-              ) : (
-                <>
-                  <p className={`text-[23px] font-bold mt-1.5 leading-none ${stat.accent}`}>{stat.value}</p>
-                  <p className="text-[11px] text-slate-400 mt-1.5">{stat.sub}</p>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ─── Transaction Log ─── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 pt-4 pb-3 border-b border-slate-100">
-          <p className="text-[13px] font-semibold text-slate-700 shrink-0">
-            Transactions <span className="text-slate-400 font-normal">({total})</span>
+      {/* ─── Stats ─── */}
+      <div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <StatTile key={stat.label} label={stat.label} value={statsLoading ? "…" : stat.value} hint={statsLoading ? "Loading" : stat.sub} icon={stat.icon} tone={stat.tone} />
+          ))}
+        </div>
+        {!statsLoading && hasFeeBreakdown ? (
+          <p className="mt-2 text-[13px] text-cx-muted">
+            {formatNaira(overview.gross_collected_kobo)} collected, less {formatNaira(overview.total_monnify_fees_kobo)} Monnify fees
+            {overview.wallet_deposits_kobo ? `. Includes ${formatNaira(overview.wallet_deposits_kobo)} in wallet deposits.` : "."}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[210px] sm:min-w-[260px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search email, ref, applicant..."
-                className="w-full pl-8 pr-8 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-            >
-              <option value="">Successful Only (Revenue)</option>
-              <option value="all">All Statuses (incl. pending/failed)</option>
-              <option value="success">Success (Full Payment)</option>
-              <option value="partial">Partial Payment</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
-            </select>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-1.5 text-[12.5px] rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-            >
-              <option value="">All types</option>
-              <option value="wallet_deposit">Wallet Deposits</option>
-              <option value="fresh">Fresh DL</option>
-              <option value="renewal">Renewal DL</option>
-              <option value="reissue">Reissue DL</option>
-              <option value="number_plate_new">New Plate</option>
-              <option value="vehicle_particulars">Vehicle Particulars</option>
-              <option value="roadworthiness_express">Roadworthiness Express</option>
-              <option value="physical_condition_inspection">Physical Condition Inspection</option>
-            </select>
-          </div>
-        </div>
+        ) : null}
+      </div>
+
+      {/* ─── Transactions ─── */}
+      <section>
+        <SectionTitle title={`Transactions (${total})`} />
+        <Toolbar search={searchTerm} onSearch={setSearchTerm} placeholder="Search email, reference or applicant">
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Payment status" className="md:w-60">
+            <option value="">Successful only (revenue)</option>
+            <option value="all">All statuses (incl. pending/failed)</option>
+            <option value="success">Success (full payment)</option>
+            <option value="partial">Partial payment</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+          </Select>
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Type" className="md:w-56">
+            <option value="">All types</option>
+            <option value="wallet_deposit">Wallet deposits</option>
+            <option value="fresh">Fresh DL</option>
+            <option value="renewal">Renewal DL</option>
+            <option value="reissue">Reissue DL</option>
+            <option value="number_plate_new">New plate</option>
+            <option value="vehicle_particulars">Vehicle particulars</option>
+            <option value="roadworthiness_express">Roadworthiness express</option>
+            <option value="physical_condition_inspection">Physical condition inspection</option>
+          </Select>
+        </Toolbar>
 
         {tableLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="h-5 w-5 text-[#28A745] animate-spin" />
-            <p className="text-[13px] text-slate-500 font-medium">Computing transactions for selected date range&hellip;</p>
-          </div>
-        ) : items.length === 0 ? (
-          <EmptyState message="No transactions match these filters." />
+          <SkeletonList rows={4} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                  <th className="py-3 px-4 font-semibold">Applicant</th>
-                  <th className="py-3 px-4 font-semibold">Type</th>
-                  <th className="py-3 px-4 font-semibold">Reference</th>
-                  <th className="py-3 px-4 font-semibold">Amount Paid</th>
-                  <th className="py-3 px-4 font-semibold text-rose-600">Monnify Fee</th>
-                  <th className="py-3 px-4 font-semibold text-slate-900">Net Inflow</th>
-                  <th className="py-3 px-4 font-semibold text-emerald-700">Net Profit</th>
-                  <th className="py-3 px-4 font-semibold text-blue-700">Gov Payment</th>
-                  <th className="py-3 px-4 font-semibold">Agent Fee</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold">Transfer</th>
-                  <th className="py-3 px-4 font-semibold">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((tx) => {
-                  const grossPaid = tx.amount_paid_kobo > 0 ? tx.amount_paid_kobo : tx.amount_kobo;
-                  const feeKobo = tx.monnify_fee_kobo || 0;
-                  const netInflow = tx.net_amount_kobo != null ? tx.net_amount_kobo : Math.max(0, grossPaid - feeKobo);
-
-                  return (
-                    <tr key={tx.payment_id || tx.reference} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <p className="text-[13px] font-semibold text-slate-900">{tx.applicant_name}</p>
-                        <p className="text-[11px] text-slate-400 font-mono">
-                          {tx.application_id ? `App #${tx.application_id}` : (tx.application_type === "wallet_deposit" ? "Wallet Deposit" : "—")}
-                        </p>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <p className="text-[12.5px] text-slate-700 capitalize">
-                          {tx.application_type ? tx.application_type.replace(/_/g, " ") : "—"}
-                        </p>
-                        <p className="text-[11px] text-slate-400">{tx.validity_period || (tx.application_type === "wallet_deposit" ? "Direct Inflow" : "—")}</p>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-mono text-[11.5px] text-slate-500">{tx.reference}</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <p className="text-[13px] font-semibold text-slate-900">
-                          {koboToNaira(grossPaid)}
-                        </p>
-                        {tx.status === "partial" || (tx.amount_paid_kobo > 0 && tx.amount_paid_kobo < tx.amount_kobo) ? (
-                          <p className="text-[11px] text-amber-600 font-medium">
-                            of {koboToNaira(tx.amount_kobo)} (partial)
-                          </p>
-                        ) : (
-                          <p className="text-[11px] text-slate-400">Gross paid</p>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="text-[12.5px] font-medium text-rose-600">
-                          {feeKobo > 0 ? `−${koboToNaira(feeKobo)}` : "₦0.00"}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="text-[13px] font-bold text-slate-900">
-                          {koboToNaira(netInflow)}
-                        </span>
-                        <p className="text-[10px] text-slate-400">Monnify wallet</p>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {tx.net_profit_kobo != null ? (
-                          <span className="text-[13px] font-semibold text-emerald-700">{koboToNaira(tx.net_profit_kobo)}</span>
-                        ) : (
-                          <span className="text-[13px] text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {tx.government_payment_kobo != null ? (
-                          <span className="text-[13px] font-semibold text-blue-700">{koboToNaira(tx.government_payment_kobo)}</span>
-                        ) : (
-                          <span className="text-[13px] text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-[12.5px] text-slate-700">
-                        {tx.service_fee_kobo != null ? (
-                          koboToNaira(tx.service_fee_kobo)
-                        ) : (
-                          <span className="text-[13px] text-slate-300">—</span>
-                        )}
-                        {tx.agent_name && <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{tx.agent_name}</p>}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <StatusBadge status={tx.status} />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <StatusBadge status={tx.agent_transfer_status} fallback="No transfer" />
-                      </td>
-                      <td className="py-3.5 px-4 text-[12px] text-slate-500 whitespace-nowrap">{formatDate(tx.created_at)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable columns={columns} rows={items} rowKey={(tx) => tx.payment_id || tx.reference} empty="No transactions match these filters." />
         )}
 
-        {/* ─── Pagination ─── */}
-        {!tableLoading && items.length > 0 && (
-          <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
-            <p className="text-[12px] text-slate-400">
+        {!tableLoading && items.length > 0 ? (
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-[13px] text-cx-muted">
               Page {page} of {totalPages}
             </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
+            <div className="flex gap-2">
+              <Button variant="secondary" icon={ChevronLeft} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
                 Prev
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12.5px] font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
                 Next
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+        ) : null}
+      </section>
 
-      {/* ─── Payment Reconciliation Modal ─── */}
-      {showReconcileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
-                  <BadgeCheck className="h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold text-slate-900">Reconcile Customer Payment</h3>
-                  <p className="text-[12px] text-slate-500">Query Monnify or sync missing customer payments</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowReconcileModal(false)}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      {/* ─── Edit one service's net profit ─── */}
+      <Sheet
+        open={!!editingService}
+        onOpenChange={(o) => !o && !isSavingProfits && setEditingService(null)}
+        title={editingService?.service_name || "Net profit"}
+        description="How much Vehiculars keeps from each payment for this service."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingService(null)} disabled={isSavingProfits}>
+              Cancel
+            </Button>
+            <Button block loading={isSavingProfits} onClick={saveProfitEdit}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <Field label="Net profit" error={editError} hint="Saved for every service at once, then revenue figures refresh.">
+          {(p) => (
+            <MoneyInput
+              {...p}
+              value={editValue}
+              onChange={(v) => {
+                setEditValue(v);
+                setEditError(null);
+              }}
+              placeholder="0"
+              invalid={!!editError}
+            />
+          )}
+        </Field>
+      </Sheet>
 
-            <form onSubmit={handleReconcileSubmit} className="p-6 space-y-4">
-              {reconcileResult && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-[12.5px] text-emerald-800 space-y-1.5 animate-in fade-in">
-                  <div className="flex items-center gap-2 font-bold text-emerald-900">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>{reconcileResult.message}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-2 text-[12px] border-t border-emerald-200/60 mt-2 font-mono">
-                    {reconcileResult.application_id && (
-                      <div>
-                        <span className="text-emerald-700 font-sans">App ID:</span> #{reconcileResult.application_id}
-                      </div>
-                    )}
-                    {reconcileResult.amount_kobo && (
-                      <div>
-                        <span className="text-emerald-700 font-sans">Amount:</span> {koboToNaira(reconcileResult.amount_kobo)}
-                      </div>
-                    )}
-                    {reconcileResult.customer_email && (
-                      <div className="col-span-2">
-                        <span className="text-emerald-700 font-sans">Customer:</span> {reconcileResult.customer_email}
-                      </div>
-                    )}
-                    {reconcileResult.reference && (
-                      <div className="col-span-2 truncate">
-                        <span className="text-emerald-700 font-sans">Ref:</span> {reconcileResult.reference}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+      {/* ─── Payment reconciliation ─── */}
+      <Sheet
+        open={showReconcileModal}
+        onOpenChange={(o) => !isReconciling && setShowReconcileModal(o)}
+        title="Reconcile a customer payment"
+        description="Look a payment up on Monnify, or record one that's missing."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowReconcileModal(false)} disabled={isReconciling}>
+              Close
+            </Button>
+            <Button
+              block
+              type="submit"
+              form="reconcile-payment-form"
+              icon={BadgeCheck}
+              loading={isReconciling}
+              disabled={!reconcileQuery.trim() || !!reconcileAmountError}
+            >
+              Reconcile payment
+            </Button>
+          </>
+        }
+      >
+        <form id="reconcile-payment-form" onSubmit={handleReconcileSubmit} className="space-y-4">
+          {reconcileResult ? (
+            <Notice tone="brand" icon={CheckCircle2} title={reconcileResult.message}>
+              <dl className="divide-y divide-cx-line/60">
+                {reconcileResult.application_id ? <DetailRow label="Application" value={`#${reconcileResult.application_id}`} /> : null}
+                {reconcileResult.amount_kobo ? <DetailRow label="Amount" value={formatNaira(reconcileResult.amount_kobo)} /> : null}
+                {reconcileResult.customer_email ? <DetailRow label="Customer" value={reconcileResult.customer_email} /> : null}
+                {reconcileResult.reference ? <DetailRow label="Reference" value={<span className="break-all font-mono">{reconcileResult.reference}</span>} /> : null}
+              </dl>
+            </Notice>
+          ) : null}
 
-              {reconcileError && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-[12.5px] text-rose-800 flex items-start gap-2.5 animate-in fade-in">
-                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                  <span>{reconcileError}</span>
-                </div>
-              )}
+          {reconcileError ? (
+            <Notice tone="red" title="Couldn't reconcile">
+              {String(reconcileError)}
+            </Notice>
+          ) : null}
 
-              <div>
-                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                  Customer Email or Payment / Transaction Reference <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. cindytobeamos@gmail.com, MNFY|..., or vhc_ref_..."
-                  value={reconcileQuery}
-                  onChange={(e) => setReconcileQuery(e.target.value)}
-                  className="w-full px-3.5 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Enter customer email or any Monnify reference. The system will search Monnify and link to the application.
-                </p>
-              </div>
+          <Field label="Customer email or payment reference" required hint="Any Monnify or Vehiculars reference works. We'll search Monnify and link it to the application.">
+            {(p) => (
+              <Input
+                {...p}
+                required
+                placeholder="e.g. name@email.com, MNFY|… or vhc_ref_…"
+                value={reconcileQuery}
+                onChange={(e) => setReconcileQuery(e.target.value)}
+              />
+            )}
+          </Field>
 
-              <div>
-                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                  Override Amount in Naira <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[13px] font-bold">₦</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Leave empty to use Monnify or application amount"
-                    value={reconcileAmount}
-                    onChange={(e) => setReconcileAmount(e.target.value)}
-                    className="w-full pl-8 pr-3.5 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-                  />
-                </div>
-              </div>
+          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to use the Monnify or application amount.">
+            {(p) => <MoneyInput {...p} value={reconcileAmount} onChange={setReconcileAmount} placeholder="0" invalid={!!reconcileAmountError} />}
+          </Field>
 
-              <div>
-                <label className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">
-                  Internal Notes <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Verified customer support query"
-                  value={reconcileNotes}
-                  onChange={(e) => setReconcileNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]"
-                />
-              </div>
+          <Field label="Internal notes" optional>
+            {(p) => (
+              <Input {...p} placeholder="e.g. Verified customer support query" value={reconcileNotes} onChange={(e) => setReconcileNotes(e.target.value)} />
+            )}
+          </Field>
 
-              <div className="pt-1">
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={reconcileForce}
-                    onChange={(e) => setReconcileForce(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
-                  />
-                  <div>
-                    <span className="text-[12.5px] font-semibold text-slate-800">Force Credit / Manual Settlement</span>
-                    <p className="text-[11px] text-slate-500">
-                      Check this if you confirmed the payment directly on the Monnify dashboard or bank account and wish to credit the application immediately without an automated API handshake.
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowReconcileModal(false)}
-                  className="px-4 py-2 text-[13px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  disabled={isReconciling || !reconcileQuery.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-[#28A745] hover:bg-[#218838] rounded-lg shadow-sm disabled:opacity-50 transition-colors"
-                >
-                  {isReconciling ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Reconciling...</span>
-                    </>
-                  ) : (
-                    <>
-                      <BadgeCheck className="h-4 w-4" />
-                      <span>Reconcile Payment</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <Switch
+            checked={reconcileForce}
+            onChange={setReconcileForce}
+            label="Force credit (manual settlement)"
+            description="Turn on if you confirmed the payment on the Monnify dashboard or bank account and want to credit the application now, without an automated check."
+          />
+        </form>
+      </Sheet>
     </div>
   );
 }

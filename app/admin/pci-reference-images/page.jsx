@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Camera, Loader2, CheckCircle2, AlertCircle, X, Upload } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Camera, Loader2, Upload } from "lucide-react";
 import { adminListPciReferenceImages, adminUpsertPciReferenceImage, uploadApplicationFile, resolveMediaUrl } from "@/lib/api";
-
-const BRAND = "#28A745";
+import { Button, Card, EmptyState, Input, PageHeader, SectionTitle, Skeleton } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
 // Display grouping only — the backend's PCI_CHECKLIST_SECTIONS
 // (app/modules/driver_licence/router.py) is the source of truth for which
@@ -17,22 +17,10 @@ const SECTION_LABELS = {
   road_test: "Road Test",
 };
 
-function Toast({ toast, onDismiss }) {
-  if (!toast) return null;
-  return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 pl-4 pr-5 py-3.5 rounded-xl shadow-xl border text-[13px] font-medium max-w-sm transition-all ${
-      toast.type === "success" ? "bg-white border-emerald-200 text-slate-800" : "bg-white border-red-200 text-slate-800"
-    }`}>
-      {toast.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-[#28A745]" /> : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />}
-      <span className="flex-1 leading-snug">{toast.msg}</span>
-      <button type="button" onClick={onDismiss} className="ml-1 text-slate-400 hover:text-slate-600"><X className="h-4 w-4" /></button>
-    </div>
-  );
-}
-
-function ReferenceImageRow({ row, onUpdated, onError }) {
+function ReferenceImageCard({ row, onUpdated, onError }) {
   const [caption, setCaption] = useState(row.caption || "");
   const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const handleFile = async (file) => {
     if (!file) return;
@@ -59,43 +47,64 @@ function ReferenceImageRow({ row, onUpdated, onError }) {
     else onUpdated(res.data);
   };
 
+  const itemLabel = row.item_key.replace(/_/g, " ");
+
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-      <label className="relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+    <Card padded={false} className="flex flex-col overflow-hidden">
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        aria-label={row.image_url ? `Replace photo for ${itemLabel}` : `Add photo for ${itemLabel}`}
+        className="cx-focus relative flex aspect-square w-full items-center justify-center overflow-hidden bg-cx-sunken"
+      >
         {uploading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-cx-muted" aria-hidden />
         ) : row.image_url ? (
           <img src={resolveMediaUrl(row.image_url)} alt="" className="h-full w-full object-cover" />
         ) : (
-          <Camera className="h-5 w-5 text-slate-300" />
+          <Camera className="h-7 w-7 text-cx-muted" aria-hidden />
         )}
-        <input type="file" accept="image/*" disabled={uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
-      </label>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12.5px] font-semibold capitalize text-slate-800">{row.item_key.replace(/_/g, " ")}</p>
-        <input
-          type="text"
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        disabled={uploading}
+        onChange={(e) => {
+          handleFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+        className="hidden"
+      />
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <p className="text-[15px] font-medium text-cx-ink first-letter:uppercase">{itemLabel}</p>
+        <Input
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           onBlur={handleCaptionBlur}
-          placeholder="Caption (optional) — e.g. 'Healthy oil colour'"
-          className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1 text-[11.5px] outline-none focus:border-[#28A745]"
+          placeholder="Caption (optional)"
+          aria-label={`Caption for ${itemLabel}`}
         />
+        <Button
+          variant={row.image_url ? "secondary" : "soft"}
+          icon={Upload}
+          loading={uploading}
+          onClick={() => fileRef.current?.click()}
+          className="mt-auto"
+          block
+        >
+          {row.image_url ? "Replace" : "Upload"}
+        </Button>
       </div>
-      {row.image_url && (
-        <label className="shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">
-          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-          <input type="file" accept="image/*" disabled={uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
-        </label>
-      )}
-    </div>
+    </Card>
   );
 }
 
 export default function AdminPciReferenceImagesPage() {
+  const pushToast = useToast();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     adminListPciReferenceImages().then((res) => {
@@ -104,11 +113,12 @@ export default function AdminPciReferenceImagesPage() {
     });
   }, []);
 
-  const showError = (msg) => setToast({ type: "error", msg });
+  const showError = (msg) =>
+    pushToast({ tone: "error", title: "Couldn't save the photo", body: typeof msg === "string" ? msg : msg?.detail || undefined });
 
   const handleUpdated = (updated) => {
     setRows((rs) => rs.map((r) => (r.section_key === updated.section_key && r.item_key === updated.item_key ? updated : r)));
-    setToast({ type: "success", msg: "Saved." });
+    pushToast({ tone: "success", title: "Saved" });
   };
 
   const sections = Object.entries(
@@ -119,32 +129,30 @@ export default function AdminPciReferenceImagesPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-16">
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
-
-      <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-slate-900">PCI Reference Photos</h1>
-        <p className="mt-1.5 text-[13px] text-slate-500">
-          "What does good look like?" comparison photos — shown to the field mechanic on their inspection link and to
-          staff on the completeness dashboard, next to each checklist item. Ships empty; upload real photos here as
-          they become available. An item with no photo simply shows nothing extra — never a placeholder.
-        </p>
-      </div>
+    <div className="space-y-8 pb-16">
+      <PageHeader
+        title="Inspection reference photos"
+        description="Photos of what a good result looks like for each checklist item. Mechanics see them on their inspection link and staff see them on the completeness dashboard. Items without a photo show nothing extra."
+      />
 
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[3/4] w-full rounded-cx-lg" />
+          ))}
         </div>
+      ) : sections.length === 0 ? (
+        <EmptyState icon={Camera} title="No checklist items" description="There are no inspection checklist items to add photos to." />
       ) : (
         sections.map(([sectionKey, items]) => (
-          <div key={sectionKey} className="space-y-2.5">
-            <h2 className="text-[12.5px] font-bold uppercase tracking-wide text-slate-500">{SECTION_LABELS[sectionKey] || sectionKey}</h2>
-            <div className="space-y-2">
+          <section key={sectionKey}>
+            <SectionTitle title={SECTION_LABELS[sectionKey] || sectionKey} />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {items.map((row) => (
-                <ReferenceImageRow key={`${row.section_key}.${row.item_key}`} row={row} onUpdated={handleUpdated} onError={showError} />
+                <ReferenceImageCard key={`${row.section_key}.${row.item_key}`} row={row} onUpdated={handleUpdated} onError={showError} />
               ))}
             </div>
-          </div>
+          </section>
         ))
       )}
     </div>

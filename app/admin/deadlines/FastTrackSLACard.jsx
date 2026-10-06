@@ -1,29 +1,50 @@
 "use client";
 
+// Fast Track deadlines: how long an expedited application should take, per
+// service. These are global (no state). One line per service; tapping a line
+// opens a sheet. Saving still sends every service at once, as the API expects.
+
 import { useState, useEffect } from "react";
-import { Zap, Pencil, Save, X, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, Zap } from "lucide-react";
 import { getAdminFastTrackSLA, updateAdminFastTrackSLA } from "@/lib/api";
+import { Button, Field, Input, Notice, Select, Sheet, SkeletonList } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { PercentInput } from "../_kit";
+
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 // Aligned with the backend's FAST_TRACK_SERVICES canonical keys.
 // SLA config is global (no state_id), so there are no state-scoped rows.
 const FAST_TRACK_SERVICES = [
-  { key: "vehicle_particulars", label: "Vehicle Particulars" },
-  { key: "tinted_permit", label: "Tinted Permit" },
-  { key: "number_plate", label: "Number Plate (all types)" },
-  { key: "vehicle_verification", label: "Vehicle Verification" },
-  { key: "central_motor_registry", label: "Electronic Central Motor Registry (eCMR)" },
-  { key: "roadworthiness_express", label: "Roadworthiness Express" },
-  { key: "physical_condition_inspection", label: "Physical Condition Inspection" },
-  { key: "driver_licence", label: "Driver's Licence (upgrades only)" },
+  { key: "vehicle_particulars", label: "Vehicle papers" },
+  { key: "tinted_permit", label: "Tinted glass permit" },
+  { key: "number_plate", label: "Number plates (all types)" },
+  { key: "vehicle_verification", label: "Vehicle verification" },
+  { key: "central_motor_registry", label: "Central Motor Registry (eCMR)" },
+  { key: "roadworthiness_express", label: "Roadworthiness inspection" },
+  { key: "physical_condition_inspection", label: "Physical condition inspection" },
+  { key: "driver_licence", label: "Driver's licence (upgrades only)" },
 ];
 
-export default function FastTrackSLACard({ stateId }) {
+const DAY_TYPE_LABEL = {
+  business_days: "working days",
+  calendar_days: "calendar days",
+  hours: "hours",
+};
+
+export default function FastTrackSLACard({ stateId, open, onToggle }) {
+  const pushToast = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(null); // the service being edited
   const [formValues, setFormValues] = useState({});
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [formError, setFormError] = useState(null);
+
+  // Collapsible when the parent controls it; otherwise manage it here.
+  const [localOpen, setLocalOpen] = useState(false);
+  const isOpen = open ?? localOpen;
+  const toggle = onToggle ?? (() => setLocalOpen((v) => !v));
 
   const loadSLA = async () => {
     setLoading(true);
@@ -51,7 +72,7 @@ export default function FastTrackSLACard({ stateId }) {
     return { expected_days: 2, day_type: "business_days", warning_threshold_percent: 75 };
   };
 
-  const handleStartEdit = () => {
+  const handleStartEdit = (svc) => {
     const initial = {};
     FAST_TRACK_SERVICES.forEach((s) => {
       const it = getServiceItem(s.key);
@@ -62,17 +83,21 @@ export default function FastTrackSLACard({ stateId }) {
       };
     });
     setFormValues(initial);
-    setEditing(true);
+    setFormError(null);
+    setEditing(svc);
   };
+
+  const setField = (key, field, val) =>
+    setFormValues((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [field]: val } }));
 
   const handleSave = async () => {
     setSaving(true);
     const payloadItems = FAST_TRACK_SERVICES.map((s) => {
       const val = formValues[s.key] || {};
       return {
-        service_type: s.key,                                          // was: service_name
-        expected_days: parseInt(val.expected_days, 10) || 2,          // was: turnaround_hours
-        day_type: val.day_type || "business_days",                    // was: turnaround_label
+        service_type: s.key,
+        expected_days: parseInt(val.expected_days, 10) || 2,
+        day_type: val.day_type || "business_days",
         warning_threshold_percent: parseInt(val.warning_threshold_percent, 10) || 75,
         is_active: true,
       };
@@ -81,173 +106,110 @@ export default function FastTrackSLACard({ stateId }) {
     const res = await updateAdminFastTrackSLA(payloadItems);
     setSaving(false);
     if (res.error) {
-      setToast({ type: "error", message: res.error });
+      setFormError(typeof res.error === "string" ? res.error : res.error?.detail || "Couldn't save. Try again.");
     } else {
-      setToast({ type: "success", message: "Fast Track SLA configurations updated successfully!" });
-      setEditing(false);
+      pushToast({ tone: "success", title: "Fast Track deadline saved", body: editing?.label });
+      setEditing(null);
       await loadSLA();
     }
-    setTimeout(() => setToast(null), 4000);
   };
 
-  return (
-    <div className="rounded-2xl border-2 border-amber-300/80 bg-white p-6 shadow-sm space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
-            <Zap className="h-5 w-5 fill-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-slate-900">Fast Track SLA &amp; Turnaround Deadlines</h2>
-              <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-xs font-bold text-amber-900">
-                Priority Countdown
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-slate-500">
-              Configure maximum turnaround days and day-type for Fast Track applications per service. These are global — not per state.
-            </p>
-          </div>
-        </div>
+  const current = editing ? formValues[editing.key] || {} : {};
 
-        <div>
-          {!editing ? (
-            <button
-              type="button"
-              onClick={handleStartEdit}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Edit Fast Track SLAs
-            </button>
+  return (
+    <section className="rounded-cx-lg border border-cx-line bg-cx-surface shadow-cx">
+      <button type="button" onClick={toggle} aria-expanded={isOpen} className="cx-focus flex w-full items-start gap-3 rounded-cx-lg px-4 py-4 text-left sm:px-5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cx-amber-soft text-cx-amber">
+          <Zap className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[17px] font-semibold text-cx-ink">Fast Track deadlines</h2>
+          <p className="mt-0.5 text-sm text-cx-muted">
+            {FAST_TRACK_SERVICES.length} services · Same in every state
+          </p>
+        </div>
+        <ChevronDown className={cx("mt-1 h-5 w-5 shrink-0 text-cx-muted transition-transform", isOpen && "rotate-180")} aria-hidden />
+      </button>
+
+      {isOpen ? (
+        <div className="border-t border-cx-line">
+          {loading ? (
+            <div className="p-4"><SkeletonList rows={3} /></div>
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                disabled={saving}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                <X className="h-3.5 w-3.5" /> Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 shadow-sm"
-              >
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                {saving ? "Saving…" : "Save all"}
-              </button>
-            </div>
+            <ul className="divide-y divide-cx-line/70">
+              {FAST_TRACK_SERVICES.map((s) => {
+                const it = getServiceItem(s.key);
+                return (
+                  <li key={s.key}>
+                    <button type="button" onClick={() => handleStartEdit(s)} className="cx-focus group flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-cx-sunken/70 sm:px-5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-medium text-cx-ink">{s.label}</p>
+                        <p className="mt-0.5 text-[13px] text-cx-muted">Warns at {it.warning_threshold_percent ?? 75}%</p>
+                      </div>
+                      <span className="shrink-0 text-right text-[15px] font-semibold text-cx-ink">
+                        {it.expected_days} {DAY_TYPE_LABEL[it.day_type] || "working days"}
+                      </span>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-cx-muted group-hover:translate-x-0.5" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
-      </div>
+      ) : null}
 
-      {toast && (
-        <div className={`rounded-xl p-3.5 text-sm font-medium flex items-center gap-2 ${
-          toast.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-        }`}>
-          {toast.type === "success" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm">Loading Fast Track SLA config…</span>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-          {FAST_TRACK_SERVICES.map((s) => {
-            const it = getServiceItem(s.key);
-
-            return (
-              <div
-                key={s.key}
-                className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-between gap-3 hover:border-amber-200 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-sm text-slate-900">{s.label}</span>
-                  <Clock className="h-4 w-4 text-amber-500 shrink-0" />
-                </div>
-
-                <div className="pt-2 border-t border-slate-200/60 space-y-2">
-                  {editing ? (
-                    <>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-500 font-medium">Max days</span>
-                        <input
-                          type="number"
-                          min="1"
-                          value={formValues[s.key]?.expected_days ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormValues((prev) => ({
-                              ...prev,
-                              [s.key]: { ...(prev[s.key] || {}), expected_days: val },
-                            }));
-                          }}
-                          className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-none text-right"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-500 font-medium">Day type</span>
-                        <select
-                          value={formValues[s.key]?.day_type ?? "business_days"}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormValues((prev) => ({
-                              ...prev,
-                              [s.key]: { ...(prev[s.key] || {}), day_type: val },
-                            }));
-                          }}
-                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-900 focus:border-amber-500 focus:outline-none"
-                        >
-                          <option value="business_days">Business days</option>
-                          <option value="calendar_days">Calendar days</option>
-                          <option value="hours">Hours</option>
-                        </select>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-500 font-medium">Warning at %</span>
-                        <input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={formValues[s.key]?.warning_threshold_percent ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormValues((prev) => ({
-                              ...prev,
-                              [s.key]: { ...(prev[s.key] || {}), warning_threshold_percent: val },
-                            }));
-                          }}
-                          className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-mono font-bold text-slate-900 focus:border-amber-500 focus:outline-none text-right"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">Turnaround</span>
-                        <span className="font-mono font-bold text-sm text-amber-900">
-                          {it.expected_days} {it.day_type === "hours" ? "hours" : it.day_type === "calendar_days" ? "calendar days" : "business days"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">Warning threshold</span>
-                        <span className="text-xs font-semibold text-slate-700">{it.warning_threshold_percent ?? 75}%</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      <Sheet
+        open={!!editing}
+        onOpenChange={(o) => !o && !saving && setEditing(null)}
+        title={editing ? `Fast Track — ${editing.label}` : ""}
+        description="Applies in every state."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
+            <Button block loading={saving} onClick={handleSave}>Save deadline</Button>
+          </>
+        }
+      >
+        {editing ? (
+          <div className="space-y-5">
+            {formError ? <Notice tone="red">{formError}</Notice> : null}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Time allowed">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    value={current.expected_days ?? ""}
+                    onChange={(e) => setField(editing.key, "expected_days", e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Counted in">
+                {(p) => (
+                  <Select {...p} value={current.day_type ?? "business_days"} onChange={(e) => setField(editing.key, "day_type", e.target.value)}>
+                    <option value="business_days">Working days</option>
+                    <option value="calendar_days">Calendar days</option>
+                    <option value="hours">Hours</option>
+                  </Select>
+                )}
+              </Field>
+            </div>
+            <Field label="Warn when this much time has passed" hint="The countdown turns amber at this point.">
+              {(p) => (
+                <PercentInput
+                  {...p}
+                  value={String(current.warning_threshold_percent ?? "")}
+                  onChange={(v) => setField(editing.key, "warning_threshold_percent", v)}
+                />
+              )}
+            </Field>
+            <p className="text-[13px] text-cx-muted">Saving also re-saves the other Fast Track deadlines as they are now.</p>
+          </div>
+        ) : null}
+      </Sheet>
+    </section>
   );
 }

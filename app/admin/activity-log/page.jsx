@@ -1,28 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  AlertTriangle,
-  AlertCircle,
-  AlertOctagon,
-  Info,
-  Loader2,
-  RefreshCw,
-  CheckSquare,
-  Clock,
-  ChevronDown,
-  ChevronUp,
-  User,
-} from "lucide-react";
+import { AlertCircle, AlertOctagon, CheckCircle2, ChevronDown, ChevronUp, Info, RefreshCw } from "lucide-react";
 import { adminGetErrorEvents } from "@/lib/api";
+import { Badge, Button, Card, EmptyState, Notice, PageHeader, Select, SkeletonList } from "@/app/dashboard/_kit";
+import { Toolbar } from "@/app/admin/_kit";
 
 const ACTIVE_POLL_MS = 8000;
 const IDLE_POLL_MS = 30000;
 
 const SEVERITY_TONE = {
-  critical: "bg-red-50 text-red-700 ring-red-200",
-  error: "bg-orange-50 text-orange-700 ring-orange-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
+  critical: "red",
+  error: "red",
+  warning: "amber",
 };
 
 const SEVERITY_ICON = {
@@ -43,10 +33,10 @@ const CATEGORY_LABELS = {
 function SeverityBadge({ severity }) {
   const Icon = SEVERITY_ICON[severity] || Info;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset capitalize ${SEVERITY_TONE[severity] || SEVERITY_TONE.warning}`}>
-      <Icon className="h-3 w-3" />
+    <Badge tone={SEVERITY_TONE[severity] || "amber"} className="capitalize">
+      <Icon className="h-3.5 w-3.5" aria-hidden />
       {severity}
-    </span>
+    </Badge>
   );
 }
 
@@ -106,144 +96,111 @@ export default function AdminActivityLogPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryFilter, severityFilter]);
 
-  return (
-    <div className="space-y-6 pb-16">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 mb-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-[#28A745]" />
-              Live
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Activity Log</h1>
-            <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-              A real-time feed of things that went wrong for customers — a failed payment, a text message or
-              email that didn't send, or a system error. Updates automatically every few seconds.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => loadData(true)}
-            disabled={refreshing || loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm shrink-0 self-start md:self-center"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-[#28A745]" : "text-slate-500"}`} />
-            <span>{refreshing ? "Syncing…" : "Refresh"}</span>
-          </button>
-        </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-        >
+  return (
+    <div>
+      <PageHeader
+        title="Activity log"
+        description="A live feed of things that went wrong for customers: a failed payment, a text or email that didn't send, or a system error. Updates every few seconds."
+        actions={
+          <Button variant="secondary" icon={RefreshCw} loading={refreshing} disabled={loading} onClick={() => loadData(true)}>
+            Refresh
+          </Button>
+        }
+      />
+
+      <Toolbar>
+        <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by type" className="md:w-60">
           <option value="">All types</option>
           {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
-        </select>
-        <select
-          value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-        >
+        </Select>
+        <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} aria-label="Filter by severity" className="md:w-52">
           <option value="">All severities</option>
           <option value="critical">Critical</option>
           <option value="error">Error</option>
           <option value="warning">Warning</option>
-        </select>
-      </div>
+        </Select>
+      </Toolbar>
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-          <span>{error}</span>
+        <div className="mb-4">
+          <Notice tone="red">{error}</Notice>
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-16 text-center space-y-3">
-            <Loader2 className="h-8 w-8 animate-spin text-[#28A745] mx-auto" />
-            <p className="text-sm text-slate-500 font-medium">Loading activity…</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="p-16 text-center space-y-2">
-            <CheckSquare className="h-10 w-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-900">Nothing to show</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              No customer-facing issues match this filter right now.
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {items.map((event) => {
-              const expanded = expandedId === event.id;
-              return (
-                <div key={event.id} className="p-5 space-y-2.5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <SeverityBadge severity={event.severity} />
-                        <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                          {CATEGORY_LABELS[event.category] || event.category}
-                        </span>
-                      </div>
-                      <p className="text-[13.5px] font-semibold text-slate-800">{event.friendly_message}</p>
+      {loading ? (
+        <SkeletonList rows={4} />
+      ) : items.length === 0 ? (
+        <EmptyState icon={CheckCircle2} title="Nothing to show" description="No customer-facing issues match this filter right now." />
+      ) : (
+        <ul className="space-y-3">
+          {items.map((event) => {
+            const expanded = expandedId === event.id;
+            return (
+              <li key={event.id}>
+                <Card className="space-y-2.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SeverityBadge severity={event.severity} />
+                      <Badge>{CATEGORY_LABELS[event.category] || event.category}</Badge>
                     </div>
-                    <p className="flex items-center gap-1.5 text-[11.5px] text-slate-400 shrink-0">
-                      <Clock className="h-3 w-3" />
-                      {event.created_at ? new Date(event.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" }) : "—"}
+                    <p className="shrink-0 text-[13px] text-cx-muted">
+                      {event.created_at
+                        ? new Date(event.created_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })
+                        : "—"}
                     </p>
                   </div>
 
-                  <p className="flex items-center gap-1.5 text-[12px] text-slate-500">
-                    <User className="h-3 w-3" />
+                  <p className="break-words text-[15px] font-semibold text-cx-ink">{event.friendly_message}</p>
+
+                  <p className="break-words text-sm text-cx-ink-2">
                     {event.customer_name ? (
                       <>
                         {event.customer_name}
-                        {event.customer_email && <span className="text-slate-400"> · {event.customer_email}</span>}
+                        {event.customer_email && <span className="text-cx-muted"> · {event.customer_email}</span>}
                       </>
                     ) : (
-                      "Unknown customer"
+                      <span className="text-cx-muted">Unknown customer</span>
                     )}
                   </p>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={expanded ? ChevronUp : ChevronDown}
+                    aria-expanded={expanded}
+                    className="-ml-3 min-h-11"
                     onClick={() => setExpandedId(expanded ? null : event.id)}
-                    className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-slate-500 hover:text-slate-700"
                   >
-                    {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     {expanded ? "Hide technical details" : "Show technical details"}
-                  </button>
+                  </Button>
 
                   {expanded && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Source</p>
-                      <p className="font-mono text-[12px] text-slate-700 break-all">{event.source}</p>
+                    <div className="space-y-2 rounded-cx bg-cx-sunken p-3">
+                      <p className="text-[13px] font-medium text-cx-muted">Source</p>
+                      <p className="break-all font-mono text-[13px] text-cx-ink-2">{event.source}</p>
                       {event.technical_detail && (
                         <>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 pt-1">Detail</p>
-                          <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap break-all">{event.technical_detail}</pre>
+                          <p className="pt-1 text-[13px] font-medium text-cx-muted">Detail</p>
+                          <pre className="whitespace-pre-wrap break-all font-mono text-[13px] text-cx-ink-2">{event.technical_detail}</pre>
                         </>
                       )}
                       {event.context && (
                         <>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 pt-1">Context</p>
-                          <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap break-all">{JSON.stringify(event.context, null, 2)}</pre>
+                          <p className="pt-1 text-[13px] font-medium text-cx-muted">Context</p>
+                          <pre className="whitespace-pre-wrap break-all font-mono text-[13px] text-cx-ink-2">{JSON.stringify(event.context, null, 2)}</pre>
                         </>
                       )}
                     </div>
                   )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

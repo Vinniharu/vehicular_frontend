@@ -8,33 +8,41 @@ import {
   Clock,
   XCircle,
   RefreshCw,
-  Search,
-  CalendarRange,
   Copy,
   Check,
   UploadCloud,
   FileText,
-  Eye,
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  AlertCircle,
   X,
-  Building,
-  User,
   Wallet,
-  ArrowDownToLine,
-  SlidersHorizontal,
 } from "lucide-react";
 import {
-  koboToNaira,
   adminGetDisbursements,
   adminGetDisbursementStats,
   adminInitiateDisbursement,
   adminManualDisburse,
   adminUploadDisbursementReceipt,
 } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  DetailRow,
+  Field,
+  IconButton,
+  Input,
+  Notice,
+  PageHeader,
+  Select,
+  Sheet,
+  SkeletonList,
+} from "@/app/dashboard/_kit";
+import { ConfirmSheet, ResponsiveTable, StatTile, Tabs, Toolbar, formatNaira } from "@/app/admin/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 /* ─── Helpers ─── */
 function formatDate(iso) {
@@ -75,12 +83,52 @@ function startOfWeek(d) {
 
 const DATE_PRESETS = [
   { id: "today", label: "Today", range: () => { const t = new Date(); return [t, t]; } },
-  { id: "this_week", label: "This Week", range: () => [startOfWeek(new Date()), new Date()] },
-  { id: "this_month", label: "This Month", range: () => [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()] },
-  { id: "all_time", label: "All Time", range: () => [null, null] },
+  { id: "this_week", label: "This week", range: () => [startOfWeek(new Date()), new Date()] },
+  { id: "this_month", label: "This month", range: () => [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()] },
+  { id: "all_time", label: "All time", range: () => [null, null] },
 ];
 
+function TransferStatus({ transfer }) {
+  if (transfer.status === "success") {
+    return (
+      <Badge tone="brand">
+        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+        Completed
+      </Badge>
+    );
+  }
+  if (transfer.status === "pending") {
+    return transfer.is_overdue ? (
+      <Badge tone="amber">
+        <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+        Waiting over 24h
+      </Badge>
+    ) : (
+      <Badge>
+        <Clock className="h-3.5 w-3.5" aria-hidden />
+        Pending
+      </Badge>
+    );
+  }
+  if (transfer.status === "failed") {
+    return (
+      <Badge tone="red">
+        <XCircle className="h-3.5 w-3.5" aria-hidden />
+        Failed
+      </Badge>
+    );
+  }
+  return <Badge className="capitalize">{transfer.status || "—"}</Badge>;
+}
+
+function methodText(transfer) {
+  if (!transfer.disbursement_method) return null;
+  return `${transfer.disbursement_method}${transfer.disbursed_by_admin_name ? ` (${transfer.disbursed_by_admin_name})` : ""}`;
+}
+
 export default function AdminDisbursementsPage() {
+  const pushToast = useToast();
+
   // Stats
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -104,10 +152,14 @@ export default function AdminDisbursementsPage() {
 
   // Action states
   const [actionLoadingId, setActionLoadingId] = useState(null);
-  const [actionMessage, setActionMessage] = useState(null); // { type: 'success' | 'error', text: '' }
+
+  // Payout detail sheet + automatic payout confirm
+  const [detailTransfer, setDetailTransfer] = useState(null);
+  const [confirmPayoutTransfer, setConfirmPayoutTransfer] = useState(null);
 
   // Manual Disbursement Modal
   const [selectedTransferForManual, setSelectedTransferForManual] = useState(null);
+  const [confirmManualOpen, setConfirmManualOpen] = useState(false);
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptPreviewUrl, setReceiptPreviewUrl] = useState("");
   const [uploadedReceiptUrl, setUploadedReceiptUrl] = useState("");
@@ -120,14 +172,6 @@ export default function AdminDisbursementsPage() {
   const [viewingReceiptUrl, setViewingReceiptUrl] = useState(null);
 
   const fileInputRef = useRef(null);
-
-  // Auto-dismiss action message
-  useEffect(() => {
-    if (actionMessage) {
-      const timer = setTimeout(() => setActionMessage(null), 6000);
-      return () => clearTimeout(timer);
-    }
-  }, [actionMessage]);
 
   // Load stats
   const fetchStats = async () => {
@@ -190,12 +234,23 @@ export default function AdminDisbursementsPage() {
     setSearchQuery(searchTerm.trim());
   };
 
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setSearchQuery("");
+    setPage(1);
+  };
+
   // Date preset click
   const handlePresetClick = (preset) => {
     setDatePreset(preset.id);
     const [start, end] = preset.range();
     setFromDate(start ? toDateInputValue(start) : "");
     setToDate(end ? toDateInputValue(end) : "");
+    setPage(1);
+  };
+
+  const handleStatusChange = (id) => {
+    setStatusFilter(id);
     setPage(1);
   };
 
@@ -207,40 +262,36 @@ export default function AdminDisbursementsPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Automatic Payout Initiation
-  const handleInitiatePayout = async (transfer) => {
-    if (!confirm(`Attempt automatic payment gateway disbursement of ${koboToNaira(transfer.amount_kobo)} to ${transfer.agent?.name || "Agent"}?`)) {
-      return;
-    }
+  // Automatic Payout Initiation — asks first via ConfirmSheet
+  const handleInitiatePayout = (transfer) => {
+    setDetailTransfer(null);
+    setConfirmPayoutTransfer(transfer);
+  };
+
+  const runInitiatePayout = async () => {
+    const transfer = confirmPayoutTransfer;
+    if (!transfer) return;
 
     setActionLoadingId(transfer.id);
-    setActionMessage(null);
 
     const res = await adminInitiateDisbursement(transfer.id);
     setActionLoadingId(null);
+    setConfirmPayoutTransfer(null);
 
     if (res?.error) {
-      setActionMessage({
-        type: "error",
-        text: res.error?.detail || res.error?.message || "Failed to initiate automatic disbursement.",
+      pushToast({
+        tone: "error",
+        title: "Payout didn't start",
+        body: res.error?.detail || res.error?.message || (typeof res.error === "string" ? res.error : "Failed to initiate automatic disbursement."),
       });
     } else if (res?.data) {
       const { status, message } = res.data;
       if (status === "success") {
-        setActionMessage({
-          type: "success",
-          text: `Success! ${message}`,
-        });
+        pushToast({ tone: "success", title: "Payout sent", body: message });
       } else if (status === "failed") {
-        setActionMessage({
-          type: "error",
-          text: `Gateway Failed: ${message}`,
-        });
+        pushToast({ tone: "error", title: "Gateway failed", body: message });
       } else {
-        setActionMessage({
-          type: "warning",
-          text: `Initiated: ${message}`,
-        });
+        pushToast({ tone: "info", title: "Payout started", body: message });
       }
       // Refresh list & stats
       fetchDisbursements();
@@ -250,6 +301,7 @@ export default function AdminDisbursementsPage() {
 
   // Open Manual Disbursement Modal
   const handleOpenManualModal = (transfer) => {
+    setDetailTransfer(null);
     setSelectedTransferForManual(transfer);
     setReceiptFile(null);
     setReceiptPreviewUrl("");
@@ -275,7 +327,11 @@ export default function AdminDisbursementsPage() {
     if (res?.data?.file_url) {
       setUploadedReceiptUrl(res.data.file_url);
     } else {
-      alert(res?.error?.detail || "Failed to upload receipt image. Please try again.");
+      pushToast({
+        tone: "error",
+        title: "Receipt didn't upload",
+        body: res?.error?.detail || "Failed to upload receipt image. Please try again.",
+      });
       setReceiptFile(null);
       setReceiptPreviewUrl("");
       setUploadedReceiptUrl("");
@@ -290,11 +346,19 @@ export default function AdminDisbursementsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const askConfirmManual = () => {
+    if (!uploadedReceiptUrl) {
+      pushToast({ tone: "error", title: "Add the receipt first", body: "Please upload a transaction receipt image before marking as done." });
+      return;
+    }
+    setConfirmManualOpen(true);
+  };
+
   // Confirm Manual Disbursement
   const handleConfirmManualDisburse = async () => {
     if (!selectedTransferForManual) return;
     if (!uploadedReceiptUrl) {
-      alert("Please upload a transaction receipt image before marking as done.");
+      pushToast({ tone: "error", title: "Add the receipt first", body: "Please upload a transaction receipt image before marking as done." });
       return;
     }
 
@@ -304,812 +368,565 @@ export default function AdminDisbursementsPage() {
       notes: manualNotes.trim() || undefined,
     });
     setSubmittingManual(false);
+    setConfirmManualOpen(false);
 
     if (res?.error) {
-      alert(res.error?.detail || res.error?.message || "Failed to record manual disbursement.");
+      pushToast({
+        tone: "error",
+        title: "Couldn't record the payout",
+        body: res.error?.detail || res.error?.message || (typeof res.error === "string" ? res.error : "Failed to record manual disbursement."),
+      });
     } else {
+      const doneId = selectedTransferForManual.id;
       setSelectedTransferForManual(null);
-      setActionMessage({
-        type: "success",
-        text: `Transfer #${selectedTransferForManual.id} marked as manually disbursed and agent wallet debited successfully.`,
+      pushToast({
+        tone: "success",
+        title: "Marked as paid",
+        body: `Transfer #${doneId} marked as manually disbursed and agent wallet debited successfully.`,
       });
       fetchDisbursements();
       fetchStats();
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50/50 p-6 md:p-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Agent Disbursements</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-              Payouts Management
-            </span>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Monitor automated disbursements, address delayed transfers, and execute verified manual payouts.
-          </p>
+  const statusTabs = [
+    { id: "all", label: "All" },
+    { id: "pending", label: "Pending" },
+    { id: "overdue", label: "Waiting over 24h", count: stats?.overdue_pending_count || undefined },
+    { id: "success", label: "Completed" },
+    { id: "failed", label: "Failed" },
+  ];
+
+  const refType = (transfer) => transfer.transfer_code || `#TRF-${transfer.id}`;
+
+  const columns = [
+    {
+      key: "agent",
+      header: "Agent",
+      primary: true,
+      render: (t) => (
+        <div className="min-w-0">
+          <p className="font-semibold text-cx-ink">{t.agent?.name || "Unknown agent"}</p>
+          <p className="text-[13px] font-normal text-cx-muted">{t.agent?.phone || "—"}</p>
+          {t.agent?.state || t.agent?.lga ? (
+            <p className="text-[13px] font-normal text-cx-muted">
+              {[t.agent?.state, t.agent?.lga].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
         </div>
-        <div className="flex items-center gap-3">
-          <button
+      ),
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      render: (t) => <span className="font-semibold text-cx-ink">{formatNaira(t.amount_kobo)}</span>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (t) => (
+        <div className="space-y-1">
+          <TransferStatus transfer={t} />
+          {t.status === "success" && methodText(t) ? <p className="text-[13px] capitalize text-cx-muted">{methodText(t)}</p> : null}
+        </div>
+      ),
+    },
+    {
+      key: "age",
+      header: "Age",
+      render: (t) => (
+        <div>
+          <p className={cx(t.is_overdue ? "font-semibold text-cx-amber" : "text-cx-ink")}>{formatAge(t.age_hours) || "—"}</p>
+          <p className="text-[13px] text-cx-muted">{formatDate(t.created_at)}</p>
+        </div>
+      ),
+    },
+    {
+      key: "bank",
+      header: "Bank account",
+      hideOnMobile: true,
+      render: (t) =>
+        t.bank_account ? (
+          <div className="min-w-0">
+            <p className="text-[13px] text-cx-muted">{t.bank_account.bank_name || `Bank code ${t.bank_account.bank_code}`}</p>
+            <p className="font-mono font-semibold text-cx-ink">{t.bank_account.account_number}</p>
+            <p className="max-w-[180px] truncate text-[13px] text-cx-muted">{t.bank_account.account_name}</p>
+          </div>
+        ) : (
+          <span className="text-[13px] text-cx-muted">No bank account</span>
+        ),
+    },
+    {
+      key: "ref",
+      header: "Reference",
+      hideOnMobile: true,
+      render: (t) => (
+        <div className="min-w-0">
+          <p className="font-mono text-[13px] text-cx-ink">{refType(t)}</p>
+          {t.application_id ? (
+            <p className="text-[13px] text-cx-muted">
+              App #{t.application_id}
+              {t.application_type ? <span className="capitalize"> · {t.application_type.replace(/_/g, " ")}</span> : null}
+            </p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: <span className="sr-only">Actions</span>,
+      hideOnMobile: true,
+      className: "text-right",
+      render: (t) => (
+        <div className="flex flex-wrap justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+          {t.status !== "success" ? (
+            <>
+              <Button size="sm" icon={Send} onClick={() => handleInitiatePayout(t)} loading={actionLoadingId === t.id} disabled={actionLoadingId === t.id}>
+                Pay out
+              </Button>
+              <Button size="sm" variant="secondary" icon={UploadCloud} onClick={() => handleOpenManualModal(t)} disabled={actionLoadingId === t.id}>
+                Paid manually
+              </Button>
+            </>
+          ) : t.receipt_url ? (
+            <Button size="sm" variant="ghost" icon={FileText} onClick={() => setViewingReceiptUrl(t.receipt_url)}>
+              Receipt
+            </Button>
+          ) : (
+            <span className="text-[13px] text-cx-muted">Paid</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const d = detailTransfer;
+  const m = selectedTransferForManual;
+  const cp = confirmPayoutTransfer;
+
+  return (
+    <div className="space-y-6 pb-16">
+      <PageHeader
+        title="Agent payouts"
+        description="Watch automatic payouts, deal with delayed ones and record payouts you made by bank transfer."
+        actions={
+          <Button
+            variant="secondary"
+            icon={RefreshCw}
+            loading={loading || statsLoading}
             onClick={() => {
               fetchStats();
               fetchDisbursements();
             }}
-            disabled={loading || statsLoading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition disabled:opacity-60"
           >
-            <RefreshCw className={`h-4 w-4 ${loading || statsLoading ? "animate-spin text-emerald-600" : "text-slate-500"}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
+            Refresh
+          </Button>
+        }
+      />
+
+      {/* ─── Summary ─── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile
+          label="Total"
+          value={statsLoading ? "…" : formatNaira(stats?.total_amount_kobo || 0)}
+          hint={statsLoading ? "Loading" : `${stats?.total_count || 0} requests`}
+          icon={Wallet}
+        />
+        <StatTile
+          label="Completed"
+          value={statsLoading ? "…" : formatNaira(stats?.completed_amount_kobo || 0)}
+          hint={statsLoading ? "Loading" : `${stats?.completed_count || 0} paid · ${stats?.completed_auto_count || 0} auto, ${stats?.completed_manual_count || 0} manual`}
+          icon={CheckCircle2}
+          tone="brand"
+        />
+        <StatTile
+          label="Pending"
+          value={statsLoading ? "…" : formatNaira(stats?.pending_amount_kobo || 0)}
+          hint={statsLoading ? "Loading" : `${stats?.pending_count || 0} waiting`}
+          icon={Clock}
+        />
+        <StatTile
+          label="Failed"
+          value={statsLoading ? "…" : formatNaira(stats?.failed_amount_kobo || 0)}
+          hint={statsLoading ? "Loading" : `${stats?.failed_count || 0} failed payouts`}
+          icon={XCircle}
+          tone="red"
+        />
       </div>
 
-      {/* Action Banner / Notification */}
-      {actionMessage && (
-        <div
-          className={`p-4 rounded-xl border flex items-start gap-3 shadow-sm transition-all animate-in fade-in slide-in-from-top-2 ${
-            actionMessage.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-              : actionMessage.type === "warning"
-              ? "bg-amber-50 border-amber-200 text-amber-900"
-              : "bg-rose-50 border-rose-200 text-rose-900"
-          }`}
-        >
-          {actionMessage.type === "success" && <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />}
-          {actionMessage.type === "warning" && <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />}
-          {actionMessage.type === "error" && <XCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />}
-          <div className="flex-1 text-sm font-medium">{actionMessage.text}</div>
-          <button onClick={() => setActionMessage(null)} className="text-slate-400 hover:text-slate-600">
-            <X className="h-4 w-4" />
-          </button>
+      {/* Overdue callout — tapping filters the list */}
+      <button
+        type="button"
+        onClick={() => handleStatusChange("overdue")}
+        aria-pressed={statusFilter === "overdue"}
+        className={cx(
+          "cx-focus flex w-full items-center gap-3 rounded-cx-lg border p-4 text-left transition-colors",
+          statusFilter === "overdue" ? "border-cx-amber bg-cx-amber-soft" : "border-cx-line bg-cx-amber-soft/60 hover:bg-cx-amber-soft"
+        )}
+      >
+        <AlertTriangle className="h-5 w-5 shrink-0 text-cx-amber" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold text-cx-ink">
+            {statsLoading ? "…" : formatNaira(stats?.overdue_pending_amount_kobo || 0)} waiting over 24 hours
+          </p>
+          <p className="text-[13px] text-cx-ink-2">
+            {stats?.overdue_pending_count || 0} payouts need someone to pay them by hand. {statusFilter === "overdue" ? "Showing these below." : "Tap to show them."}
+          </p>
         </div>
-      )}
+        <ChevronRight className="h-5 w-5 shrink-0 text-cx-amber" aria-hidden />
+      </button>
 
-      {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Volume */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:border-slate-300 transition">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Volume</span>
-            <Wallet className="h-4 w-4 text-slate-400" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">
-            {statsLoading ? "..." : koboToNaira(stats?.total_amount_kobo || 0)}
-          </div>
-          <div className="text-xs text-slate-500 mt-1 font-medium">
-            {statsLoading ? "Loading..." : `${stats?.total_count || 0} total requests`}
-          </div>
-        </div>
-
-        {/* Completed */}
-        <div className="bg-white rounded-2xl p-5 border border-emerald-200/80 shadow-sm hover:border-emerald-300 transition bg-gradient-to-br from-white to-emerald-50/20">
-          <div className="flex items-center justify-between text-emerald-700 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Completed</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-bold text-emerald-950">
-            {statsLoading ? "..." : koboToNaira(stats?.completed_amount_kobo || 0)}
-          </div>
-          <div className="text-xs text-emerald-700 mt-1 flex items-center gap-1 font-medium">
-            <span>{stats?.completed_count || 0} disbursed</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500 font-normal">
-              {stats?.completed_auto_count || 0} auto, {stats?.completed_manual_count || 0} manual
-            </span>
-          </div>
-        </div>
-
-        {/* Pending Normal */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:border-slate-300 transition">
-          <div className="flex items-center justify-between text-slate-600 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Pending</span>
-            <Clock className="h-4 w-4 text-slate-400" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">
-            {statsLoading ? "..." : koboToNaira(stats?.pending_amount_kobo || 0)}
-          </div>
-          <div className="text-xs text-slate-500 mt-1 font-medium">
-            {statsLoading ? "..." : `${stats?.pending_count || 0} awaiting confirmation`}
-          </div>
-        </div>
-
-        {/* Overdue Pending > 24 Hours (Yellow Highlight Card) */}
-        <div
-          onClick={() => {
-            setStatusFilter("overdue");
-            setPage(1);
-          }}
-          className={`rounded-2xl p-5 border shadow-sm transition cursor-pointer relative overflow-hidden ${
-            statusFilter === "overdue"
-              ? "bg-amber-100/80 border-amber-400 ring-2 ring-amber-400/40"
-              : "bg-amber-50/80 border-amber-300/80 hover:bg-amber-100/50"
-          }`}
-        >
-          <div className="flex items-center justify-between text-amber-800 mb-2">
-            <div className="flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-              <span>Pending &gt; 24h</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200/80 text-amber-900 border border-amber-300">
-              Needs Manual Action
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-amber-950">
-            {statsLoading ? "..." : koboToNaira(stats?.overdue_pending_amount_kobo || 0)}
-          </div>
-          <div className="text-xs text-amber-800 mt-1 font-semibold flex items-center justify-between">
-            <span>{stats?.overdue_pending_count || 0} delayed requests</span>
-            <span className="text-[11px] underline opacity-90">Filter table &rarr;</span>
-          </div>
-        </div>
-
-        {/* Failed */}
-        <div className="bg-white rounded-2xl p-5 border border-rose-200/80 shadow-sm hover:border-rose-300 transition">
-          <div className="flex items-center justify-between text-rose-700 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Failed</span>
-            <XCircle className="h-4 w-4 text-rose-600" />
-          </div>
-          <div className="text-2xl font-bold text-rose-950">
-            {statsLoading ? "..." : koboToNaira(stats?.failed_amount_kobo || 0)}
-          </div>
-          <div className="text-xs text-rose-600 mt-1 font-medium">
-            {statsLoading ? "..." : `${stats?.failed_count || 0} failed payouts`}
-          </div>
-        </div>
-      </div>
-
-      {/* Filters & Search Toolbar */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-            {[
-              { id: "all", label: "All Disbursements" },
-              { id: "pending", label: "Pending" },
-              {
-                id: "overdue",
-                label: "Pending > 24h",
-                badge: stats?.overdue_pending_count,
-                badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
-              },
-              { id: "success", label: "Completed" },
-              { id: "failed", label: "Failed" },
-            ].map((tab) => {
-              const active = statusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setStatusFilter(tab.id);
-                    setPage(1);
-                  }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5 ${
-                    active
-                      ? tab.id === "overdue"
-                        ? "bg-amber-500 text-white shadow-sm"
-                        : "bg-slate-900 text-white shadow-sm"
-                      : tab.id === "overdue" && tab.badge > 0
-                      ? "text-amber-800 hover:bg-amber-50 font-bold"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  {tab.badge > 0 && (
-                    <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                        active ? "bg-white/30 text-white" : tab.badgeColor || "bg-slate-200 text-slate-700"
-                      }`}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Search Input */}
-          <form onSubmit={handleSearchSubmit} className="relative min-w-[280px] lg:w-80">
-            <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search agent, account, code, or app ID..."
-              className="w-full pl-9 pr-20 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm("");
-                  setSearchQuery("");
-                  setPage(1);
-                }}
-                className="absolute right-12 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-              >
-                Clear
-              </button>
-            )}
-            <button
-              type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition"
-            >
+      {/* ─── Filters ─── */}
+      <div>
+        <Tabs tabs={statusTabs} value={statusFilter} onChange={handleStatusChange} label="Payout status" className="mb-3" />
+        <form onSubmit={handleSearchSubmit}>
+          <Toolbar search={searchTerm} onSearch={setSearchTerm} placeholder="Search agent, account, code or app ID">
+            <Button type="submit" variant="secondary">
               Search
-            </button>
-          </form>
-        </div>
-
-        {/* Secondary Filters (Method & Date Range) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-medium">Method:</span>
-            <select
+            </Button>
+            {searchTerm || searchQuery ? (
+              <Button variant="ghost" onClick={handleSearchClear}>
+                Clear
+              </Button>
+            ) : null}
+            <Select
               value={methodFilter}
               onChange={(e) => {
                 setMethodFilter(e.target.value);
                 setPage(1);
               }}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs font-medium"
+              aria-label="Method"
+              className="md:w-56"
             >
-              <option value="all">All Methods</option>
-              <option value="automatic">Automatic Gateway</option>
-              <option value="manual">Manual Disbursement</option>
-            </select>
-          </div>
-
-          {/* Date Presets */}
-          <div className="flex items-center gap-1">
-            <CalendarRange className="h-3.5 w-3.5 text-slate-400 mr-1" />
-            {DATE_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handlePresetClick(p)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
-                  datePreset === p.id
-                    ? "bg-slate-100 text-slate-900 font-semibold"
-                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Disbursements Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
-                <th className="py-3.5 px-4">Ref / App</th>
-                <th className="py-3.5 px-4">Agent Name & Contact</th>
-                <th className="py-3.5 px-4">Destination Bank Account</th>
-                <th className="py-3.5 px-4">Amount</th>
-                <th className="py-3.5 px-4">Status & Method</th>
-                <th className="py-3.5 px-4">Age / Date</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-slate-400" />
-                    <span>Loading disbursements...</span>
-                  </td>
-                </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
-                    <Send className="h-8 w-8 mx-auto mb-2 text-slate-300 stroke-[1.5]" />
-                    <p className="font-semibold text-slate-600">No disbursements found</p>
-                    <p className="text-xs text-slate-400 mt-1">Try adjusting your filters or search terms</p>
-                  </td>
-                </tr>
-              ) : (
-                items.map((transfer) => {
-                  const isOverdue = transfer.is_overdue;
-                  const isActionLoading = actionLoadingId === transfer.id;
-
-                  // Conditional row styling: Overdue rows get a distinct soft yellow/amber background and border
-                  const rowClass = isOverdue
-                    ? "bg-amber-50/80 hover:bg-amber-100/70 border-l-4 border-l-amber-500 transition"
-                    : transfer.status === "failed"
-                    ? "bg-rose-50/30 hover:bg-rose-50/60 transition"
-                    : "hover:bg-slate-50/80 transition";
-
-                  return (
-                    <tr key={transfer.id} className={rowClass}>
-                      {/* Ref / App */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-slate-800">
-                          <span>{transfer.transfer_code || `#TRF-${transfer.id}`}</span>
-                          <button
-                            onClick={() => copyToClipboard(transfer.transfer_code || `#TRF-${transfer.id}`, `ref_${transfer.id}`)}
-                            title="Copy reference code"
-                            className="text-slate-400 hover:text-slate-600"
-                          >
-                            {copiedField === `ref_${transfer.id}` ? (
-                              <Check className="h-3 w-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </button>
-                        </div>
-                        {transfer.application_id && (
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                              App #{transfer.application_id}
-                            </span>
-                            {transfer.application_type && (
-                              <span className="text-[10px] text-slate-400 capitalize truncate max-w-[120px]">
-                                {transfer.application_type.replace(/_/g, " ")}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Agent */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="font-semibold text-slate-900 text-xs flex items-center gap-1">
-                          <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>{transfer.agent?.name || "Unknown Agent"}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">{transfer.agent?.phone || "—"}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          {transfer.agent?.state} • {transfer.agent?.lga}
-                        </div>
-                      </td>
-
-                      {/* Bank Details */}
-                      <td className="py-4 px-4 align-top">
-                        {transfer.bank_account ? (
-                          <div>
-                            <div className="font-semibold text-slate-800 text-[11px] flex items-center gap-1">
-                              <Building className="h-3 w-3 text-slate-400" />
-                              <span>{transfer.bank_account.bank_name || `Bank Code: ${transfer.bank_account.bank_code}`}</span>
-                            </div>
-                            <div className="mt-1 flex items-center gap-1 font-mono font-bold text-slate-900 text-xs">
-                              <span>{transfer.bank_account.account_number}</span>
-                              <button
-                                onClick={() => copyToClipboard(transfer.bank_account.account_number, `acc_${transfer.id}`)}
-                                title="Copy account number"
-                                className="text-slate-400 hover:text-slate-600"
-                              >
-                                {copiedField === `acc_${transfer.id}` ? (
-                                  <Check className="h-3 w-3 text-emerald-600" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </button>
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-medium truncate max-w-[180px]">
-                              {transfer.bank_account.account_name}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic text-[11px]">No bank account recorded</span>
-                        )}
-                      </td>
-
-                      {/* Amount */}
-                      <td className="py-4 px-4 align-top">
-                        <div className="font-bold text-slate-900 text-sm">{koboToNaira(transfer.amount_kobo)}</div>
-                        <span className="text-[10px] text-slate-400">Agent Commission</span>
-                      </td>
-
-                      {/* Status & Method */}
-                      <td className="py-4 px-4 align-top space-y-1">
-                        {transfer.status === "success" && (
-                          <div className="flex flex-col items-start gap-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                              <span>Completed</span>
-                            </span>
-                            <span className="text-[10px] font-medium text-slate-500 capitalize">
-                              Method: {transfer.disbursement_method}
-                              {transfer.disbursed_by_admin_name && ` (${transfer.disbursed_by_admin_name})`}
-                            </span>
-                          </div>
-                        )}
-
-                        {transfer.status === "pending" && (
-                          <div className="flex flex-col items-start gap-1">
-                            {isOverdue ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-200 text-amber-900 border border-amber-400 shadow-sm animate-pulse">
-                                <Clock className="h-3 w-3 text-amber-800" />
-                                <span>Pending &gt; 24h</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                                <Clock className="h-3 w-3 text-slate-500" />
-                                <span>Pending</span>
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {transfer.status === "failed" && (
-                          <div className="flex flex-col items-start gap-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-                              <XCircle className="h-3 w-3 text-rose-600" />
-                              <span>Failed</span>
-                            </span>
-                          </div>
-                        )}
-
-                        {/* View Receipt button if receipt exists */}
-                        {transfer.receipt_url && (
-                          <button
-                            onClick={() => setViewingReceiptUrl(transfer.receipt_url)}
-                            className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 underline"
-                          >
-                            <FileText className="h-3 w-3" />
-                            <span>View Receipt</span>
-                          </button>
-                        )}
-                      </td>
-
-                      {/* Age / Date */}
-                      <td className="py-4 px-4 align-top">
-                        <div className={`font-medium ${isOverdue ? "text-amber-900 font-bold" : "text-slate-700"}`}>
-                          {formatAge(transfer.age_hours)}
-                        </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{formatDate(transfer.created_at)}</div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-4 align-top text-right space-y-1.5">
-                        {transfer.status !== "success" ? (
-                          <div className="flex flex-col items-end gap-1.5">
-                            {/* Initiate Automatic Payout */}
-                            <button
-                              onClick={() => handleInitiatePayout(transfer)}
-                              disabled={isActionLoading}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition disabled:opacity-50"
-                              title="Attempt automatic Monnify payout"
-                            >
-                              {isActionLoading ? (
-                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Send className="h-3.5 w-3.5" />
-                              )}
-                              <span>Initiate Payout</span>
-                            </button>
-
-                            {/* Manual Disbursement Button */}
-                            <button
-                              onClick={() => handleOpenManualModal(transfer)}
-                              disabled={isActionLoading}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 shadow-sm transition"
-                              title="Disburse manually and upload proof of receipt"
-                            >
-                              <UploadCloud className="h-3.5 w-3.5 text-slate-500" />
-                              <span>Manual Disbursement</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="inline-flex items-center gap-1 text-emerald-700 font-medium text-xs">
-                              <CheckCircle2 className="h-4 w-4" />
-                              <span>Disbursed</span>
-                            </span>
-                            {transfer.receipt_url && (
-                              <button
-                                onClick={() => setViewingReceiptUrl(transfer.receipt_url)}
-                                className="text-[11px] text-slate-600 hover:text-slate-900 font-medium underline flex items-center gap-1"
-                              >
-                                <Eye className="h-3 w-3" />
-                                <span>Inspect Receipt</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
+              <option value="all">All methods</option>
+              <option value="automatic">Automatic gateway</option>
+              <option value="manual">Manual disbursement</option>
+            </Select>
+          </Toolbar>
+        </form>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Date range">
+          {DATE_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={datePreset === p.id}
+              onClick={() => handlePresetClick(p)}
+              className={cx(
+                "cx-focus min-h-11 rounded-cx px-4 text-[15px] font-medium transition-colors",
+                datePreset === p.id ? "bg-cx-brand text-white" : "border border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
               )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        <div className="py-3.5 px-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-          <div>
-            Showing <span className="font-semibold text-slate-700">{items.length}</span> of{" "}
-            <span className="font-semibold text-slate-700">{total}</span> total disbursements
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || loading}
-              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition"
             >
-              <ChevronLeft className="h-4 w-4" />
+              {p.label}
             </button>
-            <span className="font-medium text-slate-700 px-2">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || loading}
-              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* ─── MANUAL DISBURSEMENT MODAL ─── */}
-      {selectedTransferForManual && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                  <Wallet className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">Manual Agent Disbursement</h3>
-                  <p className="text-xs text-slate-500">
-                    Transfer #{selectedTransferForManual.id} • {selectedTransferForManual.transfer_code || "No code"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedTransferForManual(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
+      {/* ─── List ─── */}
+      <section>
+        {loading ? (
+          <SkeletonList rows={4} />
+        ) : (
+          <ResponsiveTable
+            columns={columns}
+            rows={items}
+            rowKey={(t) => t.id}
+            onRowClick={setDetailTransfer}
+            empty="No payouts found. Try other filters or search terms."
+          />
+        )}
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] text-cx-muted">
+            Showing {items.length} of {total} payouts · page {page} of {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="secondary" icon={ChevronLeft} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1 || loading}>
+              Prev
+            </Button>
+            <Button variant="secondary" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages || loading}>
+              Next
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Payout detail ─── */}
+      <Sheet
+        open={!!d}
+        onOpenChange={(o) => !o && setDetailTransfer(null)}
+        title={d ? `${formatNaira(d.amount_kobo)} to ${d.agent?.name || "Unknown agent"}` : "Payout"}
+        description={d ? refType(d) : undefined}
+        footer={
+          d ? (
+            d.status !== "success" ? (
+              <>
+                <Button variant="secondary" icon={UploadCloud} onClick={() => handleOpenManualModal(d)} disabled={actionLoadingId === d.id}>
+                  Paid manually
+                </Button>
+                <Button block icon={Send} onClick={() => handleInitiatePayout(d)} loading={actionLoadingId === d.id}>
+                  Pay out
+                </Button>
+              </>
+            ) : d.receipt_url ? (
+              <Button block variant="secondary" icon={FileText} onClick={() => setViewingReceiptUrl(d.receipt_url)}>
+                View receipt
+              </Button>
+            ) : null
+          ) : null
+        }
+      >
+        {d ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <TransferStatus transfer={d} />
+              {methodText(d) ? <span className="text-[13px] capitalize text-cx-muted">{methodText(d)}</span> : null}
             </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-              {/* Step 1: Agent Bank Details Card */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold uppercase tracking-wider">
-                  <span>Step 1: Recipient Account Details</span>
-                  <span className="text-emerald-700 font-bold">Direct Bank Transfer</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-baseline py-1 border-b border-slate-200/60">
-                    <span className="text-xs text-slate-500">Amount to Disburse:</span>
-                    <span className="text-xl font-extrabold text-emerald-800">
-                      {koboToNaira(selectedTransferForManual.amount_kobo)}
+            <dl className="divide-y divide-cx-line">
+              <DetailRow label="Agent" value={d.agent?.name || "Unknown agent"} />
+              <DetailRow label="Phone" value={d.agent?.phone || "—"} />
+              <DetailRow label="Area" value={[d.agent?.state, d.agent?.lga].filter(Boolean).join(" · ") || "—"} />
+              <DetailRow
+                label="Reference"
+                value={
+                  <span className="inline-flex items-center gap-1">
+                    <span className="break-all font-mono">{refType(d)}</span>
+                    <IconButton
+                      label="Copy reference"
+                      icon={copiedField === `ref_${d.id}` ? Check : Copy}
+                      onClick={() => copyToClipboard(refType(d), `ref_${d.id}`)}
+                      className="-my-2 -mr-2"
+                    />
+                  </span>
+                }
+              />
+              {d.application_id ? (
+                <DetailRow
+                  label="Application"
+                  value={
+                    <span>
+                      #{d.application_id}
+                      {d.application_type ? <span className="capitalize"> · {d.application_type.replace(/_/g, " ")}</span> : null}
                     </span>
-                  </div>
+                  }
+                />
+              ) : null}
+              <DetailRow label="Age" value={formatAge(d.age_hours) || "—"} />
+              <DetailRow label="Created" value={formatDate(d.created_at)} />
+            </dl>
+            {d.bank_account ? (
+              <Card className="bg-cx-sunken/60">
+                <p className="mb-1 text-[13px] text-cx-muted">Bank account</p>
+                <dl className="divide-y divide-cx-line">
+                  <DetailRow label="Bank" value={d.bank_account.bank_name || `Code ${d.bank_account.bank_code}`} />
+                  <DetailRow
+                    label="Account number"
+                    value={
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-mono">{d.bank_account.account_number}</span>
+                        <IconButton
+                          label="Copy account number"
+                          icon={copiedField === `acc_${d.id}` ? Check : Copy}
+                          onClick={() => copyToClipboard(d.bank_account.account_number, `acc_${d.id}`)}
+                          className="-my-2 -mr-2"
+                        />
+                      </span>
+                    }
+                  />
+                  <DetailRow label="Account name" value={d.bank_account.account_name} />
+                </dl>
+              </Card>
+            ) : (
+              <Notice tone="amber">No bank account recorded for this agent.</Notice>
+            )}
+            {d.receipt_url && d.status !== "success" ? (
+              <Button variant="ghost" icon={FileText} onClick={() => setViewingReceiptUrl(d.receipt_url)}>
+                View receipt
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </Sheet>
 
-                  <div className="flex justify-between items-baseline py-1 border-b border-slate-200/60">
-                    <span className="text-xs text-slate-500">Agent:</span>
-                    <span className="text-xs font-semibold text-slate-800">
-                      {selectedTransferForManual.agent?.name} ({selectedTransferForManual.agent?.phone})
-                    </span>
-                  </div>
+      {/* ─── Confirm automatic payout ─── */}
+      <ConfirmSheet
+        open={!!cp}
+        onOpenChange={(o) => !o && setConfirmPayoutTransfer(null)}
+        title={cp ? `Send ${formatNaira(cp.amount_kobo)} to ${cp.agent?.name || "Agent"}?` : "Send payout?"}
+        description="We'll try to pay this through the payment gateway now."
+        confirmLabel="Send payout"
+        loading={!!cp && actionLoadingId === cp.id}
+        onConfirm={runInitiatePayout}
+      >
+        {cp?.bank_account ? (
+          <dl className="divide-y divide-cx-line">
+            <DetailRow label="Bank" value={cp.bank_account.bank_name || `Code ${cp.bank_account.bank_code}`} />
+            <DetailRow label="Account" value={<span className="font-mono">{cp.bank_account.account_number}</span>} />
+            <DetailRow label="Name" value={cp.bank_account.account_name} />
+          </dl>
+        ) : null}
+      </ConfirmSheet>
 
-                  {selectedTransferForManual.bank_account ? (
+      {/* ─── Manual disbursement ─── */}
+      <Sheet
+        open={!!m}
+        onOpenChange={(o) => !o && !submittingManual && setSelectedTransferForManual(null)}
+        title="Record a manual payout"
+        description={m ? `Transfer #${m.id} · ${m.transfer_code || "No code"}` : undefined}
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSelectedTransferForManual(null)} disabled={submittingManual}>
+              Cancel
+            </Button>
+            <Button block icon={CheckCircle2} onClick={askConfirmManual} disabled={!uploadedReceiptUrl || uploadingReceipt || submittingManual} loading={submittingManual}>
+              Mark as paid
+            </Button>
+          </>
+        }
+      >
+        {m ? (
+          <div className="space-y-5">
+            {/* Step 1 */}
+            <section>
+              <p className="mb-1 text-[15px] font-semibold text-cx-ink">1. Send the money by bank transfer</p>
+              <Card className="bg-cx-sunken/60">
+                <dl className="divide-y divide-cx-line">
+                  <DetailRow label="Amount" value={<span className="text-[17px] font-semibold text-cx-brand-deep">{formatNaira(m.amount_kobo)}</span>} />
+                  <DetailRow label="Agent" value={`${m.agent?.name || "—"}${m.agent?.phone ? ` (${m.agent.phone})` : ""}`} />
+                  {m.bank_account ? (
                     <>
-                      <div className="flex justify-between items-baseline py-1 border-b border-slate-200/60">
-                        <span className="text-xs text-slate-500">Bank Name:</span>
-                        <span className="text-xs font-bold text-slate-900">
-                          {selectedTransferForManual.bank_account.bank_name || `Code: ${selectedTransferForManual.bank_account.bank_code}`}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-200/60 bg-white px-2.5 rounded-lg border">
-                        <span className="text-xs text-slate-500">Account Number:</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-slate-900 tracking-wider">
-                            {selectedTransferForManual.bank_account.account_number}
+                      <DetailRow label="Bank" value={m.bank_account.bank_name || `Code ${m.bank_account.bank_code}`} />
+                      <DetailRow
+                        label="Account number"
+                        value={
+                          <span className="inline-flex items-center gap-1">
+                            <span className="font-mono text-[15px] font-semibold">{m.bank_account.account_number}</span>
+                            <IconButton
+                              label="Copy account number"
+                              icon={copiedField === "modal_acc" ? Check : Copy}
+                              onClick={() => copyToClipboard(m.bank_account.account_number, "modal_acc")}
+                              className="-my-2 -mr-2"
+                            />
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(selectedTransferForManual.bank_account.account_number, "modal_acc")}
-                            className="p-1 text-slate-500 hover:text-slate-800 bg-slate-100 rounded"
-                            title="Copy Account Number"
-                          >
-                            {copiedField === "modal_acc" ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-baseline py-1">
-                        <span className="text-xs text-slate-500">Account Name:</span>
-                        <span className="text-xs font-semibold text-slate-800">
-                          {selectedTransferForManual.bank_account.account_name}
-                        </span>
-                      </div>
+                        }
+                      />
+                      <DetailRow label="Account name" value={m.bank_account.account_name} />
                     </>
+                  ) : null}
+                </dl>
+                {!m.bank_account ? (
+                  <div className="mt-2">
+                    <Notice tone="amber">Agent has no verified bank account on file. Contact the agent directly for account details.</Notice>
+                  </div>
+                ) : null}
+              </Card>
+            </section>
+
+            {/* Step 2 */}
+            <section>
+              <p className="mb-1 text-[15px] font-semibold text-cx-ink">
+                2. Upload the transfer receipt <span className="text-cx-red">*</span>
+              </p>
+              <p className="mb-2 text-[13px] text-cx-muted">Required, so the payout can be traced later. PNG, JPG, WEBP or PDF, up to 10MB.</p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+              />
+              {!receiptFile ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="cx-focus flex w-full flex-col items-center rounded-cx-lg border-2 border-dashed border-cx-line-strong bg-cx-surface px-4 py-6 text-center hover:border-cx-brand hover:bg-cx-brand-soft/40"
+                >
+                  <UploadCloud className="mb-2 h-7 w-7 text-cx-muted" aria-hidden />
+                  <span className="text-[15px] font-semibold text-cx-ink">Choose receipt file</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-3 rounded-cx-lg border border-cx-line bg-cx-sunken/60 p-3">
+                  {receiptFile.type.startsWith("image/") && receiptPreviewUrl ? (
+                    <img src={receiptPreviewUrl} alt="Receipt preview" className="h-12 w-12 shrink-0 rounded-cx-sm border border-cx-line object-cover" />
                   ) : (
-                    <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-800 border border-amber-200">
-                      Agent has no verified bank account on file. Please contact the agent directly for account details.
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-cx-sm bg-cx-brand-soft text-cx-brand-deep">
+                      <FileText className="h-6 w-6" aria-hidden />
                     </div>
                   )}
-                </div>
-              </div>
-
-              {/* Step 2: Upload Receipt (Mandatory) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-800">
-                    Step 2: Upload Transaction Receipt <span className="text-rose-600">*</span>
-                  </span>
-                  <span className="text-[11px] text-slate-400">Required for tracking</span>
-                </div>
-
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  className="hidden"
-                />
-
-                {!receiptFile ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-6 text-center cursor-pointer bg-slate-50/50 hover:bg-emerald-50/20 transition group"
-                  >
-                    <UploadCloud className="h-8 w-8 mx-auto text-slate-400 group-hover:text-emerald-600 mb-2 transition" />
-                    <p className="text-xs font-semibold text-slate-700 group-hover:text-emerald-800">
-                      Click to browse or drop payment receipt
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-1">Supports PNG, JPG, WEBP or PDF (max 10MB)</p>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      {receiptFile.type.startsWith("image/") && receiptPreviewUrl ? (
-                        <img
-                          src={receiptPreviewUrl}
-                          alt="Receipt Preview"
-                          className="h-12 w-12 object-cover rounded-lg border border-slate-200"
-                        />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-medium text-cx-ink">{receiptFile.name}</p>
+                    <p className="text-[13px] text-cx-muted">
+                      {(receiptFile.size / 1024).toFixed(1)} KB ·{" "}
+                      {uploadingReceipt ? (
+                        <span className="font-medium text-cx-amber">Uploading…</span>
+                      ) : uploadedReceiptUrl ? (
+                        <span className="font-medium text-cx-brand-deep">Ready</span>
                       ) : (
-                        <div className="h-12 w-12 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                          <FileText className="h-6 w-6" />
-                        </div>
+                        "Uploaded"
                       )}
-                      <div className="truncate">
-                        <p className="text-xs font-semibold text-slate-800 truncate">{receiptFile.name}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {(receiptFile.size / 1024).toFixed(1)} KB •{" "}
-                          {uploadingReceipt ? (
-                            <span className="text-amber-600 font-semibold">Uploading...</span>
-                          ) : uploadedReceiptUrl ? (
-                            <span className="text-emerald-600 font-semibold">Ready to record</span>
-                          ) : (
-                            "Uploaded"
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleRemoveReceipt}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-200/60 transition"
-                      title="Remove file"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    </p>
                   </div>
-                )}
-              </div>
+                  <IconButton label="Remove file" icon={X} onClick={handleRemoveReceipt} />
+                </div>
+              )}
+            </section>
 
-              {/* Step 3: Admin Notes (Optional) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Admin Notes / Bank Reference (Optional)</label>
-                <input
-                  type="text"
+            {/* Step 3 */}
+            <Field label="Notes or bank reference" optional>
+              {(p) => (
+                <Input
+                  {...p}
                   value={manualNotes}
                   onChange={(e) => setManualNotes(e.target.value)}
-                  placeholder="e.g. Sent via GTB Corporate, Session ID 00000000123"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
-                />
-              </div>
-
-              {/* Warning note */}
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-2 text-xs text-amber-900">
-                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold">Notice:</span> Marking this disbursement as done will automatically
-                  debit <span className="font-bold">{koboToNaira(selectedTransferForManual.amount_kobo)}</span> from the
-                  agent&apos;s platform wallet and permanently attach the receipt proof to this payout record.
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/50">
-              <button
-                type="button"
-                onClick={() => setSelectedTransferForManual(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmManualDisburse}
-                disabled={!uploadedReceiptUrl || uploadingReceipt || submittingManual}
-                className="inline-flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submittingManual ? (
-                  <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Processing Debit &amp; Marking Done...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>Confirm &amp; Mark as Disbursed</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── RECEIPT VIEWER MODAL ─── */}
-      {viewingReceiptUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                <FileText className="h-4 w-4 text-emerald-600" />
-                <span>Transaction Proof of Payment</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={viewingReceiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition flex items-center gap-1 text-xs"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  <span>Open Full Size</span>
-                </a>
-                <button
-                  onClick={() => setViewingReceiptUrl(null)}
-                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-100 flex items-center justify-center max-h-[75vh] overflow-auto">
-              {viewingReceiptUrl.endsWith(".pdf") ? (
-                <iframe src={viewingReceiptUrl} title="Receipt PDF" className="w-full h-[500px] rounded-lg border" />
-              ) : (
-                <img
-                  src={viewingReceiptUrl}
-                  alt="Transaction Receipt"
-                  className="max-h-[600px] w-auto max-w-full rounded-lg shadow-sm object-contain"
+                  placeholder="e.g. Sent via GTB Corporate, session ID 00000000123"
                 />
               )}
-            </div>
+            </Field>
+
+            <Notice tone="amber" title="This debits the agent's wallet">
+              Marking this as paid takes {formatNaira(m.amount_kobo)} from the agent&apos;s platform wallet and attaches the receipt to this payout for good.
+            </Notice>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Sheet>
+
+      {/* ─── Confirm manual payout ─── */}
+      <ConfirmSheet
+        open={confirmManualOpen}
+        onOpenChange={setConfirmManualOpen}
+        title={m ? `Mark ${formatNaira(m.amount_kobo)} to ${m.agent?.name || "Agent"} as paid?` : "Mark as paid?"}
+        description="The agent's wallet is debited by this amount and the receipt is saved with the payout. This can't be undone."
+        confirmLabel="Mark as paid"
+        loading={submittingManual}
+        onConfirm={handleConfirmManualDisburse}
+      />
+
+      {/* ─── Receipt viewer ─── */}
+      <Sheet
+        open={!!viewingReceiptUrl}
+        onOpenChange={(o) => !o && setViewingReceiptUrl(null)}
+        title="Proof of payment"
+        size="lg"
+        footer={
+          viewingReceiptUrl ? (
+            <Button block variant="secondary" icon={ExternalLink} href={viewingReceiptUrl} target="_blank" rel="noopener noreferrer">
+              Open full size
+            </Button>
+          ) : null
+        }
+      >
+        {viewingReceiptUrl ? (
+          <div className="flex items-center justify-center rounded-cx-lg bg-cx-sunken p-3">
+            {viewingReceiptUrl.endsWith(".pdf") ? (
+              <iframe src={viewingReceiptUrl} title="Receipt PDF" className="h-[60dvh] w-full rounded-cx-sm border border-cx-line bg-cx-surface" />
+            ) : (
+              <img src={viewingReceiptUrl} alt="Transaction receipt" className="max-h-[60dvh] w-auto max-w-full rounded-cx-sm object-contain" />
+            )}
+          </div>
+        ) : null}
+      </Sheet>
     </div>
   );
 }

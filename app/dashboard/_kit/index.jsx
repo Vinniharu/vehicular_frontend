@@ -317,7 +317,14 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
               />
             </Dialog.Overlay>
             <div className="fixed inset-0 z-[70] flex items-end justify-center md:items-center md:p-6">
-              <Dialog.Content asChild forceMount>
+              <Dialog.Content
+                asChild
+                forceMount
+                // A confirm sheet stacked on top of this one is "outside" it;
+                // don't let interacting with it close this sheet.
+                onPointerDownOutside={(e) => e.target?.closest?.('[role="dialog"]') && e.preventDefault()}
+                onFocusOutside={(e) => e.target?.closest?.('[role="dialog"]') && e.preventDefault()}
+              >
                 <motion.div
                   className={cx(
                     "flex max-h-[92dvh] w-full flex-col rounded-t-[22px] bg-cx-surface shadow-cx-raised md:rounded-cx-lg",

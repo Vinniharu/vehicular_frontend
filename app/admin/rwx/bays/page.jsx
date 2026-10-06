@@ -1,20 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  MapPin,
-  Plus,
-  X,
-  Loader2,
-  Clock,
-  Users,
-  Trash2,
-  Pencil,
-  CheckCircle2,
-  AlertCircle,
-  Building2,
-  Filter,
-} from "lucide-react";
+import { ChevronDown, Clock, MapPin, Pencil, Plus, Trash2, Users } from "lucide-react";
 import {
   getReferenceStates,
   getReferenceLgas,
@@ -28,37 +15,28 @@ import {
   adminUpdateBayAgents,
   adminGetAgents,
 } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  IconButton,
+  Input,
+  Notice,
+  PageHeader,
+  Select,
+  Sheet,
+  SkeletonList,
+} from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { ConfirmSheet, Switch, Toolbar } from "../../_kit";
 
-const BRAND = "#28A745";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-function Toast({ toast, onDismiss }) {
-  if (!toast) return null;
-  return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 pl-4 pr-5 py-3.5 rounded-xl shadow-xl border text-[13px] font-medium max-w-sm transition-all ${
-        toast.type === "success"
-          ? "bg-white border-emerald-200 text-slate-800"
-          : "bg-white border-red-200 text-slate-800"
-      }`}
-    >
-      {toast.type === "success" ? (
-        <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-[#28A745]" />
-      ) : (
-        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
-      )}
-      <span className="flex-1 leading-snug">{toast.msg}</span>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="ml-1 text-slate-400 hover:text-slate-600"
-      >
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
+/* ── Slot add / edit sheet ─────────────────────────────────────────── */
 
-function SlotForm({ bayId, onSaved, onCancel, initial }) {
+function SlotSheet({ open, bayId, initial, onSaved, onClose }) {
   const [label, setLabel] = useState(initial?.label || "");
   const [startTime, setStartTime] = useState(initial?.start_time?.slice(0, 5) || "");
   const [endTime, setEndTime] = useState(initial?.end_time?.slice(0, 5) || "");
@@ -91,65 +69,46 @@ function SlotForm({ bayId, onSaved, onCancel, initial }) {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-5 sm:items-end">
-      <div className="col-span-2 sm:col-span-1">
-        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Label</label>
-        <input
-          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12.5px]"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="e.g. 9:00–11:00"
-        />
+    <Sheet
+      open={open}
+      onOpenChange={(o) => !o && !saving && onClose()}
+      title={initial ? "Edit time slot" : "Add time slot"}
+      description="A daily slot customers can book at this bay."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button block loading={saving} onClick={handleSave}>
+            Save slot
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {error ? <Notice tone="red">{error}</Notice> : null}
+        <Field label="Label">
+          {(p) => <Input {...p} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. 9:00–11:00" />}
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Starts">
+            {(p) => <Input {...p} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />}
+          </Field>
+          <Field label="Ends">
+            {(p) => <Input {...p} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />}
+          </Field>
+        </div>
+        <Field label="Vehicles per slot">
+          {(p) => (
+            <Input {...p} type="number" inputMode="numeric" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+          )}
+        </Field>
       </div>
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Start</label>
-        <input
-          type="time"
-          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12.5px]"
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold text-slate-500">End</label>
-        <input
-          type="time"
-          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12.5px]"
-          value={endTime}
-          onChange={(e) => setEndTime(e.target.value)}
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold text-slate-500">Capacity</label>
-        <input
-          type="number"
-          min="1"
-          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[12.5px]"
-          value={capacity}
-          onChange={(e) => setCapacity(e.target.value)}
-        />
-      </div>
-      <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-lg bg-[#28A745] px-3 py-1.5 text-[11.5px] font-semibold text-white disabled:opacity-70"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11.5px] font-medium text-slate-600"
-        >
-          Cancel
-        </button>
-      </div>
-      {error && <p className="col-span-2 text-[11px] text-red-600 sm:col-span-5">{error}</p>}
-    </div>
+    </Sheet>
   );
 }
+
+/* ── One bay ───────────────────────────────────────────────────────── */
 
 function BayCard({ bay, states, agents, onChanged, showToast }) {
   const [expanded, setExpanded] = useState(false);
@@ -165,10 +124,13 @@ function BayCard({ bay, states, agents, onChanged, showToast }) {
 
   const [addingSlot, setAddingSlot] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState(null);
+  const [deletingSlot, setDeletingSlot] = useState(null);
+  const [deletingSlotBusy, setDeletingSlotBusy] = useState(false);
   const [editingAgents, setEditingAgents] = useState(false);
   const [pendingAgentIds, setPendingAgentIds] = useState(bay.agent_ids || []);
   const [savingAgents, setSavingAgents] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
   useEffect(() => {
     if (editingBay && bayStateId) {
@@ -192,6 +154,15 @@ function BayCard({ bay, states, agents, onChanged, showToast }) {
     } else {
       setBayLgas([]);
     }
+  };
+
+  const openEditBay = () => {
+    setBayName(bay.name);
+    setBayAddress(bay.address);
+    setBayStateId(String(bay.state_id || ""));
+    setBayLgaId(String(bay.lga_id || ""));
+    setBayIsActive(bay.is_active);
+    setEditingBay(true);
   };
 
   const handleSaveBayDetails = async () => {
@@ -221,14 +192,25 @@ function BayCard({ bay, states, agents, onChanged, showToast }) {
     setDeactivating(true);
     const res = await adminUpdateBay(bay.id, { is_active: !bay.is_active });
     setDeactivating(false);
+    setConfirmDeactivate(false);
     if (res.error) {
       showToast("error", res.error);
       return;
     }
-    showToast(
-      "success",
-      bay.is_active ? "Bay deactivated." : "Bay activated."
-    );
+    showToast("success", bay.is_active ? "Bay deactivated." : "Bay activated.");
+    onChanged();
+  };
+
+  const handleDeleteSlot = async (slot) => {
+    setDeletingSlotBusy(true);
+    const res = await adminDeleteBaySlot(bay.id, slot.id);
+    setDeletingSlotBusy(false);
+    setDeletingSlot(null);
+    if (res.error) {
+      showToast("error", res.error);
+      return;
+    }
+    showToast("success", res.data?.message || "Slot removed.");
     onChanged();
   };
 
@@ -245,371 +227,298 @@ function BayCard({ bay, states, agents, onChanged, showToast }) {
     onChanged();
   };
 
-  const stateName =
-    bay.state_name || states.find((s) => s.id === bay.state_id)?.name || "";
+  const stateName = bay.state_name || states.find((s) => s.id === bay.state_id)?.name || "";
   const lgaName = bay.lga_name || "";
+  const slots = bay.slot_templates || [];
+  const dailyCapacity = slots.filter((s) => s.is_active !== false).reduce((sum, s) => sum + (Number(s.capacity) || 0), 0);
+  const editingSlot = slots.find((s) => s.id === editingSlotId) || null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all">
-      <div className="flex w-full items-center justify-between p-4 text-left">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#28A745]">
-            <MapPin className="h-5 w-5" />
+    <Card padded={false}>
+      <div className="flex items-start gap-3 p-4 sm:p-5">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cx-brand-soft text-cx-brand-deep">
+          <MapPin className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 className="text-[17px] font-semibold text-cx-ink">{bay.name}</h2>
+            {!bay.is_active ? <Badge tone="neutral">Inactive</Badge> : null}
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[13.5px] font-bold text-slate-900">{bay.name}</p>
-              {!bay.is_active && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                  Inactive
-                </span>
-              )}
-              {stateName && (
-                <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-[#28A745]">
-                  {lgaName ? `${lgaName}, ` : ""}
-                  {stateName}
-                </span>
-              )}
-            </div>
-            <p className="text-[12px] text-slate-500 mt-0.5">{bay.address}</p>
-          </div>
+          {stateName ? (
+            <p className="mt-0.5 text-sm font-medium text-cx-ink-2">
+              {lgaName ? `${lgaName}, ` : ""}
+              {stateName}
+            </p>
+          ) : null}
+          <p className="mt-0.5 break-words text-sm text-cx-muted">{bay.address}</p>
         </div>
+        <IconButton label="Edit bay details" icon={Pencil} onClick={openEditBay} className="-mr-2 -mt-1" />
+      </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setEditingBay((v) => !v);
-              setExpanded(true);
-            }}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
-            title="Edit bay details"
-          >
-            <Pencil className="h-3.5 w-3.5 text-slate-500" />
-            <span className="hidden sm:inline">Edit</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-[11.5px] font-medium text-slate-600 hover:bg-slate-100"
-          >
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5 text-slate-400" />{" "}
-              {bay.slot_templates?.length || 0} slots
-            </span>
-            <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5 text-slate-400" />{" "}
-              {bay.agent_ids?.length || 0} agents
-            </span>
-          </button>
+      <div className="space-y-2 px-4 pb-4 sm:px-5">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-cx-muted">
+          <span className="inline-flex items-center gap-1">
+            <Clock className="h-4 w-4" aria-hidden />
+            {slots.length} {slots.length === 1 ? "slot" : "slots"} a day
+          </span>
+          <span>{dailyCapacity} vehicles a day</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(bay.agent_ids || []).length === 0 ? (
+            <span className="text-[13px] text-cx-muted">No agents assigned yet.</span>
+          ) : (
+            bay.agent_ids.map((id) => {
+              const agent = agents.find((a) => a.agent_profile?.id === id);
+              return (
+                <Badge key={id} tone="brand">
+                  {agent?.name || `Agent #${id}`}
+                </Badge>
+              );
+            })
+          )}
         </div>
       </div>
 
-      {/* Inline Edit Bay Form */}
-      {editingBay && (
-        <div className="border-t border-slate-100 bg-slate-50/80 p-4 space-y-3">
-          <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-700">
-            Edit Bay Location Details
-          </h4>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                Bay name
-              </label>
-              <input
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12.5px]"
-                value={bayName}
-                onChange={(e) => setBayName(e.target.value)}
-                placeholder="e.g. Ikeja Central Bay"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                Street address
-              </label>
-              <input
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12.5px]"
-                value={bayAddress}
-                onChange={(e) => setBayAddress(e.target.value)}
-                placeholder="Physical address"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                State
-              </label>
-              <select
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12.5px]"
-                value={bayStateId}
-                onChange={(e) => handleStateChange(e.target.value)}
-              >
-                <option value="">Select state</option>
-                {states.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                LGA (Area)
-              </label>
-              <select
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12.5px] disabled:opacity-50"
-                value={bayLgaId}
-                onChange={(e) => setBayLgaId(e.target.value)}
-                disabled={!bayStateId || loadingLgas}
-              >
-                <option value="">
-                  {loadingLgas ? "Loading LGAs…" : "Select LGA (optional)"}
-                </option>
-                {bayLgas.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 cursor-pointer text-[12px] font-medium text-slate-700">
-              <input
-                type="checkbox"
-                checked={bayIsActive}
-                onChange={(e) => setBayIsActive(e.target.checked)}
-                className="rounded border-slate-300 text-[#28A745] focus:ring-[#28A745]"
-              />
-              Active location (accepts customer bookings)
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSaveBayDetails}
-                disabled={savingBay}
-                className="rounded-lg bg-[#28A745] px-3.5 py-1.5 text-[12px] font-semibold text-white shadow-xs disabled:opacity-70"
-              >
-                {savingBay ? "Saving…" : "Save details"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditingBay(false)}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 bg-white"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        className="cx-focus flex min-h-11 w-full items-center justify-between gap-2 border-t border-cx-line px-4 py-2.5 text-left text-sm font-medium text-cx-ink-2 hover:bg-cx-sunken/70 sm:px-5"
+      >
+        Time slots and agents
+        <ChevronDown className={cx("h-5 w-5 text-cx-muted transition-transform", expanded && "rotate-180")} aria-hidden />
+      </button>
 
-      {expanded && (
-        <div className="space-y-4 border-t border-slate-100 p-4">
+      {expanded ? (
+        <div className="space-y-5 border-t border-cx-line p-4 sm:p-5">
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                Daily Slot Templates &amp; Capacity
-              </h4>
-              {!addingSlot && (
-                <button
-                  type="button"
-                  onClick={() => setAddingSlot(true)}
-                  className="flex items-center gap-1 text-[11.5px] font-semibold text-[#28A745]"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add slot
-                </button>
-              )}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-[15px] font-semibold text-cx-ink">Daily time slots</h3>
+              <Button size="sm" variant="soft" icon={Plus} onClick={() => setAddingSlot(true)} className="min-h-11">
+                Add slot
+              </Button>
             </div>
-            <div className="space-y-2">
-              {(bay.slot_templates || []).map((slot) =>
-                editingSlotId === slot.id ? (
-                  <SlotForm
-                    key={slot.id}
-                    bayId={bay.id}
-                    initial={slot}
-                    onCancel={() => setEditingSlotId(null)}
-                    onSaved={() => {
-                      setEditingSlotId(null);
-                      onChanged();
-                      showToast("success", "Slot updated.");
-                    }}
-                  />
-                ) : (
-                  <div
-                    key={slot.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-3"
-                  >
-                    <div>
-                      <p className="text-[12.5px] font-semibold text-slate-800">
-                        {slot.label}{" "}
-                        {!slot.is_active && (
-                          <span className="ml-1 text-[10.5px] text-slate-400">
-                            (inactive)
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[11.5px] text-slate-500">
-                        {slot.start_time?.slice(0, 5)}–{slot.end_time?.slice(0, 5)} · capacity{" "}
-                        {slot.capacity} vehicles
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setEditingSlotId(slot.id)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                        title="Edit slot"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const res = await adminDeleteBaySlot(bay.id, slot.id);
-                          if (res.error) {
-                            showToast("error", res.error);
-                            return;
-                          }
-                          showToast("success", res.data?.message || "Slot removed.");
-                          onChanged();
-                        }}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                        title="Delete slot"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              )}
-              {addingSlot && (
-                <SlotForm
-                  bayId={bay.id}
-                  onCancel={() => setAddingSlot(false)}
-                  onSaved={() => {
-                    setAddingSlot(false);
-                    onChanged();
-                    showToast("success", "Slot added.");
-                  }}
-                />
-              )}
-              {!addingSlot && (bay.slot_templates || []).length === 0 && (
-                <p className="text-[12px] text-slate-400">No time slots configured yet.</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                Assigned Accredited Agents
-              </h4>
-              {!editingAgents && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingAgentIds(bay.agent_ids || []);
-                    setEditingAgents(true);
-                  }}
-                  className="flex items-center gap-1 text-[11.5px] font-semibold text-[#28A745]"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Edit agents
-                </button>
-              )}
-            </div>
-            {editingAgents ? (
-              <div className="space-y-2">
-                <p className="text-[11.5px] text-slate-500">
-                  Select which agents can claim and inspect bookings arriving at this bay:
-                </p>
-                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
-                  {agents
-                    .filter((a) => a.agent_profile?.id)
-                    .map((a) => {
-                      const agentId = a.agent_profile.id;
-                      const checked = pendingAgentIds.includes(agentId);
-                      return (
-                        <button
-                          key={agentId}
-                          type="button"
-                          onClick={() =>
-                            setPendingAgentIds((prev) =>
-                              checked
-                                ? prev.filter((id) => id !== agentId)
-                                : [...prev, agentId]
-                            )
-                          }
-                          className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                            checked
-                              ? "border-emerald-300 bg-emerald-50 text-emerald-700 shadow-xs"
-                              : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
-                          }`}
-                        >
-                          {a.name}
-                        </button>
-                      );
-                    })}
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSaveAgents}
-                    disabled={savingAgents}
-                    className="rounded-lg bg-[#28A745] px-3.5 py-1.5 text-[11.5px] font-semibold text-white disabled:opacity-70"
-                  >
-                    {savingAgents ? "Saving…" : "Save assigned agents"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingAgents(false)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11.5px] font-medium text-slate-600 bg-white"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+            {slots.length === 0 ? (
+              <p className="text-sm text-cx-muted">No time slots yet.</p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {(bay.agent_ids || []).length === 0 ? (
-                  <p className="text-[12px] text-slate-400">No agents assigned yet.</p>
-                ) : (
-                  bay.agent_ids.map((id) => {
-                    const agent = agents.find((a) => a.agent_profile?.id === id);
-                    return (
-                      <span
-                        key={id}
-                        className="rounded-full bg-slate-100 px-2.5 py-1 text-[11.5px] font-semibold text-slate-600"
-                      >
-                        {agent?.name || `Agent #${id}`}
-                      </span>
-                    );
-                  })
-                )}
-              </div>
+              <ul className="divide-y divide-cx-line/70 rounded-cx border border-cx-line">
+                {slots.map((slot) => (
+                  <li key={slot.id} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditingSlotId(slot.id)}
+                      className="cx-focus min-w-0 flex-1 rounded-cx px-3 py-2.5 text-left hover:bg-cx-sunken/70"
+                    >
+                      <p className="text-[15px] font-medium text-cx-ink">
+                        {slot.label}
+                        {!slot.is_active ? <span className="ml-1.5 text-[13px] font-normal text-cx-muted">(inactive)</span> : null}
+                      </p>
+                      <p className="text-[13px] text-cx-muted">
+                        {slot.start_time?.slice(0, 5)}–{slot.end_time?.slice(0, 5)} · {slot.capacity} vehicles
+                      </p>
+                    </button>
+                    <IconButton label={`Delete ${slot.label}`} icon={Trash2} onClick={() => setDeletingSlot(slot)} className="mr-1 hover:text-cx-red" />
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 
-          <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleToggleActive}
-              disabled={deactivating}
-              className="text-[11.5px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-60"
-            >
-              {deactivating
-                ? "Working…"
-                : bay.is_active
-                ? "Deactivate bay"
-                : "Reactivate bay"}
-            </button>
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-[15px] font-semibold text-cx-ink">Assigned agents</h3>
+              <Button
+                size="sm"
+                variant="soft"
+                icon={Users}
+                className="min-h-11"
+                onClick={() => {
+                  setPendingAgentIds(bay.agent_ids || []);
+                  setEditingAgents(true);
+                }}
+              >
+                Edit agents
+              </Button>
+            </div>
+            <p className="text-sm text-cx-muted">Assigned agents can claim and inspect bookings at this bay.</p>
+          </div>
+
+          <div className="border-t border-cx-line pt-4">
+            {bay.is_active ? (
+              <Button variant="ghost" className="text-cx-red" onClick={() => setConfirmDeactivate(true)} disabled={deactivating}>
+                Deactivate bay
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={handleToggleActive} loading={deactivating}>
+                Reactivate bay
+              </Button>
+            )}
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+
+      {/* Edit bay details */}
+      <Sheet
+        open={editingBay}
+        onOpenChange={(o) => !o && !savingBay && setEditingBay(false)}
+        title="Edit bay"
+        description={bay.name}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingBay(false)} disabled={savingBay}>
+              Cancel
+            </Button>
+            <Button block loading={savingBay} onClick={handleSaveBayDetails}>
+              Save details
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Field label="Bay name" required>
+            {(p) => <Input {...p} value={bayName} onChange={(e) => setBayName(e.target.value)} placeholder="e.g. Ikeja Central Bay" />}
+          </Field>
+          <Field label="Street address" required>
+            {(p) => <Input {...p} value={bayAddress} onChange={(e) => setBayAddress(e.target.value)} placeholder="Physical address" />}
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="State" required>
+              {(p) => (
+                <Select {...p} value={bayStateId} onChange={(e) => handleStateChange(e.target.value)}>
+                  <option value="">Select state</option>
+                  {states.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="LGA" optional>
+              {(p) => (
+                <Select {...p} value={bayLgaId} onChange={(e) => setBayLgaId(e.target.value)} disabled={!bayStateId || loadingLgas}>
+                  <option value="">{loadingLgas ? "Loading LGAs…" : "Select LGA"}</option>
+                  {bayLgas.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+          <div className="rounded-cx border border-cx-line p-3.5">
+            <Switch checked={bayIsActive} onChange={setBayIsActive} label="Active" description="Customers can book inspections here." />
+          </div>
+        </div>
+      </Sheet>
+
+      {/* Assigned agents */}
+      <Sheet
+        open={editingAgents}
+        onOpenChange={(o) => !o && !savingAgents && setEditingAgents(false)}
+        title="Assigned agents"
+        description="Pick the agents who can claim and inspect bookings at this bay."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingAgents(false)} disabled={savingAgents}>
+              Cancel
+            </Button>
+            <Button block loading={savingAgents} onClick={handleSaveAgents}>
+              Save agents
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-wrap gap-2">
+          {agents.filter((a) => a.agent_profile?.id).length === 0 ? (
+            <p className="text-sm text-cx-muted">No accredited agents found.</p>
+          ) : (
+            agents
+              .filter((a) => a.agent_profile?.id)
+              .map((a) => {
+                const agentId = a.agent_profile.id;
+                const checked = pendingAgentIds.includes(agentId);
+                return (
+                  <button
+                    key={agentId}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() =>
+                      setPendingAgentIds((prev) => (checked ? prev.filter((id) => id !== agentId) : [...prev, agentId]))
+                    }
+                    className={cx(
+                      "cx-focus min-h-11 rounded-full border px-4 text-sm font-medium transition-colors",
+                      checked
+                        ? "border-cx-brand bg-cx-brand-soft text-cx-brand-deep"
+                        : "border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
+                    )}
+                  >
+                    {a.name}
+                  </button>
+                );
+              })
+          )}
+        </div>
+      </Sheet>
+
+      {/* Slots */}
+      {addingSlot ? (
+        <SlotSheet
+          open
+          bayId={bay.id}
+          onClose={() => setAddingSlot(false)}
+          onSaved={() => {
+            setAddingSlot(false);
+            onChanged();
+            showToast("success", "Slot added.");
+          }}
+        />
+      ) : null}
+      {editingSlot ? (
+        <SlotSheet
+          key={editingSlot.id}
+          open
+          bayId={bay.id}
+          initial={editingSlot}
+          onClose={() => setEditingSlotId(null)}
+          onSaved={() => {
+            setEditingSlotId(null);
+            onChanged();
+            showToast("success", "Slot updated.");
+          }}
+        />
+      ) : null}
+
+      <ConfirmSheet
+        open={!!deletingSlot}
+        onOpenChange={(o) => !o && setDeletingSlot(null)}
+        title="Delete this slot?"
+        description={deletingSlot ? `${deletingSlot.label} will no longer be offered at ${bay.name}.` : ""}
+        confirmLabel="Delete slot"
+        tone="danger"
+        loading={deletingSlotBusy}
+        onConfirm={() => handleDeleteSlot(deletingSlot)}
+      />
+
+      <ConfirmSheet
+        open={confirmDeactivate}
+        onOpenChange={setConfirmDeactivate}
+        title="Deactivate this bay?"
+        description={`Customers won't be able to book inspections at ${bay.name}. You can reactivate it later.`}
+        confirmLabel="Deactivate"
+        tone="danger"
+        loading={deactivating}
+        onConfirm={handleToggleActive}
+      />
+    </Card>
   );
 }
 
+/* ── Page ──────────────────────────────────────────────────────────── */
+
 export default function AdminRwxBaysPage() {
+  const pushToast = useToast();
   const [states, setStates] = useState([]);
   const [stateFilter, setStateFilter] = useState("");
   const [filterLgas, setFilterLgas] = useState([]);
@@ -617,7 +526,6 @@ export default function AdminRwxBaysPage() {
   const [bays, setBays] = useState([]);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const [createForm, setCreateForm] = useState({
@@ -631,8 +539,7 @@ export default function AdminRwxBaysPage() {
   const [creating, setCreating] = useState(false);
 
   const showToast = (type, msg) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 5000);
+    pushToast({ tone: type, title: typeof msg === "string" ? msg : msg?.detail || "Something went wrong." });
   };
 
   const loadBays = async () => {
@@ -705,135 +612,26 @@ export default function AdminRwxBaysPage() {
   };
 
   return (
-    <div className="space-y-6 pb-16">
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
+    <div className="space-y-5 pb-16">
+      <PageHeader
+        title="Inspection bays"
+        description="Where customers bring vehicles for roadworthiness and ride-hailing checks. Set each bay's daily slots and the agents who work there."
+        actions={
+          <Button icon={Plus} onClick={() => setShowCreate(true)}>
+            Add bay
+          </Button>
+        }
+      />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 mb-2">
-              <MapPin className="h-3.5 w-3.5 text-[#28A745]" />
-              Inspection Bay Directory
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Bay Areas &amp; Inspection Locations
-            </h1>
-            <p className="mt-1 text-sm text-slate-600 max-w-2xl leading-relaxed">
-              Register physical inspection bay locations by state and LGA for ride-hailing and vehicle roadworthiness checks. Configure daily slot capacity and assign accredited field agents to oversee inspections.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowCreate((s) => !s)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-[#1F8838] transition-all shrink-0 self-start md:self-center"
-          >
-            {showCreate ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showCreate ? "Close form" : "Register new bay"}
-          </button>
-        </div>
-
-        {showCreate && (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-            <h3 className="text-[13px] font-bold text-slate-800">
-              Register New Inspection Bay Location
-            </h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                  Bay Name
-                </label>
-                <input
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px]"
-                  placeholder="e.g. Alausa Bay 1"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                  Physical Address
-                </label>
-                <input
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px]"
-                  placeholder="e.g. Plot 12, Commercial Ave"
-                  value={createForm.address}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, address: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                  State
-                </label>
-                <select
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px]"
-                  value={createForm.state_id}
-                  onChange={(e) => handleCreateStateChange(e.target.value)}
-                >
-                  <option value="">Select state</option>
-                  {states.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-semibold text-slate-500">
-                  LGA / Area
-                </label>
-                <select
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] disabled:opacity-50"
-                  value={createForm.lga_id}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, lga_id: e.target.value }))}
-                  disabled={!createForm.state_id || loadingNewLgas}
-                >
-                  <option value="">
-                    {loadingNewLgas ? "Loading LGAs…" : "Select LGA (optional)"}
-                  </option>
-                  {newLgas.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleCreateBay}
-                disabled={creating}
-                className="rounded-lg bg-[#28A745] px-4 py-2 text-[12.5px] font-semibold text-white shadow-xs disabled:opacity-70"
-              >
-                {creating ? "Registering…" : "Save & Register Bay"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[12.5px] font-medium text-slate-600"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Filter Bar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-slate-400" />
-          <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">
-            Filter Location:
-          </span>
-        </div>
-        <select
+      <Toolbar>
+        <Select
+          aria-label="State"
           value={stateFilter}
           onChange={(e) => {
             setStateFilter(e.target.value);
             setLgaFilter("");
           }}
-          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 shadow-xs focus:border-[#28A745] focus:outline-none"
+          className="sm:w-56"
         >
           <option value="">All states</option>
           {states.map((s) => (
@@ -841,62 +639,120 @@ export default function AdminRwxBaysPage() {
               {s.name}
             </option>
           ))}
-        </select>
-        {stateFilter && (
-          <select
-            value={lgaFilter}
-            onChange={(e) => setLgaFilter(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 shadow-xs focus:border-[#28A745] focus:outline-none"
-          >
-            <option value="">All LGAs in state</option>
+        </Select>
+        {stateFilter ? (
+          <Select aria-label="LGA" value={lgaFilter} onChange={(e) => setLgaFilter(e.target.value)} className="sm:w-56">
+            <option value="">All LGAs</option>
             {filterLgas.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
             ))}
-          </select>
-        )}
-        <span className="text-[12.5px] text-slate-400 ml-auto">
-          {bays.length} {bays.length === 1 ? "bay area registered" : "bay areas registered"}
-        </span>
-      </div>
+          </Select>
+        ) : null}
+      </Toolbar>
+
+      {!loading ? (
+        <p className="text-[13px] text-cx-muted">
+          {bays.length} {bays.length === 1 ? "bay" : "bays"}
+        </p>
+      ) : null}
 
       {loading ? (
-        <div className="p-16 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#28A745] mx-auto" />
-          <p className="mt-2 text-[12.5px] text-slate-400">Loading registered bays…</p>
-        </div>
+        <SkeletonList rows={3} />
       ) : bays.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center shadow-xs">
-          <MapPin className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-          <p className="text-[14px] font-semibold text-slate-700">No inspection bays found</p>
-          <p className="text-[12.5px] text-slate-500 mt-1 max-w-sm mx-auto">
-            {stateFilter
-              ? "No bay locations exist for the selected location filter. Try switching filters or register a new bay above."
-              : "Register your first bay location to start accepting vehicle inspections and ride-hailing appointments."}
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#28A745] px-4 py-2 text-[12.5px] font-semibold text-white shadow-xs"
-          >
-            <Plus className="h-4 w-4" /> Add Bay
-          </button>
-        </div>
+        <EmptyState
+          icon={MapPin}
+          title="No inspection bays"
+          description={
+            stateFilter
+              ? "No bays in this area. Try another filter or add a bay."
+              : "Add your first bay to start taking inspection bookings."
+          }
+          action={
+            <Button icon={Plus} onClick={() => setShowCreate(true)}>
+              Add bay
+            </Button>
+          }
+        />
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2">
           {bays.map((bay) => (
-            <BayCard
-              key={bay.id}
-              bay={bay}
-              states={states}
-              agents={agents}
-              onChanged={loadBays}
-              showToast={showToast}
-            />
+            <BayCard key={bay.id} bay={bay} states={states} agents={agents} onChanged={loadBays} showToast={showToast} />
           ))}
         </div>
       )}
+
+      {/* Create bay */}
+      <Sheet
+        open={showCreate}
+        onOpenChange={(o) => !o && !creating && setShowCreate(false)}
+        title="Add an inspection bay"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreate(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button block loading={creating} onClick={handleCreateBay}>
+              Add bay
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <Field label="Bay name" required>
+            {(p) => (
+              <Input
+                {...p}
+                placeholder="e.g. Alausa Bay 1"
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            )}
+          </Field>
+          <Field label="Street address" required>
+            {(p) => (
+              <Input
+                {...p}
+                placeholder="e.g. Plot 12, Commercial Ave"
+                value={createForm.address}
+                onChange={(e) => setCreateForm((f) => ({ ...f, address: e.target.value }))}
+              />
+            )}
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="State" required>
+              {(p) => (
+                <Select {...p} value={createForm.state_id} onChange={(e) => handleCreateStateChange(e.target.value)}>
+                  <option value="">Select state</option>
+                  {states.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="LGA" optional>
+              {(p) => (
+                <Select
+                  {...p}
+                  value={createForm.lga_id}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, lga_id: e.target.value }))}
+                  disabled={!createForm.state_id || loadingNewLgas}
+                >
+                  <option value="">{loadingNewLgas ? "Loading LGAs…" : "Select LGA"}</option>
+                  {newLgas.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+        </div>
+      </Sheet>
     </div>
   );
 }

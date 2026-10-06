@@ -178,7 +178,7 @@ export function ResponsiveTable({ columns, rows, rowKey, onRowClick, empty = "No
   const rest = columns.filter((c) => c !== primary && !c.hideOnMobile);
   return (
     <>
-      <div className="hidden overflow-hidden rounded-cx-lg border border-cx-line bg-cx-surface shadow-cx md:block">
+      <div className="hidden overflow-x-auto rounded-cx-lg border border-cx-line bg-cx-surface shadow-cx md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-cx-line bg-cx-sunken/60">
             <tr>
@@ -220,7 +220,7 @@ export function ResponsiveTable({ columns, rows, rowKey, onRowClick, empty = "No
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
                   {rest.map((c) => (
                     <div key={c.key} className="min-w-0">
-                      <dt className="text-xs text-cx-muted">{c.header}</dt>
+                      <dt className="text-[13px] text-cx-muted">{c.header}</dt>
                       <dd className="truncate text-sm text-cx-ink">{cell(c, row)}</dd>
                     </div>
                   ))}

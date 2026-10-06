@@ -1,14 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  User, Mail, Phone, CheckCircle2, AlertCircle, Pencil, X, Save,
-  KeyRound, Eye, EyeOff, Loader2,
-} from "lucide-react";
+import { Pencil, KeyRound, Eye, EyeOff } from "lucide-react";
 import { authGetMe, authUpdateProfile, authChangePassword, getCachedUser } from "@/lib/api";
+import { Button, Card, DetailRow, Field, Input, Notice, PageHeader, SkeletonList } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
-const BRAND = "#28A745";
-const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
+function SectionHead({ icon: Icon, title, description, action }) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="flex items-center gap-2 text-[17px] font-semibold text-cx-ink">
+          {Icon ? <Icon className="h-5 w-5 text-cx-muted" aria-hidden /> : null}
+          {title}
+        </h2>
+        {description ? <p className="mt-0.5 text-sm text-cx-muted">{description}</p> : null}
+      </div>
+      {action}
+    </div>
+  );
+}
 
 export default function AdminSettingsPage() {
   const [user, setUser] = useState(() => getCachedUser());
@@ -28,7 +39,7 @@ export default function AdminSettingsPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
 
-  const [toast, setToast] = useState(null);
+  const pushToast = useToast();
 
   useEffect(() => {
     authGetMe().then((res) => {
@@ -60,10 +71,7 @@ export default function AdminSettingsPage() {
     });
   }, []);
 
-  const showToast = (type, msg) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 4500);
-  };
+  const showToast = (type, msg) => pushToast({ tone: type, title: type === "success" ? "Saved" : "Something went wrong", body: msg });
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -149,168 +157,99 @@ export default function AdminSettingsPage() {
 
   if (loading && !user) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin" style={{ color: BRAND }} />
-        <p className="text-sm text-slate-500">Loading your profile...</p>
+      <div className="mx-auto max-w-3xl">
+        <PageHeader title="Settings" description="Manage your admin account details." />
+        <SkeletonList rows={2} />
       </div>
     );
   }
 
+  const surname = user?.last_name || (user?.name?.split(" ")?.length > 1 ? user?.name?.split(" ").slice(1).join(" ") : "");
+  const notProvided = <span className="font-normal text-cx-muted">Not provided</span>;
+  const passwordType = showPasswords ? "text" : "password";
+
   return (
-    <div className="space-y-6 pb-12 max-w-4xl">
-      {toast && (
-        <div className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border max-w-sm ${toast.type === "success" ? "bg-white border-emerald-200 text-emerald-800" : "bg-white border-red-200 text-red-700"}`}>
-          <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
-            {toast.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-[#111111]">{toast.type === "success" ? "Saved" : "Error"}</p>
-            <p className="mt-0.5 text-[12.5px] text-slate-500 leading-relaxed">{toast.msg}</p>
-          </div>
-          <button type="button" onClick={() => setToast(null)} className="ml-1 shrink-0 text-slate-400 hover:text-slate-600">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title="Settings" description="Manage your admin account details." />
 
-      <div>
-        <h1
-          className="text-[28px] tracking-tight text-[#111111]"
-          style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-        >
-          Settings
-        </h1>
-        <p className="text-sm text-[#7A7A7A] mt-1">Manage your admin account details.</p>
-      </div>
-
-      {/* Basic Info */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold text-[#111111]">Basic Information</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Your registered contact and account details.</p>
-          </div>
-          {!editingProfile && (
-            <button type="button" onClick={() => setEditingProfile(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
+      <div className="space-y-4">
+        <Card>
+          <SectionHead
+            title="Your details"
+            description="Your registered contact and account details."
+            action={
+              !editingProfile ? (
+                <Button variant="secondary" size="sm" icon={Pencil} className="min-h-11 sm:min-h-9" onClick={() => setEditingProfile(true)}>
+                  Edit
+                </Button>
+              ) : null
+            }
+          />
+          {!editingProfile ? (
+            <dl className="divide-y divide-cx-line">
+              <DetailRow label="First name" value={user?.first_name || user?.name?.split(" ")[0] || notProvided} />
+              {Boolean(user?.middle_name) && <DetailRow label="Middle name" value={user?.middle_name} />}
+              <DetailRow label="Surname" value={surname || notProvided} />
+              <DetailRow label="Email" value={user?.email || notProvided} />
+              <DetailRow label="Phone" value={user?.phone || notProvided} />
+            </dl>
+          ) : (
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="First name" required>
+                  {(p) => <Input {...p} value={profileFirstName} onChange={(e) => setProfileFirstName(e.target.value)} required />}
+                </Field>
+                <Field label="Middle name" optional>
+                  {(p) => <Input {...p} value={profileMiddleName} onChange={(e) => setProfileMiddleName(e.target.value)} />}
+                </Field>
+                <Field label="Surname" required>
+                  {(p) => <Input {...p} value={profileLastName} onChange={(e) => setProfileLastName(e.target.value)} required />}
+                </Field>
+              </div>
+              <Field label="Email">{(p) => <Input {...p} type="email" value={user?.email || ""} disabled />}</Field>
+              <Field label="Phone">
+                {(p) => <Input {...p} type="tel" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} />}
+              </Field>
+              <div className="flex gap-3">
+                <Button type="submit" loading={updatingProfile}>Save changes</Button>
+                <Button variant="ghost" onClick={handleCancelProfile}>Cancel</Button>
+              </div>
+            </form>
           )}
-        </div>
-        {!editingProfile ? (
-          <dl className="divide-y divide-slate-100">
-            <InfoRow icon={User} label="First Name" value={user?.first_name || user?.name?.split(" ")[0]} />
-            {Boolean(user?.middle_name) && (
-              <InfoRow icon={User} label="Middle Name" value={user?.middle_name} />
-            )}
-            <InfoRow icon={User} label="Surname" value={user?.last_name || (user?.name?.split(" ")?.length > 1 ? user?.name?.split(" ").slice(1).join(" ") : "")} />
-            <InfoRow icon={Mail} label="Email Address" value={user?.email} monospace />
-            <InfoRow icon={Phone} label="Phone Number" value={user?.phone} monospace />
-          </dl>
-        ) : (
-          <form onSubmit={handleSaveProfile} className="px-6 sm:px-8 py-6 space-y-5 max-w-xl">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
-                <input type="text" value={profileFirstName} onChange={(e) => setProfileFirstName(e.target.value)} className={inputCls} required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Middle Name <span className="text-xs text-slate-400 font-normal">(opt)</span></label>
-                <input type="text" value={profileMiddleName} onChange={(e) => setProfileMiddleName(e.target.value)} className={inputCls} placeholder="Optional" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Surname <span className="text-red-500">*</span></label>
-                <input type="text" value={profileLastName} onChange={(e) => setProfileLastName(e.target.value)} className={inputCls} required />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
-              <input type="email" value={user?.email || ""} disabled className={`${inputCls} bg-slate-100 text-slate-400 cursor-not-allowed`} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
-              <input type="tel" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className={`${inputCls} font-mono`} />
-            </div>
-            <div className="flex items-center gap-3 pt-2">
-              <button type="submit" disabled={updatingProfile} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
-                <Save className="h-4 w-4" /> {updatingProfile ? "Saving..." : "Save Changes"}
-              </button>
-              <button type="button" onClick={handleCancelProfile} className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]">Cancel</button>
-            </div>
-          </form>
-        )}
-      </div>
+        </Card>
 
-      {/* Password */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100">
-          <h2 className="font-display text-base font-semibold text-[#111111] flex items-center gap-2">
-            <KeyRound className="h-4 w-4" style={{ color: BRAND }} /> Password
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">Change your account password. You will need your current password.</p>
-        </div>
-        <form onSubmit={handleChangePassword} className="px-6 sm:px-8 py-6 space-y-5 max-w-lg">
-          {passwordError && (
-            <div className="flex items-start gap-2.5 rounded-lg bg-red-50 p-3 text-sm text-red-700 ring-1 ring-inset ring-red-200">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{passwordError}</span>
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Current Password</label>
-            <div className="relative">
-              <input
-                type={showPasswords ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className={`${inputCls} pr-10`}
-              />
-              <button type="button" onClick={() => setShowPasswords(!showPasswords)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+        <Card as="form" onSubmit={handleChangePassword}>
+          <SectionHead
+            icon={KeyRound}
+            title="Change password"
+            description="You will need your current password."
+            action={
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={showPasswords ? EyeOff : Eye}
+                className="min-h-11 sm:min-h-9"
+                aria-pressed={showPasswords}
+                onClick={() => setShowPasswords(!showPasswords)}
+              >
+                {showPasswords ? "Hide" : "Show"}
+              </Button>
+            }
+          />
+          <div className="space-y-4">
+            {passwordError ? <Notice tone="red">{passwordError}</Notice> : null}
+            <Field label="Current password">
+              {(p) => <Input {...p} type={passwordType} autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />}
+            </Field>
+            <Field label="New password" hint="At least 8 characters">
+              {(p) => <Input {...p} type={passwordType} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />}
+            </Field>
+            <Field label="Type the new password again">
+              {(p) => <Input {...p} type={passwordType} autoComplete="new-password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} />}
+            </Field>
+            <Button type="submit" loading={updatingPassword}>Change password</Button>
           </div>
-
-
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">New Password</label>
-            <input
-              type={showPasswords ? "text" : "password"}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimum 8 characters"
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm New Password</label>
-            <input
-              type={showPasswords ? "text" : "password"}
-              value={confirmNewPassword}
-              onChange={(e) => setConfirmNewPassword(e.target.value)}
-              className={inputCls}
-            />
-          </div>
-          <div className="pt-2">
-            <button type="submit" disabled={updatingPassword} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60">
-              <Save className="h-4 w-4" /> {updatingPassword ? "Updating..." : "Update Password"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ icon: Icon, label, value, monospace, empty = "Not provided" }) {
-  return (
-    <div className="flex items-start gap-4 px-6 sm:px-8 py-4 hover:bg-slate-50/50 transition-colors">
-      <div className="h-8 w-8 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center mt-0.5">
-        <Icon className="h-[15px] w-[15px] text-slate-500" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[12px] text-slate-400 font-medium uppercase tracking-wide mb-0.5">{label}</p>
-        <p className={`text-sm font-medium ${value ? "text-[#111111]" : "text-slate-400 italic"} ${monospace && value ? "font-mono" : ""}`}>{value || empty}</p>
+        </Card>
       </div>
     </div>
   );
