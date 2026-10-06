@@ -64,6 +64,8 @@ export default function WalletPage() {
 
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [txQuery, setTxQuery] = useState("");
+  const [txPeriod, setTxPeriod] = useState("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -207,6 +209,14 @@ export default function WalletPage() {
   const balance = wallet?.balance_kobo || 0;
   const dva = wallet?.virtual_account || null;
 
+  const txQ = txQuery.trim().toLowerCase();
+  const txCutoff = txPeriod === "all" ? 0 : Date.now() - Number(txPeriod) * 24 * 60 * 60 * 1000;
+  const visibleTransactions = transactions.filter((tx) => {
+    if (txCutoff && new Date(tx.created_at).getTime() < txCutoff) return false;
+    if (!txQ) return true;
+    return [txLabel(tx), tx.reference, tx.source, koboToNaira(tx.amount_kobo)].some((v) => String(v || "").toLowerCase().includes(txQ));
+  });
+
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-16 pt-2">
       {/* Header Breadcrumbs */}
@@ -330,18 +340,26 @@ export default function WalletPage() {
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
                 {/* Search Bar - styled per Adze design */}
                 <div className="relative w-full sm:w-[280px]">
-                  <input type="text" placeholder="Search for transactions" className="w-full bg-cx-sunken/70 border border-cx-line rounded-full px-10 py-2.5 text-[13px] font-medium text-cx-ink-2 outline-none focus:bg-white focus:border-cx-line-strong transition-colors" />
+                  <label htmlFor="tx-search" className="sr-only">Search transactions</label>
+                  <input id="tx-search" type="search" value={txQuery} onChange={(e) => setTxQuery(e.target.value)} placeholder="Search transactions" className="w-full min-h-11 bg-cx-sunken/70 border border-cx-line rounded-full px-10 py-2.5 text-[15px] text-cx-ink outline-none focus:bg-white focus:border-cx-line-strong transition-colors" />
                   <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-cx-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
 
-                <div className="flex items-center justify-center gap-2.5 bg-cx-sunken/70 border border-cx-line rounded-full px-4 py-2 cursor-pointer hover:bg-cx-sunken transition-colors whitespace-nowrap">
-                  <span className="text-[13px] font-bold text-cx-ink-2">This week</span>
-                  <Calendar className="h-4 w-4 text-cx-muted" />
-                </div>
+                <label className="relative flex min-h-11 items-center gap-2 rounded-full border border-cx-line bg-cx-sunken/70 pl-4 pr-3">
+                  <Calendar className="h-4 w-4 text-cx-muted" aria-hidden />
+                  <span className="sr-only">Show transactions from</span>
+                  <select value={txPeriod} onChange={(e) => setTxPeriod(e.target.value)} className="appearance-none bg-transparent pr-1 text-[15px] font-medium text-cx-ink-2 outline-none">
+                    <option value="all">All time</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                  </select>
+                </label>
               </div>
             </div>
 
-            {transactions.length === 0 ? (
+            {visibleTransactions.length === 0 && transactions.length > 0 ? (
+              <p className="py-12 text-center text-sm text-cx-muted">No transactions match. Try another search or period.</p>
+            ) : transactions.length === 0 ? (
               <div className="py-16 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-cx-sunken text-cx-muted mb-3">
                   <History className="h-6 w-6" />
@@ -352,7 +370,7 @@ export default function WalletPage() {
               <>
                 {/* Mobile: stacked cards */}
                 <div className="space-y-3 sm:hidden">
-                  {transactions.map((tx) => {
+                  {visibleTransactions.map((tx) => {
                     const isCredit = tx.type === "credit";
                     const meta = txStatusMeta(tx.status);
                     return (
@@ -407,7 +425,7 @@ export default function WalletPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50/80">
-                      {transactions.map((tx) => {
+                      {visibleTransactions.map((tx) => {
                         const isCredit = tx.type === "credit";
                         const meta = txStatusMeta(tx.status);
                         return (
@@ -446,15 +464,7 @@ export default function WalletPage() {
                                   {checkingRef === tx.reference && <Loader2 className="h-3 w-3 animate-spin" />}
                                   Check status
                                 </button>
-                              ) : (
-                                <button className="p-1 hover:bg-cx-sunken rounded-lg transition-colors">
-                                  <span className="flex flex-col gap-[3px] items-center justify-center h-5 w-5">
-                                    <span className="w-1 h-1 bg-current rounded-full" />
-                                    <span className="w-1 h-1 bg-current rounded-full" />
-                                    <span className="w-1 h-1 bg-current rounded-full" />
-                                  </span>
-                                </button>
-                              )}
+                              ) : null}
                             </td>
                           </tr>
                         );
@@ -495,7 +505,7 @@ export default function WalletPage() {
                 <input
                   type="number"
                   min="100"
-                  step="100"
+                  step="any"
                   required
                   value={depositAmountNaira}
                   onChange={(e) => setDepositAmountNaira(e.target.value)}

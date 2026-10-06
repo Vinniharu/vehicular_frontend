@@ -24,7 +24,7 @@ function SignupForm() {
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("+234 ");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [referralCode, setReferralCode] = useState(searchParams?.get("ref") || "");
@@ -55,8 +55,17 @@ function SignupForm() {
       return;
     }
 
+    // A real number is required: it's used for SMS updates and pre-fills
+    // every application. Accept 0801…, 801…, +234801… or 234801….
+    const digits = phone.replace(/D/g, "");
+    const national = digits.startsWith("234") ? digits.slice(3) : digits.startsWith("0") ? digits.slice(1) : digits;
+    if (national.length !== 10) {
+      setError("Enter a valid Nigerian phone number, for example 0801 234 5678.");
+      return;
+    }
+    const cleanPhone = `+234${national}`;
+
     setLoading(true);
-    const cleanPhone = phone.trim() === "+234" ? "+2348000000000" : phone.trim();
 
     const fn = firstName.trim();
     const mn = middleName.trim() || undefined;
@@ -198,12 +207,13 @@ function SignupForm() {
             </label>
             <input
               id="firstName"
+              autoComplete="given-name"
               type="text"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Ada"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -216,11 +226,12 @@ function SignupForm() {
             </label>
             <input
               id="middleName"
+              autoComplete="additional-name"
               type="text"
               value={middleName}
               onChange={(e) => setMiddleName(e.target.value)}
               placeholder="Chidinma"
-              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -233,12 +244,13 @@ function SignupForm() {
             </label>
             <input
               id="lastName"
+              autoComplete="family-name"
               type="text"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Obi"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -254,12 +266,13 @@ function SignupForm() {
             </label>
             <input
               id="email"
+              autoComplete="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -273,11 +286,13 @@ function SignupForm() {
             <input
               id="phone"
               type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+2348011112222"
+              placeholder="0801 234 5678"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none font-mono transition-all"
+              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none font-mono transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -296,7 +311,7 @@ function SignupForm() {
             value={referralCode}
             onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
             placeholder="e.g. HPG849ND"
-            className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none font-mono uppercase transition-all"
+            className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none font-mono uppercase transition-all"
             style={{
               background: "rgba(17, 17, 17, 0.6)",
               border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -312,12 +327,13 @@ function SignupForm() {
             <div className="relative">
               <input
                 id="password"
+                autoComplete="new-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimum 8 characters"
                 required
-                className="w-full rounded-xl pl-4 pr-10 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+                className="w-full rounded-xl pl-4 pr-10 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
                 style={{
                   background: "rgba(17, 17, 17, 0.6)",
                   border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -338,12 +354,13 @@ function SignupForm() {
             </label>
             <input
               id="confirmPassword"
+              autoComplete="new-password"
               type={showPassword ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter password"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",

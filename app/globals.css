@@ -168,3 +168,13 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* iOS Safari zooms into any field under 16px on focus. Guarantee 16px for
+   every form control in the customer portal on phone-sized screens. */
+@media (max-width: 639px) {
+  .cx-root input:not([type="checkbox"]):not([type="radio"]),
+  .cx-root select,
+  .cx-root textarea {
+    font-size: 16px;
+  }
+}

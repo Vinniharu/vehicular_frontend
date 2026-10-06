@@ -17,15 +17,8 @@ import { colors } from "@/lib/design-tokens";
 
 const BRAND = colors.primary.DEFAULT;
 
-const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-cx-sunken border border-cx-line focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
+const inputCls = "w-full min-h-12 rounded-cx px-4 py-2.5 text-base sm:text-[15px] bg-cx-surface border border-cx-line-strong text-cx-ink focus:outline-none focus:border-cx-brand focus:ring-4 focus:ring-[color:var(--cx-focus)]";
 const selectCls = `${inputCls} appearance-none`;
-
-// Normalise a phone field to always start with +234
-function normalisePhone(val) {
-  if (!val) return "+234";
-  const stripped = val.replace(/^\+?234/, "").replace(/^0/, "");
-  return "+234" + stripped;
-}
 
 export default function SettingsPage() {
   const [user, setUser] = useState(() => getCachedUser());
@@ -133,7 +126,7 @@ export default function SettingsPage() {
     });
     setUpdatingBasic(false);
     if (res.error) {
-      showToast("error", "Could not save your changes. Please try again.");
+      showToast("error", res.error || "Your changes weren't saved. Try again.");
     } else if (res.data) {
       setUser(res.data);
       setEditingBasic(false);
@@ -162,7 +155,7 @@ export default function SettingsPage() {
     });
     setUpdatingProfile(false);
     if (res.error) {
-      showToast("error", "Could not save your changes. Please try again.");
+      showToast("error", res.error || "Your changes weren't saved. Try again.");
     } else if (res.data) {
       setUser(res.data);
       const u = res.data;
@@ -251,22 +244,24 @@ export default function SettingsPage() {
     }
   };
 
-  const isOAuthUser = Boolean(user?.oauth_provider && !user?.password_hash);
+  // /auth/me never returns password_hash, so for anyone who has used Google
+  // sign-in we can't tell whether they also set a password. Ask for both and
+  // let the backend use whichever applies (password if one is set, else the
+  // typed DELETE).
+  const isOAuthUser = Boolean(user?.oauth_provider);
 
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
     setDeleteError(null);
 
     if (isOAuthUser) {
-      if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
-        setDeleteError("Please type DELETE to confirm account deletion.");
+      if (!deletePassword && deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+        setDeleteError("Enter your password, or type DELETE if you've never set one.");
         return;
       }
-    } else {
-      if (!deletePassword) {
-        setDeleteError("Please enter your current password to confirm.");
-        return;
-      }
+    } else if (!deletePassword) {
+      setDeleteError("Enter your current password to confirm.");
+      return;
     }
 
     setDeletingAccount(true);
@@ -489,7 +484,12 @@ export default function SettingsPage() {
           <h2 className="font-display text-base font-semibold text-cx-ink flex items-center gap-2">
             <KeyRound className="h-4 w-4" style={{ color: BRAND }} /> Password
           </h2>
-          <p className="text-sm text-cx-muted mt-0.5">Change your account password. You will need your current password.</p>
+          <p className="text-sm text-cx-muted mt-0.5">Change your account password. You'll need your current one.</p>
+          {user?.oauth_provider ? (
+            <p className="mt-2 text-sm text-cx-muted">
+              Only ever signed in with Google? You don't have a password yet. Sign out, choose "Forgot password" on the sign-in page, and we'll email you a link to set one.
+            </p>
+          ) : null}
         </div>
         <form onSubmit={handleChangePassword} className="px-6 sm:px-8 py-6 space-y-5 max-w-lg">
           {passwordError && (
@@ -626,19 +626,36 @@ export default function SettingsPage() {
 
           <form onSubmit={handleDeleteAccount} className="space-y-4">
             {isOAuthUser ? (
-              <div>
-                <label className="block text-xs font-semibold text-cx-ink-2 mb-1.5">
-                  To confirm, please type <span className="font-mono text-red-600 font-bold">DELETE</span> below:
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="Type DELETE"
-                  className={inputCls}
-                  autoFocus
-                />
-              </div>
+              <>
+                <div>
+                  <label htmlFor="delete-password" className="block text-sm font-medium text-cx-ink mb-1.5">
+                    Your password <span className="font-normal text-cx-muted">(if you've set one)</span>
+                  </label>
+                  <input
+                    id="delete-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Your current password"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="delete-confirm" className="block text-sm font-medium text-cx-ink mb-1.5">
+                    Only sign in with Google? Type <span className="font-semibold text-cx-red">DELETE</span> instead
+                  </label>
+                  <input
+                    id="delete-confirm"
+                    type="text"
+                    autoComplete="off"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className={inputCls}
+                  />
+                </div>
+              </>
             ) : (
               <div>
                 <label className="block text-xs font-semibold text-cx-ink-2 mb-1.5">
@@ -666,7 +683,7 @@ export default function SettingsPage() {
               </button>
               <button
                 type="submit"
-                disabled={deletingAccount || (isOAuthUser ? deleteConfirmText.trim().toUpperCase() !== "DELETE" : !deletePassword)}
+                disabled={deletingAccount || (isOAuthUser ? !deletePassword && deleteConfirmText.trim().toUpperCase() !== "DELETE" : !deletePassword)}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white transition-colors shadow-xs cursor-pointer"
               >
                 {deletingAccount ? (

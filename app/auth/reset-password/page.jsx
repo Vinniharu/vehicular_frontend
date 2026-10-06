@@ -117,12 +117,13 @@ function ResetPasswordForm() {
           <div className="relative">
             <input
               id="password"
+              autoComplete="new-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 characters"
               required
-              className="w-full rounded-xl pl-4 pr-11 py-3 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl pl-4 pr-11 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -144,12 +145,13 @@ function ResetPasswordForm() {
           </label>
           <input
             id="confirmPassword"
+            autoComplete="new-password"
             type={showPassword ? "text" : "password"}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Re-enter password"
             required
-            className="w-full rounded-xl px-4 py-3 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+            className="w-full rounded-xl px-4 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
             style={{
               background: "rgba(17, 17, 17, 0.6)",
               border: "1px solid rgba(255, 255, 255, 0.12)",

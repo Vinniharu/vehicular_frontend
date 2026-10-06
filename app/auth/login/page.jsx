@@ -56,7 +56,10 @@ function LoginForm() {
     // Always show the generic confirmation on any non-network-error response
     // — the backend deliberately returns the same message whether or not
     // the email is registered, so the UI shouldn't leak that either.
-    if (result.error && result.status === 0) {
+    if (result.error && result.status === 429) {
+      // Rate limited: saying "check your email" here would be untrue.
+      setForgotError("Too many requests. Wait a few minutes, then try again.");
+    } else if (result.error && result.status === 0) {
       setForgotError(result.error);
     } else {
       setForgotSent(true);
@@ -259,12 +262,13 @@ function LoginForm() {
           </label>
           <input
             id="email"
+            autoComplete="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             required
-            className="w-full rounded-xl px-4 py-3 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+            className="w-full rounded-xl px-4 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
             style={{
               background: "rgba(17, 17, 17, 0.6)",
               border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -288,12 +292,13 @@ function LoginForm() {
           <div className="relative">
             <input
               id="password"
+              autoComplete="current-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              className="w-full rounded-xl pl-4 pr-11 py-3 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+              className="w-full rounded-xl pl-4 pr-11 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
               style={{
                 background: "rgba(17, 17, 17, 0.6)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -407,11 +412,13 @@ function LoginForm() {
                 <form onSubmit={handleForgotSubmit} className="space-y-3 text-left">
                   <input
                     type="email"
+                    autoComplete="email"
+                    aria-label="Email address"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="you@example.com"
                     required
-                    className="w-full rounded-xl px-4 py-3 text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
+                    className="w-full rounded-xl px-4 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
                     style={{
                       background: "rgba(255, 255, 255, 0.06)",
                       border: "1px solid rgba(255, 255, 255, 0.15)",
