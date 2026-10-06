@@ -1,163 +1,146 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+// Roadworthiness inspection: the agent records ten fixed checks (pass/fail
+// plus a photo each) and submits them for staff review.
+
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Loader2,
-  AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Camera,
-  MapPin,
-  Clock,
-  Car,
-  Send,
-} from "lucide-react";
-import { getApplication, submitRwxChecklistItem, submitRwxChecklist, uploadApplicationFile, resolveMediaUrl } from "@/lib/api";
-import { validateUploadFile } from "@/lib/utils/fileValidation";
+import { CheckCircle2, Clock, MapPin, Send, XCircle } from "lucide-react";
+import { getApplication, resolveMediaUrl, submitRwxChecklist, submitRwxChecklistItem } from "@/lib/api";
+import { Button, Card, ErrorState, Field, Notice, StickyActionBar, Textarea } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import AgentApplicationChatSection from "@/app/components/design/AgentApplicationChatSection";
+import { jobStage } from "../../_components/jobs";
+import { Info, InfoGrid, Spinner, UploadBox } from "../../_components/ui";
+import { CustomerCard, JobHeader, NextStep, StaffNote, reworkNote } from "../../_components/JobShell";
 
-const BRAND = "#28A745";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-// The 10 fixed checklist items, in display order — mirrors
-// RWX_CHECKLIST_ITEM_KEYS (app/modules/driver_licence/router.py) exactly.
-// Not admin-configurable, per the spec's fixed checklist.
-const CHECKLIST_ITEMS = [
+// Mirrors RWX_CHECKLIST_ITEM_KEYS in the backend, in display order.
+const CHECKLIST = [
   { key: "tyres", label: "Tyres", hint: "Tread depth and condition, all round" },
-  { key: "brakes", label: "Brakes", hint: "Function" },
+  { key: "brakes", label: "Brakes", hint: "They work properly" },
   { key: "lights", label: "Lights", hint: "Headlights, indicators, brake lights" },
-  { key: "steering_suspension", label: "Steering and suspension", hint: "" },
-  { key: "windscreen_mirrors", label: "Windscreen and mirrors", hint: "" },
-  { key: "seatbelts", label: "Seatbelts", hint: "" },
-  { key: "horn", label: "Horn", hint: "" },
-  { key: "exhaust_emissions", label: "Exhaust / emissions", hint: "" },
-  { key: "chassis_body", label: "Chassis and body condition", hint: "" },
-  { key: "overall_verdict", label: "Overall verdict", hint: "Roadworthy or not roadworthy, based on everything above" },
+  { key: "steering_suspension", label: "Steering and suspension" },
+  { key: "windscreen_mirrors", label: "Windscreen and mirrors" },
+  { key: "seatbelts", label: "Seatbelts" },
+  { key: "horn", label: "Horn" },
+  { key: "exhaust_emissions", label: "Exhaust and emissions" },
+  { key: "chassis_body", label: "Chassis and body" },
+  { key: "overall_verdict", label: "Overall result", hint: "Based on everything above", pass: "Roadworthy", fail: "Not roadworthy" },
 ];
 
-function ChecklistRow({ item, existing, onSave, previewFn }) {
+function CheckItem({ item, index, existing, canEdit, onSave, onPreview }) {
   const [result, setResult] = useState(existing?.result || null);
-  const [evidenceUrl, setEvidenceUrl] = useState(existing?.evidence_url || null);
+  const [photo, setPhoto] = useState(existing?.evidence_url || "");
   const [notes, setNotes] = useState(existing?.notes || "");
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const isComplete = !!(existing?.result && existing?.evidence_url);
+  const saved = !!(existing?.result && existing?.evidence_url);
+  const dirty = result !== (existing?.result || null) || photo !== (existing?.evidence_url || "") || notes !== (existing?.notes || "");
 
-  const handleFile = async (file) => {
-    if (!file) return;
-    setError(null);
-    const validation = validateUploadFile(file, { maxSizeMb: 10 });
-    if (!validation.valid) {
-      setError(validation.error);
-      return;
-    }
-    setUploading(true);
-    const { data, error: uploadError } = await uploadApplicationFile(file);
-    setUploading(false);
-    if (uploadError || !data?.file_url) {
-      setError(uploadError || "Upload failed. Please try again.");
-      return;
-    }
-    setEvidenceUrl(data.file_url);
-  };
-
-  const handleSave = async () => {
-    if (!result || !evidenceUrl) {
-      setError("Pick pass/fail and attach a photo before saving.");
-      return;
-    }
+  const save = async () => {
+    if (!result || !photo) return setError("Choose pass or fail and add a photo.");
     setSaving(true);
     setError(null);
-    const res = await onSave(item.key, { result, evidence_url: evidenceUrl, notes: notes || undefined });
+    const res = await onSave(item.key, { result, evidence_url: photo, notes: notes || undefined });
     setSaving(false);
     if (res?.error) setError(res.error);
   };
 
   return (
-    <div className={`rounded-2xl border p-4 transition-all ${isComplete ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
+    <li className={cx("rounded-cx-lg border bg-cx-surface p-4 shadow-cx", saved && !dirty ? "border-cx-brand/40" : "border-cx-line")}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-1.5 text-[13.5px] font-bold text-slate-900">
-            {isComplete && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+          <p className="text-[16px] font-semibold text-cx-ink">
+            <span className="mr-1.5 text-cx-muted">{index + 1}.</span>
             {item.label}
           </p>
-          {item.hint && <p className="text-[12px] text-slate-500">{item.hint}</p>}
+          {item.hint ? <p className="text-[13px] text-cx-muted">{item.hint}</p> : null}
         </div>
+        {saved && !dirty ? (
+          <span className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-cx-brand-deep">
+            <CheckCircle2 className="h-4 w-4" aria-hidden /> Saved
+          </span>
+        ) : null}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setResult("pass")}
-          className={`flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-[12.5px] font-semibold transition-all ${
-            result === "pass" ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500"
-          }`}
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" /> Pass
-        </button>
-        <button
-          type="button"
-          onClick={() => setResult("fail")}
-          className={`flex items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-[12.5px] font-semibold transition-all ${
-            result === "fail" ? "border-red-400 bg-red-50 text-red-700" : "border-slate-200 text-slate-500"
-          }`}
-        >
-          <XCircle className="h-3.5 w-3.5" /> Fail
-        </button>
-
-        {evidenceUrl ? (
-          <button type="button" onClick={() => previewFn(resolveMediaUrl(evidenceUrl))} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600">
-            <Camera className="h-3.5 w-3.5" /> Photo attached
+      <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={`${item.label} result`}>
+        {[
+          ["pass", item.pass || "Pass", CheckCircle2],
+          ["fail", item.fail || "Fail", XCircle],
+        ].map(([value, label, Icon]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={result === value}
+            disabled={!canEdit}
+            onClick={() => setResult(value)}
+            className={cx(
+              "cx-focus inline-flex min-h-12 items-center justify-center gap-2 rounded-cx border text-[15px] font-semibold disabled:opacity-70",
+              result === value
+                ? value === "pass"
+                  ? "border-cx-brand bg-cx-brand-soft text-cx-brand-deep"
+                  : "border-cx-red bg-cx-red-soft text-cx-red"
+                : "border-cx-line-strong text-cx-ink-2 hover:bg-cx-sunken"
+            )}
+          >
+            <Icon className="h-4 w-4" aria-hidden />
+            {label}
           </button>
-        ) : (
-          <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
-            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-            {uploading ? "Uploading…" : "Attach photo"}
-            <input type="file" accept="image/*" capture="environment" disabled={uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
-          </label>
-        )}
+        ))}
       </div>
 
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder="Notes (optional)"
-        rows={1}
-        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12.5px] text-slate-800 outline-none focus:border-[#28A745]"
-      />
+      <div className="mt-3">
+        {canEdit ? (
+          <UploadBox
+            label="Take a photo"
+            accept="image/*"
+            capture="environment"
+            value={photo}
+            fileName={photo ? "Photo added" : ""}
+            previewSrc={photo ? resolveMediaUrl(photo) : undefined}
+            onUploaded={({ url }) => setPhoto(url)}
+          />
+        ) : photo ? (
+          <Button variant="secondary" size="sm" onClick={() => onPreview(resolveMediaUrl(photo))}>View photo</Button>
+        ) : null}
+      </div>
 
-      {error && <p className="mt-1.5 text-[11.5px] text-red-600">{error}</p>}
-
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={saving || !result || !evidenceUrl}
-        className="mt-2 rounded-lg bg-[#28A745] px-3 py-1.5 text-[11.5px] font-semibold text-white disabled:opacity-50"
-      >
-        {saving ? "Saving…" : isComplete ? "Update" : "Save item"}
-      </button>
-    </div>
+      {canEdit ? (
+        <>
+          <Field label="Notes" optional className="mt-3">
+            {(p) => <Textarea {...p} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />}
+          </Field>
+          {error ? <p className="mt-2 text-[13px] font-medium text-cx-red">{error}</p> : null}
+          {dirty || !saved ? (
+            <Button className="mt-3" variant={saved ? "secondary" : "soft"} loading={saving} disabled={!result || !photo} onClick={save}>
+              {saved ? "Save changes" : "Save check"}
+            </Button>
+          ) : null}
+        </>
+      ) : existing?.notes ? (
+        <p className="mt-2 text-sm text-cx-ink-2">{existing.notes}</p>
+      ) : null}
+    </li>
   );
 }
 
-export default function AgentRwxChecklistPage() {
-  const params = useParams();
+export default function AgentRwxPage() {
+  const { id: appId } = useParams();
   const router = useRouter();
-  const appId = params.id;
-
+  const pushToast = useToast();
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [preview, setPreview] = useState(null);
 
-  const loadApplication = useCallback(async () => {
+  const load = useCallback(async () => {
     const res = await getApplication(appId);
     if (res.error) setError(res.error);
     else setApplication(res.data);
@@ -165,151 +148,89 @@ export default function AgentRwxChecklistPage() {
   }, [appId]);
 
   useEffect(() => {
-    loadApplication();
-  }, [loadApplication]);
+    load();
+  }, [load]);
 
-  const itemsByKey = Object.fromEntries((application?.rwx_checklist_items || []).map((i) => [i.item_key, i]));
-  const completedCount = CHECKLIST_ITEMS.filter((c) => itemsByKey[c.key]?.result && itemsByKey[c.key]?.evidence_url).length;
-  const allComplete = completedCount === CHECKLIST_ITEMS.length;
-  const isNeedsCorrection = application?.status === "needs_correction";
-  const isApproved = application?.status === "completed";
-  const canEdit = !isApproved && ["agent_accepted", "needs_correction"].includes(application?.status);
+  if (loading) return <Spinner label="Loading inspection…" />;
+  if (error || !application) return <ErrorState title="Inspection not found" message={error} onRetry={load} />;
 
-  const handleSaveItem = async (itemKey, payload) => {
-    const res = await submitRwxChecklistItem(appId, itemKey, payload);
-    if (!res.error) await loadApplication();
+  const byKey = Object.fromEntries((application.rwx_checklist_items || []).map((i) => [i.item_key, i]));
+  const doneCount = CHECKLIST.filter((c) => byKey[c.key]?.result && byKey[c.key]?.evidence_url).length;
+  const allDone = doneCount === CHECKLIST.length;
+  const status = application.status;
+  const canEdit = ["agent_accepted", "needs_correction"].includes(status);
+  const rework = status === "needs_correction";
+  const stage = jobStage(application);
+  const detail = application.rwx_detail;
+
+  const saveItem = async (key, payload) => {
+    const res = await submitRwxChecklistItem(appId, key, payload);
+    if (!res.error) await load();
     return res;
   };
 
-  const handleSubmit = async () => {
+  const submit = async () => {
     setSubmitting(true);
     setSubmitError(null);
     const res = await submitRwxChecklist(appId);
     setSubmitting(false);
-    if (res.error) {
-      setSubmitError(res.error);
-      return;
-    }
+    if (res.error) return setSubmitError(res.error);
+    pushToast({ tone: "success", title: "Inspection sent to staff for review", body: "Staff issue the certificate if the vehicle passed." });
     router.push("/agent/applications");
   };
 
-  if (loading) {
-    return (
-      <div className="p-16 text-center space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin text-[#28A745] mx-auto" />
-        <p className="text-sm text-slate-500 font-medium">Loading inspection…</p>
-      </div>
-    );
-  }
-
-  if (error || !application) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
-        <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-        <span>{error || "Application not found."}</span>
-      </div>
-    );
-  }
-
-  const detail = application.rwx_detail;
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pb-16">
-      <DocumentPreviewModal isOpen={!!previewUrl} onClose={() => setPreviewUrl(null)} fileUrl={previewUrl} />
+    <div className="mx-auto max-w-3xl">
+      <DocumentPreviewModal isOpen={!!preview} onClose={() => setPreview(null)} fileUrl={preview} />
+      <JobHeader application={application} stage={stage} />
 
-      <button onClick={() => router.push("/agent/applications")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
-        <ArrowLeft className="h-3.5 w-3.5" /> Back
-      </button>
-
-      {isNeedsCorrection && (
-        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-[13px] text-red-800 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-red-100 p-2 text-red-700 ring-1 ring-red-200">
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center justify-between">
-                <strong className="text-[14px] font-bold text-red-900">Revision Required: Staff Rejected Inspection</strong>
-                <span className="rounded-full bg-red-200/80 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-red-800">
-                  Revision
-                </span>
+      <div className="space-y-4">
+        {rework ? <StaffNote note={reworkNote(application)} /> : null}
+        <NextStep stage={stage} title={canEdit ? (rework ? "Update the checks staff flagged and submit again" : "Inspect the vehicle and record all 10 checks") : null}>
+          {canEdit ? (
+            <div>
+              <p>Each check needs pass or fail and a photo. Save each one as you go.</p>
+              <div className="mt-3 flex items-center justify-between text-sm text-cx-muted">
+                <span>{doneCount} of {CHECKLIST.length} checks saved</span>
               </div>
-              <p className="text-[12.5px] text-red-700">
-                Staff reviewed this inspection and requested corrections. Please update the necessary checklist items and photos below, then resubmit.
-              </p>
-              {application.review_note && (
-                <div className="mt-2 rounded-xl border border-red-200 bg-white/80 p-2.5">
-                  <span className="block text-[10.5px] font-bold uppercase tracking-wide text-red-800">Staff Note:</span>
-                  <p className="mt-0.5 font-mono text-[12.5px] text-red-900 whitespace-pre-wrap">{application.review_note}</p>
-                </div>
-              )}
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-cx-line">
+                <div className="h-full rounded-full bg-cx-brand transition-all" style={{ width: `${(doneCount / CHECKLIST.length) * 100}%` }} />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          ) : null}
+        </NextStep>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h1 className="text-[19px] font-bold tracking-tight text-slate-900">Roadworthiness inspection #{application.id}</h1>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Bay</span>
-            <span className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-slate-800"><MapPin className="h-3.5 w-3.5 text-slate-400" /> {detail?.bay?.name || "—"}</span>
+        <Card>
+          <h2 className="text-[16px] font-semibold text-cx-ink">Booking</h2>
+          <div className="mt-3">
+            <InfoGrid>
+              <Info label="Bay" value={detail?.bay?.name ? <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4 text-cx-muted" aria-hidden />{detail.bay.name}</span> : null} />
+              <Info label="Slot" value={detail?.slot?.label ? <span className="inline-flex items-center gap-1"><Clock className="h-4 w-4 text-cx-muted" aria-hidden />{detail.slot.label}</span> : null} />
+              <Info label="Vehicle category" value={detail?.vehicle_category?.replace(/_/g, " ")} />
+            </InfoGrid>
           </div>
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Slot</span>
-            <span className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-slate-800"><Clock className="h-3.5 w-3.5 text-slate-400" /> {detail?.slot?.label || "—"}</span>
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Category</span>
-            <span className="mt-0.5 block text-[13px] font-semibold capitalize text-slate-800">{detail?.vehicle_category?.replace(/_/g, " ") || "—"}</span>
-          </div>
-        </div>
-        {!canEdit && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
-            {application.status === "agent_completed" ? "Checklist already submitted — awaiting staff confirmation." : `This job is at status "${application.status}" and can't be edited here.`}
-          </p>
-        )}
+        </Card>
+
+        <ol className="space-y-3">
+          {CHECKLIST.map((item, i) => (
+            <CheckItem key={item.key} item={item} index={i} existing={byKey[item.key]} canEdit={canEdit} onSave={saveItem} onPreview={setPreview} />
+          ))}
+        </ol>
+
+        {canEdit ? (
+          <StickyActionBar>
+            <div className="w-full space-y-2">
+              {submitError ? <Notice tone="red">{submitError}</Notice> : null}
+              <Button size="lg" block icon={Send} loading={submitting} disabled={!allDone} onClick={submit}>
+                {allDone ? (rework ? "Resubmit inspection" : "Submit inspection") : `Save all ${CHECKLIST.length} checks to submit (${doneCount}/${CHECKLIST.length})`}
+              </Button>
+            </div>
+          </StickyActionBar>
+        ) : null}
+
+        <CustomerCard application={application} />
+        <AgentApplicationChatSection application={application} />
       </div>
-
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3.5">
-        <p className="text-[13px] font-semibold text-slate-700">
-          {completedCount} of {CHECKLIST_ITEMS.length} items complete
-        </p>
-        <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-[#28A745] transition-all" style={{ width: `${(completedCount / CHECKLIST_ITEMS.length) * 100}%` }} />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {CHECKLIST_ITEMS.map((item) => (
-          <ChecklistRow
-            key={item.key}
-            item={item}
-            existing={canEdit ? itemsByKey[item.key] : itemsByKey[item.key]}
-            onSave={canEdit ? handleSaveItem : async () => ({ error: "This job can no longer be edited." })}
-            previewFn={setPreviewUrl}
-          />
-        ))}
-      </div>
-
-      {canEdit && (
-        <div className="space-y-2">
-          {submitError && <p className="text-[13px] font-medium text-red-600">{submitError}</p>}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!allComplete || submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50"
-            style={{ background: BRAND }}
-          >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {submitting ? "Submitting…" : isNeedsCorrection ? "Resubmit inspection (Revision)" : allComplete ? "Submit inspection" : `Complete all ${CHECKLIST_ITEMS.length} items to submit`}
-          </button>
-        </div>
-      )}
-
-      {/* Live Communication Tabs (Customer & Support Chat) */}
-      <AgentApplicationChatSection application={application} />
     </div>
   );
 }

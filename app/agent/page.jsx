@@ -1,447 +1,229 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Briefcase,
-  MapPin,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  Inbox,
-  Wallet,
-  ArrowRight,
-  TrendingUp,
-  ClipboardList,
-  Hourglass,
-  BadgeCheck,
-  ArrowUpRight,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge } from "./_status";
+import { CheckCircle2, ChevronRight, ClipboardList, Hourglass, Inbox, MapPin, RefreshCw, Wallet } from "lucide-react";
 import {
-  getAgentOffers,
   acceptOffer,
-  declineOffer,
-  getAgentWallet,
-  getAgentApplications,
-  getAgentParticularsOffers,
-  getAgentParticularsItems,
+  acceptParticularsOffer,
   authGetMe,
+  declineOffer,
+  declineParticularsOffer,
+  getAgentApplications,
+  getAgentOffers,
+  getAgentParticularsOffers,
+  getAgentWallet,
+  koboToNaira,
 } from "@/lib/api";
 import { hasAgentUploadedAllDocuments } from "@/lib/utils/sla";
+import { Button, Card, EmptyState, ErrorState, Field, Notice, PageHeader, Sheet, SkeletonList, Textarea } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { PARTICULAR_DOC_LABELS, jobStage, serviceLabel } from "./_components/jobs";
 
-export const ACTIVE_JOB_STATUSES = [
-  "agent_accepted", "agent_assigned", "in_progress", "in_process",
-  "capture_scheduled", "capturing_scheduled", "captured",
-  "capturing_completed",
-];
-
-export { hasAgentUploadedAllDocuments };
-
-export function isApplicationActive(app) {
-  if (!app) return false;
-  const status = (app.status || "").toLowerCase();
-  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer"].includes(status)) {
-    return false;
-  }
-  // If agent has uploaded all documents completely, even though it's pending review
-  // and even if the pending was rejected (needs_correction), it does NOT count as an active job
-  if (hasAgentUploadedAllDocuments(app)) {
-    return false;
-  }
-  return ACTIVE_JOB_STATUSES.includes(status) || status === "needs_correction";
-}
-
-export function doesApplicationNeedAction(app) {
-  if (!app) return false;
-  const status = (app.status || "").toLowerCase();
-  if (["completed", "expired", "failed", "cancelled", "staff_rejected", "ready_for_pickup", "awaiting_customer"].includes(status)) {
-    return false;
-  }
-  // Staff rejected something or requested correction - needs agent attention
-  if (status === "needs_correction") return true;
-  if ((app.documents || []).some((d) => d.status === "rejected")) return true;
-  if ((app.items || []).some((it) => it.status === "rejected")) return true;
-
-  // Still owes initial upload or action
-  if (!hasAgentUploadedAllDocuments(app)) {
-    return [
-      "agent_accepted",
-      "agent_assigned",
-      "in_progress",
-      "in_process",
-      "capture_scheduled",
-      "capturing_scheduled",
-      "captured",
-      "capturing_completed",
-    ].includes(status);
-  }
-  return false;
-}
 const MAX_ACTIVE_JOBS = 10;
+const ACTIVE_STATUSES = ["agent_accepted", "agent_assigned", "in_progress", "in_process", "capture_scheduled", "capturing_scheduled", "captured", "capturing_completed", "needs_correction"];
 
-function isThisMonth(iso) {
-  if (!iso) return false;
-  const d = new Date(iso);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+// Mirrors the backend job cap: jobs the agent still owes work on.
+function countsTowardCap(app) {
+  return ACTIVE_STATUSES.includes(app?.status) && !hasAgentUploadedAllDocuments(app);
 }
 
-const BRAND = "#28A745";
-const BRAND_TINT = "rgba(40, 167, 69,0.08)";
-
-function koboToNaira(kobo) {
-  return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
+function rawId(id) {
+  return typeof id === "string" ? id.replace(/^(app_|offer_)/, "") : id;
 }
-
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50";
-const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50";
 
 export default function AgentOffersPage() {
-  const [offers, setOffers] = useState([]);
+  const router = useRouter();
+  const pushToast = useToast();
+  const [offers, setOffers] = useState(null);
+  const [apps, setApps] = useState([]);
   const [wallet, setWallet] = useState(null);
-  const [applications, setApplications] = useState([]);
-  const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
-  const [notice, setNotice] = useState(null);
-  const [actingId, setActingId] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [acting, setActing] = useState(null);
+  const [declining, setDeclining] = useState(null);
+  const [reason, setReason] = useState("");
 
-  const loadOffers = async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
+  const load = async (quiet = false) => {
+    if (quiet) setRefreshing(true);
     setError(null);
-    const [offersRes, walletRes, appsRes, meRes] = await Promise.all([
-      getAgentOffers(), 
-      getAgentWallet(), 
+    const [offersRes, partRes, appsRes, walletRes, meRes] = await Promise.all([
+      getAgentOffers(),
+      getAgentParticularsOffers(),
       getAgentApplications(),
+      getAgentWallet(),
       authGetMe(),
     ]);
-    if (offersRes.error) setError(offersRes.error);
-    else if (Array.isArray(offersRes.data)) setOffers(offersRes.data);
+    if (offersRes.error && partRes.error) setError(offersRes.error);
+    const jobOffers = (Array.isArray(offersRes.data) ? offersRes.data : []).map((o) => ({ ...o, kind: "job" }));
+    const docOffers = (Array.isArray(partRes.data) ? partRes.data : [])
+      .filter((o) => !o.status || o.status === "offered")
+      .map((o) => ({ ...o, kind: "particulars" }));
+    setOffers([...jobOffers, ...docOffers]);
+    if (Array.isArray(appsRes.data)) setApps(appsRes.data);
     if (walletRes.data) setWallet(walletRes.data);
-    if (Array.isArray(appsRes.data)) setApplications(appsRes.data);
-    if (meRes.data) setUserProfile(meRes.data);
-    setLoading(false);
+    if (meRes.data) setProfile(meRes.data);
     setRefreshing(false);
   };
 
-  const activeJobs = applications.filter(isApplicationActive);
-  const totalActiveJobsCount = activeJobs.length;
-  const totalOffersCount = offers.length;
-  const atJobCap = totalActiveJobsCount >= MAX_ACTIVE_JOBS;
-  const needsAction = applications.filter(doesApplicationNeedAction);
-  const completedThisMonth = applications.filter((a) => a.status === "completed" && isThisMonth(a.updated_at));
-
   useEffect(() => {
-    loadOffers();
+    load();
   }, []);
 
-  const handleAccept = async (offer) => {
-    setActingId(offer.id);
-    setNotice(null);
-    const res = await acceptOffer(offer.id);
-    setActingId(null);
-    if (res.error) {
-      setNotice({ type: "error", message: res.error });
-    } else {
-      setNotice({ type: "success", message: `Offer accepted — application ${offer.application_id} is now yours.` });
-      await loadOffers(true);
-    }
+  const active = apps.filter(countsTowardCap).length;
+  const atCap = active >= MAX_ACTIVE_JOBS;
+  const todo = apps.filter((a) => jobStage(a).bucket === "todo").length;
+
+  const accept = async (offer) => {
+    setActing(offer.id);
+    const res = offer.kind === "particulars" ? await acceptParticularsOffer(offer.id) : await acceptOffer(offer.id);
+    setActing(null);
+    if (res.error) return pushToast({ tone: "error", title: "Couldn't accept this offer", body: res.error });
+    pushToast({ tone: "success", title: "Job accepted", body: "Here's what to do next." });
+    const appId = rawId(res.data?.application_id ?? offer.application_id);
+    router.push(offer.application_type === "roadworthiness_express" ? `/agent/rwx/${appId}` : `/agent/applications/${appId}`);
   };
 
-  const handleDecline = async (offer) => {
-    setActingId(offer.id);
-    setNotice(null);
-    const res = await declineOffer(offer.id);
-    setActingId(null);
-    if (res.error) {
-      setNotice({ type: "error", message: res.error });
-    } else {
-      setNotice({ type: "success", message: "Offer declined." });
-      await loadOffers(true);
-    }
+  const confirmDecline = async () => {
+    const offer = declining;
+    setActing(offer.id);
+    const res = offer.kind === "particulars" ? await declineParticularsOffer(offer.id) : await declineOffer(offer.id, { reason: reason.trim() || undefined });
+    setActing(null);
+    if (res.error) return pushToast({ tone: "error", title: "Couldn't decline this offer", body: res.error });
+    setDeclining(null);
+    pushToast({ tone: "success", title: "Offer declined", body: "It goes to other agents in your area." });
+    await load(true);
   };
+
+  const relocation = profile?.agent_profile;
 
   return (
-    <div className="space-y-5 pb-16">
-      {/* Earnings mini-banner */}
-      {wallet !== null && (
-        <div
-          className="relative overflow-hidden rounded-2xl px-6 py-5 text-white flex items-center justify-between gap-4"
-          style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
-        >
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-200/70">Total Income Earned</p>
-            <p className="mt-1 font-mono text-[26px] font-bold">{koboToNaira(wallet.total_income_kobo)}</p>
-            <p className="mt-0.5 text-[12px] text-emerald-200/80">
-              {(wallet.transactions || []).length} earning{(wallet.transactions || []).length !== 1 ? 's' : ''} · {wallet.lga || 'Your LGA'}
-            </p>
-          </div>
-          <Link href="/agent/wallet"
-            className="flex shrink-0 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-white/20 transition-all backdrop-blur-sm">
-            <Wallet className="h-4 w-4" />
-            View wallet
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      )}
+    <div>
+      <PageHeader
+        title="Job offers"
+        description="New jobs in your area. Accept one to start working on it."
+        actions={
+          <Button variant="secondary" size="sm" icon={RefreshCw} loading={refreshing} onClick={() => load(true)}>
+            Refresh
+          </Button>
+        }
+      />
 
-      {/* Relocation Pending Banner */}
-      {userProfile?.agent_profile?.relocation_status === "pending" && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm mb-6 flex items-start gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 shrink-0 mt-0.5">
-            <Hourglass className="h-5 w-5 text-amber-600" />
-          </div>
-          <div>
-            <h3 className="text-[14px] font-bold text-amber-900">Relocation Request Pending</h3>
-            <p className="mt-1 text-[13px] text-amber-800 leading-relaxed max-w-2xl">
-              Your request to relocate to <strong>{userProfile.agent_profile.pending_vio_office}</strong> in <strong>{userProfile.agent_profile.pending_lga}, {userProfile.agent_profile.pending_state}</strong> is currently pending admin approval. New job offers will continue to route to your current LGA until approved.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Stats row — at-a-glance dashboard */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-400">
-            <Inbox className="h-4 w-4" />
-            <span className="text-[11px] font-bold uppercase tracking-wide">Open offers</span>
-          </div>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{loading ? "—" : totalOffersCount}</p>
-        </div>
-        <Link
-          href="/agent/applications"
-          className={`rounded-2xl border p-4 shadow-sm hover:border-[#28A745]/50 transition-all cursor-pointer ${atJobCap ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"}`}
-        >
-          <div className={`flex items-center gap-2 ${atJobCap ? "text-red-600" : "text-slate-400"}`}>
-            <ClipboardList className="h-4 w-4" />
-            <span className="text-[11px] font-bold uppercase tracking-wide">Active jobs</span>
-          </div>
-          <p className={`mt-1.5 text-2xl font-bold ${atJobCap ? "text-red-900" : "text-slate-900"}`}>
-            {loading ? "—" : `${totalActiveJobsCount}/${MAX_ACTIVE_JOBS}`}
-          </p>
+      <div className="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
+        <Link href="/agent/applications" className="cx-focus rounded-cx-lg border border-cx-line bg-cx-surface p-3 shadow-cx hover:border-cx-brand/50 sm:p-4">
+          <ClipboardList className="h-5 w-5 text-cx-amber" aria-hidden />
+          <p className="mt-2 text-2xl font-semibold text-cx-ink">{offers ? todo : "—"}</p>
+          <p className="text-[13px] text-cx-muted">Jobs to do</p>
         </Link>
-        <Link
-          href="/agent/applications"
-          className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm hover:border-amber-400 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-2 text-amber-600">
-            <Hourglass className="h-4 w-4" />
-            <span className="text-[11px] font-bold uppercase tracking-wide">Needs your action</span>
-          </div>
-          <p className="mt-1.5 text-2xl font-bold text-amber-900">{loading ? "—" : needsAction.length}</p>
+        <Link href="/agent/applications" className={`cx-focus rounded-cx-lg border p-3 shadow-cx sm:p-4 ${atCap ? "border-cx-red/40 bg-cx-red-soft" : "border-cx-line bg-cx-surface hover:border-cx-brand/50"}`}>
+          <Hourglass className={`h-5 w-5 ${atCap ? "text-cx-red" : "text-cx-muted"}`} aria-hidden />
+          <p className="mt-2 text-2xl font-semibold text-cx-ink">{offers ? `${active}/${MAX_ACTIVE_JOBS}` : "—"}</p>
+          <p className="text-[13px] text-cx-muted">Active jobs</p>
         </Link>
-        <Link
-          href="/agent/applications"
-          className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm hover:border-emerald-400 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-2 text-emerald-600">
-            <BadgeCheck className="h-4 w-4" />
-            <span className="text-[11px] font-bold uppercase tracking-wide">Completed this month</span>
-          </div>
-          <p className="mt-1.5 text-2xl font-bold text-emerald-900">{loading ? "—" : completedThisMonth.length}</p>
+        <Link href="/agent/wallet" className="cx-focus rounded-cx-lg border border-cx-line bg-cx-surface p-3 shadow-cx hover:border-cx-brand/50 sm:p-4">
+          <Wallet className="h-5 w-5 text-cx-brand" aria-hidden />
+          <p className="mt-2 truncate text-xl font-semibold text-cx-ink sm:text-2xl">{wallet ? koboToNaira(wallet.total_income_kobo || 0) : "—"}</p>
+          <p className="text-[13px] text-cx-muted">Total earned</p>
         </Link>
       </div>
 
-      {/* Active Assigned Jobs Section */}
-      {activeJobs.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-50 text-[#28A745]">
-                <ClipboardList className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Your Active Assigned Jobs ({activeJobs.length})</h2>
-                <p className="text-xs text-slate-500">Jobs currently assigned to you awaiting capturing or document uploads</p>
-              </div>
-            </div>
-            <Link
-              href="/agent/applications"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#28A745] hover:text-[#218838] transition-colors self-start sm:self-auto"
-            >
-              <span>View all in applications table</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+      <div className="space-y-3">
+        {relocation?.relocation_status === "pending" ? (
+          <Notice tone="amber" icon={Hourglass} title="Relocation waiting for approval">
+            You asked to move to {relocation.pending_vio_office} in {relocation.pending_lga}, {relocation.pending_state}. Offers keep coming from your current area until an admin approves it.
+          </Notice>
+        ) : null}
+        {atCap ? (
+          <Notice tone="red" title={`You have ${active} active jobs`}>
+            The limit is {MAX_ACTIVE_JOBS}. Finish some jobs before accepting new ones.
+          </Notice>
+        ) : null}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {activeJobs.map((app) => {
-              const id = app.raw_id ?? (typeof app.id === "string" ? app.id.replace("app_", "") : app.id);
-              const detailHref =
-                app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` : `/agent/applications/${id}`;
-              const applicantName =
-                app.applicant_name ||
-                `${app.first_name || ""} ${app.last_name || ""}`.trim() ||
-                "Applicant";
-
+        {error && !offers ? (
+          <ErrorState message={error} onRetry={() => load()} />
+        ) : !offers ? (
+          <SkeletonList rows={3} />
+        ) : offers.length === 0 ? (
+          <EmptyState icon={Inbox} title="No offers right now" description="New jobs routed to your area appear here. We also text you when one arrives." />
+        ) : (
+          <ul className="space-y-3">
+            {offers.map((offer) => {
+              const isDoc = offer.kind === "particulars";
+              const earn = isDoc ? offer.agent_compensation_kobo : offer.service_fee_kobo;
               return (
-                <div
-                  key={id}
-                  className="rounded-xl border border-slate-200 p-4 hover:border-[#28A745]/60 hover:shadow-sm transition-all bg-slate-50/40 flex flex-col justify-between gap-3"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sm text-slate-900">#{id}</span>
-                        <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                          {(app.application_type || "FRESH").replace(/_/g, " ")}
-                        </span>
+                <li key={`${offer.kind}-${offer.id}`}>
+                  <Card>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-cx-muted">Job #{rawId(offer.application_id)}</p>
+                        <p className="mt-0.5 text-[17px] font-semibold text-cx-ink">
+                          {isDoc ? `Vehicle papers: ${(PARTICULAR_DOC_LABELS[offer.document_type] || offer.document_type || "").toLowerCase()}` : serviceLabel(offer.application_type)}
+                        </p>
+                        <p className="mt-1 flex items-center gap-1.5 text-sm text-cx-muted">
+                          <MapPin className="h-4 w-4" aria-hidden />
+                          {offer.lga || offer.state || "Your area"}
+                          {!isDoc && offer.application_type === "vehicle_particulars" && offer.items_count ? ` · ${offer.items_count} documents` : ""}
+                        </p>
                       </div>
-                      <StatusBadge status={app.status} appType={app.application_type} size="sm" />
+                      {earn > 0 ? (
+                        <div className="shrink-0 text-right">
+                          <p className="text-[13px] text-cx-muted">You earn</p>
+                          <p className="text-lg font-semibold text-cx-brand-deep">{koboToNaira(earn)}</p>
+                        </div>
+                      ) : null}
                     </div>
-
-                    <div>
-                      <p className="text-[13px] font-semibold text-slate-900">{applicantName}</p>
-                      <p className="text-[11.5px] text-slate-500 mt-0.5">
-                        {app.lga ? `${app.lga} LGA` : "—"} {app.phone ? `• ${app.phone}` : ""}
-                      </p>
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                      <Button variant="secondary" disabled={acting === offer.id} onClick={() => { setReason(""); setDeclining(offer); }}>
+                        Decline
+                      </Button>
+                      <Button
+                        icon={CheckCircle2}
+                        loading={acting === offer.id}
+                        disabled={atCap}
+                        title={atCap ? `You've reached the ${MAX_ACTIVE_JOBS}-job limit` : undefined}
+                        onClick={() => accept(offer)}
+                      >
+                        Accept
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-slate-400 capitalize">
-                      {(app.status || "").replace(/_/g, " ")}
-                    </span>
-                    <Link
-                      href={detailHref}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#28A745] hover:bg-[#218838] text-white transition-colors shadow-xs"
-                    >
-                      <span>Open Job</span>
-                      <ArrowUpRight className="h-3 w-3" />
-                    </Link>
-                  </div>
-                </div>
+                  </Card>
+                </li>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 mb-2">
-              <Briefcase className="h-3.5 w-3.5 text-[#28A745]" />
-              Job Offers
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Available offers in your LGA</h1>
-            <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-              Accept a job to take ownership of it, or decline to send it back to other agents in
-              your LGA. Accepting requires a verified bank account.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => loadOffers(true)}
-            disabled={refreshing || loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm shrink-0 self-start md:self-center"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-[#28A745]" : "text-slate-500"}`} />
-            <span>{refreshing ? "Syncing…" : "Refresh"}</span>
-          </button>
-        </div>
-      </div>
-
-      {atJobCap && (
-        <div className="flex items-center gap-2.5 rounded-xl bg-red-50 p-3.5 text-[13px] text-red-700 ring-1 ring-inset ring-red-200 font-medium">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          You have {totalActiveJobsCount} active jobs — the maximum is {MAX_ACTIVE_JOBS}. Complete some before accepting new ones.
-        </div>
-      )}
-
-      {notice && (
-        <div className={`flex items-center gap-2.5 rounded-xl p-3.5 text-[13px] ${notice.type === "error" ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200" : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 font-medium"}`}>
-          {notice.type === "error" ? <AlertCircle className="h-4 w-4 shrink-0" /> : <CheckCircle2 className="h-4 w-4 shrink-0" />}
-          {notice.message}
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="space-y-3.5">
-        {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center space-y-3 shadow-sm">
-            <Loader2 className="h-8 w-8 animate-spin text-[#28A745] mx-auto" />
-            <p className="text-sm text-slate-500 font-medium">Loading offers…</p>
-          </div>
-        ) : offers.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center space-y-2 shadow-sm">
-            <Inbox className="h-10 w-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-900">No offers right now</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              New jobs routed to your LGA will show up here.
-            </p>
-          </div>
-        ) : (
-          offers.map((offer) => (
-            <div
-              key={offer.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="font-mono font-bold text-sm text-slate-900">App #{offer.application_id}</span>
-                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                    {(offer.application_type || "FRESH").replace(/_/g, " ")}
-                  </span>
-                  {offer.application_type === "vehicle_particulars" && offer.items_count && (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                      {offer.items_count} Document{offer.items_count > 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-                <p className="flex items-center gap-1.5 text-[13px] text-slate-500">
-                  <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                  {offer.lga || "—"}
-                </p>
-                {offer.service_fee_kobo > 0 && (
-                  <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: BRAND }}>
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    Earn {koboToNaira(offer.service_fee_kobo)}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
-                <button
-                  type="button"
-                  onClick={() => handleDecline(offer)}
-                  disabled={actingId === offer.id}
-                  className={btnSecondary}
-                >
-                  {actingId === offer.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-                  Decline
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAccept(offer)}
-                  disabled={actingId === offer.id || atJobCap}
-                  title={atJobCap ? `You've reached the ${MAX_ACTIVE_JOBS}-job limit — complete some active jobs first.` : undefined}
-                  className={btnPrimary}
-                  style={{ background: BRAND }}
-                >
-                  {actingId === offer.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  Accept
-                </button>
-              </div>
-            </div>
-          ))
+          </ul>
         )}
+
+        {offers && todo > 0 ? (
+          <Link href="/agent/applications" className="cx-focus flex min-h-14 items-center justify-between rounded-cx-lg bg-cx-brand-soft px-4 text-[15px] font-semibold text-cx-brand-deep">
+            You have {todo} job{todo === 1 ? "" : "s"} to do
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </Link>
+        ) : null}
       </div>
+
+      <Sheet
+        open={!!declining}
+        onOpenChange={(o) => !o && acting === null && setDeclining(null)}
+        title="Decline this offer?"
+        description="It goes to other agents in your area. You can't undo this."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeclining(null)} disabled={acting !== null}>Keep it</Button>
+            <Button block variant="danger" loading={acting !== null} onClick={confirmDecline}>Decline offer</Button>
+          </>
+        }
+      >
+        {declining?.kind !== "particulars" ? (
+          <Field label="Reason" optional>
+            {(p) => <Textarea {...p} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Too far from my office" />}
+          </Field>
+        ) : (
+          <p className="text-sm text-cx-muted">The document offer will be sent to another agent.</p>
+        )}
+      </Sheet>
     </div>
   );
 }

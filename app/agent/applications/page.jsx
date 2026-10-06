@@ -1,290 +1,157 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import {
-  ClipboardList,
-  AlertCircle,
-  Search,
-  X,
-  Loader2,
-  RefreshCw,
-  CheckSquare,
-  ArrowUpRight,
-  Timer,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ChevronRight, ClipboardList, RefreshCw, Search, X } from "lucide-react";
 import { getAgentApplications } from "@/lib/api";
-import { StatusBadge } from "../_status";
-import { hasAgentUploadedAllDocuments } from "../page";
+import { hasAgentUploadedAllDocuments } from "@/lib/utils/sla";
+import { Button, EmptyState, ErrorState, Input, PageHeader, Select, SkeletonList } from "@/app/dashboard/_kit";
+import { applicantName, jobHref, jobId, jobStage, serviceLabel } from "../_components/jobs";
+import { SlaChip, StagePill } from "../_components/ui";
 
-const TAB_FILTERS = {
-  all: () => true,
-  needs_capture: (app) => app.application_type === "fresh" && ["agent_accepted", "agent_assigned", "capture_scheduled", "capturing_scheduled"].includes(app.status),
-  awaiting_upload: (app) => {
-    if (app.status === "needs_correction") return true;
-    if ((app.documents || []).some((d) => d.status === "rejected")) return true;
-    if (app.application_type === "vehicle_particulars") {
-      const items = app.items || [];
-      return items.some((i) => ["agent_accepted", "rejected", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status));
-    }
-    if (hasAgentUploadedAllDocuments(app)) return false;
-    if (app.application_type === "fresh") {
-      return ["captured", "capturing_completed"].includes(app.status);
-    }
-    return ["agent_accepted", "agent_assigned", "in_progress", "in_process", "captured", "capturing_completed"].includes(app.status);
-  },
-  ready_for_pickup: (app) => ["agent_completed", "staff_final_review", "ready_for_pickup"].includes(app.status),
-  completed: (app) => ["completed", "awaiting_customer"].includes(app.status),
-};
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-export default function AgentApplicationsPage() {
-  const router = useRouter();
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+const TABS = [
+  { id: "todo", label: "To do", empty: "Nothing to do right now", emptyBody: "Accepted offers show up here." },
+  { id: "waiting", label: "Waiting", empty: "Nothing waiting", emptyBody: "Jobs with staff or the customer show up here." },
+  { id: "done", label: "Done", empty: "No finished jobs yet", emptyBody: "Jobs approved by staff show up here." },
+];
+
+export default function AgentJobsPage() {
+  const [apps, setApps] = useState(null);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
-  const [sortBy, setSortBy] = useState("updated_at");
+  const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState("todo");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("updated_at");
 
-  const loadData = async (isRefresh = false, sort = sortBy) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
+  const load = async (quiet = false) => {
+    if (quiet) setRefreshing(true);
     setError(null);
     const res = await getAgentApplications({ sort });
     if (res.error) setError(res.error);
-    else if (Array.isArray(res.data)) setApplications(res.data);
-    setLoading(false);
+    else setApps(Array.isArray(res.data) ? res.data : []);
     setRefreshing(false);
   };
 
   useEffect(() => {
-    loadData(false, sortBy);
+    load(apps !== null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy]);
+  }, [sort]);
 
+  const withStage = useMemo(() => (apps || []).map((a) => ({ app: a, stage: jobStage(a) })), [apps]);
   const counts = useMemo(() => {
-    return Object.fromEntries(
-      Object.entries(TAB_FILTERS).map(([key, predicate]) => [key, applications.filter(predicate).length])
-    );
-  }, [applications]);
+    const c = { todo: 0, waiting: 0, done: 0 };
+    withStage.forEach(({ stage }) => (c[stage.bucket] += 1));
+    return c;
+  }, [withStage]);
 
-  const filteredApps = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return applications.filter((app) => {
-      const matchesTab = TAB_FILTERS[activeTab](app);
-      if (!matchesTab) return false;
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return withStage.filter(({ app, stage }) => {
+      if (stage.bucket !== tab) return false;
       if (!q) return true;
-      return (
-        String(app.raw_id ?? app.id).includes(q) ||
-        (app.last_name || "").toLowerCase().includes(q) ||
-        (app.first_name || "").toLowerCase().includes(q) ||
-        (app.middle_name || "").toLowerCase().includes(q) ||
-        (app.applicant_name || "").toLowerCase().includes(q) ||
-        (app.lga || "").toLowerCase().includes(q)
-      );
+      return [String(jobId(app)), applicantName(app), app.lga, serviceLabel(app.application_type), app.phone]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [applications, searchQuery, activeTab]);
+  }, [withStage, tab, query]);
+
+  const current = TABS.find((t) => t.id === tab);
 
   return (
-    <div className="space-y-6 pb-16">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 mb-2">
-              <ClipboardList className="h-3.5 w-3.5 text-[#28A745]" />
-              My Applications
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Applications assigned to you</h1>
-            <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-              Everything you've accepted — schedule captures, mark biometrics done, and upload proof of the finished card.
-            </p>
-          </div>
+    <div>
+      <PageHeader
+        title="My jobs"
+        description="Everything you've accepted. Open a job to see its next step."
+        actions={
+          <Button variant="secondary" size="sm" icon={RefreshCw} loading={refreshing} onClick={() => load(true)}>
+            Refresh
+          </Button>
+        }
+      />
+
+      <div role="tablist" aria-label="Job status" className="mb-4 grid grid-cols-3 gap-1 rounded-cx bg-cx-sunken p-1">
+        {TABS.map((t) => (
           <button
+            key={t.id}
+            role="tab"
             type="button"
-            onClick={() => loadData(true)}
-            disabled={refreshing || loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm shrink-0 self-start md:self-center"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={cx(
+              "cx-focus min-h-11 rounded-cx-sm text-[15px] font-semibold transition-colors",
+              tab === t.id ? "bg-cx-surface text-cx-ink shadow-cx" : "text-cx-muted hover:text-cx-ink"
+            )}
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-[#28A745]" : "text-slate-500"}`} />
-            <span>{refreshing ? "Syncing…" : "Refresh"}</span>
+            {t.label}
+            {apps ? <span className={cx("ml-1.5 text-sm", tab === t.id ? "text-cx-brand-deep" : "")}>{counts[t.id]}</span> : null}
           </button>
-        </div>
+        ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter by ID, name, or LGA..."
-            className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 shadow-sm transition-all"
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, job number or LGA"
+            aria-label="Search jobs"
+            prefix={<Search className="h-4 w-4" aria-hidden />}
           />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <X className="h-4 w-4" />
+          {query ? (
+            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="cx-focus absolute inset-y-0 right-1 my-auto flex h-10 w-10 items-center justify-center rounded-cx text-cx-muted">
+              <X className="h-4 w-4" aria-hidden />
             </button>
-          )}
+          ) : null}
         </div>
-
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-        >
+        <Select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort jobs" className="sm:w-56">
           <option value="updated_at">Recently updated</option>
-          <option value="id">ID number</option>
-          <option value="name">Applicant name</option>
-        </select>
-
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
-          {[
-            { id: "all", label: `All (${counts.all || 0})` },
-            { id: "needs_capture", label: `Needs Capture (${counts.needs_capture || 0})` },
-            { id: "awaiting_upload", label: `Awaiting Document Upload (${counts.awaiting_upload || 0})` },
-            { id: "ready_for_pickup", label: `Ready for Pickup (${counts.ready_for_pickup || 0})` },
-            { id: "completed", label: `Completed (${counts.completed || 0})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition-all shadow-sm ${
-                activeTab === tab.id
-                  ? "bg-[#28A745] text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+          <option value="id">Job number</option>
+          <option value="name">Customer name</option>
+        </Select>
       </div>
 
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="space-y-3.5">
-        {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center space-y-3 shadow-sm">
-            <Loader2 className="h-8 w-8 animate-spin text-[#28A745] mx-auto" />
-            <p className="text-sm text-slate-500 font-medium">Loading your applications…</p>
-          </div>
-        ) : filteredApps.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center space-y-2 shadow-sm">
-            <CheckSquare className="h-10 w-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-900">Nothing here yet</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              Accept an offer to see it show up here.
-            </p>
-          </div>
-        ) : (
-          filteredApps.map((app) => {
-            const id = app.raw_id ?? app.id;
-            const detailHref =
-              app.application_type === "roadworthiness_express" ? `/agent/rwx/${id}` :
-              `/agent/applications/${id}`;
-            const isParticulars = app.application_type === "vehicle_particulars";
-            const items = app.items || [];
-            const totalItems = items.length;
-            const approvedItems = items.filter((i) => i.status === "approved").length;
-            const rejectedItems = items.filter((i) => i.status === "rejected").length;
-            const pendingUploadItems = items.filter((i) => ["agent_accepted", "evidence_submitted", "submitted", "pending_evidence"].includes(i.status)).length;
-
-            return (
-              <div
-                key={id}
-                onClick={() => router.push(detailHref)}
-                className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#28A745]/60 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      {error && !apps ? (
+        <ErrorState message={error} onRetry={() => load()} />
+      ) : !apps ? (
+        <SkeletonList rows={4} />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title={query ? "No jobs match your search" : current.empty}
+          description={query ? "Try a different name or number." : current.emptyBody}
+          action={tab === "todo" && !query ? <Button href="/agent" variant="secondary">See job offers</Button> : null}
+        />
+      ) : (
+        <ul className="space-y-3">
+          {visible.map(({ app, stage }) => (
+            <li key={jobId(app)}>
+              <Link
+                href={jobHref(app)}
+                className="cx-focus group flex items-center gap-3 rounded-cx-lg border border-cx-line bg-cx-surface p-4 shadow-cx transition-colors hover:border-cx-brand/50"
               >
-                <div className="space-y-2.5">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-mono font-bold text-sm text-slate-900">#{id}</span>
-                    <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                      {(app.application_type || "FRESH").replace(/_/g, " ")}
-                    </span>
-                    <StatusBadge status={app.status} appType={app.application_type} size="sm" />
-                    {isParticulars && rejectedItems > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
-                        {rejectedItems} Revision Required
-                      </span>
-                    )}
-                    {isParticulars && rejectedItems === 0 && pendingUploadItems > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                        {pendingUploadItems} of {totalItems} Pending Upload
-                      </span>
-                    )}
-                    {isParticulars && rejectedItems === 0 && pendingUploadItems === 0 && totalItems > 0 && approvedItems === totalItems && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        All {totalItems} Approved
-                      </span>
-                    )}
-                    {isParticulars && rejectedItems === 0 && pendingUploadItems === 0 && totalItems > 0 && approvedItems < totalItems && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                        {totalItems} Under Review
-                      </span>
-                    )}
-                    {app.sla && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
-                        app.sla.is_breached
-                          ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
-                          : app.sla.is_nearing
-                          ? "bg-amber-100 text-amber-700 border border-amber-200"
-                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      }`}>
-                        <Timer className="h-3 w-3 shrink-0" />
-                        {app.sla.label} ({app.sla.days_elapsed}/{app.sla.days_allocated}d)
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    {isParticulars ? (
-                      <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                          Customer: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">
-                            {app.applicant_name || `${app.first_name || ""} ${app.last_name || ""}`.trim() || "Applicant"}
-                          </strong>
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                          Bundle: <strong className="text-slate-800">{totalItems} document{totalItems !== 1 ? "s" : ""}</strong>
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.last_name || "—"}</strong></span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.first_name || "—"}</strong></span>
-                        {app.middle_name && (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.middle_name}</strong></span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
-                      <span>LGA: <strong className="text-slate-700">{app.lga || "—"}</strong></span>
-                      <span>•</span>
-                      <span>Phone: <strong className="text-slate-700">{app.phone || "—"}</strong></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm text-cx-muted">
+                      {serviceLabel(app.application_type)} · #{jobId(app)}
                     </p>
+                    <StagePill stage={stage} />
+                  </div>
+                  <p className="mt-1 truncate text-[17px] font-semibold text-cx-ink">{applicantName(app)}</p>
+                  <p className={cx("mt-0.5 text-sm", stage.bucket === "todo" ? "font-medium text-cx-ink-2" : "text-cx-muted")}>{stage.next}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-cx-muted">
+                    {app.lga ? <span>{app.lga}</span> : null}
+                    {stage.bucket === "todo" && !hasAgentUploadedAllDocuments(app) ? <SlaChip sla={app.sla} compact /> : null}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] font-semibold text-slate-700 group-hover:bg-[#28A745] group-hover:text-white group-hover:border-[#28A745] transition-all shadow-sm">
-                    <span>Open</span>
-                    <ArrowUpRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-cx-muted transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

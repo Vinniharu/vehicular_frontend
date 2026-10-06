@@ -1,80 +1,83 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Briefcase,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  AlertCircle,
-  Loader2,
-  Key,
-  LayoutDashboard,
-  ClipboardList,
-  Wallet,
-  Settings,
-} from "lucide-react";
-import { getToken, removeToken, getCachedUser, setCachedUser, authGetMe, authSetPassword } from "@/lib/api";
+import { ClipboardList, Inbox, KeyRound, LogOut, UserRound, Wallet } from "lucide-react";
+import { authGetMe, authSetPassword, getCachedUser, getToken, removeToken, setCachedUser } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
+import { Button, Field, Input, Notice } from "@/app/dashboard/_kit";
 
-const BRAND = "#28A745";
+const isJobPath = (p) => p.startsWith("/agent/applications") || p.startsWith("/agent/rwx") || p.startsWith("/agent/particulars");
 
-const AGENT_NAV = [
-  {
-    section: "Overview",
-    items: [
-      { label: "Offers", href: "/agent", icon: LayoutDashboard, exact: true },
-    ],
-  },
-  {
-    section: "Work",
-    items: [
-      { label: "My Applications", href: "/agent/applications", icon: ClipboardList, exact: false },
-    ],
-  },
-  {
-    section: "Payouts",
-    items: [
-      { label: "Earnings Wallet", href: "/agent/wallet", icon: Wallet, exact: false },
-    ],
-  },
-  {
-    section: "Account",
-    items: [
-      { label: "Settings", href: "/agent/settings", icon: Settings, exact: false },
-    ],
-  },
+const TABS = [
+  { label: "Jobs", long: "My jobs", href: "/agent/applications", icon: ClipboardList, match: isJobPath },
+  { label: "Offers", long: "Job offers", href: "/agent", icon: Inbox, match: (p) => p === "/agent" || p.startsWith("/agent/particulars-offers") },
+  { label: "Wallet", long: "Earnings wallet", href: "/agent/wallet", icon: Wallet, match: (p) => ["/agent/wallet", "/agent/bank-account", "/agent/transfers"].some((x) => p.startsWith(x)) },
+  { label: "Account", long: "Account & settings", href: "/agent/settings", icon: UserRound, match: (p) => p.startsWith("/agent/settings") },
 ];
 
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60";
-const inputBase =
-  "w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-[13.5px] text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
-const fieldLabel = "block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5";
+function initialsOf(name) {
+  return name ? name.split(" ").filter(Boolean).map((n) => n[0]).slice(0, 2).join("").toUpperCase() : "AG";
+}
+
+function PasswordGate({ user, onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (password.length < 6) return setError("Use at least 6 characters.");
+    if (password !== confirm) return setError("The two passwords don't match.");
+    setSaving(true);
+    const res = await authSetPassword({ new_password: password });
+    setSaving(false);
+    if (res.error) return setError(res.error);
+    const updated = { ...user, must_change_password: false };
+    setCachedUser(updated);
+    onDone(updated);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-cx-ink/50 md:items-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="pw-title">
+      <form onSubmit={submit} className="cx-safe-bottom w-full space-y-4 rounded-t-[22px] bg-cx-surface p-5 shadow-cx-raised md:max-w-md md:rounded-cx-lg">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cx-amber-soft text-cx-amber">
+            <KeyRound className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <h2 id="pw-title" className="text-lg font-semibold text-cx-ink">Set your own password</h2>
+            <p className="mt-0.5 text-sm text-cx-muted">Your account was set up with a temporary password. Choose a new one to continue.</p>
+          </div>
+        </div>
+        {error ? <Notice tone="red">{error}</Notice> : null}
+        <Field label="New password" hint="At least 6 characters">
+          {(p) => <Input {...p} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+        </Field>
+        <Field label="Type it again">
+          {(p) => <Input {...p} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />}
+        </Field>
+        <Button type="submit" size="lg" block loading={saving}>
+          {saving ? "Saving…" : "Save password"}
+        </Button>
+      </form>
+    </div>
+  );
+}
 
 export default function AgentLayout({ children }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || "/agent";
   const isLoginRoute = pathname === "/agent/login";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passSubmitting, setPassSubmitting] = useState(false);
-  const [passError, setPassError] = useState(null);
-  const [passSuccess, setPassSuccess] = useState(null);
 
   useEffect(() => {
-    // The login page manages its own auth state — this guard has no
-    // business running on it (see app/admin/layout.jsx for the full
-    // rationale, identical here).
+    // The login page manages its own auth state.
     if (isLoginRoute) return;
 
     const token = getToken();
@@ -90,7 +93,6 @@ export default function AgentLayout({ children }) {
         return;
       }
       setUser(cached);
-      if (cached.must_change_password) setShowPasswordModal(true);
       setLoading(false);
     }
 
@@ -104,7 +106,6 @@ export default function AgentLayout({ children }) {
           return;
         }
         setUser(res.data);
-        setShowPasswordModal(!!res.data.must_change_password);
         setLoading(false);
       } else if (!cached) {
         setLoading(false);
@@ -117,262 +118,115 @@ export default function AgentLayout({ children }) {
     router.push("/agent/login");
   };
 
-  const handlePasswordChangeSubmit = async (e) => {
-    e.preventDefault();
-    setPassError(null);
-    setPassSuccess(null);
-
-    if (!newPassword || newPassword.length < 6) {
-      setPassError("New password must be at least 6 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPassError("Passwords don't match.");
-      return;
-    }
-
-    setPassSubmitting(true);
-    const res = await authSetPassword({ new_password: newPassword });
-    setPassSubmitting(false);
-
-    if (res.error) {
-      setPassError(res.error);
-      return;
-    }
-
-    setPassSuccess("Password updated.");
-    if (user) {
-      const updatedUser = { ...user, must_change_password: false };
-      setUser(updatedUser);
-      setCachedUser(updatedUser);
-    }
-    setTimeout(() => {
-      setShowPasswordModal(false);
-      setNewPassword("");
-      setConfirmPassword("");
-      setPassSuccess(null);
-    }, 1000);
-  };
-
-  if (isLoginRoute) {
-    return children;
-  }
+  if (isLoginRoute) return children;
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#f5f5f7]">
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND }} />
-        <p className="text-[13px] font-medium text-slate-500">Signing you in…</p>
+      <div className="cx-root flex min-h-dvh flex-col items-center justify-center gap-3 bg-cx-paper" role="status">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-cx-brand-soft border-t-cx-brand" />
+        <p className="text-sm text-cx-muted">Signing you in…</p>
       </div>
     );
   }
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    : "AG";
+  const initials = initialsOf(user?.name);
 
   return (
-    <div className="flex min-h-screen bg-[#f5f5f7]">
-      {/* Desktop sidebar */}
-      <aside className="fixed hidden h-full w-64 shrink-0 flex-col border-r border-white/[0.04] bg-[#111111] lg:flex">
-        <div className="border-b border-white/[0.06] px-5 py-6">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Vehiculars" className="h-8 w-8 rounded-lg object-contain" />
-            <div>
-              <p className="text-[15px] font-bold leading-none tracking-tight text-white">Vehiculars</p>
-              <p className="mt-[3px] text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: BRAND }}>
-                Agent
-              </p>
-            </div>
-          </div>
+    <div className="cx-root min-h-dvh bg-cx-paper text-cx-ink selection:bg-cx-brand/20">
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-cx-line bg-cx-surface md:flex">
+        <div className="px-5 pb-4 pt-6">
+          <Link href="/agent/applications" className="cx-focus inline-flex items-center gap-2.5 rounded-cx">
+            <img src="/logo.png" alt="" className="h-8 w-auto object-contain" />
+            <span>
+              <span className="block font-display text-xl leading-none text-cx-ink">Vehiculars</span>
+              <span className="mt-1 block text-xs font-semibold text-cx-brand-deep">Agent portal</span>
+            </span>
+          </Link>
         </div>
 
-        <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-          {AGENT_NAV.map((group) => (
-            <div key={group.section}>
-              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                {group.section}
-              </p>
-              <div className="space-y-1">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = item.href === "/agent" ? pathname === "/agent" : pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="group flex items-center gap-3 rounded-xl px-3.5 py-3 text-[13.5px] font-semibold transition-all"
-                      style={{
-                        background: active ? "rgba(40, 167, 69,0.16)" : "transparent",
-                        color: active ? "#34d399" : "#94a3b8",
-                      }}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" style={{ color: active ? "#34d399" : "#64748b" }} />
-                      <span className="truncate">{item.label}</span>
-                      {active && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        <nav aria-label="Main" className="flex-1 space-y-0.5 overflow-y-auto px-3">
+          {TABS.map((item) => {
+            const active = item.match(pathname);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`cx-focus flex min-h-11 items-center gap-3 rounded-cx px-3 text-[15px] transition-colors ${
+                  active ? "bg-cx-brand-soft font-semibold text-cx-brand-deep" : "text-cx-ink-2 hover:bg-cx-sunken"
+                }`}
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
+                {item.long}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="border-t border-white/[0.06] bg-[#0c0d12] px-3 py-4">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-              style={{ background: `linear-gradient(135deg, ${BRAND}, #0a7a56)` }}
-            >
-              {initials}
+        <div className="space-y-0.5 border-t border-cx-line px-3 py-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-red-soft hover:text-cx-red"
+          >
+            <LogOut className="h-[18px] w-[18px]" aria-hidden />
+            Sign out
+          </button>
+          <div className="mt-2 flex items-center gap-3 rounded-cx bg-cx-sunken px-3 py-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cx-brand text-sm font-semibold text-white">{initials}</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-cx-ink">{user?.name || "Agent"}</p>
+              <p className="truncate text-[13px] text-cx-muted">{user?.email}</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-bold leading-tight text-white">{user?.name || "Agent"}</p>
-              <p className="truncate text-[11px] text-slate-400">{user?.email || ""}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
           </div>
         </div>
       </aside>
 
-      {/* Mobile header */}
-      <div className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.06] bg-[#111111] px-4 lg:hidden">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="Vehiculars" className="h-7 w-7 object-contain" />
-          <span className="text-[15px] font-bold tracking-tight text-white">Vehiculars Agent</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-300 hover:text-white"
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+      {/* ── Mobile top bar ──────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-cx-line bg-cx-surface/95 px-4 backdrop-blur md:hidden">
+        <Link href="/agent/applications" className="cx-focus inline-flex items-center gap-2 rounded-cx">
+          <img src="/logo.png" alt="" className="h-7 w-auto object-contain" />
+          <span className="font-display text-lg text-cx-ink">Vehiculars</span>
+          <span className="rounded-full bg-cx-brand-soft px-2 py-0.5 text-xs font-semibold text-cx-brand-deep">Agent</span>
+        </Link>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cx-brand text-[13px] font-semibold text-white" aria-hidden>
+          {initials}
+        </span>
+      </header>
+
+      {/* ── Page content ────────────────────────────────────────────── */}
+      <div className="md:pl-64">
+        <main className="cx-scroll-pad mx-auto w-full max-w-5xl px-4 pt-5 sm:px-6 md:px-10 md:pt-10">{children}</main>
       </div>
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-black/60 pt-16 backdrop-blur-sm lg:hidden">
-          <div className="space-y-4 border-b border-white/10 bg-[#111111] p-5 shadow-2xl">
-            {AGENT_NAV.flatMap((g) => g.items).map((item) => {
-              const Icon = item.icon;
-              const active = item.href === "/agent" ? pathname === "/agent" : pathname.startsWith(item.href);
-              return (
+      {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
+      <nav aria-label="Main" className="cx-safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-cx-line bg-cx-surface/95 backdrop-blur md:hidden">
+        <ul className="grid h-16 grid-cols-4">
+          {TABS.map((tab) => {
+            const active = tab.match(pathname);
+            const Icon = tab.icon;
+            return (
+              <li key={tab.href}>
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-xl p-3 text-[13.5px] font-semibold"
-                  style={{
-                    background: active ? "rgba(40, 167, 69,0.18)" : "rgba(255,255,255,0.05)",
-                    color: active ? "#34d399" : "#e2e8f0",
-                  }}
+                  href={tab.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`cx-focus relative flex h-full flex-col items-center justify-center gap-1 text-xs ${
+                    active ? "font-semibold text-cx-brand-deep" : "text-cx-muted"
+                  }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
+                  {active ? <span className="absolute top-0 h-0.5 w-8 rounded-full bg-cx-brand" aria-hidden /> : null}
+                  <Icon className="h-[22px] w-[22px]" aria-hidden />
+                  {tab.label}
                 </Link>
-              );
-            })}
-            <div className="flex items-center justify-between border-t border-white/10 pt-4">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: BRAND }}>
-                  {initials}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-bold text-white">{user?.name || "Agent"}</p>
-                  <p className="truncate text-[11px] text-slate-400">{user?.email}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-lg border border-red-500/30 px-3 py-1.5 text-[12px] font-semibold text-red-400 transition-colors hover:bg-red-500/10"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
-      {/* Content */}
-      <main className="flex min-h-screen flex-1 flex-col pt-16 lg:pl-64 lg:pt-0">
-        <div className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-4 sm:p-6 lg:p-8">{children}</div>
-      </main>
-
-      {/* Password change modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="flex items-start gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                <Key className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-[17px] font-bold text-slate-900">Set a new password</h3>
-                <p className="mt-0.5 text-[12.5px] text-slate-500">
-                  Your account was created with a temporary password. Set your own before continuing.
-                </p>
-              </div>
-            </div>
-
-            {passError && (
-              <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-[12.5px] text-red-700 ring-1 ring-inset ring-red-200">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                {passError}
-              </div>
-            )}
-            {passSuccess && (
-              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-[12.5px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                <Briefcase className="h-3.5 w-3.5 shrink-0" />
-                {passSuccess}
-              </div>
-            )}
-
-            <form onSubmit={handlePasswordChangeSubmit} className="space-y-4">
-              <div>
-                <label className={fieldLabel}>New password (min. 6 characters)</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter a new password"
-                  required
-                  disabled={passSubmitting || !!passSuccess}
-                  className={inputBase}
-                />
-              </div>
-              <div>
-                <label className={fieldLabel}>Confirm password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter the new password"
-                  required
-                  disabled={passSubmitting || !!passSuccess}
-                  className={inputBase}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={passSubmitting || !!passSuccess}
-                className={`${btnPrimary} w-full`}
-                style={{ background: BRAND }}
-              >
-                {passSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {passSubmitting ? "Updating…" : "Update password"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {user?.must_change_password ? <PasswordGate user={user} onDone={setUser} /> : null}
     </div>
   );
 }
