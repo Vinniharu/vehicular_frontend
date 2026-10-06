@@ -65,6 +65,10 @@ import { hasAgentUploadedAllDocuments } from "../../page";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import AgentApplicationChatSection from "@/app/components/design/AgentApplicationChatSection";
 
+// Document types an agent uploads as the finished work for a job (the backend's
+// upload-proof saves finished_licence_card; the others are older/other-service names).
+const AGENT_DELIVERABLE_DOC_TYPES = ["finished_licence_card", "permanent_driver_licence", "vehicle_particulars_proof", "central_registry_certificate", "registration_history_evidence", "customs_duty_evidence"];
+
 const BRAND = "#28A745";
 
 const btnPrimary =
@@ -1572,15 +1576,20 @@ export default function AgentApplicationDetailPage() {
   const isRenewalOrReissue = ["renewal", "reissue", "international_permit"].includes(application.application_type);
   const isFreshApp = application.application_type === "fresh";
 
+  // Only the AGENT's finished deliverable counts here. Customer uploads such
+  // as proof_of_ownership / proof_of_identity also start with "proof_" — an
+  // approved one used to hide the "Upload finished permit/plate" button, and
+  // a rejected one showed a false "staff rejected your submission" banner.
+  const isAgentDeliverable = (d) => AGENT_DELIVERABLE_DOC_TYPES.includes(d.doc_type);
   const isPermanentLicenceRejected = application.permanent_licence?.review_status === "rejected" ||
-    (application.documents || []).some((d) => (d.doc_type === "permanent_driver_licence" || d.doc_type?.startsWith("proof_") || d.doc_type === "central_registry_certificate" || d.doc_type === "registration_history_evidence" || d.doc_type === "customs_duty_evidence") && d.status === "rejected");
+    (application.documents || []).some((d) => isAgentDeliverable(d) && d.status === "rejected");
 
   const isTempLicenceRejected = application.temporary_licence?.review_status === "rejected" ||
     (application.documents || []).some((d) => d.doc_type === "temporary_driver_licence" && d.status === "rejected");
 
   const isPermanentLicenceApproved = application.permanent_licence?.review_status === "approved" ||
     application.status === "completed" ||
-    (application.documents || []).some((d) => (d.doc_type === "permanent_driver_licence" || d.doc_type?.startsWith("proof_")) && d.status === "approved");
+    (application.documents || []).some((d) => isAgentDeliverable(d) && d.status === "approved");
 
   const isTempLicenceApproved = application.temporary_licence?.review_status === "approved" ||
     (application.documents || []).some((d) => d.doc_type === "temporary_driver_licence" && d.status === "approved");
