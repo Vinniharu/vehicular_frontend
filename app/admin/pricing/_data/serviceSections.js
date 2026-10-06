@@ -36,7 +36,7 @@ export const SERVICE_SECTIONS = [
   {
     slug: "drivers-licence",
     title: "Driver's Licence Services",
-    subtitle: "These prices drive real checkout charges and the agent commission split.",
+    subtitle: "New, renewal and international permit",
     subServices: [
       {
         key: "fresh",
@@ -48,7 +48,7 @@ export const SERVICE_SECTIONS = [
       },
       {
         key: "renewal",
-        label: "Driver's Licence Renewal (Reissue uses this price too)",
+        label: "Licence renewal (replacement uses this price too)",
         rows: [
           { mechanism: "dl", key: "renewal:3 years", application_type: "renewal", validity_period: "3 years", label: "3 years", amountRequired: true },
           { mechanism: "dl", key: "renewal:5 years", application_type: "renewal", validity_period: "5 years", label: "5 years", amountRequired: true },
@@ -68,12 +68,12 @@ export const SERVICE_SECTIONS = [
   {
     slug: "number-plate",
     title: "Number / Dealership Plate Services",
-    subtitle: "New plate and change-of-ownership prices are set per vehicle category (with a flat fallback). Replacement, fancy, and dealership plates use one flat state-aware price.",
+    subtitle: "New, replacement, custom, change of ownership, dealership",
     subServices: [
       {
         key: "new-registration",
         label: "New Number Plate Registration",
-        rows: [{ mechanism: "dl", key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Fallback price (only when a category has no price)", amountRequired: true }],
+        rows: [{ mechanism: "dl", key: "number_plate_new:null", application_type: "number_plate_new", validity_period: null, label: "Default price", hint: "Used for any vehicle type without its own price", amountRequired: true }],
         categoryGrid: { service_key: "number_plate_new" },
       },
       {
@@ -89,7 +89,7 @@ export const SERVICE_SECTIONS = [
       {
         key: "change-of-ownership",
         label: "Change of Ownership + New Plate",
-        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Fallback price (only when a category has no price)", amountRequired: true }],
+        rows: [{ mechanism: "dl", key: "number_plate_change_of_ownership:null", application_type: "number_plate_change_of_ownership", validity_period: null, label: "Default price", hint: "Used for any vehicle type without its own price", amountRequired: true }],
         categoryGrid: { service_key: "number_plate_change_of_ownership" },
       },
       {
@@ -102,13 +102,13 @@ export const SERVICE_SECTIONS = [
   {
     slug: "vehicle-particulars",
     title: "Vehicle Particulars & Renewals",
-    subtitle: "Set bundle prices by vehicle category when a customer selects all documents, plus category & fallback prices when selected individually.",
+    subtitle: "Bundle and individual documents, priced by vehicle type",
     rows: [
       {
         mechanism: "service",
         key: "vehicle-particulars",
         slug: "vehicle-particulars",
-        label: "Fallback bundle price (all documents selected)",
+        label: "Default bundle price", hint: "Used for any vehicle type without its own bundle price",
       },
     ],
     categoryGrid: { service_key: "vehicle_particulars" },
@@ -116,31 +116,31 @@ export const SERVICE_SECTIONS = [
       {
         key: "vehicle-licence",
         label: "Vehicle Licence",
-        rows: [{ mechanism: "particulars", key: "vehicle_licence", document_type: "vehicle_licence", label: "Fallback price (only when a category has no price)" }],
+        rows: [{ mechanism: "particulars", key: "vehicle_licence", document_type: "vehicle_licence", label: "Default price", hint: "Used for any vehicle type without its own price" }],
         categoryGrid: { service_key: "vehicle_licence" },
       },
       {
         key: "road-worthiness",
         label: "Road Worthiness Certificate",
-        rows: [{ mechanism: "particulars", key: "road_worthiness", document_type: "road_worthiness", label: "Fallback price (only when a category has no price)" }],
+        rows: [{ mechanism: "particulars", key: "road_worthiness", document_type: "road_worthiness", label: "Default price", hint: "Used for any vehicle type without its own price" }],
         categoryGrid: { service_key: "road_worthiness" },
       },
       {
         key: "hackney-permit",
         label: "Hackney Permit",
-        rows: [{ mechanism: "particulars", key: "hackney_permit", document_type: "hackney_permit", label: "Fallback price (only when a category has no price)" }],
+        rows: [{ mechanism: "particulars", key: "hackney_permit", document_type: "hackney_permit", label: "Default price", hint: "Used for any vehicle type without its own price" }],
         categoryGrid: { service_key: "hackney_permit" },
       },
       {
         key: "third-party-insurance",
         label: "Third-Party Insurance",
-        rows: [{ mechanism: "particulars", key: "insurance_third_party", document_type: "insurance_third_party", label: "Fallback price (only when a category has no price)" }],
+        rows: [{ mechanism: "particulars", key: "insurance_third_party", document_type: "insurance_third_party", label: "Default price", hint: "Used for any vehicle type without its own price" }],
         categoryGrid: { service_key: "insurance_third_party" },
       },
       {
         key: "proof-of-ownership",
         label: "Proof of Ownership",
-        rows: [{ mechanism: "particulars", key: "proof_of_ownership", document_type: "proof_of_ownership", label: "Fallback price (only when a category has no price)" }],
+        rows: [{ mechanism: "particulars", key: "proof_of_ownership", document_type: "proof_of_ownership", label: "Default price", hint: "Used for any vehicle type without its own price" }],
         categoryGrid: { service_key: "proof_of_ownership" },
       },
     ],
@@ -148,7 +148,7 @@ export const SERVICE_SECTIONS = [
   {
     slug: "vehicle-verification",
     title: "Vehicle Verification & Inspection",
-    subtitle: "Price depends on which check the customer chooses — both flat, no category dimension.",
+    subtitle: "Registration history and customs duty checks",
     subServices: [
       {
         key: "registration-history",
@@ -169,25 +169,25 @@ export const SERVICE_SECTIONS = [
     // informational (helps the mechanic know what to expect).
     slug: "physical-condition-inspection",
     title: "Physical Condition Inspection",
-    subtitle: "One fee for every vehicle — you can still set a different price per state. This price is checkout-authoritative.",
+    subtitle: "One fee for every vehicle",
     rows: [{ mechanism: "service", key: "physical-condition-inspection", slug: "physical-condition-inspection", label: "Amount" }],
   },
   {
     slug: "central-motor-registry",
-    title: "ECMR",
-    subtitle: "One flat fee for every vehicle. This price is checkout-authoritative.",
+    title: "Central Motor Registry (ECMR)",
+    subtitle: "One fee for every vehicle",
     rows: [{ mechanism: "service", key: "central-motor-registry", slug: "central-motor-registry", label: "Amount" }],
   },
   {
     slug: "roadworthiness-express",
     title: "Roadworthiness Express (RWX)",
-    subtitle: "One flat, state-aware fee. This price is checkout-authoritative.",
+    subtitle: "One fee for every vehicle",
     rows: [{ mechanism: "service", key: "roadworthiness-express", slug: "roadworthiness-express", label: "Amount" }],
   },
   {
     slug: "tinted-permit",
     title: "Tinted Glass Permit",
-    subtitle: "Flat fee, state-aware.",
+    subtitle: "One fee for every vehicle",
     rows: [{ mechanism: "dl", key: "tinted_permit:null", application_type: "tinted_permit", validity_period: null, label: "Amount", amountRequired: true }],
   },
 ];

@@ -1,202 +1,160 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Copy, Globe2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy } from "lucide-react";
 import { clonePricing, getReferenceStates } from "@/lib/api";
-import Modal from "@/app/dashboard/_shared/Modal";
+import { Button, Field, Notice, PageHeader, Select, Sheet } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { ScopePicker } from "../_kit";
 import { SERVICE_SECTIONS } from "./_data/serviceSections";
 import { PricingDataProvider } from "./_context/PricingDataContext";
 import ServicePricingCard from "./_components/ServicePricingCard";
 import FastTrackPricingCard from "./_components/FastTrackPricingCard";
 
-const inputCls = "w-full rounded-xl px-4 py-2.5 text-sm bg-slate-50 border border-[#E5E5E5] focus:outline-none focus:border-[#28A745] focus:ring-1 focus:ring-[#28A745]";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-function StateSelectorBar({ states, selectedStateId, setSelectedStateId, onOpenClone }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#E5E5E5] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#28A745]/10 text-[#28A745]">
-          <Globe2 className="h-4.5 w-4.5" />
-        </div>
-        <div className="min-w-0">
-          <label className="block text-[11px] font-medium text-slate-500 mb-1">Pricing scope</label>
-          <select
-            value={selectedStateId}
-            onChange={(e) => setSelectedStateId(e.target.value)}
-            className="appearance-none bg-transparent text-sm font-semibold text-[#111111] focus:outline-none pr-6"
-          >
-            <option value="">General (all states)</option>
-            {states.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onOpenClone}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#E5E5E5] bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
-      >
-        <Copy className="h-3.5 w-3.5" /> Clone services
-      </button>
-    </div>
-  );
-}
+const JUMPS = [
+  ...SERVICE_SECTIONS.map((s) => ({ id: s.slug, label: s.title.replace(/ Services$/, "").replace(/ \(.*\)$/, "") })),
+  { id: "fast-track", label: "Fast Track" },
+];
 
-function CloneServicesModal({ open, onClose, states, defaultTargetStateId, onCloned }) {
-  const [sourceStateId, setSourceStateId] = useState("");
-  const [targetStateId, setTargetStateId] = useState(defaultTargetStateId || "");
+function CopyPricesSheet({ open, onOpenChange, states, defaultTarget, onCopied }) {
+  const [source, setSource] = useState("");
+  const [target, setTarget] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (open) {
-      setSourceStateId("");
-      setTargetStateId(defaultTargetStateId || "");
-      setError(null);
-    }
-  }, [open, defaultTargetStateId]);
+    if (!open) return;
+    setSource("");
+    setTarget(defaultTarget || "");
+    setError(null);
+  }, [open, defaultTarget]);
 
-  const handleClone = async () => {
-    if (!targetStateId) {
-      setError("Choose a target state.");
-      return;
-    }
-    if ((sourceStateId || null) === (targetStateId || null)) {
-      setError("Source and target must be different.");
-      return;
-    }
+  const copy = async () => {
+    if (!target) return setError("Choose the state to copy into.");
+    if ((source || null) === (target || null)) return setError("Choose two different scopes.");
     setSaving(true);
     setError(null);
-    const res = await clonePricing({
-      source_state_id: sourceStateId ? parseInt(sourceStateId, 10) : null,
-      target_state_id: parseInt(targetStateId, 10),
-    });
+    const res = await clonePricing({ source_state_id: source ? parseInt(source, 10) : null, target_state_id: parseInt(target, 10) });
     setSaving(false);
-    if (res.error) {
-      setError("Could not clone pricing. Please try again.");
-      return;
-    }
-    onCloned(res.data, parseInt(targetStateId, 10));
+    if (res.error) return setError(res.error || "Couldn't copy prices. Try again.");
+    onCopied(parseInt(target, 10));
   };
 
+  const name = (id) => (id ? states.find((s) => String(s.id) === String(id))?.name : "General");
+
   return (
-    <Modal open={open} onOpenChange={(v) => !v && onClose()} title="Clone services">
-      <div className="w-[min(92vw,26rem)] rounded-2xl bg-white p-6 shadow-2xl">
-        <h3 className="text-base font-semibold text-[#111111]">Clone services</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Copy every price row — amount, financing fields, status, and priority — from one pricing scope into another.
-        </p>
-
-        <div className="mt-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">From</label>
-            <select value={sourceStateId} onChange={(e) => setSourceStateId(e.target.value)} className={inputCls}>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => !saving && onOpenChange(o)}
+      title="Copy prices to a state"
+      description="Copies every price, deposit and on/off setting into the state you choose."
+      footer={
+        <>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button block icon={Copy} loading={saving} onClick={copy}>{target ? `Copy to ${name(target)}` : "Copy prices"}</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {error ? <Notice tone="red">{error}</Notice> : null}
+        <Field label="Copy from">
+          {(p) => (
+            <Select {...p} value={source} onChange={(e) => setSource(e.target.value)}>
               <option value="">General (all states)</option>
-              {states.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">To</label>
-            <select value={targetStateId} onChange={(e) => setTargetStateId(e.target.value)} className={inputCls}>
-              <option value="">Select a state…</option>
-              {states.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {error && <p className="mt-3 text-[12.5px] text-red-600">{error}</p>}
-
-        <div className="mt-6 flex items-center justify-end gap-3">
-          <button type="button" onClick={onClose} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 border border-[#E5E5E5]">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleClone}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#28A745] text-white disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="h-4 w-4" />} Clone
-          </button>
-        </div>
+              {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          )}
+        </Field>
+        <Field label="Copy into" required>
+          {(p) => (
+            <Select {...p} value={target} onChange={(e) => setTarget(e.target.value)}>
+              <option value="">Choose a state</option>
+              {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          )}
+        </Field>
       </div>
-    </Modal>
+    </Sheet>
   );
 }
 
 export default function AdminPricingPage() {
+  const pushToast = useToast();
   const [states, setStates] = useState([]);
-  const [selectedStateId, setSelectedStateId] = useState(""); // "" = General
-  const [cloneOpen, setCloneOpen] = useState(false);
+  const [scope, setScope] = useState(""); // "" = general
+  const [copyOpen, setCopyOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [openIds, setOpenIds] = useState(() => new Set([SERVICE_SECTIONS[0].slug]));
 
   useEffect(() => {
-    getReferenceStates().then((res) => {
-      if (res.data) setStates(res.data);
-    });
+    getReferenceStates().then((res) => res.data && setStates(res.data));
   }, []);
 
-  const stateIdNum = selectedStateId ? parseInt(selectedStateId, 10) : null;
-  const scopeKey = stateIdNum ?? "general";
+  const stateId = scope ? parseInt(scope, 10) : null;
+  const scopeKey = stateId ?? "general";
 
-  const handleCloned = (data, targetStateId) => {
-    setCloneOpen(false);
-    if (targetStateId === stateIdNum) {
-      setReloadKey((k) => k + 1);
-    } else {
-      setSelectedStateId(String(targetStateId));
-    }
+  const toggle = (id) =>
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const jumpTo = (id) => {
+    setOpenIds((prev) => new Set(prev).add(id));
+    requestAnimationFrame(() => document.getElementById(`svc-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  const onCopied = (targetId) => {
+    setCopyOpen(false);
+    pushToast({ tone: "success", title: "Prices copied" });
+    if (targetId === stateId) setReloadKey((k) => k + 1);
+    else setScope(String(targetId));
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-5xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1
-            className="text-[28px] tracking-tight text-[#111111]"
-            style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
-          >
-            Pricing
-          </h1>
-          <p className="text-sm text-[#7A7A7A] mt-1">
-            Set the price for every service in the catalogue — organized the same way customers see it — optionally overridden per state.
-          </p>
-        </div>
-      </div>
-
-      <StateSelectorBar
-        states={states}
-        selectedStateId={selectedStateId}
-        setSelectedStateId={setSelectedStateId}
-        onOpenClone={() => setCloneOpen(true)}
+    <div className="mx-auto max-w-4xl">
+      <PageHeader
+        title="Pricing"
+        description="What customers pay for each service. Set general prices, then give a state its own price where needed."
+        actions={<Button variant="secondary" size="sm" icon={Copy} onClick={() => setCopyOpen(true)}>Copy to a state</Button>}
       />
 
-      <FastTrackPricingCard key={`fast-track:${scopeKey}`} stateId={stateIdNum} />
+      <div className="mb-4 rounded-cx-lg border border-cx-line bg-cx-surface p-4 shadow-cx">
+        <ScopePicker states={states} value={scope} onChange={setScope} />
+      </div>
 
-      <PricingDataProvider stateId={stateIdNum} reloadKey={reloadKey}>
-        <div className="space-y-4">
-          {SERVICE_SECTIONS.map((section) => (
-            // Scope-keyed so switching the state dropdown (or a Clone
-            // Services reload) remounts every card, dropping any
-            // in-progress local edit rather than letting a stale staged
-            // payload get saved into the newly-selected scope.
-            <ServicePricingCard key={`${scopeKey}:${section.slug}`} section={section} />
+      <nav aria-label="Jump to a service" className="sticky top-14 z-10 -mx-4 mb-4 bg-cx-paper/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:top-16 lg:-mx-10 lg:px-10">
+        <ul className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] md:flex-wrap md:overflow-visible">
+          {JUMPS.map((j) => (
+            <li key={j.id}>
+              <button
+                type="button"
+                onClick={() => jumpTo(j.id)}
+                className={cx(
+                  "cx-focus min-h-9 shrink-0 whitespace-nowrap rounded-full border px-3 text-sm font-medium transition-colors",
+                  openIds.has(j.id) ? "border-cx-brand/40 bg-cx-brand-soft text-cx-brand-deep" : "border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
+                )}
+              >
+                {j.label}
+              </button>
+            </li>
           ))}
+        </ul>
+      </nav>
+
+      <PricingDataProvider stateId={stateId} reloadKey={reloadKey}>
+        <div className="space-y-3">
+          {SERVICE_SECTIONS.map((section) => (
+            <ServicePricingCard key={`${scopeKey}:${section.slug}`} section={section} open={openIds.has(section.slug)} onToggle={() => toggle(section.slug)} />
+          ))}
+          <FastTrackPricingCard key={`ft:${scopeKey}`} stateId={stateId} open={openIds.has("fast-track")} onToggle={() => toggle("fast-track")} />
         </div>
       </PricingDataProvider>
 
-      <CloneServicesModal
-        open={cloneOpen}
-        onClose={() => setCloneOpen(false)}
-        states={states}
-        defaultTargetStateId={selectedStateId}
-        onCloned={handleCloned}
-      />
+      <CopyPricesSheet open={copyOpen} onOpenChange={setCopyOpen} states={states} defaultTarget={scope} onCopied={onCopied} />
     </div>
   );
 }
