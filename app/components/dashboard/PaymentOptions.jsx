@@ -31,6 +31,10 @@ export default function PaymentOptions({
   onPayCard,
   partialAllowed = true,
   minDepositKobo,
+  // The fee minDepositKobo was priced on. When the amount due is larger (a
+  // fast-track surcharge added on top), the server re-prices the deposit on
+  // the larger total, so scale the displayed deposit the same way.
+  depositBaseKobo,
   submitMode = false,
   submitting = false,
   onSubmitWithPayment,
@@ -41,8 +45,12 @@ export default function PaymentOptions({
   const [customNaira, setCustomNaira] = useState("");
   const [activePayType, setActivePayType] = useState(null);
 
-  const minKobo = minDepositKobo && minDepositKobo > 0
-    ? Math.min(minDepositKobo, remainingKobo)
+  const scaledDepositKobo =
+    minDepositKobo > 0 && depositBaseKobo > 0 && remainingKobo > depositBaseKobo
+      ? Math.max(minDepositKobo, Math.ceil((remainingKobo * minDepositKobo) / depositBaseKobo))
+      : minDepositKobo;
+  const minKobo = scaledDepositKobo && scaledDepositKobo > 0
+    ? Math.min(scaledDepositKobo, remainingKobo)
     : minPayableKobo(remainingKobo, amountPaidKobo);
 
   const effectivePartialAllowed = partialAllowed && minKobo < remainingKobo;
@@ -68,7 +76,9 @@ export default function PaymentOptions({
     setActivePayType(payType);
     if (submitMode) {
       if (method === "wallet" && amount > walletBalanceKobo) return;
-      onSubmitWithPayment?.({ payment_method: method, payment_amount_kobo: amount });
+      // deposit: true tells the form to let the server charge its own exact
+      // initial deposit rather than this client-side estimate.
+      onSubmitWithPayment?.({ payment_method: method, payment_amount_kobo: amount, deposit: payType === "min" });
       return;
     }
     if (method === "wallet") {

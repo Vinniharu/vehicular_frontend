@@ -267,7 +267,7 @@ export default function ApplyPage() {
   // "driver_licence" string (not per-subtype), since applicationType is
   // chosen INSIDE this same mounted wizard; the chosen subtype travels
   // inside the draft's own form_data snapshot below.
-  const { draftFormData, save: saveDraft, clearDraft, markSubmitting } = useApplicationDraft("driver_licence");
+  const { draftFormData, save: saveDraft, clearDraft, markSubmitting, unmarkSubmitting } = useApplicationDraft("driver_licence");
   const draftRestoredRef = useRef(false);
 
   const buildDraftSnapshot = () => ({
@@ -357,8 +357,13 @@ export default function ApplyPage() {
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
         setLoadingExisting(false);
 
-        if (meRes.data) {
-          setUser(meRes.data);
+        if (meRes.data) setUser(meRes.data);
+        // A restored draft is the customer's own in-progress input, so the
+        // prefill below must never overwrite it. The draft and this request
+        // load in parallel: if the draft lands first it sets
+        // draftRestoredRef and this block is skipped; if it lands later, it
+        // simply overrides these defaults.
+        if (meRes.data && !draftRestoredRef.current) {
           // Most recent past application is the prefill source (has city,
           // height, disability/facial-mark, passport photo, and real
           // origin-state/LGA ids) — falls through to a hardcoded default
@@ -484,8 +489,8 @@ export default function ApplyPage() {
       const trimmedPhone = applicantPhone.trim();
       if (!trimmedFirst) errors.firstName = "First name is required.";
       else if (!NAME_RE.test(trimmedFirst)) errors.firstName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
-      if (!trimmedMiddle) errors.middleName = "Middle name is required.";
-      else if (!NAME_RE.test(trimmedMiddle)) errors.middleName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
+      // Middle name is optional (not everyone has one); only check its format.
+      if (trimmedMiddle && !NAME_RE.test(trimmedMiddle)) errors.middleName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
       if (!trimmedLast) errors.lastName = "Surname is required.";
       else if (!NAME_RE.test(trimmedLast)) errors.lastName = "Use 2-50 letters, hyphens, apostrophes, or spaces only.";
       if (!trimmedEmail) errors.applicantEmail = "Email address is required.";
@@ -596,7 +601,9 @@ export default function ApplyPage() {
     const resolvedFee = liveItem?.amount_kobo ?? estimateFeeKobo(applicationType, validityPeriod, liveFeeSchedule);
 
     const payment_method = paymentOpts?.payment_method || "card";
-    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || resolvedFee;
+    // Initial deposit: no amount, so the server charges its own exact minimum.
+    const isDeposit = !!paymentOpts?.deposit;
+    const payment_amount_kobo = isDeposit ? undefined : (paymentOpts?.payment_amount_kobo || resolvedFee);
 
     const paymentPayload = {
       payment_method,
@@ -671,6 +678,7 @@ export default function ApplyPage() {
     setSubmitting(false);
     if (res.error) {
       setSubmitError(res.error);
+      unmarkSubmitting();
     } else {
       await clearDraft();
       setSuccessApp(res.data);
@@ -679,15 +687,15 @@ export default function ApplyPage() {
         showToast(
           "success",
           res.data?.status === "paid"
-            ? `Paid ${koboToNaira(payment_amount_kobo)} from wallet — application submitted!`
-            : `Initial deposit of ${koboToNaira(payment_amount_kobo)} paid from wallet — application submitted!`
+            ? `Paid ${koboToNaira(payment_amount_kobo ?? res.data?.payment_options?.amount_paid_kobo ?? 0)} from your wallet. Application submitted.`
+            : `Initial deposit of ${koboToNaira(res.data?.payment_options?.amount_paid_kobo ?? payment_amount_kobo ?? 0)} paid from your wallet. Application submitted.`
         );
         const walletRes = await getWallet();
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
       } else if (res.data?.payment_options?.checkout_url) {
         const authUrl = res.data.payment_options.checkout_url;
         goToCheckout(authUrl, { applicationId: res.data.id, amountPaidKobo: res.data.payment_options?.amount_paid_kobo });
-        showToast("success", `Opening payment checkout for ${koboToNaira(payment_amount_kobo)}...`);
+        showToast("success", "Opening checkout…");
       }
     }
   };
@@ -960,7 +968,7 @@ export default function ApplyPage() {
                 <FieldError message={fieldErrors.firstName} />
               </div>
               <div>
-                <label className={label}>Middle name <span className="text-red-400">*</span></label>
+                <label className={label}>Middle name <span className="font-normal text-cx-muted">(optional)</span></label>
                 <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="Chinedu" className={`${inputBase} ${errInputClass(!!fieldErrors.middleName)}`} />
                 <FieldError message={fieldErrors.middleName} />
               </div>
@@ -1347,8 +1355,10 @@ export default function ApplyPage() {
                   (p) => p.application_type === applicationType && (p.validity_period === validityPeriod || !validityPeriod || !p.validity_period)
                 );
                 const currentFeeKobo = liveItem?.amount_kobo ?? estimateFeeKobo(applicationType, validityPeriod, liveFeeSchedule);
-                const currentPartialAllowed = liveItem?.partial_payment_allowed ?? (applicationType === "fresh");
-                const currentMinDepositKobo = liveItem?.initial_deposit_kobo ?? (applicationType === "fresh" ? 1000000 : currentFeeKobo);
+                // Every licence type can start with a deposit (10% by default);
+                // the live fee row says otherwise when it's configured.
+                const currentPartialAllowed = liveItem?.partial_payment_allowed ?? true;
+                const currentMinDepositKobo = liveItem?.initial_deposit_kobo ?? Math.ceil((currentFeeKobo || 0) * 0.1);
 
                 return (
                   <PaymentOptions

@@ -37,6 +37,7 @@ import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS, resolveVehicleCatego
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import { goToCheckout } from "@/lib/utils/checkout";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -138,6 +139,7 @@ function getDocSlots(planKey, isRegisteredCompany) {
 }
 
 export default function NumberPlateNewApplicationPage() {
+  const pushToast = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const planKey = PLATE_TYPES[searchParams.get("type")] ? searchParams.get("type") : "new";
@@ -238,7 +240,7 @@ export default function NumberPlateNewApplicationPage() {
 
   // Draft autosave/resume, keyed by the resolved subtype (this wizard's
   // subtype is fixed via ?type= before mount, unlike driver's-licence).
-  const { draftFormData, hydrated, save, clearDraft, markSubmitting } = useApplicationDraft(plan.application_type);
+  const { draftFormData, hydrated, save, clearDraft, markSubmitting, unmarkSubmitting } = useApplicationDraft(plan.application_type);
   const draftAppliedRef = useRef(false);
 
   useEffect(() => {
@@ -295,7 +297,7 @@ export default function NumberPlateNewApplicationPage() {
     }
   }, [selectedStateId, plan.application_type]);
 
-  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 1000000;
+  const fastTrackSurchargeKobo = fastTrackInfo?.price_kobo ?? 1000000; // ₦10,000 only while the live price loads; a ₦0 price stays ₦0
   const totalEstimatedFeeKobo = estimatedFeeKobo != null ? (estimatedFeeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
 
   // Live, state-aware flat price (vehicle category no longer affects it) --
@@ -386,7 +388,6 @@ export default function NumberPlateNewApplicationPage() {
       if (!selectedStateId) errors.state = "Select the state to register this plate in.";
       if (!applicantForm.vehicle_category) errors.vehicle_category = "Select a vehicle category.";
       if (!applicantForm.first_name.trim()) errors.first_name = "First name is required.";
-      if (!applicantForm.middle_name.trim()) errors.middle_name = "Middle name is required.";
       if (!applicantForm.last_name.trim()) errors.last_name = "Surname is required.";
       if (!applicantForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!applicantForm.chassis_number.trim()) errors.chassis_number = "Chassis number is required.";
@@ -419,7 +420,6 @@ export default function NumberPlateNewApplicationPage() {
     }
     if (stepKeys[n - 1] === "dealership") {
       if (!dealershipForm.first_name?.trim()) errors.first_name = "First name is required.";
-      if (!dealershipForm.middle_name?.trim()) errors.middle_name = "Middle name is required.";
       if (!dealershipForm.last_name?.trim()) errors.last_name = "Surname is required.";
       if (!dealershipForm.dealership_name.trim()) errors.dealership_name = "Dealership name is required.";
       if (!dealershipForm.residential_address.trim()) errors.residential_address = "Address is required.";
@@ -433,7 +433,6 @@ export default function NumberPlateNewApplicationPage() {
     }
     if (n === stepIndex("applicant")) {
       if (!applicantForm.first_name.trim()) errors.first_name = "First name is required.";
-      if (!applicantForm.middle_name.trim()) errors.middle_name = "Middle name is required.";
       if (!applicantForm.last_name.trim()) errors.last_name = "Surname is required.";
       if (!applicantForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!applicantForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
@@ -543,7 +542,10 @@ export default function NumberPlateNewApplicationPage() {
     markSubmitting();
 
     const payment_method = paymentOpts?.payment_method || "card";
-    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || totalEstimatedFeeKobo;
+    // Initial deposit: send no amount so the server charges its own exact
+    // minimum (it prices the deposit on the total including any fast-track
+    // surcharge, so a client-side figure can come in under it).
+    const payment_amount_kobo = paymentOpts?.deposit ? undefined : (paymentOpts?.payment_amount_kobo || totalEstimatedFeeKobo);
 
     let targetVehicleId = selectedVehicleId;
     if (isStandardPlate) {
@@ -605,6 +607,7 @@ export default function NumberPlateNewApplicationPage() {
     setSubmitting(false);
     if (res.error) {
       setSubmitError(res.error);
+      unmarkSubmitting();
       return;
     }
     await clearDraft();
@@ -625,12 +628,15 @@ export default function NumberPlateNewApplicationPage() {
     setPayingFromWallet(true);
     const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: amountKobo });
     setPayingFromWallet(false);
-    if (res.error) return;
+    if (res.error) {
+      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
+      return;
+    }
     const walletRes = await getWallet();
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     if (res.data) {
       if (res.data.is_fully_paid) {
-        router.push("/dashboard/apply/number-plate");
+        router.push(`/dashboard/apply/${successApp.id}`);
         return;
       }
       setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
@@ -650,7 +656,7 @@ export default function NumberPlateNewApplicationPage() {
       if (!opts) return;
       const remaining = opts.remaining_kobo ?? opts.amount_kobo ?? 0;
       if (remaining <= 0) {
-        router.push("/dashboard/apply/number-plate");
+        router.push(`/dashboard/apply/${successApp.id}`);
       } else {
         setPayOpts(opts);
       }
@@ -708,7 +714,7 @@ export default function NumberPlateNewApplicationPage() {
             </div>
           )}
 
-          <button type="button" onClick={() => router.push("/dashboard/apply/number-plate")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
             Back to applications
           </button>
         </div>
@@ -821,7 +827,7 @@ export default function NumberPlateNewApplicationPage() {
 
             {/* 2. Middle Name */}
             <div>
-              <label className={label}>Middle Name: <span className="text-red-500">*</span></label>
+              <label className={label}>Middle name <span className="font-normal text-cx-muted">(optional)</span></label>
               <input
                 className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
                 value={applicantForm.middle_name}
@@ -1208,7 +1214,7 @@ export default function NumberPlateNewApplicationPage() {
                 <FieldError message={fieldErrors.first_name} />
               </div>
               <div>
-                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <label className={label}>Middle name <span className="font-normal text-cx-muted">(optional)</span></label>
                 <input
                   className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
                   value={dealershipForm.middle_name || ""}
@@ -1339,7 +1345,7 @@ export default function NumberPlateNewApplicationPage() {
                 <FieldError message={fieldErrors.first_name} />
               </div>
               <div>
-                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <label className={label}>Middle name <span className="font-normal text-cx-muted">(optional)</span></label>
                 <input
                   className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
                   value={applicantForm.middle_name}
@@ -1627,6 +1633,7 @@ export default function NumberPlateNewApplicationPage() {
               walletBalanceKobo={walletBalance}
               partialAllowed={partialAllowed}
               minDepositKobo={minDepositKobo}
+              depositBaseKobo={estimatedFeeKobo}
               submitting={submitting}
               onSubmitWithPayment={handleSubmit}
             />

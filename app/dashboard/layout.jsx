@@ -19,6 +19,7 @@ import {
 import { authGetMe, getCachedUser, getToken, removeToken } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
 import ChatWidget, { SUPPORT_UNREAD_EVENT, openSupportChat } from "@/app/dashboard/_shared/ChatWidget";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
 // Staff-side roles each have their own portal; the customer portal is for
 // customers only.
@@ -81,7 +82,15 @@ function loginUrl() {
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname() || "/dashboard";
-  useAutoLogout();
+  const pushToast = useToast();
+  useAutoLogout({
+    onWarn: () =>
+      pushToast({
+        tone: "error",
+        title: "You'll be signed out in 2 minutes",
+        body: "For your security, sessions end after an hour. Tap Continue on any form to save your progress, then sign in again.",
+      }),
+  });
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
   const [unread, setUnread] = useState(0);

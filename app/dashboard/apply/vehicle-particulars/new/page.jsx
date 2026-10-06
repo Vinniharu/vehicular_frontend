@@ -32,6 +32,7 @@ import { StepProgress, FieldError, errInputClass, IneligibilityNotice } from "@/
 import { VEHICLE_CATEGORY_OPTIONS, HACKNEY_ELIGIBLE_CATEGORY_VALUES } from "@/lib/constants/vehicleCategories";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -94,6 +95,7 @@ const DOC_TYPE_BY_KEY = Object.fromEntries(DOCUMENT_TYPES.map((d) => [d.document
 
 
 export default function VehicleParticularsNewApplicationPage() {
+  const pushToast = useToast();
   const router = useRouter();
   const cachedUser = getCachedUser();
 
@@ -102,7 +104,7 @@ export default function VehicleParticularsNewApplicationPage() {
   const [processingSpeed, setProcessingSpeed] = useState("normal");
   const [fastTrackInfo, setFastTrackInfo] = useState(null);
 
-  const { draftFormData, save, clearDraft, markSubmitting } = useApplicationDraft("vehicle_particulars");
+  const { draftFormData, save, clearDraft, markSubmitting, unmarkSubmitting } = useApplicationDraft("vehicle_particulars");
   const draftAppliedRef = useRef(false);
 
   const [states, setStates] = useState([]);
@@ -217,7 +219,7 @@ export default function VehicleParticularsNewApplicationPage() {
     });
   }, [selectedVehicle?.state_id]);
 
-  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 1000000;
+  const fastTrackSurchargeKobo = fastTrackInfo?.price_kobo ?? 1000000; // ₦10,000 only while the live price loads; a ₦0 price stays ₦0
   const finalTotalKobo = totalKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0);
 
   // Union of evidence slots across every selected document type, deduped by
@@ -298,7 +300,6 @@ export default function VehicleParticularsNewApplicationPage() {
       const allUploaded = evidenceSlots.every((slot) => evidenceByDocType[slot.doc_type]?.url);
       if (!allUploaded) errors.evidence = "Upload every required document to continue.";
       if (!firstName.trim()) errors.first_name = "First name is required.";
-      if (!middleName.trim()) errors.middle_name = "Middle name is required.";
       if (!lastName.trim()) errors.last_name = "Surname is required.";
       if (!applicantEmail.trim()) errors.applicant_email = "Email is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
@@ -350,7 +351,10 @@ export default function VehicleParticularsNewApplicationPage() {
     markSubmitting();
 
     const payment_method = paymentOpts?.payment_method || "card";
-    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || finalTotalKobo;
+    // Initial deposit: send no amount so the server charges its own exact
+    // minimum (it prices the deposit on the total including any fast-track
+    // surcharge, so a client-side figure can come in under it).
+    const payment_amount_kobo = paymentOpts?.deposit ? undefined : (paymentOpts?.payment_amount_kobo || finalTotalKobo);
 
     const items = selectedTypes.map((dt) => {
       const config = DOC_TYPE_BY_KEY[dt];
@@ -377,6 +381,7 @@ export default function VehicleParticularsNewApplicationPage() {
     setSubmitting(false);
     if (res.error) {
       setSubmitError(res.error);
+      unmarkSubmitting();
       return;
     }
     await clearDraft();
@@ -397,12 +402,15 @@ export default function VehicleParticularsNewApplicationPage() {
     setPayingFromWallet(true);
     const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: amountKobo });
     setPayingFromWallet(false);
-    if (res.error) return;
+    if (res.error) {
+      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
+      return;
+    }
     const walletRes = await getWallet();
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     if (res.data) {
       if (res.data.is_fully_paid) {
-        router.push("/dashboard/apply/vehicle-particulars");
+        router.push(`/dashboard/apply/${successApp.id}`);
         return;
       }
       setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
@@ -419,7 +427,7 @@ export default function VehicleParticularsNewApplicationPage() {
       if (!opts) return;
       const remaining = opts.remaining_kobo ?? opts.amount_kobo ?? 0;
       if (remaining <= 0) {
-        router.push("/dashboard/apply/vehicle-particulars");
+        router.push(`/dashboard/apply/${successApp.id}`);
       } else {
         setPayOpts(opts);
       }
@@ -481,7 +489,7 @@ export default function VehicleParticularsNewApplicationPage() {
             </div>
           )}
 
-          <button type="button" onClick={() => router.push("/dashboard/apply/vehicle-particulars")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
             Back to renewal requests
           </button>
         </div>
@@ -718,7 +726,7 @@ export default function VehicleParticularsNewApplicationPage() {
                 <FieldError message={fieldErrors.first_name} />
               </div>
               <div>
-                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <label className={label}>Middle name <span className="font-normal text-cx-muted">(optional)</span></label>
                 <input
                   className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
                   value={middleName}

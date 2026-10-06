@@ -31,6 +31,7 @@ import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared
 import { VEHICLE_CATEGORY_OPTIONS } from "@/lib/constants/vehicleCategories";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
+import { useToast } from "@/app/components/shared/ToastProvider";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -49,9 +50,10 @@ const DOC_SLOT = {
 };
 
 export default function CentralMotorRegistryNewApplicationPage() {
+  const pushToast = useToast();
   const router = useRouter();
   const cachedUser = getCachedUser();
-  const { draftFormData, hydrated: draftHydrated, save: saveDraft, clearDraft, markSubmitting } = useApplicationDraft("central_motor_registry");
+  const { draftFormData, hydrated: draftHydrated, save: saveDraft, clearDraft, markSubmitting, unmarkSubmitting } = useApplicationDraft("central_motor_registry");
   const [draftRestored, setDraftRestored] = useState(false);
 
   const [states, setStates] = useState([]);
@@ -92,7 +94,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     });
   }, [selectedStateId]);
 
-  const fastTrackSurchargeKobo = (processingSpeed === "fast_track" && fastTrackInfo?.price_kobo) ? fastTrackInfo.price_kobo : 1000000;
+  const fastTrackSurchargeKobo = fastTrackInfo?.price_kobo ?? 1000000; // ₦10,000 only while the live price loads; a ₦0 price stays ₦0
   const totalFeeKobo = feeKobo != null ? (feeKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
 
   const [step, setStep] = useState(1);
@@ -202,7 +204,6 @@ export default function CentralMotorRegistryNewApplicationPage() {
     if (n === 2) {
       if (!selectedStateId) errors.state = "Select the state to register in.";
       if (!firstName.trim()) errors.first_name = "First name is required.";
-      if (!middleName.trim()) errors.middle_name = "Middle name is required.";
       if (!lastName.trim()) errors.last_name = "Surname is required.";
       if (!nin.trim()) errors.nin = "NIN is required.";
       else if (!NIN_RE.test(nin.trim())) errors.nin = "NIN must be exactly 11 digits.";
@@ -257,7 +258,10 @@ export default function CentralMotorRegistryNewApplicationPage() {
     markSubmitting();
 
     const payment_method = paymentOpts?.payment_method || "card";
-    const payment_amount_kobo = paymentOpts?.payment_amount_kobo || totalFeeKobo;
+    // Initial deposit: send no amount so the server charges its own exact
+    // minimum (it prices the deposit on the total including any fast-track
+    // surcharge, so a client-side figure can come in under it).
+    const payment_amount_kobo = paymentOpts?.deposit ? undefined : (paymentOpts?.payment_amount_kobo || totalFeeKobo);
 
     const res = await submitCentralMotorRegistryApplication({
       payment_method,
@@ -278,6 +282,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
     setSubmitting(false);
     if (res.error) {
       setSubmitError(res.error);
+      unmarkSubmitting();
       return;
     }
     await clearDraft();
@@ -298,7 +303,10 @@ export default function CentralMotorRegistryNewApplicationPage() {
     setPayingFromWallet(true);
     const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: amountKobo });
     setPayingFromWallet(false);
-    if (res.error) return;
+    if (res.error) {
+      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
+      return;
+    }
     const walletRes = await getWallet();
     if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     if (res.data) {
@@ -370,7 +378,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
             </div>
           )}
 
-          <button type="button" onClick={() => router.push("/dashboard/applications")} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
+          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
             Back to applications
           </button>
         </div>
@@ -551,7 +559,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
                 <FieldError message={fieldErrors.first_name} />
               </div>
               <div>
-                <label className={label}>Middle Name <span className="text-red-400">*</span></label>
+                <label className={label}>Middle name <span className="font-normal text-cx-muted">(optional)</span></label>
                 <input
                   className={`${inputBase} ${errInputClass(!!fieldErrors.middle_name)}`}
                   value={middleName}
@@ -729,6 +737,7 @@ export default function CentralMotorRegistryNewApplicationPage() {
               walletBalanceKobo={walletBalance}
               partialAllowed={partialAllowed}
               minDepositKobo={minDepositKobo}
+              depositBaseKobo={feeKobo}
               submitting={submitting}
               onSubmitWithPayment={handleSubmit}
             />
