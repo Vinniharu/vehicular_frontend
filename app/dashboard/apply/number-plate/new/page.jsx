@@ -38,6 +38,7 @@ import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
+import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -623,25 +624,6 @@ export default function NumberPlateNewApplicationPage() {
     }
   };
 
-  const handlePayFromWallet = async (amountKobo) => {
-    if (!successApp) return;
-    setPayingFromWallet(true);
-    const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: amountKobo });
-    setPayingFromWallet(false);
-    if (res.error) {
-      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
-      return;
-    }
-    const walletRes = await getWallet();
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-    if (res.data) {
-      if (res.data.is_fully_paid) {
-        router.push(`/dashboard/apply/${successApp.id}`);
-        return;
-      }
-      setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
-    }
-  };
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
@@ -674,78 +656,37 @@ export default function NumberPlateNewApplicationPage() {
 
   if (successApp) {
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">{plan.title} application submitted</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            We'll route this to VIO and keep you updated in your dashboard.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? estimatedFeeKobo)}</span>
-            </div>
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5 text-left">
-              <PartialPayControls
-                remainingKobo={payOpts.remaining_kobo ?? payOpts.amount_kobo}
-                walletBalanceKobo={walletBalance}
-                amountPaidKobo={payOpts.amount_paid_kobo || 0}
-                minimumPayableKobo={payOpts.minimum_payable_kobo}
-                partialAllowed={payOpts.partial_payment_allowed ?? true}
-                payingWallet={payingFromWallet}
-                onPay={handlePayFromWallet}
-              />
-              {payOpts.checkout_url && (
-                <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Card or Transfer
-                </a>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
-            Back to applications
-          </button>
-        </div>
-      </div>
+      <SubmissionSuccess
+        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        title="Number plate application submitted"
+      />
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+    <div className="mx-auto max-w-2xl space-y-6 pb-2 sm:py-8">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-cx-muted hover:text-cx-ink-2">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply — {plan.title}</h1>
-        <p className="mt-1.5 text-[13.5px] text-slate-500">
+        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">Apply — {plan.title}</h1>
+        <p className="mt-1.5 text-sm text-cx-muted">
           Upload the documents below. We'll process your application with VIO end-to-end.
         </p>
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-          <p className="text-[12.5px] text-slate-600">Estimated total: {koboToNaira(estimatedFeeKobo)}</p>
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-cx-line bg-cx-sunken p-3">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cx-muted" />
+          <p className="text-[12.5px] text-cx-ink-2">Estimated total: {koboToNaira(estimatedFeeKobo)}</p>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-        <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+      <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
           <ShieldCheck className="h-4 w-4" style={{ color: BRAND }} /> What your payment covers
         </h2>
         <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
           {getWhatsCovered(planKey).map((item) => (
-            <li key={item} className="flex items-center gap-2 text-[12.5px] text-slate-600">
+            <li key={item} className="flex items-center gap-2 text-[12.5px] text-cx-ink-2">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: BRAND }} />
               {item}
             </li>
@@ -757,10 +698,10 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step — Standard Plate Form (Fresh & Change of Ownership 14 Fields) */}
       {isStandardPlate && stepKeys[step - 1] === "details" && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-[14.5px] font-bold text-[#111111]">Applicant & Vehicle Details</h2>
-            <p className="text-[12px] text-slate-500 mt-0.5">Please provide your details and vehicle specifications accurately.</p>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm space-y-4">
+          <div className="border-b border-cx-line pb-3">
+            <h2 className="text-[14.5px] font-bold text-cx-ink">Applicant & Vehicle Details</h2>
+            <p className="text-[12px] text-cx-muted mt-0.5">Please provide your details and vehicle specifications accurately.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -805,7 +746,7 @@ export default function NumberPlateNewApplicationPage() {
                   );
                 })}
               </select>
-              <p className="mt-1 text-[11.5px] font-medium text-emerald-700">
+              <p className="mt-1 text-xs font-medium text-emerald-700">
                 Selected category price: {koboToNaira(feeKobo)}
               </p>
               <FieldError message={fieldErrors.vehicle_category} />
@@ -871,7 +812,7 @@ export default function NumberPlateNewApplicationPage() {
                 onChange={(e) => setApplicantForm((f) => ({ ...f, residential_address: e.target.value, address: e.target.value }))}
                 placeholder="e.g. 14 Marina Road, Victoria Island, Lagos (used for delivery)"
               />
-              <p className="mt-1 text-[11.5px] text-slate-500">This address will also be used as the delivery address for your physical plate and documents.</p>
+              <p className="mt-1 text-xs text-cx-muted">This address will also be used as the delivery address for your physical plate and documents.</p>
               <FieldError message={fieldErrors.residential_address} />
             </div>
 
@@ -879,7 +820,7 @@ export default function NumberPlateNewApplicationPage() {
             <div>
               <label className={label}>Chassis number: <span className="text-red-500">*</span></label>
               <input
-                className={`${inputBase} font-mono uppercase ${errInputClass(!!fieldErrors.chassis_number)}`}
+                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.chassis_number)}`}
                 value={applicantForm.chassis_number}
                 onChange={(e) => setApplicantForm((f) => ({ ...f, chassis_number: e.target.value.toUpperCase() }))}
                 placeholder="e.g. 4T1BE32K45U123456"
@@ -957,7 +898,7 @@ export default function NumberPlateNewApplicationPage() {
                 Former Registration Number if any: {isChangeOfOwnership && <span className="text-red-500">*</span>}
               </label>
               <input
-                className={`${inputBase} font-mono uppercase ${errInputClass(!!fieldErrors.former_registration_number)}`}
+                className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.former_registration_number)}`}
                 value={applicantForm.former_registration_number}
                 onChange={(e) => setApplicantForm((f) => ({ ...f, former_registration_number: e.target.value.toUpperCase() }))}
                 placeholder="e.g. KJA-123AA (if existing)"
@@ -1006,8 +947,8 @@ export default function NumberPlateNewApplicationPage() {
           </div>
 
           {isChangeOfOwnership && (
-            <div className="pt-2 border-t border-slate-100">
-              <label className={label}>Previous Owner's Name & Details <span className="font-normal text-slate-400">(optional)</span></label>
+            <div className="pt-2 border-t border-cx-line">
+              <label className={label}>Previous Owner's Name & Details <span className="font-normal text-cx-muted">(optional)</span></label>
               <textarea
                 rows={2}
                 className={inputBase}
@@ -1022,8 +963,8 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step — Vehicle (omitted entirely for dealership and standard plates) */}
       {!isStandardPlate && requiresVehicle && stepKeys[step - 1] === "vehicle" && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
             <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle
           </h2>
 
@@ -1040,10 +981,10 @@ export default function NumberPlateNewApplicationPage() {
                     style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                   >
                     <div>
-                      <p className="text-[13.5px] font-semibold text-[#111111]">
+                      <p className="text-sm font-semibold text-cx-ink">
                         {v.make} {v.model} {v.plate_number ? `— ${v.plate_number}` : "(no plate yet)"}
                       </p>
-                      <p className="text-[12px] text-slate-500">{v.colour} · {v.state}</p>
+                      <p className="text-[12px] text-cx-muted">{v.colour} · {v.state}</p>
                     </div>
                     {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: BRAND }} />}
                   </button>
@@ -1052,7 +993,7 @@ export default function NumberPlateNewApplicationPage() {
               <button
                 type="button"
                 onClick={() => setAddingVehicle(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 p-2.5 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-cx-line-strong p-2.5 text-[12.5px] font-semibold text-cx-ink-2 hover:border-slate-400"
               >
                 <Plus className="h-3.5 w-3.5" /> Add another vehicle
               </button>
@@ -1064,7 +1005,7 @@ export default function NumberPlateNewApplicationPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={label}>
-                    Plate number {!plan.requiresExistingPlate && <span className="font-normal text-slate-400">(leave blank if none yet)</span>}
+                    Plate number {!plan.requiresExistingPlate && <span className="font-normal text-cx-muted">(leave blank if none yet)</span>}
                   </label>
                   <input
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.plate_number)}`}
@@ -1103,7 +1044,7 @@ export default function NumberPlateNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.colour} />
                 </div>
                 <div>
-                  <label className={label}>Vehicle category <span className="font-normal text-slate-400">(optional)</span></label>
+                  <label className={label}>Vehicle category <span className="font-normal text-cx-muted">(optional)</span></label>
                   <select
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`}
                     value={vehicleForm.vehicle_category}
@@ -1115,7 +1056,7 @@ export default function NumberPlateNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.vehicle_category} />
                 </div>
                 <div>
-                  <label className={label}>Year <span className="font-normal text-slate-400">(optional)</span></label>
+                  <label className={label}>Year <span className="font-normal text-cx-muted">(optional)</span></label>
                   <input
                     type="number"
                     className={inputBase}
@@ -1138,7 +1079,7 @@ export default function NumberPlateNewApplicationPage() {
                 </div>
                 <div>
                   <label className={label}>
-                    Chassis number {needsApplicantDetails ? <span className="text-red-400">*</span> : <span className="font-normal text-slate-400">(optional)</span>}
+                    Chassis number {needsApplicantDetails ? <span className="text-red-400">*</span> : <span className="font-normal text-cx-muted">(optional)</span>}
                   </label>
                   <input
                     className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.chassis_number)}`}
@@ -1148,7 +1089,7 @@ export default function NumberPlateNewApplicationPage() {
                   <FieldError message={vehicleFieldErrors.chassis_number} />
                 </div>
                 <div>
-                  <label className={label}>Engine number <span className="font-normal text-slate-400">(optional)</span></label>
+                  <label className={label}>Engine number <span className="font-normal text-cx-muted">(optional)</span></label>
                   <input
                     className={inputBase}
                     value={vehicleForm.engine_number}
@@ -1173,8 +1114,8 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step — Location */}
       {stepKeys[step - 1] === "location" && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Location</h2>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">Location</h2>
           <div className="space-y-4">
             <div>
               <label className={label}>State to register this plate in</label>
@@ -1187,7 +1128,7 @@ export default function NumberPlateNewApplicationPage() {
                 {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <FieldError message={fieldErrors.state} />
-              <p className="mt-1.5 text-[11.5px] text-slate-500">
+              <p className="mt-1.5 text-xs text-cx-muted">
                 Price is based on this state — the same flat fee for every {isDealership ? "dealership" : "vehicle"}.
               </p>
             </div>
@@ -1197,8 +1138,8 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step — Dealership details (dealership only) */}
       {isDealership && step === stepIndex("dealership") && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
             <Building2 className="h-4 w-4" style={{ color: BRAND }} /> Dealership details
           </h2>
           <div className="space-y-4">
@@ -1254,7 +1195,7 @@ export default function NumberPlateNewApplicationPage() {
                   No
                 </button>
               </div>
-              <p className="mt-1.5 text-[11.5px] text-slate-500">
+              <p className="mt-1.5 text-xs text-cx-muted">
                 {isRegisteredCompany
                   ? "You will be able to attach your CAC certificate on the next step — optional."
                   : "No problem — we'll just need your dealership's details below."}
@@ -1330,8 +1271,8 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step — Applicant details (replacement & fancy plates) */}
       {needsApplicantDetails && step === stepIndex("applicant") && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">Applicant details</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
@@ -1412,7 +1353,7 @@ export default function NumberPlateNewApplicationPage() {
               </div>
             </div>
             <div>
-              <label className={label}>Former Registration Number <span className="font-normal text-slate-400">(if any)</span></label>
+              <label className={label}>Former Registration Number <span className="font-normal text-cx-muted">(if any)</span></label>
               <input
                 className={inputBase}
                 value={applicantForm.former_registration_number}
@@ -1423,7 +1364,7 @@ export default function NumberPlateNewApplicationPage() {
               <div>
                 <label className={label}>Requested plate number <span className="text-red-400">*</span></label>
                 <input
-                  className={`${inputBase} font-mono uppercase ${errInputClass(!!fieldErrors.fancyPlateNumber)}`}
+                  className={`${inputBase} font-mono ${errInputClass(!!fieldErrors.fancyPlateNumber)}`}
                   value={fancyPlateNumber}
                   maxLength={8}
                   onChange={(e) => setFancyPlateNumber(e.target.value.toUpperCase())}
@@ -1438,8 +1379,8 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step 3 — Previous owner (change of ownership only) */}
       {isChangeOfOwnership && step === stepIndex("previousOwner") && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Previous owner</h2>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">Previous owner</h2>
           <label className={label}>Previous owner's details</label>
           <textarea
             className={`${inputBase} ${errInputClass(!!fieldErrors.previousOwnerDetails)}`}
@@ -1454,8 +1395,8 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step — Documents */}
       {step === DOC_STEP && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents</h2>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">Documents</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {docSlots.map((slot) => (
               <UploadSlot
@@ -1473,49 +1414,49 @@ export default function NumberPlateNewApplicationPage() {
       {/* Step — Review & submit */}
       {step === REVIEW_STEP && (
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your application</h2>
+          <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold text-cx-ink">Review your application</h2>
             <div className="divide-y divide-slate-100">
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Service</span>
-                <span className="font-semibold text-[#111111]">{plan.title}</span>
+                <span className="text-cx-muted">Service</span>
+                <span className="font-semibold text-cx-ink">{plan.title}</span>
               </div>
               {isStandardPlate && (
                 <>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Full Name</span>
-                    <span className="font-semibold text-[#111111]">
+                    <span className="text-cx-muted">Full Name</span>
+                    <span className="font-semibold text-cx-ink">
                       {applicantForm.first_name} {applicantForm.middle_name ? `${applicantForm.middle_name} ` : ""}{applicantForm.last_name}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Phone & NIN</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.applicant_phone} · {applicantForm.nin}</span>
+                    <span className="text-cx-muted">Phone & NIN</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.applicant_phone} · {applicantForm.nin}</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Delivery Address</span>
-                    <span className="font-semibold text-[#111111] text-right max-w-xs">{applicantForm.residential_address}</span>
+                    <span className="text-cx-muted">Delivery Address</span>
+                    <span className="font-semibold text-cx-ink text-right max-w-xs">{applicantForm.residential_address}</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Vehicle Make & Model</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.make} {applicantForm.model} ({applicantForm.year})</span>
+                    <span className="text-cx-muted">Vehicle Make & Model</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.make} {applicantForm.model} ({applicantForm.year})</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Body Type / Category</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.vehicle_body_type} ({applicantForm.vehicle_type})</span>
+                    <span className="text-cx-muted">Body Type / Category</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.vehicle_body_type} ({applicantForm.vehicle_type})</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Chassis Number</span>
-                    <span className="font-mono font-semibold text-[#111111]">{applicantForm.chassis_number}</span>
+                    <span className="text-cx-muted">Chassis Number</span>
+                    <span className="font-mono font-semibold text-cx-ink">{applicantForm.chassis_number}</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Vehicle Colour</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.colour}</span>
+                    <span className="text-cx-muted">Vehicle Colour</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.colour}</span>
                   </div>
                   {applicantForm.former_registration_number && (
                     <div className="flex items-center justify-between py-2.5 text-[13px]">
-                      <span className="text-slate-500">Former Registration Number</span>
-                      <span className="font-mono font-semibold text-[#111111]">{applicantForm.former_registration_number}</span>
+                      <span className="text-cx-muted">Former Registration Number</span>
+                      <span className="font-mono font-semibold text-cx-ink">{applicantForm.former_registration_number}</span>
                     </div>
                   )}
                 </>
@@ -1523,72 +1464,72 @@ export default function NumberPlateNewApplicationPage() {
               {!isStandardPlate && requiresVehicle && (
                 <>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Vehicle</span>
-                    <span className="font-semibold text-[#111111]">
+                    <span className="text-cx-muted">Vehicle</span>
+                    <span className="font-semibold text-cx-ink">
                       {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}${selectedVehicle.plate_number ? ` — ${selectedVehicle.plate_number}` : ""}` : "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Vehicle category</span>
-                    <span className="font-semibold text-[#111111]">
+                    <span className="text-cx-muted">Vehicle category</span>
+                    <span className="font-semibold text-cx-ink">
                       {selectedVehicle?.vehicle_category ? VEHICLE_CATEGORY_LABELS[selectedVehicle.vehicle_category] : "—"}
                     </span>
                   </div>
                 </>
               )}
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">State</span>
-                <span className="font-semibold text-[#111111]">{states.find((s) => String(s.id) === String(selectedStateId))?.name || "—"}</span>
+                <span className="text-cx-muted">State</span>
+                <span className="font-semibold text-cx-ink">{states.find((s) => String(s.id) === String(selectedStateId))?.name || "—"}</span>
               </div>
               {isDealership && (
                 <>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Dealership</span>
-                    <span className="font-semibold text-[#111111]">{dealershipForm.dealership_name || "—"}</span>
+                    <span className="text-cx-muted">Dealership</span>
+                    <span className="font-semibold text-cx-ink">{dealershipForm.dealership_name || "—"}</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Registered company</span>
-                    <span className="font-semibold text-[#111111]">{isRegisteredCompany ? "Yes" : "No"}</span>
+                    <span className="text-cx-muted">Registered company</span>
+                    <span className="font-semibold text-cx-ink">{isRegisteredCompany ? "Yes" : "No"}</span>
                   </div>
                 </>
               )}
               {!isStandardPlate && needsApplicantDetails && (
                 <>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Surname</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.last_name || "—"}</span>
+                    <span className="text-cx-muted">Surname</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.last_name || "—"}</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">First name</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.first_name || "—"}</span>
+                    <span className="text-cx-muted">First name</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.first_name || "—"}</span>
                   </div>
                   <div className="flex items-center justify-between py-2.5 text-[13px]">
-                    <span className="text-slate-500">Middle name</span>
-                    <span className="font-semibold text-[#111111]">{applicantForm.middle_name || "—"}</span>
+                    <span className="text-cx-muted">Middle name</span>
+                    <span className="font-semibold text-cx-ink">{applicantForm.middle_name || "—"}</span>
                   </div>
                 </>
               )}
               {isChangeOfOwnership && (previousOwnerDetails || applicantForm.previous_owner_details) && (
                 <div className="py-2.5 text-[13px]">
-                  <span className="block text-slate-500">Previous owner</span>
-                  <span className="mt-1 block text-[#111111]">{previousOwnerDetails || applicantForm.previous_owner_details}</span>
+                  <span className="block text-cx-muted">Previous owner</span>
+                  <span className="mt-1 block text-cx-ink">{previousOwnerDetails || applicantForm.previous_owner_details}</span>
                 </div>
               )}
               {planKey === "fancy" && fancyPlateNumber.trim() && (
                 <div className="flex items-center justify-between py-2.5 text-[13px]">
-                  <span className="text-slate-500">Fancy plate number</span>
-                  <span className="font-mono font-semibold text-[#111111]">{fancyPlateNumber.trim()}</span>
+                  <span className="text-cx-muted">Fancy plate number</span>
+                  <span className="font-mono font-semibold text-cx-ink">{fancyPlateNumber.trim()}</span>
                 </div>
               )}
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Documents</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Documents</span>
+                <span className="font-semibold text-cx-ink">
                   {docSlots.filter((s) => docs[s.doc_type]?.url).length} of {docSlots.length} uploaded
                 </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Processing Speed</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Processing Speed</span>
+                <span className="font-semibold text-cx-ink">
                   {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
                 </span>
               </div>
@@ -1603,15 +1544,15 @@ export default function NumberPlateNewApplicationPage() {
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />
 
-          <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Submission</h2>
-            <p className="mb-4 text-[12px] text-slate-500">
+          <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-[14px] font-bold text-cx-ink">Payment & Submission</h2>
+            <p className="mb-4 text-[12px] text-cx-muted">
               Applications require an initial deposit or full payment to begin processing.
             </p>
-            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+            <div className="mb-4 rounded-xl bg-cx-sunken p-3 text-[13px] border border-cx-line space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">{plan.title}</span>
-                <span className="font-semibold text-[#111111]">{koboToNaira(estimatedFeeKobo)}</span>
+                <span className="text-cx-muted">{plan.title}</span>
+                <span className="font-semibold text-cx-ink">{koboToNaira(estimatedFeeKobo)}</span>
               </div>
               {processingSpeed === "fast_track" && (
                 <div className="flex items-center justify-between text-emerald-700">
@@ -1619,7 +1560,7 @@ export default function NumberPlateNewApplicationPage() {
                   <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+              <div className="flex items-center justify-between pt-1 border-t border-cx-line/60 font-bold text-cx-ink">
                 <span>Total Fee</span>
                 <span className="font-mono">{koboToNaira(totalEstimatedFeeKobo)}</span>
               </div>
@@ -1643,7 +1584,7 @@ export default function NumberPlateNewApplicationPage() {
 
       {/* Step navigation */}
       {step < totalSteps && (
-        <div className="flex items-center justify-between gap-3">
+        <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center justify-between gap-3 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
           {step > 1 ? (
             <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className={btnSecondary}>
               Back

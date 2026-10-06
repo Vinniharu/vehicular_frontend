@@ -25,11 +25,11 @@ export function isActive(pathname, item) {
 
 const VARIANTS = {
   desktop: {
-    rowClass: "group flex items-center gap-3 px-3 py-3 rounded-xl text-[13.5px] font-semibold transition-all w-full",
+    rowClass: "group flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all w-full",
     iconBoxClass: "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
     iconClass: "h-[17px] w-[17px]",
     labelClass: "block",
-    descClass: "block text-[11px] font-normal",
+    descClass: "block text-xs font-normal",
     showDot: true,
     childIndentClass: "ml-[19px] mt-0.5 space-y-0.5 border-l border-white/10 pl-3",
     childRowClass: "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] font-semibold transition-all",
@@ -39,7 +39,7 @@ const VARIANTS = {
     iconBoxClass: "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
     iconClass: "h-5 w-5",
     labelClass: "text-[14px] font-semibold",
-    descClass: "text-[11.5px]",
+    descClass: "text-xs",
     showDot: false,
     childIndentClass: "ml-[21px] mt-0.5 space-y-0.5 border-l border-white/10 pl-3.5",
     childRowClass: "flex items-center gap-3 px-3.5 py-3 rounded-lg text-[13px] font-semibold transition-all",

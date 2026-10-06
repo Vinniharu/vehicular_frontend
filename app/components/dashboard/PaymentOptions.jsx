@@ -18,7 +18,7 @@ function minPayableKobo(remainingKobo, amountPaidKobo) {
 
 const segBtn = (active) =>
   `flex-1 rounded-lg px-3 py-2 text-center text-[12.5px] font-semibold transition-all ${
-    active ? "bg-white text-[#111111] shadow-sm" : "text-slate-500 hover:text-slate-700"
+    active ? "bg-white text-cx-ink shadow-sm" : "text-cx-muted hover:text-cx-ink-2"
   }`;
 
 export default function PaymentOptions({
@@ -95,8 +95,8 @@ export default function PaymentOptions({
     <div className="space-y-4">
       {/* ─── Method Picker ─── */}
       <div>
-        <p className="mb-1.5 text-[11.5px] font-semibold text-slate-600">Select payment method</p>
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+        <p className="mb-1.5 text-xs font-semibold text-cx-ink-2">Select payment method</p>
+        <div className="flex gap-1 rounded-xl bg-cx-sunken p-1">
           <button
             type="button"
             onClick={() => setMethod("card")}
@@ -116,10 +116,10 @@ export default function PaymentOptions({
 
       {/* ─── Wallet balance notification ─── */}
       {method === "wallet" && (
-        <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2.5 border border-slate-200/80">
-          <Wallet className="h-4 w-4 text-slate-400" />
-          <span className="flex-1 text-[12.5px] text-slate-500">Available wallet balance</span>
-          <span className="font-mono text-[13px] font-bold text-[#111111]">
+        <div className="flex items-center gap-2 rounded-xl bg-cx-sunken px-3.5 py-2.5 border border-cx-line/80">
+          <Wallet className="h-4 w-4 text-cx-muted" />
+          <span className="flex-1 text-[12.5px] text-cx-muted">Available wallet balance</span>
+          <span className="font-mono text-[13px] font-bold text-cx-ink">
             {koboToNaira(walletBalanceKobo)}
           </span>
         </div>
@@ -130,10 +130,10 @@ export default function PaymentOptions({
         <div className="space-y-3.5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {/* Button 1: pay the initial deposit */}
-            <div className="flex flex-col justify-between rounded-2xl border-2 border-[#28A745] bg-emerald-50/50 p-4.5 text-left shadow-xs transition-all hover:bg-emerald-50/80">
+            <div className="flex flex-col justify-between rounded-cx-lg border-2 border-[#28A745] bg-emerald-50/50 p-4.5 text-left shadow-xs transition-all hover:bg-emerald-50/80">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
                     <Check className="h-3 w-3 text-emerald-700" />
                     {depositLabel || "Initial Deposit"}
                   </span>
@@ -143,17 +143,17 @@ export default function PaymentOptions({
                     <CreditCard className="h-4 w-4 text-emerald-700" />
                   )}
                 </div>
-                <p className="mt-3 text-[12px] font-semibold text-slate-600">Start Processing</p>
-                <p className="font-mono text-2xl font-black text-slate-900 tracking-tight">
+                <p className="mt-3 text-[12px] font-semibold text-cx-ink-2">Start Processing</p>
+                <p className="font-mono text-2xl font-black text-cx-ink tracking-tight">
                   {koboToNaira(minKobo)}
                 </p>
-                <p className="mt-1 text-[11.5px] leading-relaxed text-emerald-800 font-medium">
+                <p className="mt-1 text-xs leading-relaxed text-emerald-800 font-medium">
                   Start processing immediately with an initial deposit. Pay remaining balance before final routing/delivery.
                 </p>
               </div>
 
               {method === "wallet" && minKobo > walletBalanceKobo && (
-                <p className="mt-3 text-[11.5px] text-amber-700 font-medium">
+                <p className="mt-3 text-xs text-amber-700 font-medium">
                   Exceeds wallet balance ({koboToNaira(walletBalanceKobo)})
                 </p>
               )}
@@ -162,7 +162,7 @@ export default function PaymentOptions({
                 type="button"
                 onClick={() => handlePay(minKobo, "min")}
                 disabled={busy || (method === "wallet" && minKobo > walletBalanceKobo)}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[13.5px] font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: BRAND }}
               >
                 {busy && activePayType === "min" ? (
@@ -185,29 +185,29 @@ export default function PaymentOptions({
             </div>
 
             {/* Button 2: Pay in Full */}
-            <div className="flex flex-col justify-between rounded-2xl border-2 border-slate-200 bg-white p-4.5 text-left shadow-xs transition-all hover:border-slate-300">
+            <div className="flex flex-col justify-between rounded-cx-lg border-2 border-cx-line bg-white p-4.5 text-left shadow-xs transition-all hover:border-cx-line-strong">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cx-sunken px-2.5 py-0.5 text-xs font-bold text-cx-ink-2">
                     Full Clearance
                   </span>
                   {method === "wallet" ? (
-                    <Wallet className="h-4 w-4 text-slate-600" />
+                    <Wallet className="h-4 w-4 text-cx-ink-2" />
                   ) : (
-                    <CreditCard className="h-4 w-4 text-slate-600" />
+                    <CreditCard className="h-4 w-4 text-cx-ink-2" />
                   )}
                 </div>
-                <p className="mt-3 text-[12px] font-semibold text-slate-600">Complete Fee</p>
-                <p className="font-mono text-2xl font-black text-slate-900 tracking-tight">
+                <p className="mt-3 text-[12px] font-semibold text-cx-ink-2">Complete Fee</p>
+                <p className="font-mono text-2xl font-black text-cx-ink tracking-tight">
                   {koboToNaira(remainingKobo)}
                 </p>
-                <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500 font-medium">
+                <p className="mt-1 text-xs leading-relaxed text-cx-muted font-medium">
                   Covers entire service processing, documentation, and completion.
                 </p>
               </div>
 
               {method === "wallet" && remainingKobo > walletBalanceKobo && (
-                <p className="mt-3 text-[11.5px] text-amber-700 font-medium">
+                <p className="mt-3 text-xs text-amber-700 font-medium">
                   Exceeds wallet balance ({koboToNaira(walletBalanceKobo)})
                 </p>
               )}
@@ -216,7 +216,7 @@ export default function PaymentOptions({
                 type="button"
                 onClick={() => handlePay(remainingKobo, "full")}
                 disabled={busy || (method === "wallet" && remainingKobo > walletBalanceKobo)}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-[13.5px] font-bold text-white shadow-sm transition-all hover:bg-black active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-black active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {busy && activePayType === "full" ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -243,19 +243,19 @@ export default function PaymentOptions({
             <button
               type="button"
               onClick={() => setShowCustomAmount((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:text-slate-900"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-cx-ink-2 hover:text-cx-ink"
             >
               <span>{showCustomAmount ? "Hide custom amount" : "Want to pay a different deposit amount?"}</span>
               {showCustomAmount ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
 
             {showCustomAmount && (
-              <div className="mt-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-                <label className="block text-[12px] font-semibold text-slate-700">
+              <div className="mt-2.5 rounded-cx-lg border border-cx-line bg-cx-sunken/70 p-4 space-y-3">
+                <label className="block text-[12px] font-semibold text-cx-ink-2">
                   Custom contribution amount (min {koboToNaira(minKobo)})
                 </label>
-                <div className="flex min-w-[140px] items-center rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 focus-within:border-[#28A745] focus-within:ring-2 focus-within:ring-[#28A745]/15">
-                  <span className="mr-1 text-[13.5px] font-semibold text-slate-500">₦</span>
+                <div className="flex min-w-[140px] items-center rounded-xl border border-cx-line-strong bg-white px-3.5 py-2.5 focus-within:border-[#28A745] focus-within:ring-2 focus-within:ring-[#28A745]/15">
+                  <span className="mr-1 text-sm font-semibold text-cx-muted">₦</span>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -263,7 +263,7 @@ export default function PaymentOptions({
                     value={customNaira}
                     onChange={(e) => setCustomNaira(e.target.value)}
                     placeholder={koboToNaira(minKobo).replace(/[^0-9.,]/g, "")}
-                    className="w-full bg-transparent text-[13.5px] font-mono text-[#111111] outline-none"
+                    className="w-full bg-transparent text-sm font-mono text-cx-ink outline-none"
                   />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -272,19 +272,19 @@ export default function PaymentOptions({
                       key={value}
                       type="button"
                       onClick={() => setCustomNaira(String(value / 100))}
-                      className="rounded-full bg-white border border-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                      className="rounded-full bg-white border border-cx-line px-3 py-1 text-xs font-semibold text-cx-ink-2 hover:bg-cx-sunken"
                     >
                       {koboToNaira(value)}
                     </button>
                   ))}
                 </div>
                 {customTooLow && (
-                  <p className="text-[11.5px] font-medium text-red-600">
+                  <p className="text-xs font-medium text-red-600">
                     Minimum payment is {koboToNaira(minKobo)}.
                   </p>
                 )}
                 {!customTooLow && customTooHigh && (
-                  <p className="text-[11.5px] font-medium text-red-600">
+                  <p className="text-xs font-medium text-red-600">
                     Amount exceeds the remaining balance of {koboToNaira(remainingKobo)}.
                   </p>
                 )}
@@ -319,27 +319,27 @@ export default function PaymentOptions({
       ) : partialAllowed && amountPaidKobo > 0 ? (
         /* ─── Scenario 2: Subsequent Partial Payments (deposit already paid) ─── */
         <div className="space-y-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <div className="rounded-xl border border-cx-line bg-white p-4 space-y-3">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Remaining Balance:</span>
-              <span className="font-mono font-bold text-slate-900">{koboToNaira(remainingKobo)}</span>
+              <span className="text-cx-muted">Remaining Balance:</span>
+              <span className="font-mono font-bold text-cx-ink">{koboToNaira(remainingKobo)}</span>
             </div>
 
             <button
               type="button"
               onClick={() => handlePay(remainingKobo)}
               disabled={busy || (method === "wallet" && remainingKobo > walletBalanceKobo)}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-[13.5px] font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
               style={{ background: BRAND }}
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : method === "wallet" ? <Wallet className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
               {busy ? "Processing…" : `Pay Remaining ${koboToNaira(remainingKobo)} in Full`}
             </button>
 
-            <div className="pt-2 border-t border-slate-100">
-              <label className="block mb-1 text-[11.5px] font-semibold text-slate-600">Or contribute another partial amount</label>
-              <div className="flex min-w-[140px] items-center rounded-xl border border-slate-300 bg-white px-3.5 py-2 focus-within:border-[#28A745] focus-within:ring-2 focus-within:ring-[#28A745]/15">
-                <span className="mr-1 text-[13px] font-semibold text-slate-500">₦</span>
+            <div className="pt-2 border-t border-cx-line">
+              <label className="block mb-1 text-xs font-semibold text-cx-ink-2">Or contribute another partial amount</label>
+              <div className="flex min-w-[140px] items-center rounded-xl border border-cx-line-strong bg-white px-3.5 py-2 focus-within:border-[#28A745] focus-within:ring-2 focus-within:ring-[#28A745]/15">
+                <span className="mr-1 text-[13px] font-semibold text-cx-muted">₦</span>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -347,11 +347,11 @@ export default function PaymentOptions({
                   value={customNaira}
                   onChange={(e) => setCustomNaira(e.target.value)}
                   placeholder="Enter amount"
-                  className="w-full bg-transparent text-[13px] font-mono text-[#111111] outline-none"
+                  className="w-full bg-transparent text-[13px] font-mono text-cx-ink outline-none"
                 />
               </div>
               {customTooHigh && (
-                <p className="mt-1 text-[11.5px] font-medium text-red-600">
+                <p className="mt-1 text-xs font-medium text-red-600">
                   Amount exceeds remaining {koboToNaira(remainingKobo)}.
                 </p>
               )}
@@ -360,7 +360,7 @@ export default function PaymentOptions({
                   type="button"
                   onClick={() => handlePay(customKobo)}
                   disabled={busy || (method === "wallet" && customKobo > walletBalanceKobo)}
-                  className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-2 text-[12.5px] font-semibold text-slate-700 hover:bg-slate-50 transition-all"
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cx-line-strong bg-white py-2 text-[12.5px] font-semibold text-cx-ink-2 hover:bg-cx-sunken transition-all"
                 >
                   Pay {koboToNaira(customKobo)}
                 </button>
@@ -402,7 +402,7 @@ export default function PaymentOptions({
               Exceeds wallet balance ({koboToNaira(walletBalanceKobo)}). Fund your wallet or switch to Card/Transfer.
             </p>
           )}
-          <p className="text-[11.5px] text-center text-slate-500">
+          <p className="text-xs text-center text-cx-muted">
             Full upfront payment is required for this service before processing begins.
           </p>
         </div>

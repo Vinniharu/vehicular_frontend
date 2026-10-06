@@ -103,16 +103,16 @@ export default function ApplicationChatPanel({
   };
 
   return (
-    <div id="chat" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div id="chat" className="scroll-mt-24 rounded-cx-lg border border-cx-line bg-white shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-slate-50/50">
+      <div className="flex items-center justify-between border-b border-cx-line px-5 py-4 bg-cx-sunken/50">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-[#28A745]">
             <MessageCircle className="h-4.5 w-4.5" />
           </div>
           <div>
-            <h3 className="text-[13.5px] font-bold text-slate-900">{defaultTitle}</h3>
-            <p className="text-[11.5px] text-slate-500">
+            <h3 className="text-sm font-bold text-cx-ink">{defaultTitle}</h3>
+            <p className="text-xs text-cx-muted">
               {threadData?.agent_name && myRole === "customer"
                 ? `Assigned: ${threadData.agent_name}`
                 : threadData?.customer_name && myRole === "agent"
@@ -122,7 +122,7 @@ export default function ApplicationChatPanel({
           </div>
         </div>
         {threadData?.can_chat && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Active
           </span>
@@ -132,20 +132,20 @@ export default function ApplicationChatPanel({
       {loading ? (
         <div className="p-10 text-center">
           <Loader2 className="h-6 w-6 animate-spin text-[#28A745] mx-auto" />
-          <p className="mt-2 text-[12px] text-slate-400">Loading chat…</p>
+          <p className="mt-2 text-[12px] text-cx-muted">Loading chat…</p>
         </div>
       ) : error ? (
-        <div className="p-5 text-[12.5px] text-slate-500 flex items-center gap-2">
+        <div className="p-5 text-[12.5px] text-cx-muted flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
           <span>{error}</span>
         </div>
       ) : threadData && !threadData.can_chat ? (
         <div className="p-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-cx-sunken text-cx-muted">
             <MessageCircle className="h-6 w-6" />
           </div>
-          <h4 className="text-[14px] font-semibold text-slate-800">Live chat not active yet</h4>
-          <p className="mx-auto mt-1 max-w-sm text-[12.5px] text-slate-500">
+          <h4 className="text-[14px] font-semibold text-cx-ink">Live chat not active yet</h4>
+          <p className="mx-auto mt-1 max-w-sm text-[12.5px] text-cx-muted">
             {threadData.status_message ||
               "Live chat will open automatically once a field agent accepts your application and starts working on it."}
           </p>
@@ -156,8 +156,8 @@ export default function ApplicationChatPanel({
           <div ref={scrollRef} className="h-[340px] overflow-y-auto p-4 space-y-3 bg-[#fdfdfd]">
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center p-6">
-                <p className="text-[13px] font-medium text-slate-600">No messages yet</p>
-                <p className="mt-1 max-w-xs text-[12px] text-slate-400">
+                <p className="text-[13px] font-medium text-cx-ink-2">No messages yet</p>
+                <p className="mt-1 max-w-xs text-[12px] text-cx-muted">
                   {myRole === "agent"
                     ? "Reach out to the customer if you need any additional details or clarification."
                     : "You can ask your assigned agent questions or send requested details here."}
@@ -169,16 +169,16 @@ export default function ApplicationChatPanel({
                 return (
                   <div key={m.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+                      className={`max-w-[80%] rounded-cx-lg px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
                         isOwn
                           ? "bg-[#28A745] text-white rounded-br-sm"
-                          : "bg-white border border-slate-200 text-slate-800 rounded-bl-sm"
+                          : "bg-white border border-cx-line text-cx-ink rounded-bl-sm"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3 mb-1">
                         <span
-                          className={`text-[10.5px] font-bold uppercase tracking-wider ${
-                            isOwn ? "text-white/80" : "text-slate-400"
+                          className={`text-xs font-bold ${
+                            isOwn ? "text-white/80" : "text-cx-muted"
                           }`}
                         >
                           {isOwn
@@ -187,7 +187,7 @@ export default function ApplicationChatPanel({
                             ? (threadData?.agent_name || "Field Agent")
                             : (threadData?.customer_name || "Applicant")}
                         </span>
-                        <span className={`text-[10px] ${isOwn ? "text-white/70" : "text-slate-400"}`}>
+                        <span className={`text-xs ${isOwn ? "text-white/70" : "text-cx-muted"}`}>
                           {m.created_at
                             ? new Date(m.created_at).toLocaleTimeString("en-NG", {
                                 hour: "2-digit",
@@ -205,9 +205,9 @@ export default function ApplicationChatPanel({
           </div>
 
           {/* Input Area */}
-          <div className="border-t border-slate-100 p-3 bg-white">
+          <div className="border-t border-cx-line p-3 bg-white">
             {sendError && (
-              <p className="mb-2 text-[11.5px] font-medium text-red-600 px-1">{sendError}</p>
+              <p className="mb-2 text-xs font-medium text-red-600 px-1">{sendError}</p>
             )}
             <div className="flex items-end gap-2">
               <textarea
@@ -226,7 +226,7 @@ export default function ApplicationChatPanel({
                     ? "Message customer… (Enter to send)"
                     : "Message your field agent… (Enter to send)"
                 }
-                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 transition-all"
+                className="flex-1 resize-none rounded-xl border border-cx-line bg-cx-sunken px-3.5 py-2.5 text-[13px] text-cx-ink placeholder:text-cx-muted focus:border-[#28A745] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 transition-all"
               />
               <button
                 type="button"

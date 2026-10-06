@@ -48,15 +48,15 @@ export default function DriversLicenceApplicationsPage() {
       <div>
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Driver's licence</span>
+          <span className="text-xs font-bold text-cx-muted">Driver's licence</span>
         </div>
         <h1
-          className="mt-1.5 text-[30px] tracking-tight text-[#111111]"
+          className="mt-1.5 text-[30px] tracking-tight text-cx-ink"
           style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
         >
           Driver's licence services
         </h1>
-        <p className="mt-1 text-[13.5px] text-slate-500">
+        <p className="mt-1 text-sm text-cx-muted">
           Pick what you need — we'll show you exactly what to bring before you start.
         </p>
       </div>
@@ -70,13 +70,13 @@ export default function DriversLicenceApplicationsPage() {
               key={opt.application_type}
               type="button"
               onClick={() => router.push(`/dashboard/apply/requirements?type=${opt.application_type}`)}
-              className="flex flex-col items-start gap-2.5 rounded-2xl border border-[#E5E5E5] bg-white p-5 text-left transition-all hover:border-[#28A745]/60 hover:shadow-md"
+              className="flex flex-col items-start gap-2.5 rounded-cx-lg border border-cx-line bg-white p-5 text-left transition-all hover:border-[#28A745]/60 hover:shadow-md"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "#F0FDF4", color: BRAND }}>
                 <Icon className="h-5 w-5" />
               </div>
-              <p className="text-[14px] font-bold text-[#111111]">{opt.title}</p>
-              <p className="text-[12.5px] leading-relaxed text-slate-500">{opt.desc}</p>
+              <p className="text-[14px] font-bold text-cx-ink">{opt.title}</p>
+              <p className="text-[12.5px] leading-relaxed text-cx-muted">{opt.desc}</p>
             </button>
           );
         })}

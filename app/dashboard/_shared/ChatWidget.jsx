@@ -213,7 +213,7 @@ export default function ChatWidget() {
       >
         <MessageCircle className="h-6 w-6" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10.5px] font-bold text-white ring-2 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white ring-2 ring-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -224,11 +224,11 @@ export default function ChatWidget() {
   const closed = ticket?.status === "closed";
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-white sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[520px] sm:w-[380px] sm:rounded-2xl sm:shadow-2xl sm:ring-1 sm:ring-black/10">
-      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3 sm:rounded-t-2xl">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-white sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[520px] sm:w-[380px] sm:rounded-cx-lg sm:shadow-2xl sm:ring-1 sm:ring-black/10">
+      <div className="flex items-center justify-between border-b border-cx-line bg-cx-sunken px-4 py-3 sm:rounded-t-2xl">
         <div className="flex items-center gap-2">
           <MessageCircle className="h-4 w-4 text-[#28A745]" />
-          <h3 className="text-[13.5px] font-bold text-slate-900">Live chat</h3>
+          <h3 className="text-sm font-bold text-cx-ink">Live chat</h3>
         </div>
         <button
           type="button"
@@ -248,18 +248,18 @@ export default function ChatWidget() {
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center px-4">
             <MessageCircle className="h-8 w-8 text-slate-300" />
-            <p className="text-[13px] font-semibold text-slate-700">Need help?</p>
-            <p className="text-[12px] text-slate-400">Send a message and a support agent will pick it up shortly.</p>
+            <p className="text-[13px] font-semibold text-cx-ink-2">Need help?</p>
+            <p className="text-[12px] text-cx-muted">Send a message and a support agent will pick it up shortly.</p>
           </div>
         ) : (
           messages.map((m) => <ChatBubble key={m.id} message={m} isOwn={m.sender_role === "customer"} />)
         )}
       </div>
 
-      <div className="border-t border-slate-100 p-3 sm:rounded-b-2xl">
-        {sendError && <p className="mb-2 text-[11px] font-medium text-red-600">{sendError}</p>}
+      <div className="border-t border-cx-line p-3 sm:rounded-b-2xl">
+        {sendError && <p className="mb-2 text-xs font-medium text-red-600">{sendError}</p>}
         {closed && (
-          <p className="mb-2 text-[11px] text-slate-500">
+          <p className="mb-2 text-xs text-cx-muted">
             This conversation was closed — sending a message starts a new one.
           </p>
         )}
@@ -269,7 +269,7 @@ export default function ChatWidget() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={sending}
-            className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-60"
+            className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-cx-line text-cx-muted hover:bg-cx-sunken transition-colors disabled:opacity-60"
             title="Attach a file"
           >
             <Paperclip className="h-4 w-4" />
@@ -286,7 +286,7 @@ export default function ChatWidget() {
             disabled={sending}
             rows={1}
             placeholder="Type a message…"
-            className="flex-1 resize-none rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
+            className="flex-1 resize-none rounded-lg border border-cx-line px-3 py-2 text-[13px] text-cx-ink placeholder:text-cx-muted focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
           />
           <button
             type="button"

@@ -50,6 +50,7 @@ import {
 } from "@/app/dashboard/_shared/apply-helpers";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
+import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -153,12 +154,12 @@ function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
       <label className={label}>
         {title}{" "}
         {optional ? (
-          <span className="font-normal text-slate-400">(optional)</span>
+          <span className="font-normal text-cx-muted">(optional)</span>
         ) : (
           <span className="text-red-400">*</span>
         )}
       </label>
-      {hint && <p className="mb-2 -mt-1 text-[12px] text-slate-500">{hint}</p>}
+      {hint && <p className="mb-2 -mt-1 text-[12px] text-cx-muted">{hint}</p>}
       {!value?.url ? (
         <label
           onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -171,25 +172,25 @@ function DocUploadSlot({ title, value, onChange, optional = false, hint }) {
           }}
         >
           <Upload className="h-5 w-5" style={{ color: BRAND }} />
-          <p className="text-[12.5px] font-semibold text-slate-700">{uploading ? "Uploading…" : "Click or drop a file here"}</p>
-          <p className="text-[11px] text-slate-400">PNG, JPG, or WEBP — up to 10MB</p>
+          <p className="text-[12.5px] font-semibold text-cx-ink-2">{uploading ? "Uploading…" : "Click or drop a file here"}</p>
+          <p className="text-xs text-cx-muted">PNG, JPG, or WEBP — up to 10MB</p>
           <input type="file" accept="image/*" disabled={uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
         </label>
       ) : (
-        <div className="space-y-2 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
+        <div className="space-y-2 rounded-xl border border-cx-line bg-cx-sunken p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-              <p className="truncate text-[12.5px] font-semibold text-[#111111]">{value.fileName}</p>
-              <span className="shrink-0 text-[11px] text-slate-400">Ready</span>
+              <p className="truncate text-[12.5px] font-semibold text-cx-ink">{value.fileName}</p>
+              <span className="shrink-0 text-xs text-cx-muted">Ready</span>
             </div>
-            <button type="button" onClick={() => onChange(null)} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">
+            <button type="button" onClick={() => onChange(null)} className="shrink-0 text-xs font-medium text-red-600 hover:underline">
               Remove
             </button>
           </div>
         </div>
       )}
-      {error && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{error}</p>}
+      {error && <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>}
     </div>
   );
 }
@@ -538,48 +539,9 @@ export default function ApplyPage() {
     return errors;
   };
 
-  const handlePayFromWallet = async (appId, amountKobo) => {
-    if (payingFromWalletRef.current) return;
-    payingFromWalletRef.current = true;
-    setPayingFromWallet(appId);
-    const res = await payFromWalletEndpoint(appId, { amount_kobo: amountKobo });
-    payingFromWalletRef.current = false;
-    setPayingFromWallet(null);
-    if (res.error) {
-      showToast("error", res.error || "Insufficient wallet funds. Please top up your wallet or pay by card.");
-      return;
-    }
-    showToast(
-      "success",
-      res.data?.is_fully_paid
-        ? `Paid ${koboToNaira(amountKobo)} from your wallet — application fully paid!`
-        : `Paid ${koboToNaira(amountKobo)} from your wallet. ${koboToNaira(res.data?.remaining_kobo || 0)} still remaining.`
-    );
-    const [appsRes, walletRes] = await Promise.all([getMyApplications({ sort: "updated_at" }), getWallet()]);
-    if (appsRes.data) {
-      setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
-      if (successApp?.id === appId) {
-        const updated = appsRes.data.find((a) => a.id === appId);
-        if (updated) setSuccessApp(updated);
-      }
-    }
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-  };
 
   const [payingCard, setPayingCard] = useState(false);
 
-  const handlePayCard = async (appId, amountKobo) => {
-    setPayingCard(true);
-    const res = await initializeCardPayment(appId, { amount_kobo: amountKobo });
-    setPayingCard(false);
-    if (res.error) {
-      showToast("error", res.error);
-    } else if (res.data?.authorization_url) {
-      const authUrl = res.data.authorization_url;
-      goToCheckout(authUrl, { applicationId: appId });
-      showToast("success", `Opening payment checkout for ${koboToNaira(amountKobo)}...`);
-    }
-  };
 
   const handleSubmit = async (paymentOpts = null) => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3), ...validateStep(4) };
@@ -718,85 +680,11 @@ export default function ApplyPage() {
 
   /* ── Success screen ── */
   if (successApp) {
-    const payOpts = successApp.payment_options;
-    const isPaid = isApplicationPaid(successApp);
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-3xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div
-            className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full"
-            style={{ background: BRAND_TINT }}
-          >
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Application submitted</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Your {APPLICATION_TYPES.find((t) => t.value === successApp.application_type)?.label.toLowerCase()} is
-            in — we'll walk you through every step from here.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Status</span>
-              <StatusBadge status={successApp.status} size="sm" />
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Amount due</span>
-              <span className="font-mono font-bold text-[#111111]">
-                {payOpts ? koboToNaira(payOpts.amount_kobo) : "—"}
-              </span>
-            </div>
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 text-left">
-              <PaymentOptions
-                remainingKobo={payOpts.remaining_kobo ?? payOpts.amount_kobo}
-                walletBalanceKobo={walletBalance}
-                amountPaidKobo={payOpts.amount_paid_kobo || 0}
-                payingWallet={payingFromWallet === successApp.id}
-                payingCard={payingCard}
-                onPayWallet={(amt) => handlePayFromWallet(successApp.id, amt)}
-                onPayCard={(amt) => handlePayCard(successApp.id, amt)}
-                minDepositKobo={payOpts.minimum_payable_kobo}
-                partialAllowed={payOpts.partial_payment_allowed ?? true}
-              />
-            </div>
-          )}
-
-          {isPaid && (
-            <div className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 p-3 text-[13px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-              <CheckCircle2 className="h-4 w-4" />
-              Application fee paid
-            </div>
-          )}
-
-          <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard/applications")}
-              className={`${btnPrimary} flex-1`}
-              style={{ background: BRAND }}
-            >
-              View all applications
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSuccessApp(null);
-                resetForm();
-              }}
-              className={`${btnSecondary} flex-1`}
-            >
-              Start another
-            </button>
-          </div>
-        </div>
-      </div>
+      <SubmissionSuccess
+        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        title="Application submitted"
+      />
     );
   }
 
@@ -813,35 +701,35 @@ export default function ApplyPage() {
         <button
           type="button"
           onClick={() => router.push("/dashboard/applications")}
-          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-lg p-1.5 text-cx-muted transition-colors hover:bg-cx-sunken hover:text-cx-ink-2"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div>
           <h1
-            className="text-[21px] tracking-tight text-[#111111]"
+            className="text-[21px] tracking-tight text-cx-ink"
             style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
           >
             New application
           </h1>
-          <p className="text-[12.5px] text-[#7A7A7A]">
+          <p className="text-[12.5px] text-cx-muted">
             {applicationType === "fresh" ? "Fresh application — five short steps." : "Renewal, reissue, or international permit — just a few details."}
           </p>
         </div>
       </div>
 
-      <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-        <p className="text-[12.5px] text-slate-600">{TIMELINE_COPY_BY_TYPE[applicationType]}</p>
+      <div className="flex items-start gap-2.5 rounded-xl border border-cx-line bg-cx-sunken p-3">
+        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cx-muted" />
+        <p className="text-[12.5px] text-cx-ink-2">{TIMELINE_COPY_BY_TYPE[applicationType]}</p>
       </div>
 
       <StepProgress steps={activeLabels} current={stepDisplayIndex} />
 
-      <div className="overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm">
+      <div className="overflow-hidden rounded-cx-lg border border-cx-line bg-white shadow-sm">
         {/* Step 1 */}
         {step === 1 && (
           <div className="space-y-4 p-6">
-            <p className="text-[13px] text-slate-500">Choose the type of application you're submitting.</p>
+            <p className="text-[13px] text-cx-muted">Choose the type of application you're submitting.</p>
             <div className="space-y-2.5">
               {APPLICATION_TYPES.map((t) => {
                 const active = applicationType === t.value;
@@ -866,8 +754,8 @@ export default function ApplyPage() {
                       {active && <div className="h-2 w-2 rounded-full" style={{ background: BRAND }} />}
                     </div>
                     <div>
-                      <p className="text-[14px] font-semibold text-[#111111]">{t.label}</p>
-                      <p className="mt-0.5 text-[12.5px] text-slate-500">{t.desc}</p>
+                      <p className="text-[14px] font-semibold text-cx-ink">{t.label}</p>
+                      <p className="mt-0.5 text-[12.5px] text-cx-muted">{t.desc}</p>
                       <IneligibilityNotice eligibility={typeEligibility} />
                     </div>
                   </button>
@@ -898,7 +786,7 @@ export default function ApplyPage() {
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                   <FieldError message={fieldErrors.licenceClass} />
                 </div>
@@ -917,7 +805,7 @@ export default function ApplyPage() {
                         <option key={v} value={v}>{v}</option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                   <FieldError message={fieldErrors.validityPeriod} />
                 </div>
@@ -929,10 +817,10 @@ export default function ApplyPage() {
         {/* Step 2 */}
         {step === 2 && (
           <div className="space-y-5 p-6">
-            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 space-y-3">
+            <div className="rounded-xl border border-cx-line bg-cx-sunken p-4 space-y-3">
               <div>
-                <h2 className="text-[13px] font-medium text-[#111111]">State &amp; LGA of residence</h2>
-                <p className="text-[12px] text-[#7A7A7A]">This determines which capturing center processes your application.</p>
+                <h2 className="text-[13px] font-medium text-cx-ink">State &amp; LGA of residence</h2>
+                <p className="text-[12px] text-cx-muted">This determines which capturing center processes your application.</p>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
@@ -942,7 +830,7 @@ export default function ApplyPage() {
                       <option value="" disabled>Select state</option>
                       {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                   <FieldError message={fieldErrors.selectedState} />
                 </div>
@@ -953,14 +841,14 @@ export default function ApplyPage() {
                       <option value="" disabled>Select LGA</option>
                       {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                   <FieldError message={fieldErrors.selectedLga} />
                 </div>
               </div>
             </div>
 
-            <p className="text-[13px] text-slate-500 mt-4">Applicant identity &amp; contact details (compulsory for all applications).</p>
+            <p className="text-[13px] text-cx-muted mt-4">Applicant identity &amp; contact details (compulsory for all applications).</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <label className={label}>First name <span className="text-red-400">*</span></label>
@@ -1006,7 +894,7 @@ export default function ApplyPage() {
                     <option value="" disabled>Select gender</option>
                     <option>Male</option><option>Female</option><option>Other</option>
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
             </div>
@@ -1022,7 +910,7 @@ export default function ApplyPage() {
                     <option value="">Select...</option>
                     <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
             </div>
@@ -1045,7 +933,7 @@ export default function ApplyPage() {
                     <option value="">Select...</option>
                     {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(bg => <option key={bg}>{bg}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
             </div>
@@ -1057,7 +945,7 @@ export default function ApplyPage() {
                     <option value="">Select state</option>
                     {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
               <div>
@@ -1067,7 +955,7 @@ export default function ApplyPage() {
                     <option value="">Select LGA</option>
                     {originLgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
             </div>
@@ -1093,11 +981,11 @@ export default function ApplyPage() {
                 <FieldError message={fieldErrors.heightCm} />
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-              <p className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Physical Characteristics</p>
+            <div className="rounded-xl border border-cx-line bg-cx-sunken p-4 space-y-3">
+              <p className="text-[12px] font-bold text-cx-muted">Physical Characteristics</p>
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <input type="checkbox" checked={hasFacialMark} onChange={(e) => { setHasFacialMark(e.target.checked); if (!e.target.checked) setFacialMarkDesc(""); }} className="h-4 w-4 rounded accent-[#28A745]" />
-                <span className="text-[13.5px] font-medium text-slate-800">Has facial mark</span>
+                <span className="text-sm font-medium text-cx-ink">Has facial mark</span>
               </label>
               {hasFacialMark && (
                 <div>
@@ -1107,7 +995,7 @@ export default function ApplyPage() {
               )}
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <input type="checkbox" checked={hasDisability} onChange={(e) => { setHasDisability(e.target.checked); if (!e.target.checked) setDisabilityDesc(""); }} className="h-4 w-4 rounded accent-[#28A745]" />
-                <span className="text-[13.5px] font-medium text-slate-800">Has any disability</span>
+                <span className="text-sm font-medium text-cx-ink">Has any disability</span>
               </label>
               {hasDisability && (
                 <div>
@@ -1124,7 +1012,7 @@ export default function ApplyPage() {
         {/* Step 3 */}
         {step === 3 && (
           <div className="space-y-5 p-6">
-            <p className="text-[13px] text-slate-500">Who should we contact in an emergency?</p>
+            <p className="text-[13px] text-cx-muted">Who should we contact in an emergency?</p>
             <div>
               <label className={label}>Next of kin name <span className="text-red-400">*</span></label>
               <input type="text" value={nokName} onChange={(e) => setNokName(e.target.value)} placeholder="Emeka Obi" className={`${inputBase} ${errInputClass(!!fieldErrors.nokName)}`} />
@@ -1137,14 +1025,14 @@ export default function ApplyPage() {
                   <option value="">Select relationship...</option>
                   {["Spouse","Parent","Sibling","Child","Grandparent","Grandchild","Aunt / Uncle","Niece / Nephew","Cousin","Friend","Guardian","Other"].map(r => <option key={r}>{r}</option>)}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
               </div>
             </div>
             <div>
               <label className={label}>Phone number <span className="text-red-400">*</span></label>
-              <div className="flex rounded-xl border border-[#E5E5E5] bg-slate-50/60 overflow-hidden focus-within:border-[#28A745] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#28A745]/15">
-                <span className="flex items-center pl-3.5 pr-3 text-[13.5px] font-semibold text-slate-500 select-none border-r border-[#E5E5E5] bg-slate-100/80">+234</span>
-                <input type="tel" value={nokPhone.replace(/^\+?234/, "").replace(/^0/, "")} onChange={(e) => { const raw = e.target.value.replace(/\D/g, "").replace(/^234/, "").replace(/^0/, ""); setNokPhone("+234" + raw); }} placeholder="8012345678" className="flex-1 min-w-0 px-3.5 py-2.5 text-[13.5px] bg-transparent outline-none text-[#111111] font-mono" />
+              <div className="flex rounded-xl border border-cx-line bg-cx-sunken overflow-hidden focus-within:border-[#28A745] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#28A745]/15">
+                <span className="flex items-center pl-3.5 pr-3 text-sm font-semibold text-cx-muted select-none border-r border-cx-line bg-cx-sunken/80">+234</span>
+                <input type="tel" value={nokPhone.replace(/^\+?234/, "").replace(/^0/, "")} onChange={(e) => { const raw = e.target.value.replace(/\D/g, "").replace(/^234/, "").replace(/^0/, ""); setNokPhone("+234" + raw); }} placeholder="8012345678" className="flex-1 min-w-0 px-3.5 py-2.5 text-sm bg-transparent outline-none text-cx-ink font-mono" />
               </div>
               <FieldError message={fieldErrors.nokPhone} />
             </div>
@@ -1154,7 +1042,7 @@ export default function ApplyPage() {
         {/* Step 4 */}
         {step === 4 && applicationType !== "fresh" && (
           <div className="space-y-5 p-6">
-            <p className="text-[13px] text-slate-500">
+            <p className="text-[13px] text-cx-muted">
               Your other details are carried over from your most recent application — we just need
               these things to process your {applicationType.replace("_", " ")}.
             </p>
@@ -1194,7 +1082,7 @@ export default function ApplyPage() {
                   placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
                   className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
                 />
-                <p className="mt-1 text-[11.5px] text-slate-500">
+                <p className="mt-1 text-xs text-cx-muted">
                   Your physical permit / reissued licence will be dispatched to this delivery address.
                 </p>
                 <FieldError message={fieldErrors.deliveryAddress} />
@@ -1211,7 +1099,7 @@ export default function ApplyPage() {
 
         {step === 4 && applicationType === "fresh" && (
           <div className="space-y-5 p-6">
-            <p className="text-[13px] text-slate-500">
+            <p className="text-[13px] text-cx-muted">
               Upload a clear passport photograph — this is required to submit your application.
             </p>
             <DocUploadSlot
@@ -1226,7 +1114,7 @@ export default function ApplyPage() {
         {/* Step 5 */}
         {step === 5 && (
           <div className="space-y-5 p-6">
-            <p className="text-[13px] text-slate-500">Check everything below, then submit.</p>
+            <p className="text-[13px] text-cx-muted">Check everything below, then submit.</p>
             {submitError && (
               <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[12.5px] font-medium text-red-700">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
@@ -1326,15 +1214,15 @@ export default function ApplyPage() {
                       },
                     ]
               ).map(({ section, rows }) => (
-                <div key={section} className="overflow-hidden rounded-xl border border-slate-100">
-                  <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{section}</p>
+                <div key={section} className="overflow-hidden rounded-xl border border-cx-line">
+                  <div className="border-b border-cx-line bg-cx-sunken px-4 py-2.5">
+                    <p className="text-xs font-bold text-cx-muted">{section}</p>
                   </div>
                   <div className="divide-y divide-slate-50">
                     {rows.map(([rowLabel, value]) => (
                       <div key={rowLabel} className="flex items-center justify-between px-4 py-2.5">
-                        <span className="text-[12px] text-slate-500">{rowLabel}</span>
-                        <span className="max-w-[55%] truncate text-right text-[13px] font-semibold text-[#111111]">
+                        <span className="text-[12px] text-cx-muted">{rowLabel}</span>
+                        <span className="max-w-[55%] truncate text-right text-[13px] font-semibold text-cx-ink">
                           {value}
                         </span>
                       </div>
@@ -1345,9 +1233,9 @@ export default function ApplyPage() {
             </div>
 
             {/* Payment & Submission */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-              <h3 className="mb-1 text-[14px] font-bold text-slate-900">Payment & Submission</h3>
-              <p className="mb-4 text-[12px] text-slate-500">
+            <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-xs">
+              <h3 className="mb-1 text-[14px] font-bold text-cx-ink">Payment & Submission</h3>
+              <p className="mb-4 text-[12px] text-cx-muted">
                 Select your payment method and submit your application. Applications require an initial deposit or full payment to begin processing.
               </p>
               {(() => {
@@ -1377,7 +1265,7 @@ export default function ApplyPage() {
         )}
 
         {/* Footer nav */}
-        <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/40 px-6 py-4">
+        <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 flex items-center justify-between gap-3 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur sm:px-6 md:static md:bg-cx-sunken md:py-4 md:backdrop-blur-none">
           {activeSteps.indexOf(step) > 0 ? (
             <button
               type="button"
@@ -1414,7 +1302,7 @@ export default function ApplyPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
-            <span className="text-[12px] text-slate-500 font-medium">
+            <span className="text-[12px] text-cx-muted font-medium">
               Choose your payment above to submit
             </span>
           )}
@@ -1424,7 +1312,7 @@ export default function ApplyPage() {
       {/* ── Toast Notification ── */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-2xl shadow-xl text-[13px] font-medium border transition-all max-w-sm ${
+          className={`fixed bottom-6 right-5 z-50 flex items-start gap-3 px-5 py-4 rounded-cx-lg shadow-xl text-[13px] font-medium border transition-all max-w-sm ${
             toast.type === "error"
               ? "bg-white border-red-200 text-red-800"
               : "bg-white border-emerald-200 text-emerald-800"
@@ -1438,10 +1326,10 @@ export default function ApplyPage() {
             {toast.type === "error" ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-[#111111]">{toast.type === "error" ? "Payment Failed" : "Success"}</p>
-            <p className="mt-0.5 text-[12.5px] text-slate-500 leading-relaxed">{toast.msg}</p>
+            <p className="font-semibold text-cx-ink">{toast.type === "error" ? "Payment Failed" : "Success"}</p>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted leading-relaxed">{toast.msg}</p>
           </div>
-          <button type="button" onClick={() => setToast(null)} className="ml-1 shrink-0 text-slate-400 hover:text-slate-600 transition-colors">
+          <button type="button" onClick={() => setToast(null)} className="ml-1 shrink-0 text-cx-muted hover:text-cx-ink-2 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>

@@ -18,7 +18,7 @@ export default function ProcessingSpeedSelector({
   return (
     <div className="space-y-3 my-4">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
           Processing Speed
         </label>
         {isFastTrack && (
@@ -101,7 +101,7 @@ export default function ProcessingSpeedSelector({
           <p className="text-xs text-gray-600 dark:text-gray-300 pl-6 mb-1">
             Turnaround: <strong className="text-emerald-700 dark:text-emerald-300">{fastTrackTurnaround}</strong>
           </p>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-6">
+          <p className="text-xs text-gray-500 dark:text-gray-400 pl-6">
             Priority processing • Jumps to front of all queues
           </p>
         </button>

@@ -38,6 +38,7 @@ import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedS
 import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
+import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -428,21 +429,6 @@ export default function RoadworthinessExpressNewApplicationPage() {
     }
   };
 
-  const handlePayFromWallet = async () => {
-    if (!successApp) return;
-    setPayingFromWallet(true);
-    const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: payOpts?.remaining_kobo ?? payOpts?.amount_kobo });
-    setPayingFromWallet(false);
-    if (res.error) {
-      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
-      return;
-    }
-    const walletRes = await getWallet();
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-    if (res.data?.is_fully_paid) {
-      router.push(`/dashboard/apply/${successApp.id}`);
-    }
-  };
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
@@ -475,64 +461,22 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
   if (successApp) {
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Booking created</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Complete payment to reserve your bay slot — an unpaid booking doesn't hold your seat.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? rwxFeeKobo ?? 0)}</span>
-            </div>
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5">
-              <button
-                type="button"
-                onClick={handlePayFromWallet}
-                disabled={payingFromWallet || walletBalance < (payOpts.remaining_kobo ?? payOpts.amount_kobo ?? 0)}
-                className={`${btnPrimary} w-full`}
-                style={{ background: BRAND }}
-              >
-                {payingFromWallet && <Loader2 className="h-4 w-4 animate-spin" />}
-                Pay full amount from wallet ({koboToNaira(walletBalance)} available)
-              </button>
-              {payOpts.checkout_url && (
-                <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Card or Transfer
-                </a>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnSecondary} mt-6 w-full`}>
-            Back to applications
-          </button>
-        </div>
-      </div>
+      <SubmissionSuccess
+        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        title="Booking confirmed"
+      />
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+    <div className="mx-auto max-w-2xl space-y-6 pb-2 sm:py-8">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-cx-muted hover:text-cx-ink-2">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Book Roadworthiness Express</h1>
-        <p className="mt-1.5 text-[13.5px] text-slate-500">
+        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">Book Roadworthiness Express</h1>
+        <p className="mt-1.5 text-sm text-cx-muted">
           Same-day inspection at a Vehiculars bay — bring the vehicle at your booked slot and leave with your certificate.
         </p>
       </div>
@@ -541,8 +485,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
       {/* Step 1 — Vehicle */}
       {step === 1 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
             <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle
           </h2>
 
@@ -559,8 +503,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
                     style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                   >
                     <div>
-                      <p className="text-[13.5px] font-semibold text-[#111111]">{v.make} {v.model} — {v.plate_number}</p>
-                      <p className="text-[12px] text-slate-500">
+                      <p className="text-sm font-semibold text-cx-ink">{v.make} {v.model} — {v.plate_number}</p>
+                      <p className="text-[12px] text-cx-muted">
                         {v.colour} · {v.state}
                         {v.vehicle_category ? ` · ${VEHICLE_CATEGORY_OPTIONS.find((c) => c.value === v.vehicle_category)?.label || v.vehicle_category}` : " · no category set"}
                       </p>
@@ -572,7 +516,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
               <button
                 type="button"
                 onClick={() => setAddingVehicle(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 p-2.5 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-cx-line-strong p-2.5 text-[12.5px] font-semibold text-cx-ink-2 hover:border-slate-400"
               >
                 <Plus className="h-3.5 w-3.5" /> Add another vehicle
               </button>
@@ -628,7 +572,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
               </div>
 
               <div>
-                <label className={label}>Vehicle type <span className="font-normal text-slate-400">(optional)</span></label>
+                <label className={label}>Vehicle type <span className="font-normal text-cx-muted">(optional)</span></label>
                 <select className={`${inputBase} ${errInputClass(!!vehicleFieldErrors.vehicle_category)}`} value={bodyType} onChange={(e) => handleBodyTypeChange(e.target.value)}>
                   <option value="">Select vehicle type</option>
                   {BODY_TYPES.map((bt) => <option key={bt.key} value={bt.key}>{bt.label}</option>)}
@@ -668,8 +612,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
       {/* Step 2 — Bay & slot */}
       {step === 2 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
             <MapPin className="h-4 w-4" style={{ color: BRAND }} /> Bay &amp; time slot
           </h2>
 
@@ -713,9 +657,9 @@ export default function RoadworthinessExpressNewApplicationPage() {
             <div className="mt-4">
               <label className={label}>Bay</label>
               {loadingBays ? (
-                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-cx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
               ) : bays.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No bays found for this location.</p>
+                <p className="py-2 text-[12.5px] text-cx-muted">No bays found for this location.</p>
               ) : (
                 <div className="space-y-2">
                   {bays.map((bay) => {
@@ -729,8 +673,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
                         style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                       >
                         <div>
-                          <p className="text-[13.5px] font-semibold text-[#111111]">{bay.name}</p>
-                          <p className="text-[12px] text-slate-500">
+                          <p className="text-sm font-semibold text-cx-ink">{bay.name}</p>
+                          <p className="text-[12px] text-cx-muted">
                             {bay.address}
                             {bay.lga_name ? ` · ${bay.lga_name}` : ""}
                           </p>
@@ -749,9 +693,9 @@ export default function RoadworthinessExpressNewApplicationPage() {
             <div className="mt-4">
               <label className={label}>Time slot</label>
               {loadingAvailability ? (
-                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-cx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
               ) : !availability || availability.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No slots configured for this bay.</p>
+                <p className="py-2 text-[12.5px] text-cx-muted">No slots configured for this bay.</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {availability.map((slot) => {
@@ -766,8 +710,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
                         className="rounded-xl border-2 p-3 text-center transition-all disabled:cursor-not-allowed disabled:opacity-50"
                         style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                       >
-                        <p className="flex items-center justify-center gap-1 text-[12.5px] font-semibold text-[#111111]"><Clock className="h-3 w-3" /> {slot.label}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
+                        <p className="flex items-center justify-center gap-1 text-[12.5px] font-semibold text-cx-ink"><Clock className="h-3 w-3" /> {slot.label}</p>
+                        <p className="mt-0.5 text-xs text-cx-muted">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
                       </button>
                     );
                   })}
@@ -777,8 +721,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
             </div>
           )}
 
-          <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
-            <h3 className="text-[13px] font-bold text-slate-900">Applicant Details</h3>
+          <div className="mt-4 pt-4 border-t border-cx-line space-y-3">
+            <h3 className="text-[13px] font-bold text-cx-ink">Applicant Details</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label className={label}>First Name <span className="text-red-400">*</span></label>
@@ -835,7 +779,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
+          <div className="mt-4 pt-4 border-t border-cx-line space-y-1.5">
             <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
             <input
               className={`${inputBase} ${errInputClass(!!fieldErrors.deliveryAddress)}`}
@@ -843,7 +787,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
               onChange={(e) => setDeliveryAddress(e.target.value)}
               placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
             />
-            <p className="text-[11.5px] text-slate-500">Your physical roadworthiness certificate will be dispatched to this delivery address.</p>
+            <p className="text-xs text-cx-muted">Your physical roadworthiness certificate will be dispatched to this delivery address.</p>
             <FieldError message={fieldErrors.deliveryAddress} />
           </div>
         </section>
@@ -852,38 +796,38 @@ export default function RoadworthinessExpressNewApplicationPage() {
       {/* Step 3 — Review & pay */}
       {step === 3 && (
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your booking</h2>
+          <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold text-cx-ink">Review your booking</h2>
             <div className="divide-y divide-slate-100">
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Applicant</span>
-                <span className="font-semibold text-[#111111]">{firstName} {middleName} {lastName}</span>
+                <span className="text-cx-muted">Applicant</span>
+                <span className="font-semibold text-cx-ink">{firstName} {middleName} {lastName}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Contact</span>
-                <span className="font-semibold text-[#111111]">{applicantEmail} · {applicantPhone}</span>
+                <span className="text-cx-muted">Contact</span>
+                <span className="font-semibold text-cx-ink">{applicantEmail} · {applicantPhone}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Vehicle</span>
-                <span className="font-semibold text-[#111111]">{selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} — ${selectedVehicle.plate_number}` : "—"}</span>
+                <span className="text-cx-muted">Vehicle</span>
+                <span className="font-semibold text-cx-ink">{selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} — ${selectedVehicle.plate_number}` : "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Bay</span>
-                <span className="font-semibold text-[#111111]">{selectedBay?.name || "—"}</span>
+                <span className="text-cx-muted">Bay</span>
+                <span className="font-semibold text-cx-ink">{selectedBay?.name || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Date &amp; slot</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Date &amp; slot</span>
+                <span className="font-semibold text-cx-ink">
                   {bookingDate} · {availability?.find((s) => s.slot_template_id === selectedSlotId)?.label || "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Delivery address</span>
-                <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
+                <span className="text-cx-muted">Delivery address</span>
+                <span className="font-semibold text-cx-ink text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Processing Speed</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Processing Speed</span>
+                <span className="font-semibold text-cx-ink">
                   {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
                 </span>
               </div>
@@ -898,33 +842,33 @@ export default function RoadworthinessExpressNewApplicationPage() {
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />
 
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-1 text-[13.5px] font-bold text-[#111111]">Vehicle papers <span className="font-normal text-slate-400">(optional)</span></h2>
-            <p className="text-[11px] text-slate-400 mb-3">JPG, PNG, WEBP, or PDF — up to 10MB</p>
+          <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-sm font-bold text-cx-ink">Vehicle papers <span className="font-normal text-cx-muted">(optional)</span></h2>
+            <p className="text-xs text-cx-muted mb-3">JPG, PNG, WEBP, or PDF — up to 10MB</p>
             {papers?.url ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="truncate text-[12.5px] font-semibold text-slate-700">{papers.fileName}</p>
-                <button type="button" onClick={() => setPapers(null)} className="shrink-0 text-[11.5px] font-semibold text-red-600">Remove</button>
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-cx-line bg-cx-sunken p-3">
+                <p className="truncate text-[12.5px] font-semibold text-cx-ink-2">{papers.fileName}</p>
+                <button type="button" onClick={() => setPapers(null)} className="shrink-0 text-xs font-semibold text-red-600">Remove</button>
               </div>
             ) : (
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-cx-line-strong p-4 text-[12.5px] font-semibold text-cx-ink-2 hover:border-slate-400">
                 {uploadingPapers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 {uploadingPapers ? "Uploading…" : "Upload if you have them to hand"}
                 <input type="file" accept="image/*,application/pdf" disabled={uploadingPapers} onChange={(e) => handlePapersUpload(e.target.files?.[0])} className="hidden" />
               </label>
             )}
-            {papersError && <p className="mt-2 text-[11.5px] font-medium text-red-600">{papersError}</p>}
+            {papersError && <p className="mt-2 text-xs font-medium text-red-600">{papersError}</p>}
           </div>
 
-          <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Booking Submission</h2>
-            <p className="mb-4 text-[12px] text-slate-500">
+          <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-[14px] font-bold text-cx-ink">Payment & Booking Submission</h2>
+            <p className="mb-4 text-[12px] text-cx-muted">
               Payment is required to confirm your booking and hold your inspection slot.
             </p>
-            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+            <div className="mb-4 rounded-xl bg-cx-sunken p-3 text-[13px] border border-cx-line space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Inspection Fee</span>
-                <span className="font-semibold text-[#111111]">{rwxFeeKobo != null ? koboToNaira(rwxFeeKobo) : "—"}</span>
+                <span className="text-cx-muted">Inspection Fee</span>
+                <span className="font-semibold text-cx-ink">{rwxFeeKobo != null ? koboToNaira(rwxFeeKobo) : "—"}</span>
               </div>
               {processingSpeed === "fast_track" && (
                 <div className="flex items-center justify-between text-emerald-700">
@@ -932,7 +876,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
                   <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+              <div className="flex items-center justify-between pt-1 border-t border-cx-line/60 font-bold text-cx-ink">
                 <span>Total Fee</span>
                 <span className="font-mono">{totalFeeKobo != null ? koboToNaira(totalFeeKobo) : "—"}</span>
               </div>
@@ -956,7 +900,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
       {/* Step navigation */}
       {step < 3 && (
-        <div className="flex items-center justify-between gap-3">
+        <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center justify-between gap-3 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
           {step > 1 ? (
             <button
               type="button"

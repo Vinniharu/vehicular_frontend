@@ -39,8 +39,8 @@ export default function DashboardPage() {
   if (loading && !user) {
     return (
       <div className="space-y-5 pb-12 max-w-5xl">
-        <div className="h-48 animate-pulse rounded-3xl bg-[#F5F5F5]" />
-        <div className="h-72 animate-pulse rounded-2xl bg-[#F5F5F5]" />
+        <div className="h-48 animate-pulse rounded-cx-lg bg-[#F5F5F5]" />
+        <div className="h-72 animate-pulse rounded-cx-lg bg-[#F5F5F5]" />
       </div>
     );
   }
@@ -51,7 +51,7 @@ export default function DashboardPage() {
           GREETING
       ══════════════════════════════════════ */}
       <div>
-        <p className="text-[12px] font-semibold uppercase tracking-widest" style={{ color: BRAND }}>
+        <p className="text-[12px] font-semibold" style={{ color: BRAND }}>
           {greeting()}
         </p>
         <h1
@@ -79,7 +79,7 @@ export default function DashboardPage() {
               <Wallet className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-emerald-200/60">Wallet balance</p>
+              <p className="text-xs font-semibold tracking-[0.14em] text-emerald-200/60">Wallet balance</p>
               <p className="mt-0.5 font-mono text-[26px] sm:text-[30px] font-bold tracking-tight">
                 {koboToNaira(walletBalance)}
               </p>

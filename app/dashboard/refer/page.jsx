@@ -47,41 +47,41 @@ export default function ReferPage() {
       <div>
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Referrals</span>
+          <span className="text-xs font-bold text-cx-muted">Referrals</span>
         </div>
         <h1
-          className="mt-1.5 text-[30px] tracking-tight text-[#111111]"
+          className="mt-1.5 text-[30px] tracking-tight text-cx-ink"
           style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
         >
           Refer &amp; earn
         </h1>
-        <p className="mt-1 text-[13.5px] text-slate-500">
+        <p className="mt-1 text-sm text-cx-muted">
           Share your code — earn a reward every time someone you referred pays for a service.
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden">
+      <div className="bg-white rounded-cx-lg border border-cx-line overflow-hidden">
         {loadingReferral ? (
-          <div className="px-6 sm:px-8 py-10 flex items-center justify-center gap-2.5 text-sm text-slate-500">
+          <div className="px-6 sm:px-8 py-10 flex items-center justify-center gap-2.5 text-sm text-cx-muted">
             <Loader2 className="h-4 w-4 animate-spin" style={{ color: BRAND }} /> Loading your referral details...
           </div>
         ) : !referralData ? (
-          <p className="px-6 sm:px-8 py-6 text-sm text-slate-400">Referral details are unavailable right now.</p>
+          <p className="px-6 sm:px-8 py-6 text-sm text-cx-muted">Referral details are unavailable right now.</p>
         ) : (
           <div className="px-6 sm:px-8 py-6 space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-[#E5E5E5] bg-slate-50 p-4">
-                <p className="text-[12px] text-slate-400 font-medium uppercase tracking-wide mb-1.5">Your referral code</p>
-                <p className="text-lg font-mono font-bold tracking-wider text-[#111111]">{referralData.referral_code || "—"}</p>
+              <div className="rounded-xl border border-cx-line bg-cx-sunken p-4">
+                <p className="text-[12px] text-cx-muted font-medium mb-1.5">Your referral code</p>
+                <p className="text-lg font-mono font-bold text-cx-ink">{referralData.referral_code || "—"}</p>
               </div>
-              <div className="rounded-xl border border-[#E5E5E5] bg-slate-50 p-4">
-                <p className="text-[12px] text-slate-400 font-medium uppercase tracking-wide mb-1.5">Total rewards earned</p>
+              <div className="rounded-xl border border-cx-line bg-cx-sunken p-4">
+                <p className="text-[12px] text-cx-muted font-medium mb-1.5">Total rewards earned</p>
                 <p className="text-lg font-bold text-[#28A745]">{koboToNaira(referralData.total_rewards_kobo)}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Shareable signup link</label>
+              <label className="block text-sm font-medium text-cx-ink-2 mb-1.5">Shareable signup link</label>
               <div className="flex items-center gap-2">
                 <input type="text" readOnly value={referralLink} className={`${inputBase} font-mono text-[13px]`} />
                 <button
@@ -98,47 +98,47 @@ export default function ReferPage() {
 
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Users className="h-4 w-4 text-slate-400" />
-                <h3 className="text-sm font-semibold text-[#111111]">People you've referred ({referralData.referred_users.length})</h3>
+                <Users className="h-4 w-4 text-cx-muted" />
+                <h3 className="text-sm font-semibold text-cx-ink">People you've referred ({referralData.referred_users.length})</h3>
               </div>
               {referralData.referred_users.length === 0 ? (
-                <p className="text-sm text-slate-400 italic">No one has signed up with your code yet.</p>
+                <p className="text-sm text-cx-muted italic">No one has signed up with your code yet.</p>
               ) : (
                 <>
                   {/* Mobile cards */}
                   <div className="space-y-3 sm:hidden">
                     {referralData.referred_users.map((r) => (
-                      <div key={r.id} className="rounded-xl border border-[#E5E5E5] p-4">
-                        <p className="text-sm font-semibold text-[#111111]">{r.name}</p>
-                        <p className="text-[12.5px] text-slate-500">{r.email}</p>
+                      <div key={r.id} className="rounded-xl border border-cx-line p-4">
+                        <p className="text-sm font-semibold text-cx-ink">{r.name}</p>
+                        <p className="text-[12.5px] text-cx-muted">{r.email}</p>
                         <div className="mt-2 flex items-center justify-between text-[12.5px]">
-                          <span className="text-slate-500">{r.applications_count} application{r.applications_count === 1 ? "" : "s"}</span>
+                          <span className="text-cx-muted">{r.applications_count} application{r.applications_count === 1 ? "" : "s"}</span>
                           <span className="font-semibold text-[#28A745]">{koboToNaira(r.total_reward_kobo)}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                   {/* Desktop table */}
-                  <div className="hidden sm:block overflow-x-auto rounded-xl border border-[#E5E5E5]">
+                  <div className="hidden sm:block overflow-x-auto rounded-xl border border-cx-line">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50/60">
-                          <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Name</th>
-                          <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Email</th>
-                          <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Signed up</th>
-                          <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Applications</th>
-                          <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Reward earned</th>
+                        <tr className="border-b border-cx-line bg-cx-sunken">
+                          <th className="px-4 py-3 text-xs font-bold text-cx-muted">Name</th>
+                          <th className="px-4 py-3 text-xs font-bold text-cx-muted">Email</th>
+                          <th className="px-4 py-3 text-xs font-bold text-cx-muted">Signed up</th>
+                          <th className="px-4 py-3 text-xs font-bold text-cx-muted">Applications</th>
+                          <th className="px-4 py-3 text-xs font-bold text-cx-muted">Reward earned</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {referralData.referred_users.map((r) => (
-                          <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-800">{r.name}</td>
-                            <td className="px-4 py-3.5 text-[12.5px] text-slate-500">{r.email}</td>
-                            <td className="px-4 py-3.5 text-[12px] text-slate-400">
+                          <tr key={r.id} className="hover:bg-cx-sunken transition-colors">
+                            <td className="px-4 py-3.5 text-[13px] font-semibold text-cx-ink">{r.name}</td>
+                            <td className="px-4 py-3.5 text-[12.5px] text-cx-muted">{r.email}</td>
+                            <td className="px-4 py-3.5 text-[12px] text-cx-muted">
                               {r.created_at ? new Date(r.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "—"}
                             </td>
-                            <td className="px-4 py-3.5 text-[12.5px] text-slate-600">{r.applications_count}</td>
+                            <td className="px-4 py-3.5 text-[12.5px] text-cx-ink-2">{r.applications_count}</td>
                             <td className="px-4 py-3.5 text-[13px] font-semibold text-[#28A745]">{koboToNaira(r.total_reward_kobo)}</td>
                           </tr>
                         ))}

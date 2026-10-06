@@ -33,6 +33,7 @@ import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
+import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -267,21 +268,6 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
     }
   };
 
-  const handlePayFromWallet = async () => {
-    if (!successApp) return;
-    setPayingFromWallet(true);
-    const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: payOpts?.remaining_kobo ?? payOpts?.amount_kobo });
-    setPayingFromWallet(false);
-    if (res.error) {
-      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
-      return;
-    }
-    const walletRes = await getWallet();
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-    if (res.data?.is_fully_paid) {
-      router.push(`/dashboard/apply/${successApp.id}`);
-    }
-  };
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
@@ -309,76 +295,22 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
   if (successApp) {
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Inspection booked</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Complete payment and our team will assign an inspector near you.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? priceKobo ?? 0)}</span>
-            </div>
-            {(payOpts?.amount_paid_kobo ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-[13px] text-emerald-600 font-medium">
-                <span>Paid</span>
-                <span className="font-mono font-bold">{koboToNaira(payOpts.amount_paid_kobo)}</span>
-              </div>
-            )}
-            {(payOpts?.remaining_kobo ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-[13px] text-slate-700 font-medium">
-                <span>Balance Remaining</span>
-                <span className="font-mono font-bold">{koboToNaira(payOpts.remaining_kobo)}</span>
-              </div>
-            )}
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5">
-              <button
-                type="button"
-                onClick={handlePayFromWallet}
-                disabled={payingFromWallet || walletBalance < (payOpts.remaining_kobo ?? payOpts.amount_kobo ?? 0)}
-                className={`${btnPrimary} w-full`}
-                style={{ background: BRAND }}
-              >
-                {payingFromWallet && <Loader2 className="h-4 w-4 animate-spin" />}
-                Pay full amount from wallet ({koboToNaira(walletBalance)} available)
-              </button>
-              {payOpts.checkout_url && (
-                <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Card or Transfer
-                </a>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnSecondary} mt-6 w-full`}>
-            Back to applications
-          </button>
-        </div>
-      </div>
+      <SubmissionSuccess
+        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        title="Inspection booked"
+      />
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+    <div className="mx-auto max-w-2xl space-y-6 pb-2 sm:py-8">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-cx-muted hover:text-cx-ink-2">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Physical Condition Inspection</h1>
-        <p className="mt-1.5 text-[13.5px] text-slate-500">
+        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">Physical Condition Inspection</h1>
+        <p className="mt-1.5 text-sm text-cx-muted">
           A full mechanical health check before you buy — engine, body, underbody, interior, and a road test, graded and reported.
         </p>
       </div>
@@ -386,9 +318,9 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       <StepProgress steps={STEP_LABELS} current={step} />
 
       {step === 1 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm space-y-5">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm space-y-5">
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <Car className="h-4 w-4" style={{ color: BRAND }} /> Whose vehicle is this?
             </h2>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -405,8 +337,8 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
                     className="flex flex-col items-start gap-1.5 rounded-xl border-2 p-3.5 text-left transition-all"
                     style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                   >
-                    <span className="text-[13.5px] font-semibold text-[#111111]">{opt.label}</span>
-                    <span className="text-[12px] text-slate-500">{opt.desc}</span>
+                    <span className="text-sm font-semibold text-cx-ink">{opt.label}</span>
+                    <span className="text-[12px] text-cx-muted">{opt.desc}</span>
                   </button>
                 );
               })}
@@ -416,7 +348,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
 
 
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <Car className="h-4 w-4" style={{ color: BRAND }} /> Applicant details
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -481,7 +413,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle details
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -515,12 +447,12 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
       )}
 
       {step === 2 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm space-y-5">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm space-y-5">
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <Wrench className="h-4 w-4" style={{ color: BRAND }} /> Vehicle category
             </h2>
-            <p className="mb-2 text-[12px] text-slate-500">Helps the mechanic know what to expect — the inspection fee is a flat rate and doesn't change with vehicle category.</p>
+            <p className="mb-2 text-[12px] text-cx-muted">Helps the mechanic know what to expect — the inspection fee is a flat rate and doesn't change with vehicle category.</p>
             <select className={`${inputBase} ${errInputClass(!!fieldErrors.vehicle_category)}`} name="vehicle_category" value={form.vehicle_category} onChange={handleChange}>
               <option value="">Select category</option>
               {VEHICLE_CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -529,7 +461,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <MapPin className="h-4 w-4" style={{ color: BRAND }} /> Location & schedule
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -557,7 +489,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
               <div className="sm:col-span-2">
                 <label className={label}>Delivery Address <span className="text-red-400">*</span></label>
                 <input className={`${inputBase} ${errInputClass(!!fieldErrors.delivery_address)}`} name="delivery_address" value={form.delivery_address || ""} onChange={handleChange} placeholder="Physical address for dispatching inspection reports" />
-                <p className="mt-1 text-[11.5px] text-slate-500">Physical inspection report and certification will be dispatched to this delivery address.</p>
+                <p className="mt-1 text-xs text-cx-muted">Physical inspection report and certification will be dispatched to this delivery address.</p>
                 <FieldError message={fieldErrors.delivery_address} />
               </div>
               <div>
@@ -585,69 +517,69 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
           </div>
 
           <div>
-            <h2 className="mb-1 text-[13.5px] font-bold text-[#111111]">Documents to check (optional)</h2>
-            <p className="text-[11px] text-slate-400 mb-3">JPG, PNG, WEBP, or PDF — up to 10MB</p>
+            <h2 className="mb-1 text-sm font-bold text-cx-ink">Documents to check (optional)</h2>
+            <p className="text-xs text-cx-muted mb-3">JPG, PNG, WEBP, or PDF — up to 10MB</p>
             {supportingDoc?.url ? (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
-                <p className="truncate text-[12.5px] font-semibold text-[#111111]">{supportingDoc.fileName}</p>
-                <button type="button" onClick={() => setSupportingDoc(null)} className="shrink-0 text-[11.5px] font-semibold text-red-600">Remove</button>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-cx-line bg-cx-sunken p-3">
+                <p className="truncate text-[12.5px] font-semibold text-cx-ink">{supportingDoc.fileName}</p>
+                <button type="button" onClick={() => setSupportingDoc(null)} className="shrink-0 text-xs font-semibold text-red-600">Remove</button>
               </div>
             ) : (
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-cx-line-strong p-4 text-[12.5px] font-semibold text-cx-ink-2 hover:border-slate-400">
                 {uploadingDoc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 {uploadingDoc ? "Uploading…" : "Upload a photo or document if helpful"}
                 <input type="file" accept="image/*,application/pdf" disabled={uploadingDoc} onChange={(e) => handleDocUpload(e.target.files?.[0])} className="hidden" />
               </label>
             )}
-            {uploadError && <p className="mt-2 text-[11.5px] font-medium text-red-600">{uploadError}</p>}
+            {uploadError && <p className="mt-2 text-xs font-medium text-red-600">{uploadError}</p>}
           </div>
         </section>
       )}
 
       {step === 3 && (
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your booking</h2>
+          <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold text-cx-ink">Review your booking</h2>
             <div className="divide-y divide-slate-100">
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Applicant</span>
-                <span className="font-semibold text-[#111111]">{form.first_name} {form.middle_name} {form.last_name}</span>
+                <span className="text-cx-muted">Applicant</span>
+                <span className="font-semibold text-cx-ink">{form.first_name} {form.middle_name} {form.last_name}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Contact</span>
-                <span className="font-semibold text-[#111111]">{form.applicant_email} · {form.applicant_phone}</span>
+                <span className="text-cx-muted">Contact</span>
+                <span className="font-semibold text-cx-ink">{form.applicant_email} · {form.applicant_phone}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Whose vehicle</span>
-                <span className="font-semibold text-[#111111]">{isThirdParty ? "Someone else's" : "Mine"}</span>
+                <span className="text-cx-muted">Whose vehicle</span>
+                <span className="font-semibold text-cx-ink">{isThirdParty ? "Someone else's" : "Mine"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Vehicle</span>
-                <span className="font-semibold text-[#111111]">{form.make} {form.model} — {form.plate_number}</span>
+                <span className="text-cx-muted">Vehicle</span>
+                <span className="font-semibold text-cx-ink">{form.make} {form.model} — {form.plate_number}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Category</span>
-                <span className="font-semibold text-[#111111]">{VEHICLE_CATEGORY_OPTIONS.find((c) => c.value === form.vehicle_category)?.label}</span>
+                <span className="text-cx-muted">Category</span>
+                <span className="font-semibold text-cx-ink">{VEHICLE_CATEGORY_OPTIONS.find((c) => c.value === form.vehicle_category)?.label}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Meeting location</span>
-                <span className="font-semibold text-[#111111]">{form.location_address}</span>
+                <span className="text-cx-muted">Meeting location</span>
+                <span className="font-semibold text-cx-ink">{form.location_address}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Delivery address</span>
-                <span className="font-semibold text-[#111111]">{form.delivery_address || form.location_address}</span>
+                <span className="text-cx-muted">Delivery address</span>
+                <span className="font-semibold text-cx-ink">{form.delivery_address || form.location_address}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Preferred date</span>
-                <span className="font-semibold text-[#111111]">{form.preferred_date}{form.preferred_time ? ` (${form.preferred_time})` : ""}</span>
+                <span className="text-cx-muted">Preferred date</span>
+                <span className="font-semibold text-cx-ink">{form.preferred_date}{form.preferred_time ? ` (${form.preferred_time})` : ""}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Reason</span>
-                <span className="font-semibold text-[#111111]">{REASONS.find((r) => r.value === form.reason)?.label}</span>
+                <span className="text-cx-muted">Reason</span>
+                <span className="font-semibold text-cx-ink">{REASONS.find((r) => r.value === form.reason)?.label}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Processing Speed</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Processing Speed</span>
+                <span className="font-semibold text-cx-ink">
                   {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
                 </span>
               </div>
@@ -662,10 +594,10 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />
 
-          <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
+          <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-2 text-sm font-bold text-cx-ink">Payment</h2>
             {totalFeeKobo != null ? (
-              <p className="text-[20px] font-bold text-[#111111] mb-4">Total: {koboToNaira(totalFeeKobo)}</p>
+              <p className="text-[20px] font-bold text-cx-ink mb-4">Total: {koboToNaira(totalFeeKobo)}</p>
             ) : (
               <p className="text-[13px] font-semibold text-amber-700 mb-4">Not yet priced — contact support.</p>
             )}
@@ -688,7 +620,7 @@ export default function PhysicalConditionInspectionNewApplicationPage() {
         </section>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center justify-between gap-3 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         {step > 1 ? (
           <button type="button" onClick={() => { const prev = step - 1; setStep(prev); save({ wholeVehicle, form, supportingDoc, step: prev }, `Step ${prev} of ${STEP_LABELS.length}`); }} className={btnSecondary}>Back</button>
         ) : <span />}

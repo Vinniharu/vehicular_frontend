@@ -31,6 +31,7 @@ import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
+import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -258,21 +259,6 @@ export default function VehicleVerificationNewApplicationPage() {
     }
   };
 
-  const handlePayFromWallet = async () => {
-    if (!successApp) return;
-    setPayingFromWallet(true);
-    const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: payOpts?.remaining_kobo ?? payOpts?.amount_kobo });
-    setPayingFromWallet(false);
-    if (res.error) {
-      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
-      return;
-    }
-    const walletRes = await getWallet();
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-    if (res.data?.is_fully_paid) {
-      router.push(`/dashboard/apply/${successApp.id}`);
-    }
-  };
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
@@ -300,76 +286,22 @@ export default function VehicleVerificationNewApplicationPage() {
 
   if (successApp) {
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Verification submitted</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Complete payment to have your check reviewed by an agent.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? priceKobo ?? 0)}</span>
-            </div>
-            {(payOpts?.amount_paid_kobo ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-[13px] text-emerald-600 font-medium">
-                <span>Paid</span>
-                <span className="font-mono font-bold">{koboToNaira(payOpts.amount_paid_kobo)}</span>
-              </div>
-            )}
-            {(payOpts?.remaining_kobo ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-[13px] text-slate-700 font-medium">
-                <span>Balance Remaining</span>
-                <span className="font-mono font-bold">{koboToNaira(payOpts.remaining_kobo)}</span>
-              </div>
-            )}
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5">
-              <button
-                type="button"
-                onClick={handlePayFromWallet}
-                disabled={payingFromWallet || walletBalance < (payOpts.remaining_kobo ?? payOpts.amount_kobo ?? 0)}
-                className={`${btnPrimary} w-full`}
-                style={{ background: BRAND }}
-              >
-                {payingFromWallet && <Loader2 className="h-4 w-4 animate-spin" />}
-                Pay full amount from wallet ({koboToNaira(walletBalance)} available)
-              </button>
-              {payOpts.checkout_url && (
-                <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Card or Transfer
-                </a>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnSecondary} mt-6 w-full`}>
-            Back to applications
-          </button>
-        </div>
-      </div>
+      <SubmissionSuccess
+        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        title="Verification submitted"
+      />
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+    <div className="mx-auto max-w-2xl space-y-6 pb-2 sm:py-8">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-cx-muted hover:text-cx-ink-2">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Vehicle Verification</h1>
-        <p className="mt-1.5 text-[13.5px] text-slate-500">
+        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">Vehicle Verification</h1>
+        <p className="mt-1.5 text-sm text-cx-muted">
           Registration history or customs duty check — a Vehiculars agent reviews your submission and returns a documented verdict.
         </p>
       </div>
@@ -377,9 +309,9 @@ export default function VehicleVerificationNewApplicationPage() {
       <StepProgress steps={STEP_LABELS} current={step} />
 
       {step === 1 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm space-y-5">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm space-y-5">
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <ShieldCheck className="h-4 w-4" style={{ color: BRAND }} /> Check type
             </h2>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -394,10 +326,10 @@ export default function VehicleVerificationNewApplicationPage() {
                     className="flex flex-col items-start gap-1.5 rounded-xl border-2 p-3.5 text-left transition-all"
                     style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                   >
-                    <span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-[#111111]">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-cx-ink">
                       <Icon className="h-4 w-4" style={{ color: active ? BRAND : "#94a3b8" }} /> {ct.label}
                     </span>
-                    <span className="text-[12px] text-slate-500">{ct.desc}</span>
+                    <span className="text-[12px] text-cx-muted">{ct.desc}</span>
                   </button>
                 );
               })}
@@ -405,7 +337,7 @@ export default function VehicleVerificationNewApplicationPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <Car className="h-4 w-4" style={{ color: BRAND }} /> Applicant details
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -470,7 +402,7 @@ export default function VehicleVerificationNewApplicationPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
               <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle details
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -523,7 +455,7 @@ export default function VehicleVerificationNewApplicationPage() {
                   onChange={handleChange}
                   placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
                 />
-                <p className="mt-1 text-[11.5px] text-slate-500">Official verification report and certified search documents will be dispatched to this delivery address.</p>
+                <p className="mt-1 text-xs text-cx-muted">Official verification report and certified search documents will be dispatched to this delivery address.</p>
                 <FieldError message={fieldErrors.delivery_address} />
               </div>
             </div>
@@ -531,7 +463,7 @@ export default function VehicleVerificationNewApplicationPage() {
 
           {isCustomsDuty && (
             <div>
-              <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
                 <FileSearch className="h-4 w-4" style={{ color: BRAND }} /> Customs duty certificate
               </h2>
               <div>
@@ -541,14 +473,14 @@ export default function VehicleVerificationNewApplicationPage() {
               </div>
               <div className="mt-3">
                 <label className={label}>Duty certificate or receipt</label>
-                <p className="text-[11px] text-slate-400 mb-2">JPG, PNG, WEBP, or PDF — up to 10MB</p>
+                <p className="text-xs text-cx-muted mb-2">JPG, PNG, WEBP, or PDF — up to 10MB</p>
                 {certificate?.url ? (
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
-                    <p className="truncate text-[12.5px] font-semibold text-[#111111]">{certificate.fileName}</p>
-                    <button type="button" onClick={() => setCertificate(null)} className="shrink-0 text-[11.5px] font-semibold text-red-600">Remove</button>
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-cx-line bg-cx-sunken p-3">
+                    <p className="truncate text-[12.5px] font-semibold text-cx-ink">{certificate.fileName}</p>
+                    <button type="button" onClick={() => setCertificate(null)} className="shrink-0 text-xs font-semibold text-red-600">Remove</button>
                   </div>
                 ) : (
-                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-cx-line-strong p-4 text-[12.5px] font-semibold text-cx-ink-2 hover:border-slate-400">
                     {uploadingCert ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                     {uploadingCert ? "Uploading…" : "Click to upload"}
                     <input type="file" accept="image/*,application/pdf" disabled={uploadingCert} onChange={(e) => handleCertificateUpload(e.target.files?.[0])} className="hidden" />
@@ -563,36 +495,36 @@ export default function VehicleVerificationNewApplicationPage() {
 
       {step === 2 && (
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your submission</h2>
+          <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold text-cx-ink">Review your submission</h2>
             <div className="divide-y divide-slate-100">
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Applicant</span>
-                <span className="font-semibold text-[#111111]">{form.first_name} {form.middle_name} {form.last_name}</span>
+                <span className="text-cx-muted">Applicant</span>
+                <span className="font-semibold text-cx-ink">{form.first_name} {form.middle_name} {form.last_name}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Contact</span>
-                <span className="font-semibold text-[#111111]">{form.applicant_email} · {form.applicant_phone}</span>
+                <span className="text-cx-muted">Contact</span>
+                <span className="font-semibold text-cx-ink">{form.applicant_email} · {form.applicant_phone}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Check type</span>
-                <span className="font-semibold text-[#111111]">{CHECK_TYPES.find((c) => c.value === checkType)?.label}</span>
+                <span className="text-cx-muted">Check type</span>
+                <span className="font-semibold text-cx-ink">{CHECK_TYPES.find((c) => c.value === checkType)?.label}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Vehicle</span>
-                <span className="font-semibold text-[#111111]">{form.make} {form.model} — {form.plate_number}</span>
+                <span className="text-cx-muted">Vehicle</span>
+                <span className="font-semibold text-cx-ink">{form.make} {form.model} — {form.plate_number}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Reason</span>
-                <span className="font-semibold text-[#111111]">{REASONS.find((r) => r.value === form.reason)?.label}</span>
+                <span className="text-cx-muted">Reason</span>
+                <span className="font-semibold text-cx-ink">{REASONS.find((r) => r.value === form.reason)?.label}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Delivery address</span>
-                <span className="font-semibold text-[#111111] text-right max-w-xs">{form.delivery_address || "—"}</span>
+                <span className="text-cx-muted">Delivery address</span>
+                <span className="font-semibold text-cx-ink text-right max-w-xs">{form.delivery_address || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Processing Speed</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Processing Speed</span>
+                <span className="font-semibold text-cx-ink">
                   {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
                 </span>
               </div>
@@ -607,10 +539,10 @@ export default function VehicleVerificationNewApplicationPage() {
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />
 
-          <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-[13.5px] font-bold text-[#111111]">Payment</h2>
+          <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-2 text-sm font-bold text-cx-ink">Payment</h2>
             {totalFeeKobo != null ? (
-              <p className="text-[20px] font-bold text-[#111111] mb-4">Total: {koboToNaira(totalFeeKobo)}</p>
+              <p className="text-[20px] font-bold text-cx-ink mb-4">Total: {koboToNaira(totalFeeKobo)}</p>
             ) : (
               <p className="text-[13px] font-semibold text-amber-700 mb-4">Not yet priced — contact support.</p>
             )}
@@ -633,7 +565,7 @@ export default function VehicleVerificationNewApplicationPage() {
         </section>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center justify-between gap-3 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         {step === 2 ? (
           <button type="button" onClick={() => { setStep(1); save({ checkType, form, certificate, step: 1 }, "Step 1 of 2"); }} className={btnSecondary}>Back</button>
         ) : <span />}

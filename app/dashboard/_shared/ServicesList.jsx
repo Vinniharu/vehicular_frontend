@@ -167,12 +167,12 @@ export default function ServicesList({ showSearch = true }) {
     <div className="space-y-6">
       {showSearch && (
         <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7A7A7A]" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-cx-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="What do you need? Renewal, part, repair…"
-            className="w-full rounded-2xl border bg-white py-3.5 pl-11 pr-4 text-[13.5px] outline-none transition-colors focus:border-emerald-300"
+            className="w-full rounded-cx-lg border bg-white py-3.5 pl-11 pr-4 text-sm outline-none transition-colors focus:border-emerald-300"
             style={{ borderColor: PAPER_BORDER }}
           />
         </div>
@@ -188,8 +188,8 @@ export default function ServicesList({ showSearch = true }) {
 
       {/* Grouped service cards */}
       {visibleCategories.length === 0 ? (
-        <div className="rounded-2xl border bg-white p-10 text-center" style={{ borderColor: PAPER_BORDER }}>
-          <p className="text-[13.5px] text-[#7A7A7A]">No services match &ldquo;{query}&rdquo;.</p>
+        <div className="rounded-cx-lg border bg-white p-10 text-center" style={{ borderColor: PAPER_BORDER }}>
+          <p className="text-sm text-cx-muted">No services match &ldquo;{query}&rdquo;.</p>
         </div>
       ) : (
         visibleCategories.map((category) => (
@@ -232,7 +232,7 @@ export function CategoryChip({ label, count, active, onClick }) {
     >
       {label}
       <span
-        className="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold"
+        className="rounded-full px-1.5 py-0.5 text-xs font-bold"
         style={{ background: active ? "rgba(255,255,255,0.25)" : "#F4F1E9", color: active ? "#fff" : "#7A7A7A" }}
       >
         {count}
@@ -261,15 +261,15 @@ export function CtaBadge({ service, feeKobo, loaded = true }) {
     // showing "Loading…" forever for the latter is exactly the reported
     // "stuck on loading" bug, so it must not render the same text.
     if (!loaded) {
-      return <span className="text-[11px] font-semibold text-[#7A7A7A]">Loading…</span>;
+      return <span className="text-xs font-semibold text-cx-muted">Loading…</span>;
     }
-    return <span className="text-[11px] font-semibold text-[#7A7A7A]">Book now</span>;
+    return <span className="text-xs font-semibold text-cx-muted">Book now</span>;
   }
 
   if (service.status === "off_sale") {
     return (
       <span
-        className="rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap"
+        className="rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap"
         style={{ background: "#FFF7ED", color: "#C2410C" }}
       >
         Off sale
@@ -279,7 +279,7 @@ export function CtaBadge({ service, feeKobo, loaded = true }) {
 
   return (
     <span
-      className="rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap"
+      className="rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap"
       style={{ background: "#F4F1E9", color: "#7A7A7A" }}
     >
       Coming soon
@@ -296,7 +296,7 @@ export function ServiceCard({ service, feeKobo, loaded = true }) {
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between gap-4 rounded-2xl border bg-white p-5 shadow-sm transition-all hover:border-emerald-200 hover:shadow-md"
+      className="group flex items-center justify-between gap-4 rounded-cx-lg border bg-white p-5 shadow-sm transition-all hover:border-emerald-200 hover:shadow-md"
       style={{ borderColor: PAPER_BORDER }}
     >
       <div className="flex min-w-0 items-center gap-4">
@@ -304,8 +304,8 @@ export function ServiceCard({ service, feeKobo, loaded = true }) {
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-[13.5px] font-bold text-[#111111]">{service.title}</p>
-          <p className="mt-0.5 truncate text-[12px] text-[#7A7A7A]">{service.tagline}</p>
+          <p className="text-sm font-bold text-cx-ink">{service.title}</p>
+          <p className="mt-0.5 truncate text-[12px] text-cx-muted">{service.tagline}</p>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-3">

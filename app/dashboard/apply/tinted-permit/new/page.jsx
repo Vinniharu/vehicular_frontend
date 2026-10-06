@@ -33,6 +33,7 @@ import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
+import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -317,25 +318,6 @@ export default function TintedPermitNewApplicationPage() {
     }
   };
 
-  const handlePayFromWallet = async (amountKobo) => {
-    if (!successApp) return;
-    setPayingFromWallet(true);
-    const res = await payFromWalletEndpoint(successApp.id, { amount_kobo: amountKobo });
-    setPayingFromWallet(false);
-    if (res.error) {
-      pushToast({ tone: "error", title: "Wallet payment didn't go through", body: res.error });
-      return;
-    }
-    const walletRes = await getWallet();
-    if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-    if (res.data) {
-      if (res.data.is_fully_paid) {
-        router.push(`/dashboard/apply/${successApp.id}`);
-        return;
-      }
-      setPayOpts((prev) => ({ ...prev, remaining_kobo: res.data.remaining_kobo, amount_kobo: prev?.amount_kobo }));
-    }
-  };
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
@@ -369,77 +351,32 @@ export default function TintedPermitNewApplicationPage() {
 
   if (successApp) {
     return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ background: BRAND_TINT }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-[#111111]">Tinted permit application submitted</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            5 working days — proof of process &amp; payment so you can drive freely. 7 working days for the main permit certificate.
-          </p>
-
-          <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Reference</span>
-              <span className="font-mono font-semibold text-slate-800">#{successApp.id}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Total</span>
-              <span className="font-mono font-bold text-[#111111]">{koboToNaira(payOpts?.amount_kobo ?? displayFeeKobo)}</span>
-            </div>
-          </div>
-
-          {!isPaid && payOpts && (
-            <div className="mt-5 space-y-2.5 text-left">
-              <p className="text-[11.5px] font-semibold text-slate-500">
-                This service must be paid in full — {koboToNaira(payOpts.remaining_kobo ?? payOpts.amount_kobo)}
-              </p>
-              <button
-                type="button"
-                onClick={() => handlePayFromWallet(payOpts.remaining_kobo ?? payOpts.amount_kobo)}
-                disabled={payingFromWallet}
-                className={`${btnPrimary} w-full`}
-                style={{ background: BRAND }}
-              >
-                {payingFromWallet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-                {payingFromWallet ? "Processing…" : "Pay from wallet"}
-              </button>
-              {payOpts.checkout_url && (
-                <a href={payOpts.checkout_url} target="_blank" rel="noopener noreferrer" className={`${btnSecondary} w-full`}>
-                  Card or Transfer
-                </a>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => router.push(`/dashboard/apply/${successApp.id}`)} className={`${btnPrimary} mt-6 w-full`} style={{ background: BRAND }}>
-            Back to applications
-          </button>
-        </div>
-      </div>
+      <SubmissionSuccess
+        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        title="Tinted permit application submitted"
+      />
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-8">
-      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 hover:text-slate-700">
+    <div className="mx-auto max-w-2xl space-y-6 pb-2 sm:py-8">
+      <button onClick={() => router.push("/dashboard/services")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-cx-muted hover:text-cx-ink-2">
         <ArrowLeft className="h-3.5 w-3.5" /> Back
       </button>
 
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-[#111111]">Apply for Tinted Permit</h1>
-        <p className="mt-1.5 text-[13.5px] text-slate-500">
+        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">Apply for Tinted Permit</h1>
+        <p className="mt-1.5 text-sm text-cx-muted">
           Upload the documents and vehicle photos below. We'll process your application end-to-end.
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">5 working days — proof of process &amp; payment so you can drive freely</p>
+          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-cx-line bg-cx-sunken p-3">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cx-muted" />
+            <p className="text-[12.5px] text-cx-ink-2">5 working days — proof of process &amp; payment so you can drive freely</p>
           </div>
-          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[12.5px] text-slate-600">7 working days — main Permit certificate</p>
+          <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-cx-line bg-cx-sunken p-3">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-cx-muted" />
+            <p className="text-[12.5px] text-cx-ink-2">7 working days — main Permit certificate</p>
           </div>
         </div>
       </div>
@@ -448,8 +385,8 @@ export default function TintedPermitNewApplicationPage() {
 
       {/* Step 1 — Vehicle */}
       {step === 1 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-2 text-[13.5px] font-bold text-[#111111]">
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-cx-ink">
             <Car className="h-4 w-4" style={{ color: BRAND }} /> Vehicle
           </h2>
 
@@ -466,8 +403,8 @@ export default function TintedPermitNewApplicationPage() {
                     style={{ borderColor: active ? BRAND : "#e2e8f0", background: active ? BRAND_TINT : "#fff" }}
                   >
                     <div>
-                      <p className="text-[13.5px] font-semibold text-[#111111]">{v.make} {v.model} — {v.plate_number}</p>
-                      <p className="text-[12px] text-slate-500">{v.colour} · {v.state}</p>
+                      <p className="text-sm font-semibold text-cx-ink">{v.make} {v.model} — {v.plate_number}</p>
+                      <p className="text-[12px] text-cx-muted">{v.colour} · {v.state}</p>
                     </div>
                     {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: BRAND }} />}
                   </button>
@@ -476,7 +413,7 @@ export default function TintedPermitNewApplicationPage() {
               <button
                 type="button"
                 onClick={() => setAddingVehicle(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 p-2.5 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-cx-line-strong p-2.5 text-[12.5px] font-semibold text-cx-ink-2 hover:border-slate-400"
               >
                 <Plus className="h-3.5 w-3.5" /> Add another vehicle
               </button>
@@ -564,8 +501,8 @@ export default function TintedPermitNewApplicationPage() {
 
       {/* Step 2 — Applicant details */}
       {step === 2 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Applicant details</h2>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">Applicant details</h2>
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
@@ -642,11 +579,11 @@ export default function TintedPermitNewApplicationPage() {
                 onChange={(e) => setDeliveryAddress(e.target.value)}
                 placeholder="e.g. 14 Marina Road, Victoria Island, Lagos"
               />
-              <p className="mt-1 text-[11.5px] text-slate-500">Physical tinted permit documents will be delivered to this address.</p>
+              <p className="mt-1 text-xs text-cx-muted">Physical tinted permit documents will be delivered to this address.</p>
               <FieldError message={fieldErrors.deliveryAddress} />
             </div>
             <div>
-              <label className={label}>Justification <span className="font-normal text-slate-400">(optional)</span></label>
+              <label className={label}>Justification <span className="font-normal text-cx-muted">(optional)</span></label>
               <textarea
                 className={inputBase}
                 rows={2}
@@ -661,8 +598,8 @@ export default function TintedPermitNewApplicationPage() {
 
       {/* Step 3 — Documents & photos */}
       {step === 3 && (
-        <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Documents &amp; photos</h2>
+        <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">Documents &amp; photos</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {DOC_SLOTS.map((slot) => (
               <UploadSlot
@@ -680,46 +617,46 @@ export default function TintedPermitNewApplicationPage() {
       {/* Step 4 — Review & submit */}
       {step === 4 && (
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-[13.5px] font-bold text-[#111111]">Review your application</h2>
+          <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-bold text-cx-ink">Review your application</h2>
             <div className="divide-y divide-slate-100">
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Applicant</span>
-                <span className="font-semibold text-[#111111]">{[firstName, middleName, lastName].filter(Boolean).join(" ") || "—"}</span>
+                <span className="text-cx-muted">Applicant</span>
+                <span className="font-semibold text-cx-ink">{[firstName, middleName, lastName].filter(Boolean).join(" ") || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Email &amp; Phone</span>
-                <span className="font-semibold text-[#111111]">{applicantEmail} · {applicantPhone}</span>
+                <span className="text-cx-muted">Email &amp; Phone</span>
+                <span className="font-semibold text-cx-ink">{applicantEmail} · {applicantPhone}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Vehicle</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Vehicle</span>
+                <span className="font-semibold text-cx-ink">
                   {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model} — ${selectedVehicle.plate_number}` : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">NIN</span>
-                <span className="font-mono font-semibold text-[#111111]">{nin || "—"}</span>
+                <span className="text-cx-muted">NIN</span>
+                <span className="font-mono font-semibold text-cx-ink">{nin || "—"}</span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Delivery address</span>
-                <span className="font-semibold text-[#111111] text-right max-w-xs">{deliveryAddress || "—"}</span>
+                <span className="text-cx-muted">Delivery address</span>
+                <span className="font-semibold text-cx-ink text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
               {justification.trim() && (
                 <div className="py-2.5 text-[13px]">
-                  <span className="block text-slate-500">Justification</span>
-                  <span className="mt-1 block text-[#111111]">{justification}</span>
+                  <span className="block text-cx-muted">Justification</span>
+                  <span className="mt-1 block text-cx-ink">{justification}</span>
                 </div>
               )}
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Documents</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Documents</span>
+                <span className="font-semibold text-cx-ink">
                   {DOC_SLOTS.filter((s) => docs[s.doc_type]?.url).length} of {DOC_SLOTS.length} uploaded
                 </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
-                <span className="text-slate-500">Processing Speed</span>
-                <span className="font-semibold text-[#111111]">
+                <span className="text-cx-muted">Processing Speed</span>
+                <span className="font-semibold text-cx-ink">
                   {processingSpeed === "fast_track" ? `Fast Track (+${koboToNaira(fastTrackSurchargeKobo)})` : "Standard"}
                 </span>
               </div>
@@ -734,15 +671,15 @@ export default function TintedPermitNewApplicationPage() {
             fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
           />
 
-          <section className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-            <h2 className="mb-1 text-[14px] font-bold text-[#111111]">Payment & Submission</h2>
-            <p className="mb-4 text-[12px] text-slate-500">
+          <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-[14px] font-bold text-cx-ink">Payment & Submission</h2>
+            <p className="mb-4 text-[12px] text-cx-muted">
               Applications require an initial deposit or full payment to begin processing.
             </p>
-            <div className="mb-4 rounded-xl bg-slate-50 p-3 text-[13px] border border-slate-100 space-y-1">
+            <div className="mb-4 rounded-xl bg-cx-sunken p-3 text-[13px] border border-cx-line space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Tinted Permit Fee</span>
-                <span className="font-semibold text-[#111111]">{koboToNaira(feeKobo ?? TOTAL_FEE_KOBO)}</span>
+                <span className="text-cx-muted">Tinted Permit Fee</span>
+                <span className="font-semibold text-cx-ink">{koboToNaira(feeKobo ?? TOTAL_FEE_KOBO)}</span>
               </div>
               {processingSpeed === "fast_track" && (
                 <div className="flex items-center justify-between text-emerald-700">
@@ -750,7 +687,7 @@ export default function TintedPermitNewApplicationPage() {
                   <span className="font-semibold">+{koboToNaira(fastTrackSurchargeKobo)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-bold text-slate-900">
+              <div className="flex items-center justify-between pt-1 border-t border-cx-line/60 font-bold text-cx-ink">
                 <span>Total Fee</span>
                 <span className="font-mono">{koboToNaira(displayFeeKobo)}</span>
               </div>
@@ -774,7 +711,7 @@ export default function TintedPermitNewApplicationPage() {
 
       {/* Step navigation */}
       {step < 4 && (
-        <div className="flex items-center justify-between gap-3">
+        <div className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center justify-between gap-3 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
           {step > 1 ? (
             <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className={btnSecondary}>
               Back

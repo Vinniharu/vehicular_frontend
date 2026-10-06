@@ -53,20 +53,20 @@ export default function ContinueApplicationCard() {
   const remaining = drafts.length - shown.length;
 
   return (
-    <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
-      <p className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Continue where you left off</p>
+    <div className="rounded-cx-lg border border-cx-line bg-white p-5">
+      <p className="mb-3 text-[13px] font-bold text-cx-muted">Continue where you left off</p>
       <div className="space-y-2">
         {shown.map((draft) => {
           const meta = getWizardKeyMeta(draft.wizard_key);
           return (
             <div
               key={draft.wizard_key}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl border border-cx-line bg-cx-sunken px-4 py-3"
             >
               <Link href={meta.resumeUrl} className="flex min-w-0 flex-1 items-center gap-3">
                 <div>
-                  <p className="text-[13.5px] font-semibold text-[#111111]">{meta.label}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-slate-500">
+                  <p className="text-sm font-semibold text-cx-ink">{meta.label}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-cx-muted">
                     {draft.step_label && <span>{draft.step_label} · </span>}
                     <Clock className="h-3 w-3" />
                     {relativeTime(draft.updated_at)}
@@ -86,7 +86,7 @@ export default function ContinueApplicationCard() {
                   type="button"
                   onClick={() => handleDismiss(draft.wizard_key)}
                   aria-label="Discard draft"
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600"
+                  className="rounded-lg p-1.5 text-cx-muted hover:bg-slate-200/60 hover:text-cx-ink-2"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

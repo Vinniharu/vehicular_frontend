@@ -41,13 +41,13 @@ export default function DraftsListPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-6 pb-20">
-      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-500 hover:text-slate-700">
+      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-cx-muted hover:text-cx-ink-2">
         <ArrowLeft className="h-4 w-4" />
         Back to dashboard
       </Link>
 
       <h1
-        className="text-[26px] tracking-tight text-[#111111]"
+        className="text-[26px] tracking-tight text-cx-ink"
         style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
       >
         Unfinished applications
@@ -58,7 +58,7 @@ export default function DraftsListPage() {
           <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
         </div>
       ) : drafts.length === 0 ? (
-        <p className="py-16 text-center text-[13.5px] text-slate-500">You don't have any unfinished applications.</p>
+        <p className="py-16 text-center text-sm text-cx-muted">You don't have any unfinished applications.</p>
       ) : (
         <div className="space-y-2.5">
           {drafts.map((draft) => {
@@ -66,11 +66,11 @@ export default function DraftsListPage() {
             return (
               <div
                 key={draft.wizard_key}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-[#E5E5E5] bg-white px-5 py-4"
+                className="flex items-center justify-between gap-3 rounded-cx-lg border border-cx-line bg-white px-5 py-4"
               >
                 <div>
-                  <p className="text-[14px] font-semibold text-[#111111]">{meta.label}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-500">
+                  <p className="text-[14px] font-semibold text-cx-ink">{meta.label}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-cx-muted">
                     {draft.step_label && <span>{draft.step_label} · </span>}
                     <Clock className="h-3 w-3" />
                     {relativeTime(draft.updated_at)}
@@ -89,7 +89,7 @@ export default function DraftsListPage() {
                     type="button"
                     onClick={() => handleDismiss(draft.wizard_key)}
                     aria-label="Discard draft"
-                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    className="rounded-lg p-2 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2"
                   >
                     <X className="h-4 w-4" />
                   </button>

@@ -272,7 +272,7 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
   };
 
   return (
-    <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+    <div className="space-y-4 rounded-cx-lg border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3 border-b border-emerald-100 pb-3">
         <div>
           <h3 className="text-[15px] font-bold text-emerald-900 flex items-center gap-2">
@@ -302,13 +302,13 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
       )}
 
       <div className="space-y-3 rounded-xl border border-emerald-200 bg-white p-4">
-        <h4 className="text-[13px] font-bold text-slate-800 uppercase tracking-wide">Detailed Instructions:</h4>
-        <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700 leading-relaxed font-medium">
+        <h4 className="text-[13px] font-bold text-cx-ink">Detailed Instructions:</h4>
+        <ol className="list-decimal list-inside space-y-2 text-[13px] text-cx-ink-2 leading-relaxed font-medium">
           <li>Click the <strong>Open Verification Portal</strong> button below to go to the official POSSAP verification page.</li>
           <li>Complete your face/image verification check on the portal.</li>
           <li>
             <strong>Take a full screenshot</strong> of the completed verification screen showing:
-            <ul className="list-disc list-inside ml-5 mt-1 text-[12px] text-slate-600 font-normal">
+            <ul className="list-disc list-inside ml-5 mt-1 text-[12px] text-cx-ink-2 font-normal">
               <li>"Image verification check is done!" message with the green checkmark</li>
               <li>Your full name and match percentage (e.g. 99.95%)</li>
               <li>The website URL (<code className="font-mono text-emerald-700">verification.possap.ng</code>) in your browser address bar</li>
@@ -318,12 +318,12 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
         </ol>
 
         {/* Reference Image Container */}
-        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[12px] font-semibold text-slate-700 mb-2">Reference Example (Your screenshot should look like this):</p>
-          <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-black/5 max-w-xs cursor-pointer group" onClick={() => setShowReferenceModal(true)}>
+        <div className="mt-3 rounded-xl border border-cx-line bg-cx-sunken p-3">
+          <p className="text-[12px] font-semibold text-cx-ink-2 mb-2">Reference Example (Your screenshot should look like this):</p>
+          <div className="relative overflow-hidden rounded-lg border border-cx-line bg-black/5 max-w-xs cursor-pointer group" onClick={() => setShowReferenceModal(true)}>
             <img src="/images/possap-verification-example.jpg" alt="POSSAP Verification Reference Example" className="max-h-48 w-auto object-contain transition-transform group-hover:scale-105" />
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="rounded-md bg-white px-2.5 py-1 text-[11px] font-bold text-slate-900 shadow">Click to Expand Example</span>
+              <span className="rounded-md bg-white px-2.5 py-1 text-xs font-bold text-cx-ink shadow">Click to Expand Example</span>
             </div>
           </div>
         </div>
@@ -341,13 +341,13 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
       </div>
 
       <form onSubmit={handleUpload} className="space-y-3 rounded-xl border border-emerald-200 bg-white p-4">
-        <label className="block text-[12.5px] font-bold text-slate-800">
+        <label className="block text-[12.5px] font-bold text-cx-ink">
           {existingDoc ? "Re-upload Verification Screenshot" : "Upload Verification Screenshot *"}
         </label>
         <div className="flex flex-col sm:flex-row gap-2.5">
-          <label className="flex flex-1 cursor-pointer items-center justify-between rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3.5 py-2.5 text-[12.5px] text-slate-600 hover:border-emerald-500 hover:bg-emerald-50/20">
+          <label className="flex flex-1 cursor-pointer items-center justify-between rounded-xl border border-dashed border-cx-line-strong bg-cx-sunken px-3.5 py-2.5 text-[12.5px] text-cx-ink-2 hover:border-emerald-500 hover:bg-emerald-50/20">
             <span className="truncate">{docFileName || "Choose screenshot image..."}</span>
-            <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">
+            <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
               <Upload className="h-3 w-3" /> Browse
             </span>
             <input type="file" accept="image/*" onChange={handleFileChange} disabled={uploading} className="hidden" />
@@ -366,15 +366,15 @@ function TintedVerificationCheckCard({ application, onViewDoc, onUploaded }) {
 
       {showReferenceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowReferenceModal(false)}>
-          <div className="relative max-w-md w-full bg-white rounded-2xl p-4 shadow-2xl space-y-3" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-md w-full bg-white rounded-cx-lg p-4 shadow-2xl space-y-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="text-[14px] font-bold text-slate-900">POSSAP Screenshot Reference</h4>
-              <button onClick={() => setShowReferenceModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+              <h4 className="text-[14px] font-bold text-cx-ink">POSSAP Screenshot Reference</h4>
+              <button onClick={() => setShowReferenceModal(false)} className="rounded-lg p-1 text-cx-muted hover:bg-cx-sunken">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <img src="/images/possap-verification-example.jpg" alt="Reference Full View" className="w-full max-h-[70vh] object-contain rounded-lg border" />
-            <p className="text-[12px] text-slate-600 text-center">Ensure your screenshot shows the match %, applicant name, and browser URL bar.</p>
+            <p className="text-[12px] text-cx-ink-2 text-center">Ensure your screenshot shows the match %, applicant name, and browser URL bar.</p>
           </div>
         </div>
       )}
@@ -391,7 +391,7 @@ function TintedTemporaryPermitsCard({ application, onViewDoc }) {
   if (tempDocs.length === 0) return null;
 
   return (
-    <div className="space-y-4 rounded-2xl border border-violet-200 bg-violet-50/40 p-5 shadow-sm">
+    <div className="space-y-4 rounded-cx-lg border border-violet-200 bg-violet-50/40 p-5 shadow-sm">
       <div className="flex items-center justify-between border-b border-violet-100 pb-3">
         <h3 className="text-[15px] font-bold text-violet-900 flex items-center gap-2">
           <FileText className="h-5 w-5 text-violet-600" />
@@ -416,11 +416,11 @@ function TintedTemporaryPermitsCard({ application, onViewDoc }) {
                 PDF
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[13.5px] font-bold text-slate-900">
+                <p className="truncate text-sm font-bold text-cx-ink">
                   Temporary Tinted Permit #{idx + 1}
                 </p>
                 {doc.uploaded_at && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-cx-muted">
                     Uploaded on {new Date(doc.uploaded_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}
                   </p>
                 )}
@@ -456,29 +456,29 @@ function ParticularsItemsSummary({ application, onViewDoc }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-      <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Documents in this request</h3>
+    <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+      <h3 className="mb-3 text-[12px] font-bold text-cx-muted">Documents in this request</h3>
       <div className="space-y-3">
         {items.map((item) => {
           const meta = PARTICULARS_ITEM_STATUS_META[item.status] || { label: item.status, tone: "neutral" };
           const finalDoc = (application.documents || []).find((d) => d.doc_type === `${item.document_type}_final`);
           return (
-            <div key={item.id} className="rounded-xl border border-slate-200 p-3.5">
+            <div key={item.id} className="rounded-xl border border-cx-line p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[13.5px] font-semibold text-[#111111]">
+                <p className="text-sm font-semibold text-cx-ink">
                   {PARTICULARS_DOCUMENT_TYPE_LABELS[item.document_type] || item.document_type}
                 </p>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                   meta.tone === "success" ? "bg-emerald-50 text-emerald-700"
                   : meta.tone === "danger" ? "bg-red-50 text-red-700"
                   : meta.tone === "info" ? "bg-sky-50 text-sky-700"
                   : meta.tone === "warning" ? "bg-amber-50 text-amber-700"
-                  : "bg-slate-100 text-slate-600"
+                  : "bg-cx-sunken text-cx-ink-2"
                 }`}>
                   {meta.label}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-slate-500">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-cx-muted">
                 <span>{koboToNaira(item.price_kobo)}</span>
                 {item.expiry_date && (
                   <span>Valid until {new Date(item.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}</span>
@@ -508,16 +508,16 @@ function ParticularsItemsSummary({ application, onViewDoc }) {
 function CustomerLicenceCard({ title, licence, expired = false, onViewDoc }) {
   if (!licence) {
     return (
-      <div className="rounded-xl border border-dashed border-[#E5E5E5] p-4">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</span>
-        <p className="mt-1 text-[13px] text-slate-400">Not issued yet.</p>
+      <div className="rounded-xl border border-dashed border-cx-line p-4">
+        <span className="text-xs font-semibold text-cx-muted">{title}</span>
+        <p className="mt-1 text-[13px] text-cx-muted">Not issued yet.</p>
       </div>
     );
   }
   return (
-    <div className={`rounded-xl border p-4 ${expired ? "border-red-200 bg-red-50/40" : "border-[#E5E5E5] bg-slate-50/60"}`}>
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</span>
-      <p className="mt-1 font-mono text-[15px] font-bold text-[#111111]">{licence.licence_number || "—"}</p>
+    <div className={`rounded-xl border p-4 ${expired ? "border-red-200 bg-red-50/40" : "border-cx-line bg-cx-sunken"}`}>
+      <span className="text-xs font-semibold text-cx-muted">{title}</span>
+      <p className="mt-1 font-mono text-[15px] font-bold text-cx-ink">{licence.licence_number || "—"}</p>
       <p className={`mt-1 text-[12.5px] font-semibold ${expired ? "text-red-600" : "text-emerald-700"}`}>
         {licence.expiry_date
           ? `${expired ? "Expired" : "Valid until"} ${new Date(licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}`
@@ -539,24 +539,24 @@ function PaymentProgressBar({ paidKobo, totalKobo }) {
     <div className="space-y-3 rounded-xl border border-amber-200/80 bg-white/90 p-4 shadow-sm">
       <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-100">
         <div className="px-1">
-          <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Service Fee</span>
-          <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-800">{koboToNaira(totalKobo)}</span>
+          <span className="block text-xs font-bold text-cx-muted">Service Fee</span>
+          <span className="mt-1 block font-mono text-sm font-bold text-cx-ink">{koboToNaira(totalKobo)}</span>
         </div>
         <div className="px-1">
-          <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Amount Paid</span>
-          <span className="mt-1 block font-mono text-[13.5px] font-bold text-emerald-700">{koboToNaira(paidKobo)}</span>
+          <span className="block text-xs font-bold text-cx-muted">Amount Paid</span>
+          <span className="mt-1 block font-mono text-sm font-bold text-emerald-700">{koboToNaira(paidKobo)}</span>
         </div>
         <div className="px-1">
-          <span className="block text-[10.5px] font-bold uppercase tracking-wider text-slate-400">Balance Owed</span>
-          <span className="mt-1 block font-mono text-[13.5px] font-bold text-red-600">{koboToNaira(remainingKobo)}</span>
+          <span className="block text-xs font-bold text-cx-muted">Balance Owed</span>
+          <span className="mt-1 block font-mono text-sm font-bold text-red-600">{koboToNaira(remainingKobo)}</span>
         </div>
       </div>
-      <div className="space-y-1.5 pt-1 border-t border-slate-100">
-        <div className="flex items-center justify-between text-[11.5px]">
-          <span className="font-semibold text-slate-600">Payment progress</span>
-          <span className="font-mono font-bold text-slate-700">{pct}% completed</span>
+      <div className="space-y-1.5 pt-1 border-t border-cx-line">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-cx-ink-2">Payment progress</span>
+          <span className="font-mono font-bold text-cx-ink-2">{pct}% completed</span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-cx-sunken">
           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: BRAND }} />
         </div>
       </div>
@@ -817,14 +817,14 @@ function ReapplyModal({ application, onClose, onSuccess }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
           <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">Edit & Reapply</h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
+            <h2 className="text-[16px] font-bold text-cx-ink">Edit & Reapply</h2>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted">
               Correct your details — application #{application.id} will be resubmitted.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -843,7 +843,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               simplified apply form, so reapply doesn't ask for them either. */}
           {isFresh && (
           <section>
-            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <h3 className="mb-4 border-b border-cx-line pb-2 text-xs font-bold text-cx-muted">
               Personal Details
             </h3>
             <div className="space-y-4">
@@ -873,7 +873,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                       <option value="" disabled>Select...</option>
                       <option>Male</option><option>Female</option><option>Other</option>
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                 </div>
               </div>
@@ -889,7 +889,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                       <option value="">Select...</option>
                       <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                 </div>
               </div>
@@ -918,11 +918,11 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     <option value="">Select...</option>
                     {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((bg) => <option key={bg}>{bg}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                <p className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Physical Characteristics</p>
+              <div className="rounded-xl border border-cx-line bg-cx-sunken p-4 space-y-3">
+                <p className="text-[12px] font-bold text-cx-muted">Physical Characteristics</p>
                 <label className="flex items-center gap-3 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -930,7 +930,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     onChange={(e) => setForm((p) => ({ ...p, has_facial_mark: e.target.checked, facial_mark_description: e.target.checked ? p.facial_mark_description : "" }))}
                     className="h-4 w-4 rounded accent-[#28A745]"
                   />
-                  <span className="text-[13.5px] font-medium text-slate-800">Has facial mark</span>
+                  <span className="text-sm font-medium text-cx-ink">Has facial mark</span>
                 </label>
                 {form.has_facial_mark && (
                   <input name="facial_mark_description" value={form.facial_mark_description} onChange={handleChange}
@@ -943,7 +943,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     onChange={(e) => setForm((p) => ({ ...p, has_disability: e.target.checked, disability_description: e.target.checked ? p.disability_description : "" }))}
                     className="h-4 w-4 rounded accent-[#28A745]"
                   />
-                  <span className="text-[13.5px] font-medium text-slate-800">Has any disability</span>
+                  <span className="text-sm font-medium text-cx-ink">Has any disability</span>
                 </label>
                 {form.has_disability && (
                   <input name="disability_description" value={form.disability_description} onChange={handleChange}
@@ -958,7 +958,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               simplified form either */}
           {isFresh && (
           <section>
-            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <h3 className="mb-4 border-b border-cx-line pb-2 text-xs font-bold text-cx-muted">
               State & LGA of Origin
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -969,7 +969,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     <option value="">Select state</option>
                     {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
               <div>
@@ -979,7 +979,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     <option value="">Select LGA</option>
                     {originLgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
             </div>
@@ -988,7 +988,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
 
           {/* State / LGA of Residence */}
           <section>
-            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <h3 className="mb-4 border-b border-cx-line pb-2 text-xs font-bold text-cx-muted">
               State & LGA of Residence
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -999,7 +999,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     <option value="" disabled>Select state</option>
                     {states.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
               <div>
@@ -1009,7 +1009,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     <option value="" disabled>Select LGA</option>
                     {lgas.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
             </div>
@@ -1018,7 +1018,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
           {/* Next of Kin — fresh only */}
           {isFresh && (
           <section>
-            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <h3 className="mb-4 border-b border-cx-line pb-2 text-xs font-bold text-cx-muted">
               Next of Kin
             </h3>
             <div className="space-y-4">
@@ -1034,14 +1034,14 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                       <option value="">Select...</option>
                       {["Spouse","Parent","Sibling","Child","Grandparent","Cousin","Friend","Guardian","Other"].map((r) => <option key={r}>{r}</option>)}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                   </div>
                 </div>
               </div>
               <div>
                 <label className={fieldLabel}>Phone number</label>
-                <div className="flex rounded-xl border border-[#E5E5E5] bg-slate-50/60 overflow-hidden focus-within:border-[#28A745] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#28A745]/15">
-                  <span className="flex items-center pl-3.5 pr-3 text-[13.5px] font-semibold text-slate-500 select-none border-r border-[#E5E5E5] bg-slate-100/80">+234</span>
+                <div className="flex rounded-xl border border-cx-line bg-cx-sunken overflow-hidden focus-within:border-[#28A745] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#28A745]/15">
+                  <span className="flex items-center pl-3.5 pr-3 text-sm font-semibold text-cx-muted select-none border-r border-cx-line bg-cx-sunken/80">+234</span>
                   <input
                     type="tel"
                     value={(form.next_of_kin_phone || "").replace(/^\+?234/, "").replace(/^0/, "")}
@@ -1050,7 +1050,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                       setForm((p) => ({ ...p, next_of_kin_phone: "+234" + raw }));
                     }}
                     placeholder="8012345678"
-                    className="flex-1 min-w-0 px-3.5 py-2.5 text-[13.5px] bg-transparent outline-none text-[#111111] font-mono"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 text-sm bg-transparent outline-none text-cx-ink font-mono"
                   />
                 </div>
               </div>
@@ -1062,7 +1062,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               exactly what their own apply form asks for. */}
           {!isFresh && !isTinted && (
           <section>
-            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <h3 className="mb-4 border-b border-cx-line pb-2 text-xs font-bold text-cx-muted">
               {application.application_type === "international_permit" ? "Permit Details" : "Renewal Details"}
             </h3>
             <div className="space-y-4">
@@ -1080,7 +1080,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                         <option value="3 years">3 years</option>
                         <option value="5 years">5 years</option>
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                     </div>
                   </div>
                 )}
@@ -1095,21 +1095,21 @@ function ReapplyModal({ application, onClose, onSuccess }) {
               <div>
                 <label className={fieldLabel}>Passport photo</label>
                 {!passportPhotoUrl ? (
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 transition-all hover:border-[#28A745]">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-cx-line-strong bg-cx-sunken p-6 transition-all hover:border-[#28A745]">
                     <Upload className="h-5 w-5" style={{ color: BRAND }} />
-                    <p className="text-[12.5px] font-semibold text-slate-700">{passportPhotoUploading ? "Uploading…" : "Click to upload"}</p>
+                    <p className="text-[12.5px] font-semibold text-cx-ink-2">{passportPhotoUploading ? "Uploading…" : "Click to upload"}</p>
                     <input type="file" accept="image/*" disabled={passportPhotoUploading} onChange={(e) => handlePassportPhotoFile(e.target.files?.[0])} className="hidden" />
                   </label>
                 ) : (
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-cx-line bg-cx-sunken p-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                      <p className="truncate text-[12.5px] font-semibold text-[#111111]">Passport photo ready</p>
+                      <p className="truncate text-[12.5px] font-semibold text-cx-ink">Passport photo ready</p>
                     </div>
-                    <button type="button" onClick={() => setPassportPhotoUrl("")} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">Remove</button>
+                    <button type="button" onClick={() => setPassportPhotoUrl("")} className="shrink-0 text-xs font-medium text-red-600 hover:underline">Remove</button>
                   </div>
                 )}
-                {passportPhotoError && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{passportPhotoError}</p>}
+                {passportPhotoError && <p className="mt-1.5 text-xs font-medium text-red-600">{passportPhotoError}</p>}
               </div>
 
               <div>
@@ -1117,21 +1117,21 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                   {isIdp ? "International Passport or Nigeria Driver's Licence" : "Front of your old licence"}
                 </label>
                 {!simpleDocUrl ? (
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 transition-all hover:border-[#28A745]">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-cx-line-strong bg-cx-sunken p-6 transition-all hover:border-[#28A745]">
                     <Upload className="h-5 w-5" style={{ color: BRAND }} />
-                    <p className="text-[12.5px] font-semibold text-slate-700">{simpleDocUploading ? "Uploading…" : "Click to upload"}</p>
+                    <p className="text-[12.5px] font-semibold text-cx-ink-2">{simpleDocUploading ? "Uploading…" : "Click to upload"}</p>
                     <input type="file" accept="image/*" disabled={simpleDocUploading} onChange={(e) => handleSimpleDocFile(e.target.files?.[0])} className="hidden" />
                   </label>
                 ) : (
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-cx-line bg-cx-sunken p-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                      <p className="truncate text-[12.5px] font-semibold text-[#111111]">{simpleDocFileName}</p>
+                      <p className="truncate text-[12.5px] font-semibold text-cx-ink">{simpleDocFileName}</p>
                     </div>
-                    <button type="button" onClick={() => { setSimpleDocUrl(""); setSimpleDocFileName(""); }} className="shrink-0 text-[11px] font-medium text-red-600 hover:underline">Remove</button>
+                    <button type="button" onClick={() => { setSimpleDocUrl(""); setSimpleDocFileName(""); }} className="shrink-0 text-xs font-medium text-red-600 hover:underline">Remove</button>
                   </div>
                 )}
-                {simpleDocError && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{simpleDocError}</p>}
+                {simpleDocError && <p className="mt-1.5 text-xs font-medium text-red-600">{simpleDocError}</p>}
               </div>
             </div>
           </section>
@@ -1140,8 +1140,8 @@ function ReapplyModal({ application, onClose, onSuccess }) {
           {/* New document upload — fresh only */}
           {isFresh && (
           <section>
-            <h3 className="mb-4 border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Replace / Add Document <span className="font-normal normal-case text-slate-400">(optional)</span>
+            <h3 className="mb-4 border-b border-cx-line pb-2 text-xs font-bold text-cx-muted">
+              Replace / Add Document <span className="font-normal normal-case text-cx-muted">(optional)</span>
             </h3>
             <div className="space-y-3">
               <div>
@@ -1154,33 +1154,33 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     <option value="eye_test_certificate">Vision / eye test</option>
                     <option value="medical_certificate">Medical fitness certificate</option>
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cx-muted" />
                 </div>
               </div>
 
               {!docUrl && !docUploading ? (
                 <label
-                  className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 transition-all hover:border-[#28A745] hover:bg-[rgba(40, 167, 69,0.04)]"
+                  className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-cx-line-strong bg-cx-sunken p-8 transition-all hover:border-[#28A745] hover:bg-[rgba(40, 167, 69,0.04)]"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: BRAND_TINT, color: BRAND }}>
                     <Upload className="h-5 w-5" />
                   </div>
                   <div className="text-center">
-                    <p className="text-[13px] font-semibold text-slate-800">Click to upload document</p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">PNG, JPG, WEBP or PDF – up to 10MB</p>
+                    <p className="text-[13px] font-semibold text-cx-ink">Click to upload document</p>
+                    <p className="mt-0.5 text-xs text-cx-muted">PNG, JPG, WEBP or PDF – up to 10MB</p>
                   </div>
                   <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" />
                 </label>
               ) : (
-                <div className="space-y-2 rounded-xl border border-[#E5E5E5] bg-slate-50/60 p-4">
+                <div className="space-y-2 rounded-xl border border-cx-line bg-cx-sunken p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
                         {docUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-semibold text-[#111111]">{docFileName}</p>
-                        <p className="text-[11px] text-slate-400">{docUploading ? "Uploading to server…" : "Ready to attach"}</p>
+                        <p className="truncate text-[13px] font-semibold text-cx-ink">{docFileName}</p>
+                        <p className="text-xs text-cx-muted">{docUploading ? "Uploading to server…" : "Ready to attach"}</p>
                       </div>
                     </div>
                     <button type="button" disabled={docUploading} onClick={() => { setDocUrl(""); setDocFileName(""); setDocPreview(""); setDocError(null); }}
@@ -1189,20 +1189,20 @@ function ReapplyModal({ application, onClose, onSuccess }) {
                     </button>
                   </div>
                   {docPreview && (
-                    <div className="flex max-h-36 items-center justify-center overflow-hidden rounded-lg border border-[#E5E5E5] bg-white">
+                    <div className="flex max-h-36 items-center justify-center overflow-hidden rounded-lg border border-cx-line bg-white">
                       <img src={docPreview} alt="Preview" className="max-h-36 w-auto object-contain" />
                     </div>
                   )}
                 </div>
               )}
-              {docError && <p className="mt-1.5 text-[11.5px] font-medium text-red-600">{docError}</p>}
+              {docError && <p className="mt-1.5 text-xs font-medium text-red-600">{docError}</p>}
             </div>
           </section>
           )}
         </form>
 
         {/* Footer */}
-        <div className="border-t border-slate-100 bg-white px-6 py-4 flex items-center justify-between gap-3">
+        <div className="border-t border-cx-line bg-white px-6 py-4 flex items-center justify-between gap-3">
           <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
           <button
             type="submit"
@@ -1278,14 +1278,14 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
           <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">Fix &amp; Resubmit</h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
+            <h2 className="text-[16px] font-bold text-cx-ink">Fix &amp; Resubmit</h2>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted">
               Re-upload the flagged document(s) for permit #{application.id}.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1312,13 +1312,13 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
           <div className="space-y-3">
             <p className={fieldLabel}>Re-upload document(s)</p>
             {TINTED_DOC_TYPES.map((d) => (
-              <div key={d.value} className="rounded-xl border border-[#E5E5E5] p-3.5">
-                <p className="text-[13px] font-semibold text-[#111111]">{d.label}</p>
+              <div key={d.value} className="rounded-xl border border-cx-line p-3.5">
+                <p className="text-[13px] font-semibold text-cx-ink">{d.label}</p>
                 <div className="mt-2">
                   {!docs[d.value]?.url ? (
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition-all hover:border-[#28A745]">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-cx-line-strong bg-cx-sunken p-3 transition-all hover:border-[#28A745]">
                       <Upload className="h-4 w-4" style={{ color: BRAND }} />
-                      <span className="text-[12.5px] font-semibold text-slate-700">
+                      <span className="text-[12.5px] font-semibold text-cx-ink-2">
                         {uploadingType === d.value ? "Uploading…" : "Click to upload"}
                       </span>
                       <input
@@ -1330,15 +1330,15 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
                       />
                     </label>
                   ) : (
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-cx-line bg-cx-sunken p-2.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                        <p className="truncate text-[12.5px] font-semibold text-[#111111]">{docs[d.value].fileName}</p>
+                        <p className="truncate text-[12.5px] font-semibold text-cx-ink">{docs[d.value].fileName}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setDocs((prev) => { const next = { ...prev }; delete next[d.value]; return next; })}
-                        className="shrink-0 text-[11px] font-medium text-red-600 hover:underline"
+                        className="shrink-0 text-xs font-medium text-red-600 hover:underline"
                       >
                         Remove
                       </button>
@@ -1350,7 +1350,7 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
           </div>
         </form>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-cx-line bg-cx-sunken px-6 py-4">
           <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
           <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -1413,14 +1413,14 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
           <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">Fix &amp; Resubmit</h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
+            <h2 className="text-[16px] font-bold text-cx-ink">Fix &amp; Resubmit</h2>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted">
               Re-upload the flagged document(s) for application #{application.id}.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1436,13 +1436,13 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
           <div className="space-y-3">
             <p className={fieldLabel}>Re-upload document(s)</p>
             {docTypes.map((d) => (
-              <div key={d.value} className="rounded-xl border border-[#E5E5E5] p-3.5">
-                <p className="text-[13px] font-semibold text-[#111111]">{d.label}</p>
+              <div key={d.value} className="rounded-xl border border-cx-line p-3.5">
+                <p className="text-[13px] font-semibold text-cx-ink">{d.label}</p>
                 <div className="mt-2">
                   {!docs[d.value]?.url ? (
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition-all hover:border-[#28A745]">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-cx-line-strong bg-cx-sunken p-3 transition-all hover:border-[#28A745]">
                       <Upload className="h-4 w-4" style={{ color: BRAND }} />
-                      <span className="text-[12.5px] font-semibold text-slate-700">
+                      <span className="text-[12.5px] font-semibold text-cx-ink-2">
                         {uploadingType === d.value ? "Uploading…" : "Click to upload"}
                       </span>
                       <input
@@ -1454,15 +1454,15 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
                       />
                     </label>
                   ) : (
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-cx-line bg-cx-sunken p-2.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                        <p className="truncate text-[12.5px] font-semibold text-[#111111]">{docs[d.value].fileName}</p>
+                        <p className="truncate text-[12.5px] font-semibold text-cx-ink">{docs[d.value].fileName}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setDocs((prev) => { const next = { ...prev }; delete next[d.value]; return next; })}
-                        className="shrink-0 text-[11px] font-medium text-red-600 hover:underline"
+                        className="shrink-0 text-xs font-medium text-red-600 hover:underline"
                       >
                         Remove
                       </button>
@@ -1474,7 +1474,7 @@ function NumberPlateReapplyModal({ application, onClose, onSuccess }) {
           </div>
         </form>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-cx-line bg-cx-sunken px-6 py-4">
           <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
           <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -1555,14 +1555,14 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
           <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">Pick a new bay &amp; slot</h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
+            <h2 className="text-[16px] font-bold text-cx-ink">Pick a new bay &amp; slot</h2>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted">
               Booking #{application.id} — no need to pay again, your original payment stays valid.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1593,9 +1593,9 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
             <div>
               <label className={fieldLabel}>Bay</label>
               {loadingBays ? (
-                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-cx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
               ) : bays.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No bays in this state yet.</p>
+                <p className="py-2 text-[12.5px] text-cx-muted">No bays in this state yet.</p>
               ) : (
                 <div className="space-y-2">
                   {bays.map((bay) => {
@@ -1609,8 +1609,8 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
                         style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
                       >
                         <div>
-                          <p className="text-[13.5px] font-semibold text-[#111111]">{bay.name}</p>
-                          <p className="text-[12px] text-slate-500">{bay.address}</p>
+                          <p className="text-sm font-semibold text-cx-ink">{bay.name}</p>
+                          <p className="text-[12px] text-cx-muted">{bay.address}</p>
                         </div>
                         {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: "#28A745" }} />}
                       </button>
@@ -1625,9 +1625,9 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
             <div>
               <label className={fieldLabel}>Time slot</label>
               {loadingAvailability ? (
-                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-cx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
               ) : !availability || availability.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No slots configured for this bay.</p>
+                <p className="py-2 text-[12.5px] text-cx-muted">No slots configured for this bay.</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {availability.map((slot) => {
@@ -1642,8 +1642,8 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
                         className="rounded-xl border-2 p-3 text-center transition-all disabled:cursor-not-allowed disabled:opacity-50"
                         style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
                       >
-                        <p className="text-[12.5px] font-semibold text-[#111111]">{slot.label}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
+                        <p className="text-[12.5px] font-semibold text-cx-ink">{slot.label}</p>
+                        <p className="mt-0.5 text-xs text-cx-muted">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
                       </button>
                     );
                   })}
@@ -1653,7 +1653,7 @@ function RwxRescheduleModal({ application, onClose, onSuccess }) {
           )}
         </form>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-cx-line bg-cx-sunken px-6 py-4">
           <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
           <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: "#28A745" }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -1734,14 +1734,14 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
           <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">Rebook your free re-inspection</h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
+            <h2 className="text-[16px] font-bold text-cx-ink">Rebook your free re-inspection</h2>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted">
               Pick a fresh bay &amp; slot for booking #{application.id} — no charge.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1772,9 +1772,9 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
             <div>
               <label className={fieldLabel}>Bay</label>
               {loadingBays ? (
-                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-cx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading bays…</div>
               ) : bays.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No bays in this state yet.</p>
+                <p className="py-2 text-[12.5px] text-cx-muted">No bays in this state yet.</p>
               ) : (
                 <div className="space-y-2">
                   {bays.map((bay) => {
@@ -1788,8 +1788,8 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
                         style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
                       >
                         <div>
-                          <p className="text-[13.5px] font-semibold text-[#111111]">{bay.name}</p>
-                          <p className="text-[12px] text-slate-500">{bay.address}</p>
+                          <p className="text-sm font-semibold text-cx-ink">{bay.name}</p>
+                          <p className="text-[12px] text-cx-muted">{bay.address}</p>
                         </div>
                         {active && <CheckCircle2 className="h-4.5 w-4.5" style={{ color: "#28A745" }} />}
                       </button>
@@ -1804,9 +1804,9 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
             <div>
               <label className={fieldLabel}>Time slot</label>
               {loadingAvailability ? (
-                <div className="flex items-center gap-2 py-3 text-[12.5px] text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
+                <div className="flex items-center gap-2 py-3 text-[12.5px] text-cx-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking availability…</div>
               ) : !availability || availability.length === 0 ? (
-                <p className="py-2 text-[12.5px] text-slate-400">No slots configured for this bay.</p>
+                <p className="py-2 text-[12.5px] text-cx-muted">No slots configured for this bay.</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {availability.map((slot) => {
@@ -1821,8 +1821,8 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
                         className="rounded-xl border-2 p-3 text-center transition-all disabled:cursor-not-allowed disabled:opacity-50"
                         style={{ borderColor: active ? "#28A745" : "#e2e8f0", background: active ? "rgba(40,167,69,0.08)" : "#fff" }}
                       >
-                        <p className="text-[12.5px] font-semibold text-[#111111]">{slot.label}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
+                        <p className="text-[12.5px] font-semibold text-cx-ink">{slot.label}</p>
+                        <p className="mt-0.5 text-xs text-cx-muted">{full ? "Fully booked" : `${slot.remaining} of ${slot.capacity} left`}</p>
                       </button>
                     );
                   })}
@@ -1832,7 +1832,7 @@ function RwxFreeRebookModal({ application, onClose, onSuccess }) {
           )}
         </form>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-cx-line bg-cx-sunken px-6 py-4">
           <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
           <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: "#28A745" }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -1905,14 +1905,14 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between border-b border-cx-line px-6 py-5">
           <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">Edit &amp; Reapply</h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
+            <h2 className="text-[16px] font-bold text-cx-ink">Edit &amp; Reapply</h2>
+            <p className="mt-0.5 text-[12.5px] text-cx-muted">
               Re-upload the flagged document(s) for request #{application.id}.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken hover:text-cx-ink-2">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -1928,13 +1928,13 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
           <div className="space-y-3">
             <p className={fieldLabel}>Re-upload document(s)</p>
             {docTypes.map((d) => (
-              <div key={d.value} className="rounded-xl border border-[#E5E5E5] p-3.5">
-                <p className="text-[13px] font-semibold text-[#111111]">{d.label}</p>
+              <div key={d.value} className="rounded-xl border border-cx-line p-3.5">
+                <p className="text-[13px] font-semibold text-cx-ink">{d.label}</p>
                 <div className="mt-2">
                   {!docs[d.value]?.url ? (
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-3 transition-all hover:border-[#28A745]">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-cx-line-strong bg-cx-sunken p-3 transition-all hover:border-[#28A745]">
                       <Upload className="h-4 w-4" style={{ color: BRAND }} />
-                      <span className="text-[12.5px] font-semibold text-slate-700">
+                      <span className="text-[12.5px] font-semibold text-cx-ink-2">
                         {uploadingType === d.value ? "Uploading…" : "Click to upload"}
                       </span>
                       <input
@@ -1946,15 +1946,15 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
                       />
                     </label>
                   ) : (
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E5E5E5] bg-slate-50/60 p-2.5">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-cx-line bg-cx-sunken p-2.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <ImageIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                        <p className="truncate text-[12.5px] font-semibold text-[#111111]">{docs[d.value].fileName}</p>
+                        <p className="truncate text-[12.5px] font-semibold text-cx-ink">{docs[d.value].fileName}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setDocs((prev) => { const next = { ...prev }; delete next[d.value]; return next; })}
-                        className="shrink-0 text-[11px] font-medium text-red-600 hover:underline"
+                        className="shrink-0 text-xs font-medium text-red-600 hover:underline"
                       >
                         Remove
                       </button>
@@ -1966,7 +1966,7 @@ function ParticularsReapplyModal({ application, onClose, onSuccess }) {
           </div>
         </form>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="flex items-center justify-end gap-3 border-t border-cx-line bg-cx-sunken px-6 py-4">
           <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
           <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -2246,16 +2246,16 @@ export default function CustomerApplicationDetailsPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
         <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND }} />
-        <p className="text-[13px] font-medium text-slate-500">Loading your application…</p>
+        <p className="text-[13px] font-medium text-cx-muted">Loading your application…</p>
       </div>
     );
   }
 
   if (error || !application) {
     return (
-      <div className="mx-auto mt-12 max-w-md space-y-4 rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+      <div className="mx-auto mt-12 max-w-md space-y-4 rounded-cx-lg border border-red-200 bg-red-50 p-8 text-center">
         <AlertCircle className="mx-auto h-9 w-9 text-red-500" />
-        <h3 className="text-[17px] font-bold text-[#111111]">Application not found</h3>
+        <h3 className="text-[17px] font-bold text-cx-ink">Application not found</h3>
         <p className="text-[13px] text-red-700">{error || "We couldn't load this application."}</p>
         <Link href="/dashboard/applications" className={`${btnSecondary} mx-auto`}>
           <ArrowLeft className="h-4 w-4" />
@@ -2381,7 +2381,7 @@ export default function CustomerApplicationDetailsPage() {
       <div>
         <Link
           href="/dashboard/applications"
-          className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800"
+          className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-cx-muted hover:text-cx-ink"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           My applications
@@ -2389,18 +2389,18 @@ export default function CustomerApplicationDetailsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1
-              className="text-[24px] tracking-tight text-[#111111]"
+              className="text-[24px] tracking-tight text-cx-ink"
               style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
             >
-              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-[#7A7A7A]">#{application.id}</span>
+              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-cx-muted">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} />
             {application.is_urgent && (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 shadow-xs">
+              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-800 shadow-xs">
                 <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
               </span>
             )}
-            <span className="rounded-md border border-[#E5E5E5] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-slate-500">
+            <span className="rounded-md border border-cx-line px-2 py-0.5 text-xs font-bold text-cx-muted">
               {application.application_type || "fresh"}
             </span>
           </div>
@@ -2409,12 +2409,12 @@ export default function CustomerApplicationDetailsPage() {
             Refresh
           </button>
         </div>
-        <p className="mt-2 text-[13.5px] text-slate-500">{getNextStepCopy(application)}</p>
+        <p className="mt-2 text-sm text-cx-muted">{getNextStepCopy(application)}</p>
       </div>
 
       {/* Fast Track Upgrade Offer Card */}
       {upgradeRequest && (upgradeRequest.status === "pending" || (upgradeRequest.status === "accepted" && upgradeRequest.payment_options?.checkout_url)) && !application.is_urgent && (
-        <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50/90 to-yellow-50/50 p-5 shadow-sm space-y-3">
+        <div className="rounded-cx-lg border-2 border-amber-300 bg-gradient-to-br from-amber-50/90 to-yellow-50/50 p-5 shadow-sm space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
@@ -2427,19 +2427,19 @@ export default function CustomerApplicationDetailsPage() {
                 </p>
               </div>
             </div>
-            <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-[11px] font-bold text-amber-900">
+            <span className="rounded-full bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold text-amber-900">
               Expedited Turnaround
             </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 p-3.5 border border-amber-200 text-[13px]">
             <div>
-              <span className="text-slate-500 text-[11.5px] block font-medium">Upgrade Surcharge</span>
-              <span className="font-bold text-[16px] text-slate-900">{koboToNaira(upgradeRequest.amount_due_kobo)}</span>
+              <span className="text-cx-muted text-xs block font-medium">Upgrade Surcharge</span>
+              <span className="font-bold text-[16px] text-cx-ink">{koboToNaira(upgradeRequest.amount_due_kobo)}</span>
             </div>
             {upgradeRequest.expires_at && (
               <div className="text-right">
-                <span className="text-slate-500 text-[11.5px] block font-medium">Offer Expires</span>
+                <span className="text-cx-muted text-xs block font-medium">Offer Expires</span>
                 <span className="font-semibold text-amber-900 text-[12px]">
                   {new Date(upgradeRequest.expires_at).toLocaleString("en-NG", { dateStyle: "short", timeStyle: "short" })}
                 </span>
@@ -2502,7 +2502,7 @@ export default function CustomerApplicationDetailsPage() {
                 }
               }}
               disabled={acceptingUpgrade || decliningUpgrade}
-              className={`${btnSecondary} text-slate-600 hover:text-slate-900`}
+              className={`${btnSecondary} text-cx-ink-2 hover:text-cx-ink`}
             >
               {decliningUpgrade ? <Loader2 className="h-4 w-4 animate-spin" /> : "Decline"}
             </button>
@@ -2512,41 +2512,41 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* Payment & Financial Breakdown Summary */}
       {!isFreeRwxRebook && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">
+            <h3 className="text-[12px] font-bold text-cx-muted">
               Payment Summary
             </h3>
             {isPaid ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Fully Paid
               </span>
             ) : amountPaidKobo > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
                 <Clock className="h-3.5 w-3.5" /> Partially Paid
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+              <span className="inline-flex items-center gap-1 rounded-full bg-cx-sunken px-2.5 py-0.5 text-xs font-bold text-cx-ink-2">
                 <Clock className="h-3.5 w-3.5" /> Payment Pending
               </span>
             )}
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total Service Fee</span>
-              <span className="mt-1 flex items-center gap-1 font-mono text-[15px] font-bold text-slate-900">
+              <span className="block text-xs font-semibold text-cx-muted">Total Service Fee</span>
+              <span className="mt-1 flex items-center gap-1 font-mono text-[15px] font-bold text-cx-ink">
                 {koboToNaira(amountKobo)}
                 {isPaid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
               </span>
             </div>
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Amount Paid</span>
-              <span className={`mt-1 block font-mono text-[15px] font-bold ${amountPaidKobo > 0 ? "text-emerald-700" : "text-slate-700"}`}>
+              <span className="block text-xs font-semibold text-cx-muted">Amount Paid</span>
+              <span className={`mt-1 block font-mono text-[15px] font-bold ${amountPaidKobo > 0 ? "text-emerald-700" : "text-cx-ink-2"}`}>
                 {koboToNaira(amountPaidKobo)}
               </span>
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Balance Owed</span>
+              <span className="block text-xs font-semibold text-cx-muted">Balance Owed</span>
               <span className={`mt-1 block font-mono text-[15px] font-bold ${remainingKobo > 0 ? "text-red-600" : "text-emerald-700"}`}>
                 {koboToNaira(remainingKobo)}
               </span>
@@ -2560,28 +2560,28 @@ export default function CustomerApplicationDetailsPage() {
           driving-school fields that don't apply. */}
       {/* Applicant Identity Card */}
       {(application.first_name || application.last_name || application.applicant_email || application.applicant_phone) && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-cx-line pb-3 mb-4">
+            <h3 className="text-[12px] font-bold text-cx-muted">
               Applicant Details
             </h3>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Full Name</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+              <span className="text-xs font-semibold text-cx-muted">Full Name</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">
                 {[application.first_name, application.middle_name, application.last_name].filter(Boolean).join(" ") || "—"}
               </span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email Address</span>
-              <span className="mt-1 block text-[13.5px] font-semibold text-slate-900 truncate" title={application.applicant_email || ""}>
+              <span className="text-xs font-semibold text-cx-muted">Email Address</span>
+              <span className="mt-1 block text-sm font-semibold text-cx-ink truncate" title={application.applicant_email || ""}>
                 {application.applicant_email || "—"}
               </span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Mobile Number</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">
+              <span className="text-xs font-semibold text-cx-muted">Mobile Number</span>
+              <span className="mt-1 block font-mono text-sm font-semibold text-cx-ink">
                 {application.applicant_phone || application.phone_number || "—"}
               </span>
             </div>
@@ -2591,24 +2591,24 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* Delivery Address Card — shown for all services requiring delivery (exempt: fresh & renewal DL) */}
       {hasDeliveryAddress && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
+        <div className="rounded-cx-lg border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
           <div className="flex items-start gap-3.5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
               <MapPin className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-[13px] font-bold uppercase tracking-wide text-emerald-900">
+                <h3 className="text-[13px] font-bold text-emerald-900">
                   Delivery Address
                 </h3>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-800">
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
                   Required Destination
                 </span>
               </div>
-              <p className="mt-1 text-[14.5px] font-semibold text-slate-900 leading-relaxed">
+              <p className="mt-1 text-[14.5px] font-semibold text-cx-ink leading-relaxed">
                 {deliveryAddress}
               </p>
-              <p className="mt-0.5 text-[12px] text-slate-500">
+              <p className="mt-0.5 text-[12px] text-cx-muted">
                 Your processed document, plate number, or permit will be delivered to this address.
               </p>
             </div>
@@ -2618,9 +2618,9 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* Vehicle Specifications Card — tailored for all vehicle applications with full 14 fields */}
       {isVehicleCentric && (hasVehicleData || vehicle) && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-cx-line pb-3 mb-4">
+            <h3 className="text-[12px] font-bold text-cx-muted">
               Vehicle Specifications
             </h3>
             {vPlate ? (
@@ -2628,74 +2628,74 @@ export default function CustomerApplicationDetailsPage() {
                 {vPlate}
               </span>
             ) : (
-              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
                 Plate Pending / New Request
               </span>
             )}
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make & Model</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vMake || "—"} {vModel || ""}</span>
+              <span className="text-xs font-semibold text-cx-muted">Make & Model</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{vMake || "—"} {vModel || ""}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Manufacturing Year</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vYear || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Manufacturing Year</span>
+              <span className="mt-1 block font-mono text-sm font-bold text-cx-ink">{vYear || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Type</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vType || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Vehicle Type</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink capitalize">{vType || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">SUV or Saloon Car</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vBodyType || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">SUV or Saloon Car</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink capitalize">{vBodyType || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Colour</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vColour || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Vehicle Colour</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink capitalize">{vColour || "—"}</span>
             </div>
             <div className="col-span-2 sm:col-span-1 lg:col-span-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis / VIN Number</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vChassis || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Chassis / VIN Number</span>
+              <span className="mt-1 block font-mono text-sm font-bold text-cx-ink">{vChassis || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Former Reg Number</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vFormerReg || "None"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Former Reg Number</span>
+              <span className="mt-1 block font-mono text-sm font-bold text-cx-ink">{vFormerReg || "None"}</span>
             </div>
             {vEngine && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine Number</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vEngine}</span>
+                <span className="text-xs font-semibold text-cx-muted">Engine Number</span>
+                <span className="mt-1 block font-mono text-sm font-bold text-cx-ink">{vEngine}</span>
               </div>
             )}
             {vehicle?.state && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration State</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
+                <span className="text-xs font-semibold text-cx-muted">Registration State</span>
+                <span className="mt-1 block text-sm font-bold text-cx-ink">{vehicle.state}</span>
               </div>
             )}
             {application.use_type && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use Type</span>
-                <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.use_type}</span>
+                <span className="text-xs font-semibold text-cx-muted">Use Type</span>
+                <span className="mt-1 block text-sm font-bold capitalize text-cx-ink">{application.use_type}</span>
               </div>
             )}
             {application.is_fancy_plate && application.fancy_plate_number && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy Plate Requested</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-bold text-emerald-700">{application.fancy_plate_number}</span>
+                <span className="text-xs font-semibold text-cx-muted">Fancy Plate Requested</span>
+                <span className="mt-1 block font-mono text-sm font-bold text-emerald-700">{application.fancy_plate_number}</span>
               </div>
             )}
             {application.previous_owner_details && (
               <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous Owner Details</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
+                <span className="text-xs font-semibold text-cx-muted">Previous Owner Details</span>
+                <span className="mt-1 block text-sm text-cx-ink-2">{application.previous_owner_details}</span>
               </div>
             )}
             {application.justification && (
               <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
+                <span className="text-xs font-semibold text-cx-muted">Justification</span>
+                <span className="mt-1 block text-sm text-cx-ink-2">{application.justification}</span>
               </div>
             )}
           </div>
@@ -2705,25 +2705,25 @@ export default function CustomerApplicationDetailsPage() {
       {/* Dealership Plate — no vehicle at all, so this replaces the Vehicle
           card above (which silently no-ops here since vehicle_id is null). */}
       {application.application_type === "number_plate_dealership" && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Dealership</h3>
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[12px] font-bold text-cx-muted">Dealership</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dealership name</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.dealership_name || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Dealership name</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.dealership_name || "—"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registered company</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.is_registered_company ? "Yes" : "No"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Registered company</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.is_registered_company ? "Yes" : "No"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.applicant_email || "—"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Email</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.applicant_email || "—"}</span>
             </div>
             {application.residential_address && (
               <div className="col-span-2 sm:col-span-3">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Address</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.residential_address}</span>
+                <span className="text-xs font-semibold text-cx-muted">Address</span>
+                <span className="mt-1 block text-sm text-cx-ink-2">{application.residential_address}</span>
               </div>
             )}
           </div>
@@ -2736,41 +2736,41 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* ── VEHICLE VERIFICATION — check details + eventual verdict ── */}
       {isVehicleVerification && application.verification_detail && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Verification details</h3>
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[12px] font-bold text-cx-muted">Verification details</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Check type</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.verification_detail.check_type?.replace(/_/g, " ")}</span>
+              <span className="text-xs font-semibold text-cx-muted">Check type</span>
+              <span className="mt-1 block text-sm font-bold capitalize text-cx-ink">{application.verification_detail.check_type?.replace(/_/g, " ")}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make / Model</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.verification_detail.make} {application.verification_detail.model}</span>
+              <span className="text-xs font-semibold text-cx-muted">Make / Model</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.verification_detail.make} {application.verification_detail.model}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Plate number</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.verification_detail.plate_number}</span>
+              <span className="text-xs font-semibold text-cx-muted">Plate number</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.verification_detail.plate_number}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Reason</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.verification_detail.reason?.replace(/_/g, " ")}</span>
+              <span className="text-xs font-semibold text-cx-muted">Reason</span>
+              <span className="mt-1 block text-sm font-bold capitalize text-cx-ink">{application.verification_detail.reason?.replace(/_/g, " ")}</span>
             </div>
           </div>
 
           {application.verification_detail.verification_token && (
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Verdict</span>
+            <div className="mt-4 border-t border-cx-line pt-4">
+              <span className="text-xs font-semibold text-cx-muted">Verdict</span>
               <span className={`mt-1 block text-[15px] font-bold capitalize ${["clear", "legitimate_complete"].includes(application.verification_detail.verdict) ? "text-emerald-600" : "text-red-600"}`}>
                 {application.verification_detail.verdict?.replace(/_/g, " ") || "—"}
               </span>
               {application.verification_detail.notes && (
-                <p className="mt-1.5 text-[12.5px] text-slate-600">{application.verification_detail.notes}</p>
+                <p className="mt-1.5 text-[12.5px] text-cx-ink-2">{application.verification_detail.notes}</p>
               )}
               <button
                 type="button"
                 onClick={handleDownloadVvReport}
                 disabled={downloadingVvReport}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-cx-line bg-white px-4 py-2.5 text-[13px] font-bold text-cx-ink-2 shadow-sm transition-all hover:bg-cx-sunken disabled:opacity-60"
               >
                 {downloadingVvReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 {downloadingVvReport ? "Downloading…" : "Download report"}
@@ -2781,43 +2781,43 @@ export default function CustomerApplicationDetailsPage() {
       )}
 
       {isPci && application.pci_detail && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-slate-500">Booking details</h3>
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
+          <h3 className="mb-3 text-[12px] font-bold text-cx-muted">Booking details</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Whose vehicle</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.whose_vehicle === "other" ? "Someone else's" : "Mine"}</span>
+              <span className="text-xs font-semibold text-cx-muted">Whose vehicle</span>
+              <span className="mt-1 block text-sm font-bold capitalize text-cx-ink">{application.pci_detail.whose_vehicle === "other" ? "Someone else's" : "Mine"}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.make} {application.pci_detail.model} — {application.pci_detail.plate_number}</span>
+              <span className="text-xs font-semibold text-cx-muted">Vehicle</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.pci_detail.make} {application.pci_detail.model} — {application.pci_detail.plate_number}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Category</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.vehicle_category?.replace(/_/g, " ")}</span>
+              <span className="text-xs font-semibold text-cx-muted">Category</span>
+              <span className="mt-1 block text-sm font-bold capitalize text-cx-ink">{application.pci_detail.vehicle_category?.replace(/_/g, " ")}</span>
             </div>
             <div className="sm:col-span-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Meeting location</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.location_address}</span>
+              <span className="text-xs font-semibold text-cx-muted">Meeting location</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">{application.pci_detail.location_address}</span>
             </div>
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Preferred date</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
+              <span className="text-xs font-semibold text-cx-muted">Preferred date</span>
+              <span className="mt-1 block text-sm font-bold text-cx-ink">
                 {application.pci_detail.preferred_date ? new Date(application.pci_detail.preferred_date).toLocaleDateString() : "—"}
                 {application.pci_detail.preferred_time ? ` (${application.pci_detail.preferred_time})` : ""}
               </span>
             </div>
             {application.pci_detail.whose_vehicle === "other" && (
               <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Seller / owner</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.seller_name}</span>
+                <span className="text-xs font-semibold text-cx-muted">Seller / owner</span>
+                <span className="mt-1 block text-sm font-bold text-cx-ink">{application.pci_detail.seller_name}</span>
               </div>
             )}
           </div>
 
           {application.pci_detail.verification_token && application.pci_detail.verdict && (
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Inspection verdict</span>
+            <div className="mt-4 border-t border-cx-line pt-4">
+              <span className="text-xs font-semibold text-cx-muted">Inspection verdict</span>
               <div className="mt-2">
                 <span
                   className={`inline-flex rounded-full px-3 py-1.5 text-[12.5px] font-bold ring-1 ring-inset ${
@@ -2830,7 +2830,7 @@ export default function CustomerApplicationDetailsPage() {
                 </span>
               </div>
               {application.pci_detail.report_text && (
-                <p className="mt-2.5 whitespace-pre-line text-[12.5px] leading-relaxed text-slate-600">{application.pci_detail.report_text}</p>
+                <p className="mt-2.5 whitespace-pre-line text-[12.5px] leading-relaxed text-cx-ink-2">{application.pci_detail.report_text}</p>
               )}
               {application.pci_detail.report_images?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -2839,7 +2839,7 @@ export default function CustomerApplicationDetailsPage() {
                       key={img.id}
                       type="button"
                       onClick={() => setPreviewDocUrl(resolveMediaUrl(img.image_url))}
-                      className="overflow-hidden rounded-lg border border-slate-200"
+                      className="overflow-hidden rounded-lg border border-cx-line"
                       title={img.caption || undefined}
                     >
                       <img src={resolveMediaUrl(img.image_url)} alt={img.caption || "Report photo"} className="h-20 w-20 object-cover" />
@@ -2851,7 +2851,7 @@ export default function CustomerApplicationDetailsPage() {
                 type="button"
                 onClick={handleDownloadPciReport}
                 disabled={downloadingPciReport}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-cx-line bg-white px-4 py-2.5 text-[13px] font-bold text-cx-ink-2 shadow-sm transition-all hover:bg-cx-sunken disabled:opacity-60"
               >
                 {downloadingPciReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 {downloadingPciReport ? "Downloading…" : "Download report"}
@@ -2871,7 +2871,7 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* ── REJECTION / CORRECTION BANNER ── */}
       {(isRejected || needsCorrection) && (
-        <div className={`rounded-2xl border-2 p-5 shadow-sm ${isRejected ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50" : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"}`}>
+        <div className={`rounded-cx-lg border-2 p-5 shadow-sm ${isRejected ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50" : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"}`}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3">
               <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${isRejected ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
@@ -2883,10 +2883,10 @@ export default function CustomerApplicationDetailsPage() {
                 </h3>
                 {rejectionReason ? (
                   <div className={`mt-2 rounded-lg bg-white/70 border px-4 py-3 ${isRejected ? "border-red-100" : "border-amber-100"}`}>
-                    <p className={`text-[11px] font-bold uppercase tracking-wide mb-1 ${isRejected ? "text-red-400" : "text-amber-500"}`}>
+                    <p className={`text-xs font-bold mb-1 ${isRejected ? "text-red-400" : "text-amber-500"}`}>
                       {isRejected ? "Reason from staff" : "Flagged by your agent"}
                     </p>
-                    <p className="text-[13.5px] leading-relaxed text-slate-700">{rejectionReason}</p>
+                    <p className="text-sm leading-relaxed text-cx-ink-2">{rejectionReason}</p>
                   </div>
                 ) : (
                   <p className={`mt-1.5 text-[13px] leading-relaxed ${isRejected ? "text-red-700/80" : "text-amber-700/80"}`}>
@@ -2909,7 +2909,7 @@ export default function CustomerApplicationDetailsPage() {
                   else if (isVehicleParticulars) setShowParticularsReapplyModal(true);
                   else setShowReapplyModal(true);
                 }}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] sm:mt-0"
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] sm:mt-0"
                 style={{ background: isRejected ? "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
               >
                 <Edit3 className="h-4 w-4" />
@@ -2918,7 +2918,7 @@ export default function CustomerApplicationDetailsPage() {
             )}
           </div>
           {(!isRwx || (isRwx && isRejected)) && (
-            <p className={`mt-3 text-[11.5px] pl-14 ${isRejected ? "text-red-500/80" : "text-amber-600/80"}`}>
+            <p className={`mt-3 text-xs pl-14 ${isRejected ? "text-red-500/80" : "text-amber-600/80"}`}>
               {isRwx
                 ? "Rescheduling sends this straight back to staff for a quick re-check — no second charge."
                 : isRejected
@@ -2931,7 +2931,7 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* ── EXPIRED LICENCE BANNER ── */}
       {application.status === "expired" && (
-        <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 p-5 shadow-sm">
+        <div className="rounded-cx-lg border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
@@ -2957,7 +2957,7 @@ export default function CustomerApplicationDetailsPage() {
                   ? "/dashboard/apply/vehicle-particulars/new"
                   : "/dashboard/apply?type=renewal"
               }
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" }}
             >
               <RefreshCw className="h-4 w-4" />
@@ -2969,16 +2969,16 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* ── CAPTURE APPOINTMENT ── */}
       {!isReadyOrBeyond && (application.capture_scheduled_at || ["capture_scheduled", "capturing_scheduled", "captured", "capturing_completed"].includes(application.status)) && (
-        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5">
+        <div className="rounded-cx-lg border border-indigo-200 bg-indigo-50/50 p-5">
           <div className="mb-3 flex items-center gap-2.5 border-b border-indigo-100 pb-2.5">
             <Calendar className="h-4 w-4 text-indigo-600" />
-            <h3 className="text-[12px] font-bold uppercase tracking-wide text-indigo-900">
+            <h3 className="text-[12px] font-bold text-indigo-900">
               Biometric capture appointment
             </h3>
           </div>
           <div className="space-y-2.5 text-[13px]">
             <div className="flex items-center justify-between gap-4">
-              <span className="text-slate-500">Appointment schedule</span>
+              <span className="text-cx-muted">Appointment schedule</span>
               <span className="font-semibold text-indigo-950">
                 {application.capture_scheduled_at
                   ? new Date(application.capture_scheduled_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })
@@ -2986,7 +2986,7 @@ export default function CustomerApplicationDetailsPage() {
               </span>
             </div>
             <div className="flex items-start justify-between gap-4">
-              <span className="shrink-0 text-slate-500">Capture centre</span>
+              <span className="shrink-0 text-cx-muted">Capture centre</span>
               <span className="flex items-center gap-1.5 text-right font-semibold text-indigo-950">
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
                 {application.capture_centre_name || application.assigned_agent?.vio_office || `${application.lga || "Designated"} FRSC/VIO Capture Centre`}
@@ -2994,7 +2994,7 @@ export default function CustomerApplicationDetailsPage() {
             </div>
             {application.assigned_agent?.name && (
               <div className="flex items-start justify-between gap-4">
-                <span className="shrink-0 text-slate-500">Field agent</span>
+                <span className="shrink-0 text-cx-muted">Field agent</span>
                 <span className="text-right font-semibold text-indigo-950">
                   {application.assigned_agent.name}
                   {application.assigned_agent.phone && ` · ${application.assigned_agent.phone}`}
@@ -3016,8 +3016,8 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* ── YOUR DRIVER'S LICENCE ── */}
       {(application.temporary_licence || application.permanent_licence) && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
-          <h3 className="mb-4 border-b border-[#E5E5E5] pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5">
+          <h3 className="mb-4 border-b border-cx-line pb-2.5 text-[12px] font-bold text-cx-muted">
             Your driver's licence
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -3034,7 +3034,7 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* ── AWAITING RECEIPT BANNER (passive — staff now confirms receipt, not the customer) ── */}
       {awaitingCustomer && !isRwx && (
-        <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
+        <div className="rounded-cx-lg border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
               <CheckCircle2 className="h-6 w-6" />
@@ -3056,7 +3056,7 @@ export default function CustomerApplicationDetailsPage() {
           review approve path minted certificate_token on a roadworthy
           verdict — see app/routers/staff.py's final_review is_rwx branch. ── */}
       {isRwx && (awaitingCustomer || application.status === "completed") && application.rwx_detail?.certificate_token && (
-        <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
+        <div className="rounded-cx-lg border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
               <CheckCircle2 className="h-6 w-6" />
@@ -3104,7 +3104,7 @@ export default function CustomerApplicationDetailsPage() {
         const windowOpen = application.rwx_detail?.free_reinspection_expires_at
           && new Date(application.rwx_detail.free_reinspection_expires_at) > new Date();
         return (
-          <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-sm">
+          <div className="rounded-cx-lg border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5 shadow-sm">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
@@ -3125,7 +3125,7 @@ export default function CustomerApplicationDetailsPage() {
                 <button
                   type="button"
                   onClick={() => setShowRwxFreeRebookModal(true)}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
                   style={{ background: BRAND }}
                 >
                   <Calendar className="h-4 w-4" />
@@ -3134,7 +3134,7 @@ export default function CustomerApplicationDetailsPage() {
               ) : (
                 <Link
                   href="/dashboard/apply/roadworthiness-express/new"
-                  className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
                   style={{ background: BRAND }}
                 >
                   <Calendar className="h-4 w-4" />
@@ -3149,31 +3149,31 @@ export default function CustomerApplicationDetailsPage() {
       {/* Payment details (skip if rejected) */}
       {!isRejected && !needsCorrection && (
         isPaid ? (
-          <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
+          <div className="space-y-4 rounded-cx-lg border border-emerald-200 bg-emerald-50/60 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-[#111111]">{isFreeRwxRebook ? "Free re-inspection — no charge" : "Payment successful"}</h3>
-                <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
+                <h3 className="text-[15px] font-bold text-cx-ink">{isFreeRwxRebook ? "Free re-inspection — no charge" : "Payment successful"}</h3>
+                <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-cx-ink-2">
                   {isFreeRwxRebook
                     ? "This re-sitting is free within your 7-day window — nothing to pay."
-                    : <>You have paid <strong className="font-mono text-[#111111]">{koboToNaira(amountKobo)}</strong> for this application.</>}
+                    : <>You have paid <strong className="font-mono text-cx-ink">{koboToNaira(amountKobo)}</strong> for this application.</>}
                   {isNumberPlate && application.application_type !== "number_plate_fancy" && application.is_fancy_plate && " (includes the fancy plate fee)"}
                 </p>
               </div>
             </div>
           </div>
         ) : isPaymentFailed ? (
-          <div className="space-y-4 rounded-2xl border border-red-200 bg-red-50/60 p-5">
+          <div className="space-y-4 rounded-cx-lg border border-red-200 bg-red-50/60 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
                 <AlertCircle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-[#111111]">Payment failed</h3>
-                <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
+                <h3 className="text-[15px] font-bold text-cx-ink">Payment failed</h3>
+                <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-cx-ink-2">
                   Your payment attempt failed. {partialPaymentAllowed
                     ? "Pay bit by bit from your wallet below, or retry by card."
                     : "Retry from your wallet below, or by card."}
@@ -3193,23 +3193,23 @@ export default function CustomerApplicationDetailsPage() {
               minDepositKobo={minimumPayableKobo}
             />
             {walletBalance < (partialPaymentAllowed ? minimumPayableKobo : remainingKobo) && (
-              <p className="text-[12px] text-slate-500">
-                Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
+              <p className="text-[12px] text-cx-muted">
+                Wallet balance: <span className="font-mono font-semibold text-cx-ink-2">{koboToNaira(walletBalance)}</span> —{" "}
                 <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Card or Transfer above.
               </p>
             )}
           </div>
         ) : (
-          <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+          <div className="space-y-4 rounded-cx-lg border border-amber-200 bg-amber-50/60 p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
                 <Wallet className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-[15px] font-bold text-[#111111]">
+                <h3 className="text-[15px] font-bold text-cx-ink">
                   {amountPaidKobo > 0 ? "Payment in progress" : "Payment pending"}
                 </h3>
-                <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-slate-600">
+                <p className="mt-0.5 max-w-lg text-[13px] leading-relaxed text-cx-ink-2">
                   {amountPaidKobo > 0 ? (
                     <>
                       You have made a partial payment of <strong className="font-mono text-emerald-700">{koboToNaira(amountPaidKobo)}</strong>.
@@ -3218,7 +3218,7 @@ export default function CustomerApplicationDetailsPage() {
                     </>
                   ) : (
                     <>
-                      Pay <strong className="font-mono text-[#111111]">{koboToNaira(remainingKobo)}</strong> to move this
+                      Pay <strong className="font-mono text-cx-ink">{koboToNaira(remainingKobo)}</strong> to move this
                       application forward
                       {partialPaymentAllowed
                         ? ` — pay it all at once, or start with at least ${koboToNaira(minimumPayableKobo)} and pay the rest later.`
@@ -3242,8 +3242,8 @@ export default function CustomerApplicationDetailsPage() {
               minDepositKobo={minimumPayableKobo}
             />
             {walletBalance < (partialPaymentAllowed ? minimumPayableKobo : remainingKobo) && (
-              <p className="text-[12px] text-slate-500">
-                Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
+              <p className="text-[12px] text-cx-muted">
+                Wallet balance: <span className="font-mono font-semibold text-cx-ink-2">{koboToNaira(walletBalance)}</span> —{" "}
                 <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Card or Transfer above.
               </p>
             )}
@@ -3253,19 +3253,19 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* Driving school countdown */}
       {inDrivingSchool && !isReadyOrBeyond && (
-        <div className="rounded-2xl border border-violet-200 bg-white p-5">
+        <div className="rounded-cx-lg border border-violet-200 bg-white p-5">
           <div className="mb-4 flex items-center gap-2">
             <Building className="h-4 w-4 text-violet-600" />
-            <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Driving school</h3>
+            <h3 className="text-[12px] font-bold text-cx-muted">Driving school</h3>
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div>
-              <h4 className="text-[16px] font-bold text-[#111111]">
+              <h4 className="text-[16px] font-bold text-cx-ink">
                 {application.driving_school?.name || "Accredited partner driving academy"}
               </h4>
-              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+              <p className="mt-2 text-[13px] leading-relaxed text-cx-ink-2">
                 Enrolled in driving school in accordance with the law. It takes 26 working days before the certificate is ready. Once your certificate is confirmed, your application routes straight to an agent in{" "}
-                <strong className="text-slate-800">{application.lga || "your LGA"}</strong> to schedule your biometric capture.
+                <strong className="text-cx-ink">{application.lga || "your LGA"}</strong> to schedule your biometric capture.
               </p>
               {application.driving_school?.instructions && (
                 <div className="mt-3 rounded-lg bg-violet-50 p-3 text-[12px] text-violet-800 ring-1 ring-inset ring-violet-200">
@@ -3273,37 +3273,37 @@ export default function CustomerApplicationDetailsPage() {
                 </div>
               )}
             </div>
-            <div className="rounded-xl border border-[#E5E5E5] p-4">
-              <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <div className="rounded-xl border border-cx-line p-4">
+              <div className="mb-3 flex items-center justify-between text-xs font-semibold text-cx-muted">
                 <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Countdown</span>
-                <span className={timeLeft.expired ? "text-emerald-600" : "text-slate-400"}>
+                <span className={timeLeft.expired ? "text-emerald-600" : "text-cx-muted"}>
                   {timeLeft.expired ? "Complete" : "In progress"}
                 </span>
               </div>
               {application.status === "driving_school_graduation" || (timeLeft.expired && application.status === "driving_school_enrolled") ? (
                 <div className="rounded-lg bg-violet-50 p-3.5 text-center ring-1 ring-inset ring-violet-200">
-                  <p className="text-[13.5px] font-semibold text-violet-800">🎓 Graduation Stage — Awaiting Your Certificate</p>
+                  <p className="text-sm font-semibold text-violet-800">🎓 Graduation Stage — Awaiting Your Certificate</p>
                   <p className="mt-0.5 text-[12px] text-violet-700">Your 26-day driving school training is complete! You are now in the graduation stage awaiting your certificate from the driving academy. Once staff verify and upload your certificate, your application will proceed to the next step.</p>
                 </div>
               ) : application.status === "driving_school_certificate_ready" ? (
                 <div className="rounded-lg bg-emerald-50 p-3.5 text-center ring-1 ring-inset ring-emerald-200">
-                  <p className="text-[13.5px] font-semibold text-emerald-800">Driving school requirement complete</p>
+                  <p className="text-sm font-semibold text-emerald-800">Driving school requirement complete</p>
                   <p className="mt-0.5 text-[12px] text-emerald-700">We're confirming your certificate and routing your case to an agent now.</p>
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-4 gap-2 text-center">
                     {[["Days", timeLeft.days], ["Hrs", timeLeft.hours], ["Min", timeLeft.minutes], ["Sec", timeLeft.seconds]].map(([lbl, val]) => (
-                      <div key={lbl} className="rounded-lg bg-slate-50 py-2.5">
-                        <span className="block font-mono text-[20px] font-bold text-[#111111]">{val}</span>
-                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400">{lbl}</span>
+                      <div key={lbl} className="rounded-lg bg-cx-sunken py-2.5">
+                        <span className="block font-mono text-[20px] font-bold text-cx-ink">{val}</span>
+                        <span className="block text-xs font-semibold text-cx-muted">{lbl}</span>
                       </div>
                     ))}
                   </div>
-                  <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[11.5px] text-slate-500">
+                  <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-xs text-cx-muted">
                     <Calendar className="h-3.5 w-3.5" />
                     Target:{" "}
-                    <span className="font-mono font-semibold text-slate-700">
+                    <span className="font-mono font-semibold text-cx-ink-2">
                       {new Date(application.driving_school_target_date || application.driving_school?.target_date || Date.now()).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}
                     </span>
                   </p>
@@ -3316,89 +3316,89 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* Overview */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="space-y-4 rounded-2xl border border-[#E5E5E5] bg-white p-5 lg:col-span-12">
-          <h3 className="border-b border-slate-100 pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="space-y-4 rounded-cx-lg border border-cx-line bg-white p-5 lg:col-span-12">
+          <h3 className="border-b border-cx-line pb-2.5 text-[12px] font-bold text-cx-muted">
             Applicant details
           </h3>
           {application.passport_photo && (
             <img
               src={resolveMediaUrl(application.passport_photo)}
               alt="Passport photo"
-              className="h-20 w-20 rounded-lg border border-[#E5E5E5] object-cover"
+              className="h-20 w-20 rounded-lg border border-cx-line object-cover"
             />
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First name</span>
-              <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.first_name || "—"}</span>
+              <span className="block text-xs font-semibold text-cx-muted">First name</span>
+              <span className="mt-0.5 block text-sm font-semibold text-cx-ink">{application.first_name || "—"}</span>
             </div>
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
-              <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.last_name || "—"}</span>
+              <span className="block text-xs font-semibold text-cx-muted">Surname</span>
+              <span className="mt-0.5 block text-sm font-semibold text-cx-ink">{application.last_name || "—"}</span>
             </div>
             {application.middle_name && (
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Other name</span>
-                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.middle_name}</span>
+                <span className="block text-xs font-semibold text-cx-muted">Other name</span>
+                <span className="mt-0.5 block text-sm font-semibold text-cx-ink">{application.middle_name}</span>
               </div>
             )}
             {(application.phone_number || application.applicant_details?.phone) && (
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone number</span>
-                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">
+                <span className="block text-xs font-semibold text-cx-muted">Phone number</span>
+                <span className="mt-0.5 block font-mono text-sm font-semibold text-cx-ink">
                   {application.phone_number || application.applicant_details?.phone}
                 </span>
               </div>
             )}
             {application.nin && (
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
-                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">{application.nin}</span>
+                <span className="block text-xs font-semibold text-cx-muted">NIN</span>
+                <span className="mt-0.5 block font-mono text-sm font-semibold text-cx-ink">{application.nin}</span>
               </div>
             )}
             {application.date_of_birth && (
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date of birth</span>
-                <span className="mt-0.5 block font-mono text-[13.5px] font-semibold text-[#111111]">{application.date_of_birth}</span>
+                <span className="block text-xs font-semibold text-cx-muted">Date of birth</span>
+                <span className="mt-0.5 block font-mono text-sm font-semibold text-cx-ink">{application.date_of_birth}</span>
               </div>
             )}
             {application.gender && (
               <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Gender</span>
-                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111] capitalize">{application.gender}</span>
+                <span className="block text-xs font-semibold text-cx-muted">Gender</span>
+                <span className="mt-0.5 block text-sm font-semibold text-cx-ink capitalize">{application.gender}</span>
               </div>
             )}
             <div>
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA</span>
-              <span className="mt-0.5 flex items-center gap-1 text-[13.5px] font-semibold text-[#111111]">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <span className="block text-xs font-semibold text-cx-muted">State / LGA</span>
+              <span className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-cx-ink">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-cx-muted" />
                 {application.state_of_residence || "—"} · {application.lga || "—"}
               </span>
             </div>
             {application.residential_address && (
               <div className="col-span-2">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Residential Address</span>
-                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">{application.residential_address}</span>
+                <span className="block text-xs font-semibold text-cx-muted">Residential Address</span>
+                <span className="mt-0.5 block text-sm font-semibold text-cx-ink">{application.residential_address}</span>
               </div>
             )}
             {hasDeliveryAddress && (
               <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
-                <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
                   <MapPin className="h-3.5 w-3.5" /> Delivery Address
                 </span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{deliveryAddress}</span>
+                <span className="mt-1 block text-sm font-bold text-cx-ink">{deliveryAddress}</span>
               </div>
             )}
             {!isVehicleCentric && (application.next_of_kin_name || application.applicant_details?.next_of_kin_name) && (
               <div className="col-span-2">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Next of kin</span>
-                <span className="mt-0.5 block text-[13.5px] font-semibold text-[#111111]">
+                <span className="block text-xs font-semibold text-cx-muted">Next of kin</span>
+                <span className="mt-0.5 block text-sm font-semibold text-cx-ink">
                   {application.next_of_kin_name || application.applicant_details?.next_of_kin_name || "—"}
                   {(application.next_of_kin_relationship || application.applicant_details?.next_of_kin_relationship) && (
-                    <span className="ml-1.5 text-[12px] font-normal text-slate-500">({application.next_of_kin_relationship || application.applicant_details?.next_of_kin_relationship})</span>
+                    <span className="ml-1.5 text-[12px] font-normal text-cx-muted">({application.next_of_kin_relationship || application.applicant_details?.next_of_kin_relationship})</span>
                   )}
                   {(application.next_of_kin_phone || application.applicant_details?.next_of_kin_phone) && (
-                    <span className="ml-1.5 font-mono text-[12px] font-normal text-slate-500">{application.next_of_kin_phone || application.applicant_details?.next_of_kin_phone}</span>
+                    <span className="ml-1.5 font-mono text-[12px] font-normal text-cx-muted">{application.next_of_kin_phone || application.applicant_details?.next_of_kin_phone}</span>
                   )}
                 </span>
               </div>
@@ -3417,19 +3417,19 @@ export default function CustomerApplicationDetailsPage() {
 
       {/* History */}
       {application.events && application.events.length > 0 && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
-          <h3 className="flex items-center gap-1.5 border-b border-slate-100 pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="rounded-cx-lg border border-cx-line bg-white p-5">
+          <h3 className="flex items-center gap-1.5 border-b border-cx-line pb-2.5 text-[12px] font-bold text-cx-muted">
             <Clock className="h-3.5 w-3.5" style={{ color: BRAND }} />
             Timeline
           </h3>
-          <div className="mt-4 space-y-4 border-l-2 border-slate-100 pl-4">
+          <div className="mt-4 space-y-4 border-l-2 border-cx-line pl-4">
             {[...application.events].reverse().map((ev, idx) => (
               <div key={idx} className="relative">
                 <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ring-4 ring-white" style={{ background: BRAND }} />
-                <p className="text-[13px] font-semibold text-slate-800">
+                <p className="text-[13px] font-semibold text-cx-ink">
                   {ev.note || `Status updated to ${(ev.new_status || ev.status || "").replace(/_/g, " ")}`}
                 </p>
-                <p className="mt-0.5 text-[11px] text-slate-400">{new Date(ev.created_at).toLocaleString("en-NG")}</p>
+                <p className="mt-0.5 text-xs text-cx-muted">{new Date(ev.created_at).toLocaleString("en-NG")}</p>
               </div>
             ))}
           </div>
@@ -3437,25 +3437,25 @@ export default function CustomerApplicationDetailsPage() {
       )}
 
       {/* Documents + upload */}
-      <div className="space-y-5 rounded-2xl border border-[#E5E5E5] bg-white p-5">
-        <h3 className="flex items-center gap-1.5 border-b border-slate-100 pb-2.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+      <div className="space-y-5 rounded-cx-lg border border-cx-line bg-white p-5">
+        <h3 className="flex items-center gap-1.5 border-b border-cx-line pb-2.5 text-[12px] font-bold text-cx-muted">
           <FileText className="h-3.5 w-3.5" style={{ color: BRAND }} />
           Documents ({uniqueDocuments.length})
         </h3>
 
         {uniqueDocuments.length === 0 ? (
-          <p className="text-[13px] text-slate-400">Nothing uploaded yet.</p>
+          <p className="text-[13px] text-cx-muted">Nothing uploaded yet.</p>
         ) : (
           <div className="divide-y divide-slate-100">
             {uniqueDocuments.map((doc, idx) => (
               <div key={idx} className="flex items-center justify-between gap-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cx-sunken text-cx-muted">
                     <FileText className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-[13.5px] font-semibold capitalize text-[#111111]">{doc.doc_type?.replace(/_/g, " ")}</p>
-                    {doc.uploaded_at && <p className="text-[11px] text-slate-400">{new Date(doc.uploaded_at).toLocaleString()}</p>}
+                    <p className="text-sm font-semibold capitalize text-cx-ink">{doc.doc_type?.replace(/_/g, " ")}</p>
+                    {doc.uploaded_at && <p className="text-xs text-cx-muted">{new Date(doc.uploaded_at).toLocaleString()}</p>}
                   </div>
                 </div>
                 {doc.file_url && (
@@ -3470,11 +3470,11 @@ export default function CustomerApplicationDetailsPage() {
         )}
 
         {!isRejected && !needsCorrection && !isReadyOrBeyond && (
-          <form onSubmit={handleUploadAdditionalDoc} className="space-y-3 border-t border-slate-100 pt-4">
-            <p className="text-[12.5px] font-semibold text-slate-700">Attach another document</p>
+          <form onSubmit={handleUploadAdditionalDoc} className="space-y-3 border-t border-cx-line pt-4">
+            <p className="text-[12.5px] font-semibold text-cx-ink-2">Attach another document</p>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               <select value={docTypeInput} onChange={(e) => setDocTypeInput(e.target.value)}
-                className="rounded-xl border border-[#E5E5E5] bg-slate-50/60 px-3 py-2.5 text-[13px] text-[#111111] outline-none focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15">
+                className="rounded-xl border border-cx-line bg-cx-sunken px-3 py-2.5 text-[13px] text-cx-ink outline-none focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15">
                 {REQUIRED_DOCS_BY_TYPE[application.application_type]?.map((d) => (
                   <option key={d.value} value={d.value}>{d.label} {d.optional ? "(optional)" : "(required)"}</option>
                 ))}
@@ -3483,9 +3483,9 @@ export default function CustomerApplicationDetailsPage() {
                 <option value="medical_certificate">Medical fitness certificate</option>
                 <option value="driving_school_certificate">Driving school certificate</option>
               </select>
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-3 py-2.5 text-[12.5px] text-slate-600 hover:border-[#28A745] hover:bg-white sm:col-span-1">
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-cx-line-strong bg-cx-sunken px-3 py-2.5 text-[12.5px] text-cx-ink-2 hover:border-[#28A745] hover:bg-white sm:col-span-1">
                 <span className="truncate">{docFileName || "Choose a file…"}</span>
-                <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold shadow-sm" style={{ color: BRAND }}>
+                <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-semibold shadow-sm" style={{ color: BRAND }}>
                   <Upload className="h-3 w-3" /> Browse
                 </span>
                 <input type="file" accept="image/*,.pdf" onChange={handleCustomerFileChange} disabled={uploadingDoc} className="hidden" />

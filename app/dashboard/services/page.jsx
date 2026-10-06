@@ -11,7 +11,7 @@ export default function DashboardServicesPage() {
     <div className="space-y-6 pb-16 max-w-5xl">
       {/* Hero */}
       <div>
-        <p className="text-[12px] font-semibold uppercase tracking-widest" style={{ color: BRAND }}>
+        <p className="text-[12px] font-semibold" style={{ color: BRAND }}>
           What we handle
         </p>
         <h1
@@ -20,7 +20,7 @@ export default function DashboardServicesPage() {
         >
           Everything your car needs
         </h1>
-        <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] font-bold uppercase tracking-wide" style={{ color: BRAND }}>
+        <p className="mt-1.5 inline-flex items-center gap-1.5 text-[12.5px] font-bold" style={{ color: BRAND }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
           Available nationwide
         </p>

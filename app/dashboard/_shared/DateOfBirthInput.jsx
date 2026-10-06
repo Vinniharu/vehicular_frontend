@@ -57,7 +57,7 @@ export default function DateOfBirthInput({ value, onChange, hasError }) {
         onChange={(e) => onChange(e.target.value)}
       />
       {parsed && (
-        <p className="mt-1.5 text-[12px] font-medium text-slate-600">
+        <p className="mt-1.5 text-[12px] font-medium text-cx-ink-2">
           Selected: {parsed.day} {MONTHS[parsed.month - 1]} {parsed.year}
         </p>
       )}

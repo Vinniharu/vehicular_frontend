@@ -99,15 +99,15 @@ export default function ApplicationsPage() {
       <div>
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: BRAND }} />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">All services</span>
+          <span className="text-xs font-bold text-cx-muted">All services</span>
         </div>
         <h1
-          className="mt-1.5 text-[30px] tracking-tight text-[#111111]"
+          className="mt-1.5 text-[30px] tracking-tight text-cx-ink"
           style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
         >
           My Applications
         </h1>
-        <p className="mt-1 text-[13.5px] text-slate-500">
+        <p className="mt-1 text-sm text-cx-muted">
           Everything you've started, across every service, most recently updated first.
         </p>
       </div>
@@ -119,7 +119,7 @@ export default function ApplicationsPage() {
             type="button"
             onClick={() => setCategory("all")}
             className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all ${
-              category === "all" ? "text-white" : "border border-[#E5E5E5] bg-white text-slate-600 hover:bg-slate-50"
+              category === "all" ? "text-white" : "border border-cx-line bg-white text-cx-ink-2 hover:bg-cx-sunken"
             }`}
             style={category === "all" ? { background: BRAND } : undefined}
           >
@@ -131,7 +131,7 @@ export default function ApplicationsPage() {
               type="button"
               onClick={() => setCategory(c)}
               className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all ${
-                category === c ? "text-white" : "border border-[#E5E5E5] bg-white text-slate-600 hover:bg-slate-50"
+                category === c ? "text-white" : "border border-cx-line bg-white text-cx-ink-2 hover:bg-cx-sunken"
               }`}
               style={category === c ? { background: BRAND } : undefined}
             >
@@ -143,26 +143,26 @@ export default function ApplicationsPage() {
 
       {/* Summary strip */}
       {totalApps > 0 && (
-        <div className={`grid grid-cols-1 divide-y divide-slate-100 rounded-2xl border border-[#E5E5E5] bg-white sm:divide-x sm:divide-y-0 ${
+        <div className={`grid grid-cols-1 divide-y divide-slate-100 rounded-cx-lg border border-cx-line bg-white sm:divide-x sm:divide-y-0 ${
           partiallyPaidApps > 0 ? "sm:grid-cols-4" : "sm:grid-cols-3"
         }`}>
           <div className="px-5 py-4">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total</span>
-            <span className="mt-0.5 block text-[22px] font-bold text-[#111111]">{totalApps}</span>
+            <span className="block text-xs font-semibold text-cx-muted">Total</span>
+            <span className="mt-0.5 block text-[22px] font-bold text-cx-ink">{totalApps}</span>
           </div>
           <div className="px-5 py-4">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fully Paid</span>
+            <span className="block text-xs font-semibold text-cx-muted">Fully Paid</span>
             <span className="mt-0.5 block text-[22px] font-bold text-emerald-600">{paidApps}</span>
           </div>
           {partiallyPaidApps > 0 && (
             <div className="px-5 py-4">
-              <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Partially Paid</span>
+              <span className="block text-xs font-semibold text-cx-muted">Partially Paid</span>
               <span className="mt-0.5 block text-[22px] font-bold text-amber-600">{partiallyPaidApps}</span>
             </div>
           )}
           <div className="px-5 py-4">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Awaiting payment</span>
-            <span className="mt-0.5 block text-[22px] font-bold text-slate-600">{pendingPaymentApps}</span>
+            <span className="block text-xs font-semibold text-cx-muted">Awaiting payment</span>
+            <span className="mt-0.5 block text-[22px] font-bold text-cx-ink-2">{pendingPaymentApps}</span>
           </div>
         </div>
       )}
@@ -171,33 +171,33 @@ export default function ApplicationsPage() {
       {loading ? (
         <div className="space-y-3">
           {[0, 1].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+            <div key={i} className="h-28 animate-pulse rounded-cx-lg border border-cx-line bg-cx-sunken" />
           ))}
         </div>
       ) : applications.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white px-8 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
+        <div className="rounded-cx-lg border border-dashed border-cx-line bg-white px-8 py-16 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-cx-lg bg-cx-sunken text-cx-muted">
             <FileText className="h-7 w-7" />
           </div>
-          <h3 className="mt-4 text-[16px] font-bold text-[#111111]">You haven't started any applications yet</h3>
-          <p className="mx-auto mt-1 max-w-xs text-[13px] text-slate-500">
+          <h3 className="mt-4 text-[16px] font-bold text-cx-ink">You haven't started any applications yet</h3>
+          <p className="mx-auto mt-1 max-w-xs text-[13px] text-cx-muted">
             Pick a service to get started — it takes a few minutes.
           </p>
           <Link
             href="/dashboard/services"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white shadow-sm transition-all active:scale-[0.98]"
+            className="mt-5 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]"
             style={{ background: BRAND }}
           >
             Browse services
           </Link>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white px-8 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
+        <div className="rounded-cx-lg border border-dashed border-cx-line bg-white px-8 py-16 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-cx-lg bg-cx-sunken text-cx-muted">
             <Layers className="h-7 w-7" />
           </div>
-          <h3 className="mt-4 text-[16px] font-bold text-[#111111]">No applications in this category yet</h3>
-          <p className="mx-auto mt-1 max-w-xs text-[13px] text-slate-500">
+          <h3 className="mt-4 text-[16px] font-bold text-cx-ink">No applications in this category yet</h3>
+          <p className="mx-auto mt-1 max-w-xs text-[13px] text-cx-muted">
             Try a different category, or view all your applications.
           </p>
         </div>

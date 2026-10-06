@@ -210,15 +210,15 @@ export default function WalletPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-16 pt-2">
       {/* Header Breadcrumbs */}
-      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-800">
+      <div className="flex items-center gap-2 text-[13px] font-medium text-cx-ink">
         <Wallet className="h-4 w-4" />
-        <span className="text-slate-400">&gt;</span>
+        <span className="text-cx-muted">&gt;</span>
         <span>Transactions</span>
       </div>
 
       {notice && (
         <div
-          className={`rounded-2xl p-4 ring-1 ring-inset ${
+          className={`rounded-cx-lg p-4 ring-1 ring-inset ${
             notice.type === "success"
               ? "bg-emerald-50 ring-emerald-200"
               : notice.type === "failed"
@@ -259,18 +259,18 @@ export default function WalletPage() {
 
       {loading ? (
         <div className="space-y-4">
-          <div className="h-44 animate-pulse rounded-2xl bg-slate-100" />
-          <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-44 animate-pulse rounded-cx-lg bg-cx-sunken" />
+          <div className="h-24 animate-pulse rounded-cx-lg bg-cx-sunken" />
         </div>
       ) : (
         <>
           {/* Balance & Actions Section */}
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-[#7A7A7A] font-semibold text-[13px] uppercase tracking-wide">Total Balance</p>
+              <p className="text-cx-muted font-semibold text-[13px]">Total Balance</p>
               <div className="mt-2">
                 <h1
-                  className="text-4xl lg:text-[46px] tracking-tight text-[#111111]"
+                  className="text-4xl lg:text-[46px] tracking-tight text-cx-ink"
                   style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
                 >
                   {koboToNaira(balance)}
@@ -280,15 +280,15 @@ export default function WalletPage() {
             
             <div className="flex flex-wrap items-center gap-3">
               {!dva && (
-                <button type="button" onClick={() => setIsBvnModalOpen(true)} className="flex items-center gap-2 bg-white text-slate-800 border border-[#E5E5E5] shadow-sm rounded-full px-5 py-2.5 text-[13.5px] font-bold hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={() => setIsBvnModalOpen(true)} className="flex items-center gap-2 bg-white text-cx-ink border border-cx-line shadow-sm rounded-full px-5 py-2.5 text-sm font-bold hover:bg-cx-sunken transition-colors">
                   Setup Account
-                  <div className="bg-slate-100 text-slate-600 rounded-full p-0.5">
+                  <div className="bg-cx-sunken text-cx-ink-2 rounded-full p-0.5">
                     <Plus className="h-3 w-3" />
                   </div>
                 </button>
               )}
               {SANDBOX_DEPOSIT_ENABLED && (
-                <button type="button" onClick={() => setIsDepositModalOpen(true)} className="flex items-center gap-2 bg-[#28A745] text-white rounded-full px-6 py-2.5 text-[13.5px] font-bold shadow-sm hover:bg-[#0c855e] transition-colors">
+                <button type="button" onClick={() => setIsDepositModalOpen(true)} className="flex items-center gap-2 bg-[#28A745] text-white rounded-full px-6 py-2.5 text-sm font-bold shadow-sm hover:bg-[#0c855e] transition-colors">
                   Deposit Funds
                   <div className="bg-white text-[#28A745] rounded-full p-0.5">
                     <ArrowDownRight className="h-3 w-3" />
@@ -300,21 +300,21 @@ export default function WalletPage() {
 
           {/* Reserved account details — send transfers here to fund the wallet */}
           {dva && (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#F5F5F5] bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-cx-lg border border-cx-line bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
               <div className="flex min-w-0 items-center gap-3.5">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#28A745]">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Your dedicated account</p>
-                  <p className="mt-0.5 font-mono text-[16px] font-bold text-[#111111]">{dva.account_number}</p>
-                  <p className="text-[12.5px] text-slate-500 break-words">{dva.bank_name} · {dva.account_name}</p>
+                  <p className="text-xs font-semibold text-cx-muted">Your dedicated account</p>
+                  <p className="mt-0.5 font-mono text-[16px] font-bold text-cx-ink">{dva.account_number}</p>
+                  <p className="text-[12.5px] text-cx-muted break-words">{dva.bank_name} · {dva.account_name}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => handleCopyAccount(dva.account_number)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#E5E5E5] bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all"
+                className="inline-flex items-center gap-2 rounded-xl border border-cx-line bg-white px-4 py-2.5 text-[13px] font-semibold text-cx-ink-2 hover:bg-cx-sunken transition-all"
               >
                 {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
                 {copied ? "Copied" : "Copy number"}
@@ -323,30 +323,30 @@ export default function WalletPage() {
           )}
 
           {/* Transactions Table Card */}
-          <div className="bg-white rounded-[24px] border border-[#F5F5F5] shadow-[0_2px_12px_rgba(0,0,0,0.02)] p-2 sm:p-7 overflow-hidden">
+          <div className="bg-white rounded-[24px] border border-cx-line shadow-[0_2px_12px_rgba(0,0,0,0.02)] p-2 sm:p-7 overflow-hidden">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-7 px-3 sm:px-0">
-              <h2 className="text-xl sm:text-[22px] font-extrabold text-[#111111] tracking-tight">Transactions</h2>
+              <h2 className="text-xl sm:text-[22px] font-extrabold text-cx-ink tracking-tight">Transactions</h2>
               
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
                 {/* Search Bar - styled per Adze design */}
                 <div className="relative w-full sm:w-[280px]">
-                  <input type="text" placeholder="Search for transactions" className="w-full bg-slate-50/70 border border-[#F5F5F5] rounded-full px-10 py-2.5 text-[13px] font-medium text-slate-600 outline-none focus:bg-white focus:border-slate-300 transition-colors" />
-                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  <input type="text" placeholder="Search for transactions" className="w-full bg-cx-sunken/70 border border-cx-line rounded-full px-10 py-2.5 text-[13px] font-medium text-cx-ink-2 outline-none focus:bg-white focus:border-cx-line-strong transition-colors" />
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-cx-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
 
-                <div className="flex items-center justify-center gap-2.5 bg-slate-50/70 border border-[#F5F5F5] rounded-full px-4 py-2 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap">
-                  <span className="text-[13px] font-bold text-slate-700">This week</span>
-                  <Calendar className="h-4 w-4 text-slate-500" />
+                <div className="flex items-center justify-center gap-2.5 bg-cx-sunken/70 border border-cx-line rounded-full px-4 py-2 cursor-pointer hover:bg-cx-sunken transition-colors whitespace-nowrap">
+                  <span className="text-[13px] font-bold text-cx-ink-2">This week</span>
+                  <Calendar className="h-4 w-4 text-cx-muted" />
                 </div>
               </div>
             </div>
 
             {transactions.length === 0 ? (
               <div className="py-16 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400 mb-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-cx-sunken text-cx-muted mb-3">
                   <History className="h-6 w-6" />
                 </div>
-                <p className="text-[13.5px] font-semibold text-slate-700">No transactions yet</p>
+                <p className="text-sm font-semibold text-cx-ink-2">No transactions yet</p>
               </div>
             ) : (
               <>
@@ -356,20 +356,20 @@ export default function WalletPage() {
                     const isCredit = tx.type === "credit";
                     const meta = txStatusMeta(tx.status);
                     return (
-                      <div key={tx.id} className="rounded-2xl border border-[#F5F5F5] p-4">
+                      <div key={tx.id} className="rounded-cx-lg border border-cx-line p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cx-sunken text-cx-ink-2">
                               {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-bold text-[13.5px] text-slate-800">
+                              <p className="font-bold text-sm text-cx-ink">
                                 {txLabel(tx)}
                               </p>
-                              <p className="text-[12px] text-slate-400">{formatDate(tx.created_at)}</p>
+                              <p className="text-[12px] text-cx-muted">{formatDate(tx.created_at)}</p>
                             </div>
                           </div>
-                          <span className={`inline-flex shrink-0 items-center justify-center px-2.5 py-1 rounded-full text-[10.5px] font-extrabold tracking-wide uppercase ${meta.className}`}>
+                          <span className={`inline-flex shrink-0 items-center justify-center px-2.5 py-1 rounded-full text-xs font-extrabold ${meta.className}`}>
                             {meta.label}
                           </span>
                         </div>
@@ -382,7 +382,7 @@ export default function WalletPage() {
                               type="button"
                               onClick={() => handleCheckDepositStatus(tx.reference)}
                               disabled={checkingRef === tx.reference}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E5E5] px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-cx-line px-2.5 py-1.5 text-xs font-semibold text-cx-ink-2 hover:bg-cx-sunken disabled:opacity-50"
                             >
                               {checkingRef === tx.reference && <Loader2 className="h-3 w-3 animate-spin" />}
                               Check status
@@ -398,7 +398,7 @@ export default function WalletPage() {
                 <div className="hidden overflow-x-auto sm:block">
                   <table className="w-full text-left min-w-[600px]">
                     <thead>
-                      <tr className="border-b border-[#F5F5F5] text-[11.5px] font-semibold text-slate-500">
+                      <tr className="border-b border-cx-line text-xs font-semibold text-cx-muted">
                         <th className="pb-4 pt-2 pl-2 w-1/3">Type</th>
                         <th className="pb-4 pt-2">Amount <span className="ml-1 opacity-50">↕</span></th>
                         <th className="pb-4 pt-2">Date <span className="ml-1 opacity-50">↕</span></th>
@@ -411,13 +411,13 @@ export default function WalletPage() {
                         const isCredit = tx.type === "credit";
                         const meta = txStatusMeta(tx.status);
                         return (
-                          <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <tr key={tx.id} className="hover:bg-cx-sunken/50 transition-colors group">
                             <td className="py-4 pl-2">
                               <div className="flex items-center gap-4">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 group-hover:bg-white group-hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all border border-transparent group-hover:border-[#F5F5F5]">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cx-sunken text-cx-ink-2 group-hover:bg-white group-hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all border border-transparent group-hover:border-cx-line">
                                   {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
                                 </div>
-                                <span className="font-bold text-[13.5px] text-slate-800">
+                                <span className="font-bold text-sm text-cx-ink">
                                   {txLabel(tx)}
                                 </span>
                               </div>
@@ -427,27 +427,27 @@ export default function WalletPage() {
                                 {isCredit ? "↑ +" : "↓ −"} {koboToNaira(tx.amount_kobo)}
                               </span>
                             </td>
-                            <td className="py-4 text-[13px] text-slate-400 font-medium">
+                            <td className="py-4 text-[13px] text-cx-muted font-medium">
                               {formatDate(tx.created_at)}
                             </td>
                             <td className="py-4">
-                              <span className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-[11px] font-extrabold tracking-wide uppercase ${meta.className}`}>
+                              <span className={`inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-extrabold ${meta.className}`}>
                                 {meta.label}
                               </span>
                             </td>
-                            <td className="py-4 text-right pr-4 text-slate-400">
+                            <td className="py-4 text-right pr-4 text-cx-muted">
                               {tx.status === "pending" ? (
                                 <button
                                   type="button"
                                   onClick={() => handleCheckDepositStatus(tx.reference)}
                                   disabled={checkingRef === tx.reference}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E5E5] px-2.5 py-1.5 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-cx-line px-2.5 py-1.5 text-xs font-semibold text-cx-ink-2 hover:bg-cx-sunken disabled:opacity-50"
                                 >
                                   {checkingRef === tx.reference && <Loader2 className="h-3 w-3 animate-spin" />}
                                   Check status
                                 </button>
                               ) : (
-                                <button className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                                <button className="p-1 hover:bg-cx-sunken rounded-lg transition-colors">
                                   <span className="flex flex-col gap-[3px] items-center justify-center h-5 w-5">
                                     <span className="w-1 h-1 bg-current rounded-full" />
                                     <span className="w-1 h-1 bg-current rounded-full" />
@@ -470,16 +470,16 @@ export default function WalletPage() {
 
       {/* Deposit modal */}
       <Modal open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen} title="Deposit into wallet">
-          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-[#F5F5F5] px-5 py-4">
-              <h3 className="text-[15px] font-bold text-[#111111]">Deposit into Wallet</h3>
-              <button onClick={() => setIsDepositModalOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-cx-lg border border-cx-line bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-cx-line px-5 py-4">
+              <h3 className="text-[15px] font-bold text-cx-ink">Deposit into Wallet</h3>
+              <button onClick={() => setIsDepositModalOpen(false)} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken">
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
             <form onSubmit={handleInitializeDeposit} className="space-y-4 p-5">
-              <p className="rounded-lg bg-emerald-50 p-2.5 text-[11.5px] text-emerald-800 ring-1 ring-inset ring-emerald-200">
+              <p className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800 ring-1 ring-inset ring-emerald-200">
                 You will be redirected to a secure checkout to complete your deposit.
               </p>
 
@@ -518,16 +518,16 @@ export default function WalletPage() {
 
       {/* BVN / dedicated account modal */}
       <Modal open={isBvnModalOpen} onOpenChange={setIsBvnModalOpen} title="Set up dedicated account">
-          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-2xl border border-[#E5E5E5] bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-[#F5F5F5] px-5 py-4">
-              <h3 className="text-[15px] font-bold text-[#111111]">Set up dedicated account</h3>
-              <button onClick={() => setIsBvnModalOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-cx-lg border border-cx-line bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-cx-line px-5 py-4">
+              <h3 className="text-[15px] font-bold text-cx-ink">Set up dedicated account</h3>
+              <button onClick={() => setIsBvnModalOpen(false)} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken">
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
             <form onSubmit={handleProvisionVirtualAccount} className="space-y-4 p-5">
-              <p className="text-[12.5px] text-slate-500">
+              <p className="text-[12.5px] text-cx-muted">
                 Your BVN or NIN verifies your identity and generates a permanent account number in your name.
               </p>
 
@@ -538,7 +538,7 @@ export default function WalletPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+              <div className="flex items-center gap-1 rounded-lg bg-cx-sunken p-1 w-fit">
                 {["bvn", "nin"].map((t) => (
                   <button
                     key={t}
@@ -568,7 +568,7 @@ export default function WalletPage() {
                   placeholder="e.g. 22233344455"
                   className={`${inputBase} font-mono`}
                 />
-                <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-cx-muted">
                   <Lock className="h-3 w-3" />
                   Used only to generate your account — never shared or displayed elsewhere.
                 </p>

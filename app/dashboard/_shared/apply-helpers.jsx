@@ -93,20 +93,20 @@ export function paymentStatusMeta(app) {
 export function IneligibilityNotice({ eligibility }) {
   if (!eligibility || eligibility.eligible) return null;
   if (eligibility.reason === "unpriced") {
-    return <p className="mt-1 text-[11px] font-semibold text-amber-600">Not yet available for renewal</p>;
+    return <p className="mt-1 text-xs font-semibold text-amber-600">Not yet available for renewal</p>;
   }
   if (eligibility.reason === "in_flight") {
-    return <p className="mt-1 text-[11px] font-semibold text-amber-600">Already in progress — check your existing requests</p>;
+    return <p className="mt-1 text-xs font-semibold text-amber-600">Already in progress — check your existing requests</p>;
   }
   if (eligibility.reason === "already_has_licence") {
-    return <p className="mt-1 text-[11px] font-semibold text-amber-600">You already have a licence — try Renewal or Reissue instead</p>;
+    return <p className="mt-1 text-xs font-semibold text-amber-600">You already have a licence — try Renewal or Reissue instead</p>;
   }
   if (eligibility.reason === "not_due") {
     const from = eligibility.eligible_from_date
       ? new Date(eligibility.eligible_from_date).toLocaleDateString("en-NG", { dateStyle: "medium" })
       : null;
     return (
-      <p className="mt-1 text-[11px] font-semibold text-amber-600">
+      <p className="mt-1 text-xs font-semibold text-amber-600">
         {from ? `Renews from ${from}` : "Not due for renewal yet"}
       </p>
     );
