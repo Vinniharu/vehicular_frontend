@@ -1,246 +1,183 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { CheckCircle2, ArrowRight, AlertCircle, Clock, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { getApplication, getMyApplications, verifyPaymentTransaction } from "@/lib/api";
-import { colors } from "@/lib/design-tokens";
+import { clearCheckoutBaseline, readCheckoutBaseline } from "@/lib/utils/checkout";
+import { typeLabel } from "@/app/dashboard/_shared/application-category";
+import { Button, Card, DetailRow, koboToNaira } from "@/app/dashboard/_kit";
 
-const BRAND = colors.primary.DEFAULT;
-const BRAND_TINT = "rgba(40, 167, 69, 0.08)";
+// Monnify brings the customer back here after checkout. The outcome is only
+// ever taken from the backend — never assumed — and nothing (reference,
+// amount, application) is invented when the callback doesn't carry it.
 
-function koboToNaira(kobo) {
-  if (!kobo || isNaN(kobo)) return "₦30,000.00";
-  return (Number(kobo) / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
+function formatDateTime(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDate(iso) {
-  if (!iso) return new Date().toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  return new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
+const OUTCOMES = {
+  paid: {
+    icon: CheckCircle2,
+    ring: "bg-cx-brand-soft text-cx-brand-deep",
+    title: "Payment received",
+  },
+  partial: {
+    icon: CheckCircle2,
+    ring: "bg-cx-brand-soft text-cx-brand-deep",
+    title: "Part payment received",
+  },
+  failed: {
+    icon: AlertCircle,
+    ring: "bg-cx-red-soft text-cx-red",
+    title: "Payment didn't go through",
+  },
+  pending: {
+    icon: Clock,
+    ring: "bg-cx-amber-soft text-cx-amber",
+    title: "Confirming your payment",
+  },
+};
 
-function PaymentSuccessContent() {
+function PaymentReturn() {
   const searchParams = useSearchParams();
-
   const reference =
-    searchParams.get("paymentReference") ||
-    searchParams.get("transactionReference") ||
-    searchParams.get("reference") ||
-    "vhc_ref_" + Math.floor(Math.random() * 899999 + 100000);
+    searchParams.get("paymentReference") || searchParams.get("transactionReference") || searchParams.get("reference") || null;
   const appIdParam = searchParams.get("application_id") || searchParams.get("id");
-  const amountParam = searchParams.get("amount_kobo");
-  const methodParam = searchParams.get("method") || "Card / Bank Transfer Checkout";
 
   const [application, setApplication] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  // "success" | "failed" | "pending" — never assumed; only set from what the
-  // backend's verify response actually reports. Defaults to "pending" (not
-  // "success") whenever the outcome is uncertain, so an incomplete or
-  // abandoned checkout never shows a false success screen.
   const [outcome, setOutcome] = useState("pending");
   const [verifiedAmount, setVerifiedAmount] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
 
-  const runVerifyAndLoad = async () => {
+  const run = useCallback(async () => {
+    let status = null;
+    let verified = null;
     if (reference || appIdParam) {
-      try {
-        const verifyRes = await verifyPaymentTransaction({ reference, application_id: appIdParam });
-        if (verifyRes.data?.amount_paid_kobo) setVerifiedAmount(verifyRes.data.amount_paid_kobo);
-        
-        if (verifyRes.data?.status === "success") setOutcome("success");
-        else if (verifyRes.data?.status === "failed") setOutcome("failed");
-        else setOutcome("pending");
-      } catch (e) {
-        setOutcome("pending");
-      }
+      const res = await verifyPaymentTransaction({
+        ...(reference ? { reference } : {}),
+        ...(appIdParam ? { application_id: appIdParam } : {}),
+      });
+      verified = res.data || null;
+      status = verified?.status || null;
+      if (verified?.amount_paid_kobo != null) setVerifiedAmount(verified.amount_paid_kobo);
     }
 
-    if (appIdParam) {
-      const res = await getApplication(appIdParam);
-      if (res.data) {
-        setApplication(res.data);
-        return;
-      }
+    // Only the application this payment belongs to — never "the latest one".
+    let app = null;
+    const appId = appIdParam || verified?.application_id;
+    if (appId) {
+      const res = await getApplication(appId);
+      app = res.data || null;
+    } else if (reference) {
+      const list = await getMyApplications();
+      app = Array.isArray(list.data) ? list.data.find((a) => a.payment_options?.payment_reference === reference) || null : null;
     }
-    // fallback: try to find by reference or get latest application
-    const listRes = await getMyApplications();
-    if (listRes.data && Array.isArray(listRes.data)) {
-      const match = listRes.data.find(
-        (a) =>
-          String(a.id) === String(appIdParam) ||
-          a.payment_options?.payment_reference === reference
-      );
-      if (match) setApplication(match);
-      else if (listRes.data.length > 0) setApplication(listRes.data[0]);
+    setApplication(app);
+
+    const options = app?.payment_options;
+    const paidNow = options?.amount_paid_kobo ?? verified?.amount_paid_kobo ?? null;
+    const baseline = app ? readCheckoutBaseline(app.id) : null;
+    const fullyPaid = status === "success" || status === "paid" || (options && options.remaining_kobo === 0 && options.amount_paid_kobo > 0);
+
+    if (fullyPaid) {
+      setOutcome("paid");
+      if (app) clearCheckoutBaseline(app.id);
+    } else if (baseline != null && paidNow != null && paidNow > baseline) {
+      // A part-payment leaves the overall payment "pending"/"partial", so
+      // compare against what was paid before this checkout started.
+      setOutcome("partial");
+      clearCheckoutBaseline(app.id);
+    } else if (status === "failed") {
+      setOutcome("failed");
+    } else {
+      setOutcome("pending");
     }
-  };
+  }, [reference, appIdParam]);
 
   useEffect(() => {
-    runVerifyAndLoad().finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appIdParam, reference]);
+    run().finally(() => setLoading(false));
+  }, [run]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await runVerifyAndLoad();
-    setRefreshing(false);
+  const checkAgain = async () => {
+    setChecking(true);
+    await run();
+    setChecking(false);
   };
-
-  const amountPaid = verifiedAmount ? koboToNaira(verifiedAmount) : amountParam ? koboToNaira(amountParam) : application?.payment_options ? koboToNaira(application.payment_options.amount_kobo) : "₦30,000.00";
-  const isTinted = application?.application_type === "tinted_permit";
-  const applicationHref = `/dashboard/apply/${application?.id || appIdParam || ""}`;
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#28A745]" />
+      <div className="flex min-h-[50dvh] items-center justify-center" role="status" aria-label="Checking payment">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-cx-brand-soft border-t-cx-brand" />
       </div>
     );
   }
 
-  const detailsCard = (
-    <div className="mt-6 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-left">
-      <div className="flex items-center justify-between text-[13px]">
-        <span className="text-slate-500">Reference</span>
-        <span className="font-mono font-semibold text-slate-800">#{reference}</span>
-      </div>
-      <div className="flex items-center justify-between text-[13px]">
-        <span className="text-slate-500">{outcome === "success" ? "Amount paid" : "Amount"}</span>
-        <span className="font-mono font-bold text-slate-900">{amountPaid}</span>
-      </div>
-      <div className="flex items-center justify-between text-[13px]">
-        <span className="text-slate-500">Method</span>
-        <span className="font-semibold text-slate-800 truncate pl-4 text-right max-w-[60%]">{methodParam}</span>
-      </div>
-      <div className="flex items-center justify-between text-[13px]">
-        <span className="text-slate-500">Date</span>
-        <span className="text-slate-800">{formatDate(application?.updated_at)}</span>
-      </div>
-    </div>
-  );
+  const meta = OUTCOMES[outcome];
+  const Icon = meta.icon;
+  const service = application ? typeLabel(application) : "your application";
+  const options = application?.payment_options;
+  const applicationHref = application ? `/dashboard/apply/${application.id}` : appIdParam ? `/dashboard/apply/${appIdParam}` : "/dashboard/applications";
 
-  if (outcome === "failed") {
-    return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-            <AlertCircle className="h-8 w-8 text-red-600" />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-slate-900">Payment failed</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            Your payment attempt didn't go through. No charge was completed — you can retry by card or pay bit by bit from your wallet.
-          </p>
-          {detailsCard}
-          <div className="mt-8 space-y-3 border-t border-slate-100 pt-5 text-center">
-            <Link
-              href="/dashboard"
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98]"
-              style={{ background: BRAND }}
-            >
-              Return to dashboard
-            </Link>
-            <Link
-              href={applicationHref}
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-700"
-            >
-              <ArrowRight className="h-3.5 w-3.5" />
-              Return to application to retry
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (outcome === "pending") {
-    return (
-      <div className="mx-auto max-w-lg py-10">
-        <div className="rounded-3xl border border-amber-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
-            <Clock className="h-8 w-8 text-amber-600" />
-          </div>
-          <h2 className="text-[21px] font-bold tracking-tight text-slate-900">Confirming your payment…</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-            We haven't received confirmation from Monnify yet. If you just completed checkout, this can take a moment — check back shortly.
-          </p>
-          {detailsCard}
-          <div className="mt-8 space-y-3 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="mx-auto inline-flex items-center gap-1.5 text-[13.5px] font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-              style={{ color: BRAND }}
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-              {refreshing ? "Checking…" : "Check again"}
-            </button>
-            <div className="flex items-center justify-center gap-4 pt-1 text-center">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition-all active:scale-[0.98]"
-                style={{ background: BRAND }}
-              >
-                Return to dashboard
-              </Link>
-              <Link
-                href={applicationHref}
-                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-700"
-              >
-                Return to application
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const message = {
+    paid: `Your ${service} is fully paid and moving to processing.`,
+    partial: `Your ${service} has started. The remaining ${options ? koboToNaira(options.remaining_kobo) : "balance"} is due before final routing or delivery.`,
+    failed: "No money was taken. You can try again by card, or pay from your wallet.",
+    pending: "Monnify hasn't confirmed this payment yet. If you've just paid, it usually takes under a minute.",
+  }[outcome];
 
   return (
-    <div className="mx-auto max-w-lg py-10">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div
-          className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full"
-          style={{ background: BRAND_TINT }}
-        >
-          <CheckCircle2 className="h-8 w-8" style={{ color: BRAND }} />
+    <div className="mx-auto max-w-md py-4 sm:py-10">
+      <Card className="text-center">
+        <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${meta.ring}`}>
+          <Icon className="h-7 w-7" aria-hidden />
         </div>
-        <h2 className="text-[21px] font-bold tracking-tight text-slate-900">Payment successful</h2>
-        <p className="mx-auto mt-2 max-w-xs text-[13.5px] leading-relaxed text-slate-500">
-          Your application fee has been verified and processed. Your {isTinted ? "tinted permit" : "driver's licence"} application is now moving to priority processing.
-        </p>
-        {detailsCard}
-        <div className="mt-8 space-y-3 border-t border-slate-100 pt-5 text-center">
-          <Link
-            href="/dashboard"
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-5 py-3 text-[13.5px] font-semibold text-white transition-all active:scale-[0.98]"
-            style={{ background: BRAND }}
-          >
-            Return to dashboard
-          </Link>
-          <Link
-            href={applicationHref}
-            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-700"
-          >
-            <ArrowRight className="h-3.5 w-3.5" />
-            Return to application
-          </Link>
+        <h1 className="font-display text-2xl text-cx-ink">{meta.title}</h1>
+        <p className="mx-auto mt-2 max-w-xs text-[15px] text-cx-muted">{message}</p>
+
+        <dl className="mt-6 divide-y divide-cx-line rounded-cx bg-cx-sunken px-4 text-left">
+          {application ? <DetailRow label="Service" value={service} /> : null}
+          {reference ? <DetailRow label="Reference" value={reference} /> : null}
+          {outcome === "partial" || outcome === "paid" ? (
+            <DetailRow
+              label="Paid so far"
+              value={options ? koboToNaira(options.amount_paid_kobo) : verifiedAmount != null ? koboToNaira(verifiedAmount) : "—"}
+            />
+          ) : null}
+          {options && options.remaining_kobo > 0 ? <DetailRow label="Balance" value={koboToNaira(options.remaining_kobo)} /> : null}
+          {application?.updated_at ? <DetailRow label="Updated" value={formatDateTime(application.updated_at)} /> : null}
+        </dl>
+
+        <div className="mt-6 space-y-3">
+          {outcome === "pending" ? (
+            <Button block size="lg" icon={RefreshCw} loading={checking} onClick={checkAgain}>
+              {checking ? "Checking…" : "Check again"}
+            </Button>
+          ) : null}
+          <Button block size="lg" variant={outcome === "pending" ? "secondary" : "primary"} href={applicationHref}>
+            {outcome === "failed" ? "Go back and try again" : "View application"}
+          </Button>
+          <Button block variant="ghost" href="/dashboard">
+            Back to home
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-[50vh] flex-col items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#28A745]" />
-      </div>
-    }>
-      <PaymentSuccessContent />
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50dvh] items-center justify-center">
+          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-cx-brand-soft border-t-cx-brand" />
+        </div>
+      }
+    >
+      <PaymentReturn />
     </Suspense>
   );
 }

@@ -2,9 +2,7 @@
 
 import { CheckCircle2, XCircle } from "lucide-react";
 import { statusMeta, TONE_HEX, getStageProgress } from "@/app/dashboard/_shared/status-config";
-import { colors } from "@/lib/design-tokens";
 
-const BRAND = colors.primary.DEFAULT;
 
 export function koboToNaira(kobo) {
   return (kobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
@@ -119,25 +117,22 @@ export function IneligibilityNotice({ eligibility }) {
 /* Segmented step progress bar, shared by the DL wizard and the tinted-permit form */
 export function StepProgress({ steps, current }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5">
+    <div role="group" aria-label={`Step ${current} of ${steps.length}: ${steps[current - 1] || ""}`}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-base font-semibold text-cx-ink">{steps[current - 1]}</span>
+        <span className="shrink-0 text-[13px] text-cx-muted">
+          Step {current} of {steps.length}
+        </span>
+      </div>
+      <div className="mt-2.5 flex items-center gap-1.5" aria-hidden>
         {steps.map((_, idx) => (
-          <div key={idx} className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
+          <div key={idx} className="h-1.5 flex-1 overflow-hidden rounded-full bg-cx-sunken">
             <div
-              className="h-full rounded-full transition-all duration-500 ease-out motion-reduce:transition-none"
-              style={{
-                width: idx + 1 <= current ? "100%" : "0%",
-                background: BRAND,
-              }}
+              className="h-full rounded-full bg-cx-brand transition-[width] duration-300 ease-out motion-reduce:transition-none"
+              style={{ width: idx + 1 <= current ? "100%" : "0%" }}
             />
           </div>
         ))}
-      </div>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-          Step {current} of {steps.length}
-        </span>
-        <span className="text-[13px] font-bold text-[#111111]">{steps[current - 1]}</span>
       </div>
     </div>
   );

@@ -53,7 +53,8 @@ import {
   declineFastTrackUpgrade,
 } from "@/lib/api";
 import { validateUploadFile } from "@/lib/utils/fileValidation";
-import PaymentOptions, { MIN_PARTIAL_PAYMENT_KOBO } from "@/app/components/dashboard/PaymentOptions";
+import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
+import { resolveMinimumKobo } from "@/app/components/dashboard/PartialPayControls";
 import ApplicationChatPanel from "@/app/components/dashboard/ApplicationChatPanel";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
@@ -61,6 +62,7 @@ import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
 import { getNextStepCopy } from "@/app/dashboard/_shared/status-config";
 import { btnPrimary, btnSecondary, inputBase, label as fieldLabel } from "@/app/dashboard/_shared/ui";
 import { colors } from "@/lib/design-tokens";
+import { goToCheckout } from "@/lib/utils/checkout";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -2193,8 +2195,11 @@ export default function CustomerApplicationDetailsPage() {
     if (res.error) {
       setNotice({ type: "error", message: res.error });
     } else if (res.data?.authorization_url) {
-      window.open(res.data.authorization_url, "_blank", "noopener,noreferrer");
-      setNotice({ type: "success", message: `Complete your ${koboToNaira(amountKobo)} payment in the new tab.` });
+      setNotice({ type: "success", message: `Opening checkout for ${koboToNaira(amountKobo)}…` });
+      goToCheckout(res.data.authorization_url, {
+        applicationId: application.id,
+        amountPaidKobo: application.payment_options?.amount_paid_kobo,
+      });
     }
   };
 
@@ -2295,6 +2300,13 @@ export default function CustomerApplicationDetailsPage() {
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo;
   const partialPaymentAllowed = application.payment_options?.partial_payment_allowed ?? true;
+  // The service's own initial deposit (or 1 kobo once something is paid) —
+  // not a fixed ₦10,000.
+  const minimumPayableKobo = resolveMinimumKobo({
+    minimumPayableKobo: application.payment_options?.minimum_payable_kobo,
+    remainingKobo,
+    amountPaidKobo: application.payment_options?.amount_paid_kobo || 0,
+  });
   const isRejected = application.status === "staff_rejected";
   const needsCorrection = application.status === "needs_correction";
   const inDrivingSchool =
@@ -2457,7 +2469,12 @@ export default function CustomerApplicationDetailsPage() {
                     setNotice({ type: "error", message: res.error });
                   } else {
                     if (res.data?.payment_options?.checkout_url) {
-                      window.open(res.data.payment_options.checkout_url, "_blank");
+                      // Same-tab: a popup opened after an await is blocked by Safari/Firefox.
+                      goToCheckout(res.data.payment_options.checkout_url, {
+                        applicationId: application.id,
+                        amountPaidKobo: application.payment_options?.amount_paid_kobo,
+                      });
+                      return;
                     }
                     await loadData(true);
                   }
@@ -3173,8 +3190,9 @@ export default function CustomerApplicationDetailsPage() {
               onPayWallet={handlePayFromWallet}
               onPayCard={handlePayPartialByCard}
               partialAllowed={partialPaymentAllowed}
+              minDepositKobo={minimumPayableKobo}
             />
-            {walletBalance < (partialPaymentAllowed ? Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) : remainingKobo) && (
+            {walletBalance < (partialPaymentAllowed ? minimumPayableKobo : remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
                 <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Card or Transfer above.
@@ -3203,7 +3221,7 @@ export default function CustomerApplicationDetailsPage() {
                       Pay <strong className="font-mono text-[#111111]">{koboToNaira(remainingKobo)}</strong> to move this
                       application forward
                       {partialPaymentAllowed
-                        ? " — pay it all at once, or bit by bit, at least ₦10,000 at a time."
+                        ? ` — pay it all at once, or start with at least ${koboToNaira(minimumPayableKobo)} and pay the rest later.`
                         : ", in full."}
                     </>
                   )}
@@ -3221,8 +3239,9 @@ export default function CustomerApplicationDetailsPage() {
               onPayWallet={handlePayFromWallet}
               onPayCard={handlePayPartialByCard}
               partialAllowed={partialPaymentAllowed}
+              minDepositKobo={minimumPayableKobo}
             />
-            {walletBalance < (partialPaymentAllowed ? Math.min(MIN_PARTIAL_PAYMENT_KOBO, remainingKobo) : remainingKobo) && (
+            {walletBalance < (partialPaymentAllowed ? minimumPayableKobo : remainingKobo) && (
               <p className="text-[12px] text-slate-500">
                 Wallet balance: <span className="font-mono font-semibold text-slate-700">{koboToNaira(walletBalance)}</span> —{" "}
                 <Link href="/dashboard/wallet" className="font-semibold underline" style={{ color: BRAND }}>fund your wallet</Link>{" "}or pay with Card or Transfer above.

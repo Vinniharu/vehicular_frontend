@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, CheckCircle2, KeyRound, X, Loader2 } from "lucide-react";
 import { authLogin, authGetMe, getCachedUser, authForgotPassword, authGoogleLogin } from "@/lib/api";
 import { GoogleLogin } from "@react-oauth/google";
+import { safeRedirectPath } from "@/lib/utils/safe-redirect";
 
 function LoginForm() {
   const router = useRouter();
@@ -17,8 +18,7 @@ function LoginForm() {
   }
 
   const rawRedirect = searchParams?.get("redirect");
-  const isSafeRedirect = typeof rawRedirect === "string" && rawRedirect.startsWith("/") && rawRedirect !== "/";
-  const targetRedirect = isSafeRedirect ? rawRedirect : null;
+  const targetRedirect = safeRedirectPath(rawRedirect);
   const sessionExpired = searchParams?.get("reason") === "session_expired";
   const accountDeleted = searchParams?.get("reason") === "account_deleted";
 

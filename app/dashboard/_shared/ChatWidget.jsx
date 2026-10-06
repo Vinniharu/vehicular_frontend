@@ -10,6 +10,16 @@ const ACTIVE_POLL_MS = 4000;
 const IDLE_POLL_MS = 30000;
 const NEAR_BOTTOM_PX = 80;
 
+// Other parts of the portal open the chat and read the unread count through
+// these window events — on phones there's no floating button (it would cover
+// Pay/Continue buttons); support opens from the Account tab instead.
+export const OPEN_SUPPORT_CHAT_EVENT = "vh:open-support-chat";
+export const SUPPORT_UNREAD_EVENT = "vh:support-unread";
+
+export function openSupportChat() {
+  window.dispatchEvent(new Event(OPEN_SUPPORT_CHAT_EVENT));
+}
+
 function lastSeenKey(userId) {
   return `chat_last_seen_${userId || "anon"}`;
 }
@@ -38,6 +48,10 @@ export default function ChatWidget() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(SUPPORT_UNREAD_EVENT, { detail: unreadCount }));
+  }, [unreadCount]);
 
   useEffect(() => {
     const track = () => {
@@ -182,6 +196,11 @@ export default function ChatWidget() {
     if (thread.data) applyThread(thread.data, { scrollToBottom: true });
   };
 
+  useEffect(() => {
+    window.addEventListener(OPEN_SUPPORT_CHAT_EVENT, handleOpen);
+    return () => window.removeEventListener(OPEN_SUPPORT_CHAT_EVENT, handleOpen);
+  }, [handleOpen]);
+
   if (!user) return null;
 
   if (!open) {
@@ -189,8 +208,8 @@ export default function ChatWidget() {
       <button
         type="button"
         onClick={handleOpen}
-        className="fixed bottom-5 right-5 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-[#28A745] text-white shadow-lg shadow-black/20 hover:bg-[#1F8838] transition-colors"
-        aria-label="Open live chat"
+        className="cx-focus fixed bottom-6 right-6 z-[60] hidden h-14 w-14 items-center justify-center rounded-full bg-cx-brand text-white shadow-cx-raised hover:bg-cx-brand-deep transition-colors md:flex"
+        aria-label="Open support chat"
       >
         <MessageCircle className="h-6 w-6" />
         {unreadCount > 0 && (
@@ -214,9 +233,10 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+          aria-label="Close chat"
+          className="cx-focus flex h-11 w-11 items-center justify-center rounded-cx text-cx-muted hover:bg-cx-sunken hover:text-cx-ink transition-colors"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </button>
       </div>
 

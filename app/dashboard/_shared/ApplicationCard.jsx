@@ -110,6 +110,9 @@ export default function ApplicationCard({ app, walletBalance, payingFromWallet, 
             <PartialPayControls
               remainingKobo={remainingKobo}
               walletBalanceKobo={walletBalance}
+              amountPaidKobo={payOpts?.amount_paid_kobo || 0}
+              minimumPayableKobo={payOpts?.minimum_payable_kobo}
+              partialAllowed={payOpts?.partial_payment_allowed ?? true}
               payingWallet={payingFromWallet === app.id}
               onPay={(amt) => onPayFromWallet(app.id, amt)}
             />

@@ -29,6 +29,7 @@ import { validateUploadFile } from "@/lib/utils/fileValidation";
 import { btnPrimary, btnSecondary, inputBase, label } from "@/app/dashboard/_shared/ui";
 import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared/apply-helpers";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
+import { goToCheckout } from "@/lib/utils/checkout";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -248,10 +249,7 @@ export default function VehicleVerificationNewApplicationPage() {
       if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     } else if (res.data?.payment_options?.checkout_url) {
       const authUrl = res.data.payment_options.checkout_url;
-      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        window.location.href = authUrl;
-      }
+      goToCheckout(authUrl, { applicationId: res.data.id, amountPaidKobo: res.data.payment_options?.amount_paid_kobo });
     }
   };
 

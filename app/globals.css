@@ -48,6 +48,26 @@
   --color-status-neutral-bg: #f1f5f9;
   --color-status-neutral-text: #475569;
   --color-status-neutral-border: #e2e8f0;
+
+  /* Customer portal ("cx") palette — clean and light, brand green as the
+     only accent. Kept separate from the shared ink/paper tokens so the
+     staff/agent/admin portals are unaffected. */
+  --cx-paper: #f6f7f5;
+  --cx-surface: #ffffff;
+  --cx-sunken: #eef1ee;
+  --cx-ink: #14201a;
+  --cx-ink-2: #3b4741;
+  --cx-muted: #5b6660;
+  --cx-line: #e3e7e4;
+  --cx-line-strong: #cdd4cf;
+  --cx-brand: #28a745;
+  --cx-brand-deep: #1f7a35;
+  --cx-brand-soft: #e8f5eb;
+  --cx-amber: #a96510;
+  --cx-amber-soft: #fdf3e2;
+  --cx-red: #b3452f;
+  --cx-red-soft: #fbf1ee;
+  --cx-focus: rgba(40, 167, 69, 0.35);
 }
 
 @theme inline {
@@ -95,10 +115,56 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display-serif);
+  --color-cx-paper: var(--cx-paper);
+  --color-cx-surface: var(--cx-surface);
+  --color-cx-sunken: var(--cx-sunken);
+  --color-cx-ink: var(--cx-ink);
+  --color-cx-ink-2: var(--cx-ink-2);
+  --color-cx-muted: var(--cx-muted);
+  --color-cx-line: var(--cx-line);
+  --color-cx-line-strong: var(--cx-line-strong);
+  --color-cx-brand: var(--cx-brand);
+  --color-cx-brand-deep: var(--cx-brand-deep);
+  --color-cx-brand-soft: var(--cx-brand-soft);
+  --color-cx-amber: var(--cx-amber);
+  --color-cx-amber-soft: var(--cx-amber-soft);
+  --color-cx-red: var(--cx-red);
+  --color-cx-red-soft: var(--cx-red-soft);
+  --radius-cx-sm: 10px;
+  --radius-cx: 14px;
+  --radius-cx-lg: 20px;
+  --shadow-cx: 0 1px 2px rgba(20, 32, 26, 0.05), 0 1px 1px rgba(20, 32, 26, 0.03);
+  --shadow-cx-raised: 0 8px 24px -8px rgba(20, 32, 26, 0.18);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Customer portal helpers */
+.cx-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cx-scroll-pad {
+  /* room for the mobile tab bar plus the device's home indicator */
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .cx-scroll-pad {
+    padding-bottom: 48px;
+  }
+}
+.cx-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--cx-focus);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-root *,
+  .cx-root *::before,
+  .cx-root *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

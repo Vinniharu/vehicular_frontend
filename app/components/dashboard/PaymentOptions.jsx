@@ -6,9 +6,9 @@ import { koboToNaira } from "@/lib/api";
 
 const BRAND = "#28A745";
 
-// ₦10,000 — mirrors app/core/payment_helpers.py MIN_PARTIAL_PAYMENT_KOBO on
-// the backend ("pay small small" minimum contribution). Only enforced on a
-// customer's very first contribution — see minPayableKobo below.
+// Fallback only, for responses without a configured deposit. Callers pass
+// the backend's real minimum as minDepositKobo (payment_options.minimum_payable_kobo
+// or a fee row's initial_deposit_kobo).
 export const MIN_PARTIAL_PAYMENT_KOBO = 1000000;
 
 function minPayableKobo(remainingKobo, amountPaidKobo) {
@@ -119,7 +119,7 @@ export default function PaymentOptions({
       {isFirstDeposit ? (
         <div className="space-y-3.5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {/* Button 1: Pay ₦10,000 Minimum */}
+            {/* Button 1: pay the initial deposit */}
             <div className="flex flex-col justify-between rounded-2xl border-2 border-[#28A745] bg-emerald-50/50 p-4.5 text-left shadow-xs transition-all hover:bg-emerald-50/80">
               <div>
                 <div className="flex items-center justify-between">

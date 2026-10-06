@@ -49,6 +49,7 @@ import {
   IneligibilityNotice,
 } from "@/app/dashboard/_shared/apply-helpers";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
+import { goToCheckout } from "@/lib/utils/checkout";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -570,10 +571,7 @@ export default function ApplyPage() {
       showToast("error", res.error);
     } else if (res.data?.authorization_url) {
       const authUrl = res.data.authorization_url;
-      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        window.location.href = authUrl;
-      }
+      goToCheckout(authUrl, { applicationId: appId });
       showToast("success", `Opening payment checkout for ${koboToNaira(amountKobo)}...`);
     }
   };
@@ -688,10 +686,7 @@ export default function ApplyPage() {
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
       } else if (res.data?.payment_options?.checkout_url) {
         const authUrl = res.data.payment_options.checkout_url;
-        const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
-        if (!popup || popup.closed || typeof popup.closed === "undefined") {
-          window.location.href = authUrl;
-        }
+        goToCheckout(authUrl, { applicationId: res.data.id, amountPaidKobo: res.data.payment_options?.amount_paid_kobo });
         showToast("success", `Opening payment checkout for ${koboToNaira(payment_amount_kobo)}...`);
       }
     }
@@ -759,7 +754,8 @@ export default function ApplyPage() {
                 payingCard={payingCard}
                 onPayWallet={(amt) => handlePayFromWallet(successApp.id, amt)}
                 onPayCard={(amt) => handlePayCard(successApp.id, amt)}
-                partialAllowed={payOpts.partial_payment_allowed ?? (successApp.application_type === "fresh")}
+                minDepositKobo={payOpts.minimum_payable_kobo}
+                partialAllowed={payOpts.partial_payment_allowed ?? true}
               />
             </div>
           )}

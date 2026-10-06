@@ -1,112 +1,110 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard,
-  LayoutGrid,
-  LogOut,
-  Menu,
-  X,
-  FileText,
-  Wallet,
-  Gift,
   FileCheck2,
+  FilePlus2,
+  FileText,
+  Gift,
+  Home,
+  LifeBuoy,
+  LogOut,
+  NotebookPen,
   Settings,
-  ChevronRight,
-  Bell,
-  Search,
+  UserRound,
+  Wallet,
 } from "lucide-react";
-import { getToken, removeToken, getCachedUser, authGetMe } from "@/lib/api";
+import { authGetMe, getCachedUser, getToken, removeToken } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
-import { colors } from "@/lib/design-tokens";
-import MobileDrawer from "@/app/dashboard/_shared/MobileDrawer";
-import ChatWidget from "@/app/dashboard/_shared/ChatWidget";
-import SidebarNavItem, { isActive, isChildActive } from "@/app/dashboard/_shared/SidebarNavItem";
+import ChatWidget, { SUPPORT_UNREAD_EVENT, openSupportChat } from "@/app/dashboard/_shared/ChatWidget";
 
-const BRAND = colors.primary.DEFAULT;
+// Staff-side roles each have their own portal; the customer portal is for
+// customers only.
+const ROLE_HOME = {
+  admin: "/admin",
+  staff: "/staff",
+  agent: "/agent",
+  super_admin: "/super-admin",
+  support: "/support",
+};
 
-const NAV_ITEMS = [
+// /dashboard/apply/<number> is an existing application; everything else
+// under /dashboard/apply is the "apply for a service" flow.
+const isApplicationDetail = (path) => /^\/dashboard\/apply\/(app_)?\d+/.test(path);
+
+const TABS = [
+  { label: "Home", href: "/dashboard", icon: Home, match: (p) => p === "/dashboard" },
   {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    exact: true,
-    desc: "Overview & profile",
-  },
-  {
-    label: "Services",
+    label: "Apply",
     href: "/dashboard/services",
-    icon: LayoutGrid,
-    exact: true,
-    desc: "Browse all services",
+    icon: FilePlus2,
+    match: (p) => p.startsWith("/dashboard/services") || (p.startsWith("/dashboard/apply") && !isApplicationDetail(p)),
   },
   {
     label: "Applications",
     href: "/dashboard/applications",
     icon: FileText,
-    desc: "Track all your applications",
-    matchPrefixes: ["/dashboard/apply"],
+    match: (p) => p.startsWith("/dashboard/applications") || isApplicationDetail(p) || p.startsWith("/dashboard/payment"),
   },
+  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, match: (p) => p.startsWith("/dashboard/wallet") },
   {
-    label: "My Documents",
-    href: "/dashboard/documents",
-    icon: FileCheck2,
-    exact: true,
-    desc: "All your approved licences & documents",
-  },
-  {
-    label: "Wallet",
-    href: "/dashboard/wallet",
-    icon: Wallet,
-    exact: true,
-    desc: "Balance & payments",
-  },
-  {
-    label: "Refer & earn",
-    href: "/dashboard/refer",
-    icon: Gift,
-    exact: true,
-    desc: "Invite friends & earn rewards",
+    label: "Account",
+    href: "/dashboard/account",
+    icon: UserRound,
+    match: (p) => ["/dashboard/account", "/dashboard/settings", "/dashboard/documents", "/dashboard/drafts", "/dashboard/refer"].some((x) => p.startsWith(x)),
   },
 ];
 
-// A parent with children renders "Parent › Child" once its active child is
-// found; a flat item renders just its own label.
-function breadcrumbLabel(pathname) {
-  for (const item of NAV_ITEMS) {
-    if (item.children) {
-      const activeChild = item.children.find((c) => isChildActive(pathname, c));
-      if (activeChild) return `${item.label} › ${activeChild.label}`;
-    } else if (isActive(pathname, item)) {
-      return item.label;
-    }
-  }
-  return "Dashboard";
+// Desktop sidebar: the tab destinations plus the pages that live under
+// Account on a phone.
+const SIDEBAR = [
+  { label: "Home", href: "/dashboard", icon: Home, match: TABS[0].match },
+  { label: "Apply for a service", href: "/dashboard/services", icon: FilePlus2, match: TABS[1].match },
+  { label: "My applications", href: "/dashboard/applications", icon: FileText, match: TABS[2].match },
+  { label: "My documents", href: "/dashboard/documents", icon: FileCheck2, match: (p) => p.startsWith("/dashboard/documents") },
+  { label: "Saved drafts", href: "/dashboard/drafts", icon: NotebookPen, match: (p) => p.startsWith("/dashboard/drafts") },
+  { label: "Wallet", href: "/dashboard/wallet", icon: Wallet, match: TABS[3].match },
+  { label: "Refer & earn", href: "/dashboard/refer", icon: Gift, match: (p) => p.startsWith("/dashboard/refer") },
+];
+
+function initialsOf(name) {
+  return name ? name.split(" ").filter(Boolean).map((n) => n[0]).slice(0, 2).join("").toUpperCase() : "U";
+}
+
+function loginUrl() {
+  const here = `${window.location.pathname}${window.location.search}`;
+  return `/auth/login?redirect=${encodeURIComponent(here)}`;
 }
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || "/dashboard";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     const token = getToken();
     if (!token) {
-      router.push("/auth/login?redirect=/dashboard");
+      router.replace(loginUrl());
       return;
     }
 
+    const routeFor = (u) => {
+      const home = ROLE_HOME[u?.role];
+      if (home) {
+        router.replace(home);
+        return true;
+      }
+      return false;
+    };
+
     const cached = getCachedUser();
     if (cached) {
-      if (cached.role === "admin") { router.push("/admin"); return; }
-      if (cached.role === "staff") { router.push("/staff"); return; }
-      if (cached.role === "agent") { router.push("/agent"); return; }
-      if (cached.role === "super_admin") { router.push("/super-admin"); return; }
+      if (routeFor(cached)) return;
       setUser(cached);
       setLoading(false);
     }
@@ -114,12 +112,9 @@ export default function DashboardLayout({ children }) {
     authGetMe().then((res) => {
       if (res.error && res.status === 401) {
         removeToken();
-        router.push("/auth/login?redirect=/dashboard");
+        router.replace(loginUrl());
       } else if (res.data) {
-        if (res.data.role === "admin") { router.push("/admin"); return; }
-        if (res.data.role === "staff") { router.push("/staff"); return; }
-        if (res.data.role === "agent") { router.push("/agent"); return; }
-        if (res.data.role === "super_admin") { router.push("/super-admin"); return; }
+        if (routeFor(res.data)) return;
         setUser(res.data);
         setLoading(false);
       } else if (!cached) {
@@ -128,6 +123,12 @@ export default function DashboardLayout({ children }) {
     });
   }, [router]);
 
+  useEffect(() => {
+    const onUnread = (e) => setUnread(Number(e.detail) || 0);
+    window.addEventListener(SUPPORT_UNREAD_EVENT, onUnread);
+    return () => window.removeEventListener(SUPPORT_UNREAD_EVENT, onUnread);
+  }, []);
+
   const handleLogout = () => {
     removeToken();
     router.push("/auth/login");
@@ -135,206 +136,137 @@ export default function DashboardLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center gap-3 bg-[#F7F7F7]">
-        <div className="relative h-10 w-10">
-          <div className="absolute inset-0 rounded-full border-2 border-emerald-100" />
-          <div className="absolute inset-0 rounded-full border-2 border-t-[#28A745] animate-spin" />
-        </div>
-        <p className="text-[13px] font-medium text-[#7A7A7A]">Loading your account…</p>
+      <div className="cx-root flex min-h-dvh flex-col items-center justify-center gap-3 bg-cx-paper" role="status">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-cx-brand-soft border-t-cx-brand" />
+        <p className="text-sm text-cx-muted">Loading your account…</p>
       </div>
     );
   }
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
-    : "U";
-  const firstName = user?.name?.split(" ")[0] || "there";
+  const initials = initialsOf(user?.name);
 
   return (
-    <div className="min-h-dvh flex bg-[#F7F7F7] text-[#111111] selection:bg-[#28A745]/20">
-
-      {/* ══════════════════════════════════════
-          SIDEBAR — Desktop
-      ══════════════════════════════════════ */}
-      <aside className="hidden md:flex flex-col w-[248px] shrink-0 bg-[#111111] fixed h-full text-white z-30">
-
-        {/* Logo */}
-        <div className="px-6 pt-7 pb-5 border-b border-white/[0.06]">
-          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: BRAND }}>
-              <span className="text-[14px] font-black text-white">V</span>
-            </div>
-            <span className="text-[18px] tracking-tight text-white" style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}>Vehiculars</span>
+    <div className="cx-root min-h-dvh bg-cx-paper text-cx-ink selection:bg-cx-brand/20">
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-cx-line bg-cx-surface md:flex">
+        <div className="px-5 pb-4 pt-6">
+          <Link href="/" className="cx-focus inline-flex items-center gap-2.5 rounded-cx">
+            <span className="flex h-9 w-9 items-center justify-center rounded-cx-sm bg-cx-brand text-[15px] font-black text-white">V</span>
+            <span className="font-display text-xl text-cx-ink">Vehiculars</span>
           </Link>
-          <p className="mt-2 text-[11px] text-white/30 leading-snug">Driver's Licence Management Portal</p>
         </div>
 
-        {/* Nav label */}
-        <div className="px-6 pt-5 pb-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Menu</p>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
-            <SidebarNavItem key={item.href || item.label} item={item} pathname={pathname} variant="desktop" />
-          ))}
+        <nav aria-label="Main" className="flex-1 space-y-0.5 overflow-y-auto px-3">
+          {SIDEBAR.map((item) => {
+            const active = item.match(pathname);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`cx-focus flex min-h-11 items-center gap-3 rounded-cx px-3 text-[15px] transition-colors ${
+                  active ? "bg-cx-brand-soft font-semibold text-cx-brand-deep" : "text-cx-ink-2 hover:bg-cx-sunken"
+                }`}
+              >
+                <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Bottom section */}
-        <div className="px-3 py-4 border-t border-white/[0.06] space-y-0.5">
+        <div className="space-y-0.5 border-t border-cx-line px-3 py-3">
           <Link
             href="/dashboard/settings"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-all"
+            aria-current={pathname.startsWith("/dashboard/settings") ? "page" : undefined}
+            className="cx-focus flex min-h-11 items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-sunken"
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
-              <Settings className="h-4 w-4" />
-            </div>
-            <span>Settings</span>
+            <Settings className="h-[18px] w-[18px]" aria-hidden />
+            Settings
           </Link>
+          <button
+            type="button"
+            onClick={openSupportChat}
+            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-sunken"
+          >
+            <LifeBuoy className="h-[18px] w-[18px]" aria-hidden />
+            Get help
+            {unread > 0 ? (
+              <span className="ml-auto rounded-full bg-cx-brand px-2 py-0.5 text-xs font-semibold text-white">{unread}</span>
+            ) : null}
+          </button>
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-red-soft hover:text-cx-red"
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.06]">
-              <LogOut className="h-4 w-4" />
-            </div>
-            <span>Sign out</span>
+            <LogOut className="h-[18px] w-[18px]" aria-hidden />
+            Sign out
           </button>
-
-          {/* User info at bottom */}
-          <div className="mt-3 flex items-center gap-3 rounded-xl bg-white/[0.04] border border-white/[0.06] px-3 py-3">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-              style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
-            >
+          <div className="mt-2 flex items-center gap-3 rounded-cx bg-cx-sunken px-3 py-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cx-brand text-sm font-semibold text-white">
               {initials}
-            </div>
+            </span>
             <div className="min-w-0">
-              <p className="truncate text-[12.5px] font-semibold text-white/80">{user?.name || "User"}</p>
-              <p className="truncate text-[10.5px] text-white/30">{user?.email}</p>
+              <p className="truncate text-sm font-semibold text-cx-ink">{user?.name || "Your account"}</p>
+              <p className="truncate text-[13px] text-cx-muted">{user?.email}</p>
             </div>
           </div>
-
-          <p className="mt-3 px-3 text-[10px] text-white/20 leading-relaxed">
-            © Vehiculars 2026. A subsidiary of MIMHEL ENGINEERING AND CONTRUCTION LTD. All rights reserved.
-          </p>
         </div>
       </aside>
 
-      {/* ══════════════════════════════════════
-          MOBILE HEADER
-      ══════════════════════════════════════ */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3.5 bg-[#111111] text-white fixed top-0 inset-x-0 z-40 border-b border-white/[0.06]">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: BRAND }}>
-            <span className="text-[12px] font-black text-white">V</span>
-          </div>
-          <span className="text-[16px] font-bold text-white">Vehiculars</span>
+      {/* ── Mobile top bar ──────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-cx-line bg-cx-surface/95 px-4 backdrop-blur md:hidden">
+        <Link href="/dashboard" className="cx-focus inline-flex items-center gap-2 rounded-cx">
+          <span className="flex h-8 w-8 items-center justify-center rounded-cx-sm bg-cx-brand text-sm font-black text-white">V</span>
+          <span className="font-display text-lg text-cx-ink">Vehiculars</span>
         </Link>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-bold text-white"
-            style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
-          >
-            {initials}
-          </div>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 transition-colors"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={openSupportChat}
+          aria-label={unread > 0 ? `Get help, ${unread} unread messages` : "Get help"}
+          className="cx-focus relative flex h-11 w-11 items-center justify-center rounded-cx text-cx-ink-2 hover:bg-cx-sunken"
+        >
+          <LifeBuoy className="h-5 w-5" aria-hidden />
+          {unread > 0 ? <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cx-brand ring-2 ring-cx-surface" /> : null}
+        </button>
       </header>
 
-      {/* ══════════════════════════════════════
-          MOBILE DRAWER
-      ══════════════════════════════════════ */}
-      <MobileDrawer
-        open={mobileMenuOpen}
-        onOpenChange={setMobileMenuOpen}
-        title="Navigation menu"
-        side="left"
-        panelClassName="inset-x-0 top-[57px] bottom-0 md:hidden bg-[#111111] text-white flex flex-col overflow-y-auto"
-      >
-        {/* User card */}
-        <div className="flex items-center gap-3.5 mx-4 mt-4 mb-3 rounded-2xl bg-white/[0.06] border border-white/[0.08] p-4">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-white"
-            style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
-          >
-            {initials}
-          </div>
-          <div>
-            <p className="text-[14px] font-bold text-white">{user?.name}</p>
-            <p className="text-[12px] text-white/50">{user?.email}</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <SidebarNavItem
-              key={item.href || item.label}
-              item={item}
-              pathname={pathname}
-              variant="mobile"
-              onNavigate={() => setMobileMenuOpen(false)}
-            />
-          ))}
-        </nav>
-
-        <div className="px-4 pb-6 pt-3 space-y-1 border-t border-white/[0.06] mt-3">
-          <Link href="/dashboard/settings" onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[14px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all">
-            <Settings className="h-5 w-5" /> Settings
-          </Link>
-          <button type="button" onClick={handleLogout}
-            className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-[14px] font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all">
-            <LogOut className="h-5 w-5" /> Sign out
-          </button>
-        </div>
-      </MobileDrawer>
-
-      {/* ══════════════════════════════════════
-          MAIN CONTENT
-      ══════════════════════════════════════ */}
-      <div className="min-w-0 flex-1 md:pl-[248px] flex flex-col min-h-dvh">
-
-        {/* Desktop top bar */}
-        <div className="hidden md:flex items-center justify-between px-8 py-3.5 bg-white/80 backdrop-blur-sm border-b border-[#E5E5E5] sticky top-0 z-20">
-          <div className="flex items-center gap-2 text-[13px] text-[#7A7A7A]">
-            <Link href="/" className="hover:text-[#28A745] transition-colors font-medium">Vehiculars</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-[#D4D4D4]" />
-            <span className="font-semibold text-[#111111]">
-              {breadcrumbLabel(pathname)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-[12.5px] font-medium text-[#7A7A7A] hover:text-[#111111] transition-colors">
-              ← Back to website
-            </Link>
-            <div className="h-4 w-px bg-[#E5E5E5]" />
-            <Link href="/dashboard/settings" className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-[#3A3A3A] hover:bg-[#F4F1E9] transition-colors">
-              <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white shrink-0"
-                style={{ background: "linear-gradient(135deg, #065f46, #28A745)" }}
-              >
-                {initials}
-              </div>
-              {firstName}
-            </Link>
-          </div>
-        </div>
-
-        {/* Page content */}
-        <div className="flex-1 pt-[57px] md:pt-0 px-4 py-6 sm:px-6 sm:py-8 md:px-8 max-w-[1100px] w-full mx-auto">
-          {children}
-        </div>
+      {/* ── Page content ────────────────────────────────────────────── */}
+      <div className="md:pl-64">
+        <main className="cx-scroll-pad mx-auto w-full max-w-5xl px-4 pt-5 sm:px-6 md:px-10 md:pt-10">{children}</main>
       </div>
+
+      {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
+      <nav
+        aria-label="Main"
+        className="cx-safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-cx-line bg-cx-surface/95 backdrop-blur md:hidden"
+      >
+        <ul className="grid h-16 grid-cols-5">
+          {TABS.map((tab) => {
+            const active = tab.match(pathname);
+            const Icon = tab.icon;
+            const showDot = tab.label === "Account" && unread > 0;
+            return (
+              <li key={tab.href}>
+                <Link
+                  href={tab.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`cx-focus relative flex h-full flex-col items-center justify-center gap-1 text-xs ${
+                    active ? "font-semibold text-cx-brand-deep" : "text-cx-muted"
+                  }`}
+                >
+                  {active ? <span className="absolute top-0 h-0.5 w-8 rounded-full bg-cx-brand" aria-hidden /> : null}
+                  <Icon className="h-[22px] w-[22px]" aria-hidden />
+                  {tab.label}
+                  {showDot ? <span className="absolute right-[30%] top-2.5 h-2 w-2 rounded-full bg-cx-brand" aria-hidden /> : null}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
       <ChatWidget />
     </div>

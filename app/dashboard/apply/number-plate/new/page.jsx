@@ -36,6 +36,7 @@ import { StepProgress, FieldError, errInputClass } from "@/app/dashboard/_shared
 import { VEHICLE_CATEGORY_OPTIONS, VEHICLE_CATEGORY_LABELS, resolveVehicleCategory } from "@/lib/constants/vehicleCategories";
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedSelector";
+import { goToCheckout } from "@/lib/utils/checkout";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -615,10 +616,7 @@ export default function NumberPlateNewApplicationPage() {
       if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
     } else if (res.data?.payment_options?.checkout_url) {
       const authUrl = res.data.payment_options.checkout_url;
-      const popup = window.open(authUrl, "_blank", "noopener,noreferrer");
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        window.location.href = authUrl;
-      }
+      goToCheckout(authUrl, { applicationId: res.data.id, amountPaidKobo: res.data.payment_options?.amount_paid_kobo });
     }
   };
 
@@ -696,6 +694,9 @@ export default function NumberPlateNewApplicationPage() {
               <PartialPayControls
                 remainingKobo={payOpts.remaining_kobo ?? payOpts.amount_kobo}
                 walletBalanceKobo={walletBalance}
+                amountPaidKobo={payOpts.amount_paid_kobo || 0}
+                minimumPayableKobo={payOpts.minimum_payable_kobo}
+                partialAllowed={payOpts.partial_payment_allowed ?? true}
                 payingWallet={payingFromWallet}
                 onPay={handlePayFromWallet}
               />

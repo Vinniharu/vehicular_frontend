@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
 import { authRegister, authLogin, authGoogleLogin } from "@/lib/api";
 import { GoogleLogin } from "@react-oauth/google";
+import { safeRedirectPath } from "@/lib/utils/safe-redirect";
 
 function SignupForm() {
   const router = useRouter();
@@ -17,8 +18,7 @@ function SignupForm() {
   }
 
   const rawRedirect = searchParams?.get("redirect");
-  const isSafeRedirect = typeof rawRedirect === "string" && rawRedirect.startsWith("/") && rawRedirect !== "/";
-  const targetRedirect = isSafeRedirect ? rawRedirect : "/dashboard";
+  const targetRedirect = safeRedirectPath(rawRedirect) || "/dashboard";
 
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
