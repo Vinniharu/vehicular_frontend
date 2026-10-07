@@ -1,250 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+// Staff application review page. One "next step" with a single primary
+// action for the current status, other valid actions underneath, then the
+// application details. Every action and its gate matches the previous page.
+
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import {
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
   AlertTriangle,
-  Clock,
-  FileText,
-  ExternalLink,
-  ArrowLeft,
   Building,
-  Building2,
-  X,
-  Loader2,
+  Calendar,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Download,
+  Eye,
+  Image as ImageIcon,
   RefreshCw,
   Send,
-  Eye,
+  ShieldCheck,
   Upload,
-  Image as ImageIcon,
-  MapPin,
-  Info,
   UserCheck,
-  Calendar,
-  Timer,
-  Flame,
+  X,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import {
+  downloadStaffBiodataPdf,
+  getCachedUser,
   getStaffApplication,
   getSupportAgentChat,
-  sendSupportAgentChatMessage,
-  staffApproveApplication,
-  staffRejectApplication,
-  staffEnrollDrivingSchool,
-  staffUploadDrivingSchoolCertificate,
-  staffConfirmDrivingSchoolCertificate,
-  staffMarkDrivingSchoolCountdownExpired,
-  staffReviewTemporaryLicence,
-  staffRouteApplication,
-  staffFinalReview,
-  staffPushToCustomer,
-  staffReadyForPickup,
-  staffConfirmReceipt,
-  staffReviewDocument,
-  staffClaimApplication,
-  staffGetEligibleAgents,
-  staffAssignAgent,
-  staffReleaseParticularsToAgents,
-  staffParticularsItemFinalReview,
-  schedulePciVisit,
   getVehicle,
-  getCachedUser,
   koboToNaira,
   resolveMediaUrl,
-  downloadStaffBiodataPdf,
+  sendSupportAgentChatMessage,
+  staffClaimApplication,
+  staffMarkDrivingSchoolCountdownExpired,
 } from "@/lib/api";
+import { hasAgentUploadedAllDocuments } from "@/lib/utils/sla";
+import { Badge, Button, Card, ErrorState, Notice } from "@/app/dashboard/_kit";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { SlaChip, Spinner } from "@/app/components/portal/ui";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import AgentChatPanel from "@/app/components/design/AgentChatPanel";
-import { hasAgentUploadedAllDocuments } from "@/lib/utils/sla";
+import { serviceLabel } from "@/app/agent/_components/jobs";
+import { statusMeta } from "../../_components/status";
+import ActionSheet from "./_components/ActionSheet";
+import PciScheduleSheet from "./_components/PciScheduleSheet";
+import AgentAssignment from "./_components/AgentAssignment";
+import {
+  ApplicantSection,
+  DocumentsSection,
+  DrivingSchoolSection,
+  LicenceSection,
+  ParticularsItems,
+  PaymentSection,
+  ServiceDetails,
+  TimelineSection,
+  VehicleSection,
+} from "./_components/Sections";
 
-const BRAND = "#28A745";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
+const DL_TYPES = ["fresh", "renewal", "reissue", "international_permit"];
+const NO_PICKUP_TYPES = ["tinted_permit", "central_motor_registry", "roadworthiness_express", "vehicle_particulars", "physical_condition_inspection"];
 
-const STAFF_STATUS = {
-  submitted: { label: "Awaiting review", tone: "info" },
-  staff_review: { label: "Under verification", tone: "warning" },
-  released_to_agents: { label: "Released to agents", tone: "success" },
-  in_progress: { label: "Agents working", tone: "success" },
-  driving_school_enrolled: { label: "In driving school", tone: "purple" },
-  driving_school_graduation: { label: "Awaiting graduation certificate", tone: "purple" },
-  driving_school_certificate_ready: { label: "School complete", tone: "teal" },
-  routed: { label: "Routed to agent", tone: "success" },
-  agent_assigned: { label: "Agent assigned", tone: "success" },
-  agent_accepted: { label: "Agent en route", tone: "success" },
-  capture_scheduled: { label: "Capture scheduled", tone: "success" },
-  capturing_scheduled: { label: "Capture scheduled", tone: "success" },
-  captured: { label: "Biometrics captured", tone: "teal" },
-  capturing_completed: { label: "Biometrics captured", tone: "teal" },
-  temp_licence_pending_review: { label: "Temp licence — needs review", tone: "warning" },
-  temp_licence_issued: { label: "Temp licence issued", tone: "purple" },
-  agent_completed: { label: "Awaiting final review", tone: "warning" },
-  visit_scheduled: { label: "Visit scheduled — mechanic working", tone: "purple" },
-  awaiting_mechanic_verdict: { label: "Awaiting reviewing mechanic's verdict", tone: "warning" },
-  staff_final_review: { label: "In final review", tone: "warning" },
-  ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
-  awaiting_customer: { label: "Awaiting customer confirmation", tone: "success" },
-  completed: { label: "Completed", tone: "success" },
-  staff_rejected: { label: "Rejected", tone: "danger" },
-  needs_correction: { label: "Needs correction", tone: "warning" },
-  expired: { label: "Licence expired", tone: "danger" },
-};
-
-const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  danger: "bg-red-50 text-red-700 ring-red-200",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
-};
-const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  teal: "bg-teal-500",
-  indigo: "bg-indigo-500",
-  neutral: "bg-slate-400",
-};
-
-function statusMeta(status) {
-  return STAFF_STATUS[status] || { label: (status || "Unknown").replace(/_/g, " "), tone: "neutral" };
-}
-
-function StatusBadge({ status }) {
-  const meta = statusMeta(status);
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-      {meta.label}
-    </span>
-  );
-}
-
-function toDatetimeLocal(date) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[13px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
-const btnSecondary =
-  "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors";
-const btnDanger =
-  "inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] font-semibold text-red-700 hover:bg-red-100 transition-colors";
-const fieldLabel = "block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5";
-const inputBase =
-  "w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
-
-export default function StaffApplicationDetailsPage() {
-  const params = useParams();
-  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
-  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
-
-  const [application, setApplication] = useState(null);
-  const [previewDocUrl, setPreviewDocUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [claiming, setClaiming] = useState(false);
-  const [claimError, setClaimError] = useState(null);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const currentUser = getCachedUser();
-
-  const [modalType, setModalType] = useState(null); // approve | reject | enroll | upload-cert | route | final-review | push-to-customer | notice
-  // PCI scheduling is a richer form (date/time/regenerate-link/note) than
-  // the generic single-note modalType flow above, so it's a separate
-  // self-contained drawer (same pattern as RwxRescheduleModal) rather than
-  // another modalType branch.
-  const [showPciScheduleDrawer, setShowPciScheduleDrawer] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionError, setActionError] = useState(null);
-  const [noticeMessage, setNoticeMessage] = useState(null);
-
-  const [noteInput, setNoteInput] = useState("");
-  const [reasonInput, setReasonInput] = useState("");
-  const [verifImageInput, setVerifImageInput] = useState("");
-  const [verifFileName, setVerifFileName] = useState("");
-  const [certUrlInput, setCertUrlInput] = useState("");
-  const [certFileName, setCertFileName] = useState("");
-  const [trackingNoteInput, setTrackingNoteInput] = useState("");
-  const [dispatchedByInput, setDispatchedByInput] = useState("");
-  const [decisionInput, setDecisionInput] = useState("approved"); // used by review-temp-licence & final-review
-
+function useCountdown(application, setApplication) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });
-
-  // Manual agent assignment & reassignment
-  const [eligibleAgents, setEligibleAgents] = useState([]);
-  const [loadingEligibleAgents, setLoadingEligibleAgents] = useState(false);
-  const [selectedAgentId, setSelectedAgentId] = useState("");
-  const [assigning, setAssigning] = useState(false);
-  const [assignError, setAssignError] = useState(null);
-  const [showReassign, setShowReassign] = useState(false);
-
-  // tinted_permit only — the linked vehicle's details, shown in place of
-  // the licence-class/driving-school fields that don't apply.
-  const [vehicle, setVehicle] = useState(null);
-
-  // vehicle_particulars only — which ParticularsItem the "particulars-item-review"
-  // modal is currently scoped to (decisionInput/noteInput are reused, same as
-  // every other decision+note modal on this page).
-  const [selectedParticularsItem, setSelectedParticularsItem] = useState(null);
-
-  const loadDetail = async (isRefresh = false) => {
-    if (!appId) {
-      setLoading(false);
-      return;
-    }
-    isRefresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    const res = await getStaffApplication(appId);
-    if (res.error) {
-      setError(res.error);
-    } else if (res.data) {
-      setApplication(res.data);
-      if (res.data.vehicle) {
-        setVehicle(res.data.vehicle);
-      }
-    }
-    setLoading(false);
-    setRefreshing(false);
-  };
-
   useEffect(() => {
-    loadDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appId]);
-
-  useEffect(() => {
-    const rawTarget = application?.driving_school_target_date || application?.driving_school?.target_date;
-    if (!rawTarget) return;
-
-    let parseTarget = String(rawTarget);
-    if (!parseTarget.includes("T")) parseTarget += "T23:59:59";
-    const targetMs = new Date(parseTarget).getTime();
-    if (isNaN(targetMs)) return;
-
-    let hasTriggeredGraduation = false;
-
+    const raw = application?.driving_school_target_date || application?.driving_school?.target_date;
+    if (!raw) return;
+    let s = String(raw);
+    if (!s.includes("T")) s += "T23:59:59";
+    const target = new Date(s).getTime();
+    if (isNaN(target)) return;
+    let fired = false;
     const tick = () => {
-      const diff = targetMs - Date.now();
+      const diff = target - Date.now();
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: true });
-        // When the countdown expires and the app is still in the enrolled stage,
-        // automatically transition it to graduation stage so it stays visible to staff.
-        if (!hasTriggeredGraduation && application?.status === "driving_school_enrolled") {
-          hasTriggeredGraduation = true;
+        // Once the countdown ends while still enrolled, move the application
+        // to the graduation stage so it stays visible to staff.
+        if (!fired && application?.status === "driving_school_enrolled") {
+          fired = true;
           staffMarkDrivingSchoolCountdownExpired(application.id).then((res) => {
-            if (!res.error && res.data) {
-              setApplication(res.data);
-            }
+            if (!res.error && res.data) setApplication(res.data);
           });
         }
       } else {
@@ -258,2484 +98,315 @@ export default function StaffApplicationDetailsPage() {
       }
     };
     tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [application]);
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [application, setApplication]);
+  return timeLeft;
+}
+
+/** What staff should do now: { title, body, primary, secondary[] }. */
+function plan(app, { isPaid, hasMin, hasCert, open, openPci }) {
+  const type = app.application_type || "";
+  const status = app.status;
+  const isParticulars = type === "vehicle_particulars";
+  const isPci = type === "physical_condition_inspection";
+  const isRwx = type === "roadworthiness_express";
+  const area = app.lga || app.state_of_residence || "the applicant's area";
+  const minText = app.payment_options?.minimum_payable_kobo ? `the ${koboToNaira(app.payment_options.minimum_payable_kobo)} minimum deposit` : "the minimum deposit";
+  const needMin = hasMin ? null : `Waiting for ${minText}.`;
+  const needFull = isPaid ? null : "Waiting for full payment.";
+  const reject = { label: "Reject application", description: "The applicant sees your reason and can resubmit", icon: X, tone: "red", onClick: () => open("reject") };
+
+  const freshFront = () =>
+    hasCert
+      ? { title: "Verify the driving school certificate and route", primary: { label: "Verify and route", icon: CheckCircle2, onClick: () => open("confirm-cert"), blocked: needMin } }
+      : { title: "Enroll the applicant in driving school", primary: { label: "Enroll in driving school", icon: Building, onClick: () => open("enroll"), blocked: needMin } };
+
+  if (status === "submitted") {
+    if (type === "fresh") return { ...freshFront(), body: "Check the NIN and biodata first.", secondary: [reject] };
+    return { title: "Check the documents and approve", body: "Check identity, NIN and documents.", primary: { label: "Approve and verify", icon: CheckCircle2, onClick: () => open("approve"), blocked: needMin }, secondary: [reject] };
+  }
+  if (status === "staff_review") {
+    if (isParticulars) return { title: "Release the documents to agents", primary: { label: "Release to agents", icon: Send, onClick: () => open("release-particulars"), blocked: needFull }, secondary: [reject] };
+    if (isPci) return { title: "Schedule the mechanic's visit", primary: { label: "Schedule visit", icon: Calendar, onClick: openPci, blocked: needFull }, secondary: [reject] };
+    if (type !== "fresh") return { title: `Route to agents in ${area}`, body: "Once documents are verified and payment is complete.", primary: { label: "Route to agents", icon: Send, onClick: () => open("route"), blocked: needFull }, secondary: [reject] };
+    return { ...freshFront(), secondary: [reject] };
+  }
+  if (status === "driving_school_enrolled" || status === "driving_school_graduation") {
+    return { title: status === "driving_school_graduation" ? "Upload the driving school certificate" : "In driving school — upload the certificate when it arrives", primary: { label: "Upload certificate", icon: Upload, onClick: () => open("upload-cert") } };
+  }
+  if (status === "driving_school_certificate_ready") {
+    return { title: `Route to agents in ${area}`, primary: { label: "Route to agents", icon: Send, onClick: () => open("route"), blocked: needFull ? "Waiting for full payment — it routes automatically once paid." : null } };
+  }
+  if (status === "temp_licence_pending_review") return { title: "Review the agent's temporary licence", body: "Approving shows it to the customer.", primary: { label: "Review temporary licence", icon: ShieldCheck, onClick: () => open("review-temp-licence") } };
+  if (status === "agent_completed") return { title: "Check the agent's finished work", body: "Approve to release it to the customer, or send it back.", primary: { label: "Start final review", icon: ShieldCheck, onClick: () => open("final-review") } };
+  if (isPci && status === "visit_scheduled") {
+    return {
+      title: "The mechanic is working through the checklist",
+      body: "Watch the checklist and confirm it's complete when every item is in.",
+      primary: { label: "Open checklist", icon: ClipboardCheck, href: `/staff/physical-condition-inspection/${app.id}` },
+      secondary: [{ label: "Reschedule visit", icon: Calendar, onClick: openPci }],
+    };
+  }
+  if (isPci && status === "awaiting_mechanic_verdict") {
+    return {
+      title: "Record the reviewing mechanic's verdict",
+      body: "Releases the report to the customer.",
+      primary: { label: "Record verdict", icon: ShieldCheck, href: `/staff/physical-condition-inspection/${app.id}/verdict` },
+      secondary: [{ label: "Reopen for more evidence", icon: Calendar, onClick: openPci }],
+    };
+  }
+  if (!NO_PICKUP_TYPES.includes(type) && !type.startsWith("number_plate_") && !type.startsWith("vehicle_verification_") && ["captured", "capturing_completed"].includes(status)) {
+    return { title: "Tell the customer their card is ready", primary: { label: "Mark ready for pickup", icon: Send, onClick: () => open("ready-for-pickup") } };
+  }
+  if (status === "awaiting_customer" && !isRwx) {
+    return {
+      title: "Close out once the finished document is in hand",
+      body: app.dispatched_at ? `Dispatched by ${app.dispatched_by || "—"} on ${new Date(app.dispatched_at).toLocaleString("en-NG")}.${app.tracking_note ? ` Note: ${app.tracking_note}` : ""}` : "Record who dispatched it, then mark it received.",
+      primary: { label: "Mark as received", icon: CheckCircle2, onClick: () => open("confirm-receipt") },
+      secondary: [{ label: "Record dispatch", description: "Who sent it and a note for the customer", icon: Send, onClick: () => open("push-to-customer") }],
+    };
+  }
+  if (status === "awaiting_customer" && isRwx) return { title: "Certificate issued — waiting for the customer to confirm", waiting: true };
+  if (status === "completed") return { title: "Completed", body: "The customer has been told.", waiting: true };
+  if (status === "expired") return { title: "Licence expired", body: "The customer has been asked to renew. Nothing to do here.", waiting: true };
+  if (status === "staff_rejected") return { title: "Rejected — waiting for the applicant to resubmit", waiting: true };
+  return { title: statusMeta(status).label, body: "Nothing for staff to do right now.", waiting: true };
+}
+
+export default function StaffApplicationPage() {
+  const params = useParams();
+  const pushToast = useToast();
+  const rawId = params?.id ? String(params.id).replace(/^app_/, "") : null;
+  const appId = rawId && !isNaN(Number(rawId)) ? Number(rawId) : rawId;
+  const currentUser = getCachedUser();
+
+  const [application, setApplication] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [action, setAction] = useState(null); // { type, item? }
+  const [pciOpen, setPciOpen] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const load = async (quiet = false) => {
+    if (!appId) return setLoading(false);
+    quiet ? setRefreshing(true) : setLoading(true);
+    setError(null);
+    const res = await getStaffApplication(appId);
+    if (res.error) setError(res.error);
+    else if (res.data) setApplication(res.data);
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appId]);
 
   useEffect(() => {
     if (!application) return;
-    if (application.vehicle) {
-      setVehicle(application.vehicle);
-    } else if (application.vehicle_id) {
-      getVehicle(application.vehicle_id).then((res) => {
-        if (res.data) setVehicle(res.data);
-      });
-    }
-    if (application.status === "routed" || ["agent_assigned", "agent_accepted"].includes(application.status)) {
-      setLoadingEligibleAgents(true);
-      staffGetEligibleAgents(appId).then((res) => {
-        if (res.data) setEligibleAgents(res.data);
-        setLoadingEligibleAgents(false);
-      });
-    }
+    if (application.vehicle) setVehicle(application.vehicle);
+    else if (application.vehicle_id) getVehicle(application.vehicle_id).then((res) => res.data && setVehicle(res.data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [application?.id, application?.status, application?.vehicle_id]);
+  }, [application?.id, application?.vehicle_id]);
 
-  const handleAssignAgent = async (agentIdToUse = selectedAgentId) => {
-    if (!agentIdToUse) {
-      setAssignError("Pick an agent first.");
-      return;
-    }
-    setAssigning(true);
-    setAssignError(null);
-    const res = await staffAssignAgent(appId, Number(agentIdToUse));
-    setAssigning(false);
-    if (res.error) {
-      setAssignError(res.error);
-      return;
-    }
-    setNoticeMessage(application?.assigned_agent_id ? "Agent reassigned successfully." : "Agent assigned successfully.");
-    setModalType("notice");
-    setShowReassign(false);
-    setSelectedAgentId("");
-    await loadDetail(true);
-  };
+  const timeLeft = useCountdown(application, setApplication);
 
-  const openModal = (type) => {
-    setActionError(null);
-    setNoteInput("");
-    setReasonInput("");
-    setVerifImageInput("");
-    setVerifFileName("");
-    setCertUrlInput("");
-    setCertFileName("");
-    setTrackingNoteInput("");
-    setDispatchedByInput("");
-    setDecisionInput("approved");
-    setModalType(type);
-  };
-
-  const openItemReviewModal = (item) => {
-    openModal("particulars-item-review");
-    setSelectedParticularsItem(item);
-  };
-
-  const handleConfirmAction = async () => {
-    if (!application) return;
-    setActionLoading(true);
-    setActionError(null);
-
-    let res = null;
-    if (modalType === "approve") {
-      res = await staffApproveApplication(application.id, { note: noteInput.trim() });
-    } else if (modalType === "reject") {
-      if (!reasonInput.trim()) {
-        setActionError("A rejection reason is required — it will be shown to the applicant.");
-        setActionLoading(false);
-        return;
-      }
-      res = await staffRejectApplication(application.id, { reason: reasonInput.trim() });
-    } else if (modalType === "enroll") {
-      if (!verifImageInput.trim()) {
-        setActionError("Attach the driving school verification slip before enrolling.");
-        setActionLoading(false);
-        return;
-      }
-      res = await staffEnrollDrivingSchool(application.id, {
-        verification_image_url: verifImageInput,
-        screenshot_url: verifImageInput,
-        file_url: verifImageInput,
-      });
-    } else if (modalType === "upload-cert") {
-      if (!certUrlInput.trim()) {
-        setActionError("Attach the graduation certificate before continuing.");
-        setActionLoading(false);
-        return;
-      }
-      res = await staffUploadDrivingSchoolCertificate(application.id, {
-        certificate_url: certUrlInput,
-        screenshot_url: certUrlInput,
-        file_url: certUrlInput,
-      });
-    } else if (modalType === "confirm-cert") {
-      res = await staffConfirmDrivingSchoolCertificate(application.id);
-    } else if (modalType === "review-temp-licence") {
-      if (decisionInput === "rejected" && !noteInput.trim()) {
-        setActionError("A note is required when rejecting the temporary licence.");
-        setActionLoading(false);
-        return;
-      }
-      res = await staffReviewTemporaryLicence(application.id, { decision: decisionInput, note: noteInput.trim() || undefined });
-    } else if (modalType === "route") {
-      res = await staffRouteApplication(application.id);
-    } else if (modalType === "final-review") {
-      if (decisionInput === "rejected" && !noteInput.trim()) {
-        setActionError("A note is required when rejecting final review.");
-        setActionLoading(false);
-        return;
-      }
-      res = await staffFinalReview(application.id, { note: noteInput.trim(), decision: decisionInput });
-    } else if (modalType === "push-to-customer") {
-      res = await staffPushToCustomer(application.id, {
-        dispatched_by: dispatchedByInput.trim(),
-        tracking_note: trackingNoteInput.trim(),
-      });
-    } else if (modalType === "ready-for-pickup") {
-      res = await staffReadyForPickup(application.id);
-    } else if (modalType === "confirm-receipt") {
-      res = await staffConfirmReceipt(application.id);
-    } else if (modalType === "release-particulars") {
-      res = await staffReleaseParticularsToAgents(application.id);
-    } else if (modalType === "particulars-item-review") {
-      if (decisionInput === "rejected" && !noteInput.trim()) {
-        setActionError("A note is required when rejecting a document.");
-        setActionLoading(false);
-        return;
-      }
-      res = await staffParticularsItemFinalReview(selectedParticularsItem.id, { decision: decisionInput, note: noteInput.trim() });
-    }
-
-    if (res?.error) {
-      setActionError(res.error);
-      setActionLoading(false);
-      return;
-    }
-    setActionLoading(false);
-    setModalType("notice");
-    setNoticeMessage(`Application #${application.id} has been updated.`);
-    await loadDetail(true);
-  };
-
-  const readFileAsDataUrl = (file, onDone) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => onDone(String(reader.result || ""));
-    reader.readAsDataURL(file);
-  };
-
-  const [reviewingDocId, setReviewingDocId] = useState(null);
-  const handleReviewDocument = async (docId, decision) => {
-    setReviewingDocId(docId);
-    const res = await staffReviewDocument(docId, { decision, note: decision === "rejected" ? "Flagged during document review." : undefined });
-    setReviewingDocId(null);
-    if (!res.error) await loadDetail(true);
-  };
-
-  const handleClaim = async () => {
-    if (!application) return;
+  const claim = async () => {
     setClaiming(true);
-    setClaimError(null);
     const res = await staffClaimApplication(application.id);
     setClaiming(false);
-    if (res.error) setClaimError(res.error);
-    else await loadDetail(true);
+    if (res.error) return pushToast({ tone: "error", title: "Couldn't claim this application", body: res.error });
+    pushToast({ tone: "success", title: "Claimed — it's yours now" });
+    load(true);
   };
 
-  const handleDownloadBiodataPdf = async () => {
-    if (!application) return;
-    setDownloadingPdf(true);
-    setClaimError(null);
+  const download = async () => {
+    setDownloading(true);
     try {
       await downloadStaffBiodataPdf(application.id);
     } catch (err) {
-      const message =
-        err?.message === "Failed to fetch"
-          ? "Could not connect to the server to download the biodata PDF. Please check your network connection or try again."
-          : (err?.message || "Could not generate the biodata PDF. Please try again.");
-      setClaimError(message);
+      pushToast({ tone: "error", title: "Couldn't download the PDF", body: err?.message === "Failed to fetch" ? "Check your connection and try again." : err?.message });
     } finally {
-      setDownloadingPdf(false);
+      setDownloading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND }} />
-        <p className="text-[13px] font-medium text-slate-500">Loading application…</p>
-      </div>
-    );
-  }
-
+  if (loading) return <Spinner label="Loading application…" />;
   if (error || !application) {
-    const isHandledByOther = Boolean(
-      error && (
-        error.toLowerCase().includes("handled by another staff") ||
-        error.toLowerCase().includes("assigned to another staff") ||
-        error.toLowerCase().includes("not authorized") ||
-        error.toLowerCase().includes("forbidden")
-      )
-    );
+    const restricted = /handled by another staff|assigned to another staff|not authorized|forbidden/i.test(error || "");
     return (
-      <div className="mx-auto mt-10 max-w-md space-y-4 rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-        <AlertCircle className="mx-auto h-8 w-8 text-red-500" />
-        <h3 className="text-[16px] font-bold text-slate-900">
-          {isHandledByOther ? "Application Assigned / Restricted" : (error ? "Unable to Load Application" : "Application not found")}
-        </h3>
-        <p className="text-[13px] text-red-700">{error || "Could not retrieve this record."}</p>
-        <Link href="/staff/applications" className={`${btnSecondary} mx-auto`}>
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to review queue
-        </Link>
+      <div className="mx-auto max-w-md pt-6">
+        <ErrorState title={restricted ? "Another staff member has this application" : "Application not found"} message={error || "This application couldn't be loaded."} onRetry={restricted ? undefined : () => load()} />
+        <div className="mt-4 text-center"><Button variant="ghost" href="/staff/applications">Back to review queue</Button></div>
       </div>
     );
   }
 
-  const isVehicleParticulars = application.application_type === "vehicle_particulars";
-  const isPci = application.application_type === "physical_condition_inspection";
-  const isDl = ["fresh", "renewal", "reissue", "international_permit"].includes(application.application_type);
-  const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
-  const isTinted = application.application_type === "tinted_permit";
-  const isRwx = application.application_type === "roadworthiness_express";
-  const isCmr = application.application_type === "central_motor_registry";
-  const isVehicleVerification = Boolean(application.application_type?.startsWith("vehicle_verification_"));
-  const isVehicleCentric = isNumberPlate || isTinted || isVehicleParticulars || isRwx || isCmr || isVehicleVerification || isPci;
+  const app = application;
+  const type = app.application_type || "fresh";
+  const isDl = DL_TYPES.includes(type);
+  const isPaid = app.payment_status === "success" || app.payment_options?.payment_status === "success";
+  // The minimum deposit comes from the service's own pricing (backend).
+  const hasMin = isPaid || !!app.payment_options?.has_minimum_payment;
+  const hasCert = app.documents?.some((d) => d.doc_type === "driving_school_certificate");
+  const claimed = !!app.assigned_staff;
+  const mine = app.assigned_staff?.user_id === currentUser?.id;
+  const meta = statusMeta(app.status);
+  const name = [app.first_name || app.applicant_details?.first_name, app.middle_name || app.applicant_details?.middle_name, app.last_name || app.applicant_details?.last_name].filter(Boolean).join(" ") || "Applicant";
+  const photo = app.passport_photo || app.applicant_details?.passport_photo || app.documents?.find((d) => d.doc_type === "passport_photo")?.file_url;
+  const isVehicleCentric = !isDl;
+  const showSla = isPaid && app.sla && !app.sla.is_completed && !hasAgentUploadedAllDocuments(app);
 
-  const deliveryAddress = application.delivery_address || application.applicant_details?.delivery_address;
-  const hasDeliveryAddress = Boolean(deliveryAddress && String(deliveryAddress).trim());
-
-  const vMake = vehicle?.make || application.vehicle_make || application.applicant_details?.vehicle_make;
-  const vModel = vehicle?.model || application.vehicle_model || application.applicant_details?.vehicle_model;
-  const vYear = vehicle?.year || application.year_of_manufacture || application.manufacturing_year || application.applicant_details?.year_of_manufacture;
-  const vColour = vehicle?.colour || application.vehicle_colour || application.applicant_details?.vehicle_colour;
-  const vChassis = vehicle?.chassis_number || application.chassis_number || application.applicant_details?.chassis_number;
-  const vType = application.vehicle_type || vehicle?.vehicle_type || application.applicant_details?.vehicle_type;
-  const vBodyType = application.vehicle_body_type || vehicle?.vehicle_category || application.applicant_details?.vehicle_body_type;
-  const vFormerReg = application.former_registration_number || application.applicant_details?.former_registration_number;
-  const vPlate = vehicle?.plate_number || application.plate_number;
-  const vPhone = application.phone_number || application.applicant_details?.phone || application.applicant_details?.phone_number;
-  const vNin = application.nin || application.applicant_details?.nin;
-  const hasVehicleData = Boolean(vehicle || vMake || vModel || vChassis || vType);
-
-  // Backend only ever emits "unpaid" | "pending" | "success" | "failed" for
-  // payment_status — "paid" is never produced, so only "success" is checked.
-  const isPaid = application.payment_status === "success" || application.payment_options?.payment_status === "success";
-  // NGN10,000 "pay small small" minimum — enough to unlock approval/enrollment/
-  // certificate steps, but NOT enough to push the application to an agent
-  // (that still requires isPaid/full payment).
-  const hasMinimumPayment = isPaid || !!application.payment_options?.has_minimum_payment || ((application.payment_options?.amount_paid_kobo || 0) >= 1000000);
-  const hasDrivingSchoolCertificate = application.documents?.some((d) => d.doc_type === "driving_school_certificate");
-  const skipPathCertOnFile = hasDrivingSchoolCertificate && !application.driving_school_enrolled_at;
-  const verifSlipUrl =
-    application.driving_school?.verification_image_url ||
-    application.documents?.find((d) => d.doc_type === "driving_school_verification_slip" || d.doc_type === "driving_school_enrollment_screenshot" || d.doc_type === "driving_school_screenshot")?.file_url;
-  const passportPhotoUrl =
-    application.passport_photo ||
-    application.applicant_details?.passport_photo ||
-    application.documents?.find((d) => d.doc_type === "passport_photo")?.file_url;
-
-  const uniqueDocuments = (() => {
-    if (!application?.documents) return [];
-    const seen = new Set();
-    const result = [];
-    for (const doc of application.documents) {
-      const key = `${doc.doc_type}_${doc.file_url || ""}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(doc);
-      }
-    }
-    return result;
-  })();
+  const step = claimed
+    ? plan(app, { isPaid, hasMin, hasCert, open: (t) => setAction({ type: t }), openPci: () => setPciOpen(true) })
+    : { title: "Claim this application to work on it", body: "Once claimed, only you can act on it.", primary: { label: "Claim application", icon: UserCheck, onClick: claim, loading: claiming } };
+  const p = step.primary;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-24">
-      <DocumentPreviewModal 
-        isOpen={!!previewDocUrl} 
-        onClose={() => setPreviewDocUrl(null)} 
-        fileUrl={previewDocUrl} 
-      />
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div className="flex items-start gap-4">
-          {passportPhotoUrl ? (
+    <div className="mx-auto max-w-5xl">
+      <DocumentPreviewModal isOpen={!!preview} onClose={() => setPreview(null)} fileUrl={preview} />
+
+      <header className="mb-5">
+        <Link href="/staff/applications" className="cx-focus -ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-cx px-2 text-sm font-medium text-cx-muted hover:text-cx-ink">
+          <ChevronLeft className="h-4 w-4" aria-hidden /> Review queue
+        </Link>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
             <button
               type="button"
-              onClick={() => setPreviewDocUrl(resolveMediaUrl(passportPhotoUrl))}
-              className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100 transition-all hover:border-emerald-500 hover:ring-2 hover:ring-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-              title="Click to view passport photograph"
+              onClick={() => photo && setPreview(resolveMediaUrl(photo))}
+              disabled={!photo}
+              aria-label={photo ? "View passport photo" : "No passport photo"}
+              className="cx-focus flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-cx border border-cx-line bg-cx-sunken text-cx-muted"
             >
-              <img
-                src={resolveMediaUrl(passportPhotoUrl)}
-                alt="Passport photo"
-                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  const fallback = e.currentTarget.parentElement?.querySelector(".photo-fallback-icon");
-                  if (fallback) fallback.classList.remove("hidden");
-                }}
-              />
-              <div className="photo-fallback-icon hidden flex flex-col items-center justify-center text-slate-400">
-                <ImageIcon className="h-6 w-6" />
-                <span className="text-[9px] font-medium mt-0.5">Photo</span>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                <Eye className="h-5 w-5 text-white drop-shadow" />
-              </div>
+              {photo ? <img src={resolveMediaUrl(photo)} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-6 w-6" aria-hidden />}
             </button>
-          ) : (
-            <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300"
-              title="No passport photograph uploaded"
-            >
-              <ImageIcon className="h-6 w-6" />
-            </div>
-          )}
-          <div>
-            <Link
-              href="/staff/applications"
-              className="mb-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-500 hover:text-slate-800"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Review Queue
-            </Link>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[14px] font-semibold text-slate-500">Surname: <strong className="text-[22px] font-extrabold text-slate-900">{application.last_name || application.applicant_details?.last_name || "—"}</strong></span>
-                <span className="text-slate-300">•</span>
-                <span className="text-[14px] font-semibold text-slate-500">First: <strong className="text-[22px] font-extrabold text-slate-900">{application.first_name || application.applicant_details?.first_name || "—"}</strong></span>
-                {(application.middle_name || application.applicant_details?.middle_name) && (
-                  <>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-[14px] font-semibold text-slate-500">Middle: <strong className="text-[22px] font-extrabold text-slate-900">{application.middle_name || application.applicant_details?.middle_name}</strong></span>
-                  </>
-                )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-cx-muted">{serviceLabel(type)} · #{app.id}</p>
+              <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">{name}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge tone={meta.tone}>{meta.label}</Badge>
+                {claimed ? <Badge tone={mine ? "brand" : "neutral"}><UserCheck className="h-3.5 w-3.5" aria-hidden />{mine ? "Claimed by you" : app.assigned_staff.name}</Badge> : <Badge tone="amber">Unclaimed</Badge>}
+                {app.is_urgent ? <Badge tone="amber"><Zap className="h-3.5 w-3.5" aria-hidden />Fast Track</Badge> : null}
+                {showSla ? <SlaChip sla={app.sla} /> : null}
               </div>
-              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-500">
-                #{application.id}
-              </span>
-              <StatusBadge status={application.status} />
-              {application.is_urgent && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11.5px] font-bold text-amber-800 shadow-xs">
-                  <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
-                </span>
-              )}
-              {application.assigned_staff ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#28A745]/30 bg-[#E9F7EC] px-2.5 py-1 text-[11.5px] font-semibold text-[#166B2C]">
-                  <UserCheck className="h-3 w-3" />
-                  {application.assigned_staff.user_id === currentUser?.id ? "Claimed by you" : application.assigned_staff.name}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11.5px] font-semibold text-amber-700">
-                  Unclaimed
-                </span>
-              )}
             </div>
-            {claimError && (
-              <p className="mt-2 max-w-lg text-[12.5px] font-medium text-red-600">{claimError}</p>
-            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" icon={Download} loading={downloading} onClick={download}>Biodata PDF</Button>
+            <Button variant="secondary" size="sm" icon={RefreshCw} loading={refreshing} onClick={() => load(true)}>Refresh</Button>
           </div>
         </div>
+      </header>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button onClick={handleDownloadBiodataPdf} disabled={downloadingPdf} className={btnSecondary}>
-            {downloadingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
-            {downloadingPdf ? "Preparing PDF…" : "Download Biodata PDF"}
-          </button>
-          <button onClick={() => loadDetail(true)} className={btnSecondary}>
-            {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Refresh
-          </button>
-
-          {!application.assigned_staff && (
-            <button onClick={handleClaim} disabled={claiming} className={btnPrimary} style={{ background: BRAND }}>
-              {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-              {claiming ? "Claiming…" : "Claim this application"}
-            </button>
-          )}
-
-          {/* Sticky Actions based on status — only available once claimed */}
-          {application.assigned_staff && application.status === "submitted" && (
-            <>
-              <button onClick={() => openModal("reject")} className={btnDanger}>
-                <X className="h-4 w-4" /> Reject
-              </button>
-              {application.application_type === "fresh" && !hasDrivingSchoolCertificate ? (
-                <button
-                  onClick={() => openModal("enroll")}
-                  disabled={!hasMinimumPayment}
-                  className={btnPrimary}
-                  style={{ background: hasMinimumPayment ? "#7c3aed" : undefined }}
-                >
-                  <Building className="h-4 w-4" /> {hasMinimumPayment ? "Enroll in driving school" : "Awaiting ₦10,000 min. payment"}
-                </button>
-              ) : hasDrivingSchoolCertificate ? (
-                <button
-                  onClick={() => openModal("confirm-cert")}
-                  disabled={!hasMinimumPayment}
-                  className={btnPrimary}
-                  style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}
-                >
-                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Certificate on file — verify & route" : "Awaiting ₦10,000 min. payment"}
-                </button>
-              ) : (
-                <button
-                  onClick={() => openModal("approve")}
-                  disabled={!hasMinimumPayment}
-                  className={btnPrimary}
-                  style={{ background: hasMinimumPayment ? BRAND : undefined }}
-                >
-                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Approve & verify" : "Awaiting ₦10,000 min. payment"}
-                </button>
-              )}
-            </>
-          )}
-
-          {application.assigned_staff && application.status === "staff_review" && (
-            <>
-              <button onClick={() => openModal("reject")} className={btnDanger}>
-                <X className="h-4 w-4" /> Reject
-              </button>
-              {isVehicleParticulars ? (
-                <button onClick={() => openModal("release-particulars")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
-                  <Send className="h-4 w-4" /> {isPaid ? "Release to agents" : "Awaiting full payment"}
-                </button>
-              ) : isPci ? (
-                <button onClick={() => setShowPciScheduleDrawer(true)} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
-                  <Calendar className="h-4 w-4" /> {isPaid ? "Schedule visit" : "Awaiting full payment"}
-                </button>
-              ) : application.application_type !== "fresh" ? (
-                <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
-                  <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || application.state_of_residence || "agent"}` : "Awaiting full payment"}
-                </button>
-              ) : hasDrivingSchoolCertificate ? (
-                <button onClick={() => openModal("confirm-cert")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#0d9488" : undefined }}>
-                  <CheckCircle2 className="h-4 w-4" /> {hasMinimumPayment ? "Certificate on file — verify & route" : "Awaiting ₦10,000 min. payment"}
-                </button>
-              ) : (
-                <button onClick={() => openModal("enroll")} disabled={!hasMinimumPayment} className={btnPrimary} style={{ background: hasMinimumPayment ? "#7c3aed" : undefined }}>
-                  <Building className="h-4 w-4" /> {hasMinimumPayment ? "Enroll in driving school" : "Awaiting ₦10,000 min. payment"}
-                </button>
-              )}
-            </>
-          )}
-
-          {application.assigned_staff && (application.status === "driving_school_enrolled" || application.status === "driving_school_graduation") && (
-            <button onClick={() => openModal("upload-cert")} className={btnPrimary} style={{ background: "#0d9488" }}>
-              <Upload className="h-4 w-4" /> Upload certificate
-            </button>
-          )}
-
-          {application.assigned_staff && application.status === "driving_school_certificate_ready" && (
-            <button onClick={() => openModal("route")} disabled={!isPaid} className={btnPrimary} style={{ background: isPaid ? BRAND : undefined }}>
-              <Send className="h-4 w-4" /> {isPaid ? `Route to ${application.lga || "agent"}` : "Awaiting full payment"}
-            </button>
-          )}
-
-          {application.assigned_staff && application.status === "temp_licence_pending_review" && (
-            <button onClick={() => openModal("review-temp-licence")} className={btnPrimary} style={{ background: "#4338ca" }}>
-              <ShieldCheck className="h-4 w-4" /> Review temporary licence
-            </button>
-          )}
-
-          {application.assigned_staff && application.status === "agent_completed" && (
-            <button onClick={() => openModal("final-review")} className={btnPrimary} style={{ background: "#7c3aed" }}>
-              <ShieldCheck className="h-4 w-4" /> Final review
-            </button>
-          )}
-
-          {application.assigned_staff && isPci && application.status === "visit_scheduled" && (
-            <>
-              <Link href={`/staff/physical-condition-inspection/${application.id}`} className={btnPrimary} style={{ background: "#7c3aed" }}>
-                <ShieldCheck className="h-4 w-4" /> Checklist
-              </Link>
-              <button onClick={() => setShowPciScheduleDrawer(true)} className={btnSecondary}>
-                <Calendar className="h-4 w-4" /> Reschedule
-              </button>
-            </>
-          )}
-
-          {application.assigned_staff && isPci && application.status === "awaiting_mechanic_verdict" && (
-            <>
-              <Link href={`/staff/physical-condition-inspection/${application.id}/verdict`} className={btnPrimary} style={{ background: "#7c3aed" }}>
-                <ShieldCheck className="h-4 w-4" /> Record verdict
-              </Link>
-              <button onClick={() => setShowPciScheduleDrawer(true)} className={btnSecondary}>
-                <Calendar className="h-4 w-4" /> Reopen (need more evidence)
-              </button>
-            </>
-          )}
-
-          {application.assigned_staff &&
-            !["tinted_permit", "central_motor_registry", "roadworthiness_express", "vehicle_particulars", "physical_condition_inspection"].includes(application.application_type) &&
-            !application.application_type?.startsWith("number_plate_") &&
-            !application.application_type?.startsWith("vehicle_verification_") &&
-            ["captured", "capturing_completed"].includes(application.status) && (
-            <button onClick={() => openModal("ready-for-pickup")} className={btnPrimary} style={{ background: "#4f46e5" }}>
-              <Send className="h-4 w-4" /> Ready for pickup
-            </button>
-          )}
-
-          {application.assigned_staff && application.status === "awaiting_customer" && application.application_type !== "roadworthiness_express" && (
-            <>
-              <button onClick={() => openModal("push-to-customer")} className={btnSecondary}>
-                <Send className="h-4 w-4" /> Record dispatch
-              </button>
-              <button onClick={() => openModal("confirm-receipt")} className={btnPrimary} style={{ background: BRAND }}>
-                <CheckCircle2 className="h-4 w-4" /> Mark as received
-              </button>
-            </>
-          )}
-
-          {application.status === "awaiting_customer" && application.application_type === "roadworthiness_express" && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-3.5 py-2.5 text-[12.5px] font-medium text-slate-500 ring-1 ring-inset ring-slate-200">
-              <Info className="h-3.5 w-3.5 text-slate-400" /> Certificate issued — waiting on the customer to confirm receipt.
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Service SLA Countdown Banner ─── */}
-      {isPaid && application.sla && !application.sla.is_completed && !hasAgentUploadedAllDocuments(application) && (
-        <div className={`rounded-2xl border p-5 shadow-sm transition-all ${
-          application.sla.is_breached
-            ? "border-rose-300 bg-rose-50/75"
-            : application.sla.is_nearing
-            ? "border-amber-300 bg-amber-50/75"
-            : "border-slate-200 bg-white"
-        }`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3.5">
-              <div className={`rounded-xl p-2.5 shrink-0 ${
-                application.sla.is_breached
-                  ? "bg-rose-100 text-rose-600 animate-pulse"
-                  : application.sla.is_nearing
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-              }`}>
-                {application.sla.is_breached ? (
-                  <Flame className="h-6 w-6" />
-                ) : application.sla.is_nearing ? (
-                  <AlertTriangle className="h-6 w-6" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <div className="space-y-4 lg:order-2 lg:sticky lg:top-24">
+          <Card className={cx("relative overflow-hidden", !step.waiting && "border-cx-brand/40")}>
+            <span className={cx("absolute inset-y-0 left-0 w-1", step.waiting ? "bg-cx-line-strong" : "bg-cx-brand")} aria-hidden />
+            <p className="text-[13px] font-semibold text-cx-muted">{step.waiting ? "Status" : "Next step"}</p>
+            <h2 className="mt-1 text-[19px] font-semibold leading-snug text-cx-ink">{step.title}</h2>
+            {step.body ? <p className="mt-1.5 text-[15px] text-cx-ink-2">{step.body}</p> : null}
+            {p ? (
+              <div className="mt-4">
+                {p.href ? (
+                  <Button size="lg" block icon={p.icon} href={p.href}>{p.label}</Button>
                 ) : (
-                  <Timer className="h-6 w-6" />
+                  <Button size="lg" block icon={p.icon} loading={p.loading} disabled={!!p.blocked} onClick={p.onClick}>{p.label}</Button>
                 )}
+                {p.blocked ? <p className="mt-2 flex items-start gap-1.5 text-[13px] text-cx-amber"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{p.blocked}</p> : null}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[15px] font-bold text-slate-900">
-                    SLA Countdown: {application.sla.service_name}
-                  </h3>
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                    application.sla.is_breached
-                      ? "bg-rose-600 text-white animate-pulse"
-                      : application.sla.is_nearing
-                      ? "bg-amber-500 text-white"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}>
-                    {application.sla.label}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Target turnaround: <strong className="text-slate-800">{application.sla.days_allocated} {application.sla.day_type === "business_days" ? "Working Days (Mon–Fri)" : "Calendar Days"}</strong> • Due by <strong className="text-slate-800">{application.sla.target_deadline ? new Date(application.sla.target_deadline).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "—"}</strong>
-                </p>
-              </div>
-            </div>
+            ) : null}
+          </Card>
 
-            <div className="sm:text-right shrink-0">
-              <p className="text-xs font-semibold text-slate-500">Timeline Progress</p>
-              <p className="text-lg font-black font-mono text-slate-900">
-                {application.sla.days_elapsed} <span className="text-xs font-medium text-slate-400">/ {application.sla.days_allocated} days ({application.sla.percent_elapsed}%)</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mt-3.5 space-y-1">
-            <div className="h-2 w-full rounded-full bg-slate-200/80 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  application.sla.is_breached
-                    ? "bg-rose-600"
-                    : application.sla.is_nearing
-                    ? "bg-amber-500"
-                    : "bg-emerald-500"
-                }`}
-                style={{ width: `${Math.min(100, application.sla.percent_elapsed)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px] text-slate-500 pt-0.5">
-              <span>Started: {new Date(application.sla.start_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-              <span className="font-semibold text-slate-700">{application.sla.days_remaining}d remaining</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manual agent assignment — when routed with no agent assigned */}
-      {application.status === "routed" && !application.assigned_agent_id && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-          <h3 className="flex items-center gap-2 text-[14px] font-bold text-amber-900">
-            <UserCheck className="h-4.5 w-4.5" /> No agent auto-matched — assign one manually
-          </h3>
-          <p className="mt-1 text-[13px] text-amber-800 leading-relaxed">
-            Routing didn't find an eligible agent automatically. Pick an agent below to assign this application directly (showing only available agents capable of handling this specific service).
-          </p>
-
-          {assignError && (
-            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3.5 flex items-start gap-2.5 text-[12.5px] text-red-800 shadow-sm">
-              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-red-900">Assignment Failed</p>
-                <p className="mt-0.5 text-red-700 leading-relaxed">{assignError}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAssignError(null)}
-                className="text-red-400 hover:text-red-600 transition-colors p-0.5"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {loadingEligibleAgents ? (
-            <p className="mt-3 flex items-center gap-2 text-[12.5px] text-amber-700">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading eligible agents…
-            </p>
-          ) : eligibleAgents.filter((a) => a.has_bank_account).length === 0 ? (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-100/60 p-3 text-[12.5px] text-amber-800 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-700 shrink-0" />
-              <span>No eligible agents found capable of handling {(application.application_type || "this service").replace(/_/g, " ")}.</span>
-            </div>
-          ) : (
-            <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <select
-                value={selectedAgentId}
-                onChange={(e) => {
-                  setSelectedAgentId(e.target.value);
-                  setAssignError(null);
-                }}
-                className="w-full sm:w-auto flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/15"
-              >
-                <option value="">Select an agent…</option>
-                {eligibleAgents
-                  .filter((a) => a.has_bank_account)
-                  .map((a) => (
-                    <option key={a.agent_id} value={a.agent_id}>
-                      Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}
-                    </option>
-                  ))}
-              </select>
-              <button onClick={() => handleAssignAgent()} disabled={assigning || !selectedAgentId} className={btnPrimary} style={{ background: BRAND }}>
-                {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Assign agent
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Assigned Agent Card & Reassignment */}
-      {application.assigned_agent_id && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3.5">
-              <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 border border-emerald-100 shrink-0">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-[14px] font-bold text-slate-900">
-                    Assigned Agent: Agent #{application.assigned_agent?.agent_id || application.assigned_agent_id}
-                  </h4>
-                  <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 uppercase">
-                    Assigned
-                  </span>
-                </div>
-                <p className="mt-0.5 text-[12.5px] text-slate-600">
-                  Location: <strong className="text-slate-800">{application.assigned_agent?.state || "—"} / {application.assigned_agent?.lga || "—"}</strong>
-                </p>
-              </div>
-            </div>
-
-            {["routed", "agent_assigned", "agent_accepted"].includes(application.status) && (
-              <div className="shrink-0">
-                {!showReassign ? (
-                  <button
-                    onClick={() => {
-                      setShowReassign(true);
-                      if (eligibleAgents.length === 0) {
-                        setLoadingEligibleAgents(true);
-                        staffGetEligibleAgents(appId).then((res) => {
-                          if (res.data) setEligibleAgents(res.data);
-                          setLoadingEligibleAgents(false);
-                        });
-                      }
-                    }}
-                    className={btnSecondary}
-                    style={{ padding: "0.5rem 0.85rem", fontSize: "12.5px" }}
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" /> Reassign to Another Agent
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setShowReassign(false);
-                      setAssignError(null);
-                    }}
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 underline"
-                  >
-                    Cancel reassignment
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {showReassign && (
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <p className="text-[12.5px] font-medium text-slate-700 mb-2">
-                Select a different agent to route this customer to (showing only available agents capable of handling this specific service):
-              </p>
-
-              {assignError && (
-                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3.5 flex items-start gap-2.5 text-[12.5px] text-red-800 shadow-sm">
-                  <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-red-900">Reassignment Failed</p>
-                    <p className="mt-0.5 text-red-700 leading-relaxed">{assignError}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAssignError(null)}
-                    className="text-red-400 hover:text-red-600 transition-colors p-0.5"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-              {loadingEligibleAgents ? (
-                <p className="flex items-center gap-2 text-[12.5px] text-slate-500">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#28A745]" /> Loading available agents…
-                </p>
-              ) : eligibleAgents.filter((a) => a.agent_id !== application.assigned_agent_id && a.has_bank_account).length === 0 ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-100/60 p-3 text-[12.5px] text-amber-800 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-700 shrink-0" />
-                  <span>No other eligible agents found capable of handling {(application.application_type || "this service").replace(/_/g, " ")}.</span>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-                  <select
-                    value={selectedAgentId}
-                    onChange={(e) => {
-                      setSelectedAgentId(e.target.value);
-                      setAssignError(null);
-                    }}
-                    className="w-full sm:w-auto flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-                  >
-                    <option value="">Select an agent…</option>
-                    {eligibleAgents
-                      .filter((a) => a.agent_id !== application.assigned_agent_id && a.has_bank_account)
-                      .map((a) => (
-                        <option key={a.agent_id} value={a.agent_id}>
-                          Agent #{a.agent_id} — {a.state} / {a.lga}{a.matches_location ? " [Local Area]" : ""}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    onClick={() => handleAssignAgent()}
-                    disabled={assigning || !selectedAgentId}
-                    className={btnPrimary}
-                    style={{ background: BRAND }}
-                  >
-                    {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Confirm Reassignment
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Delivery Address Card — shown for all services requiring delivery (exempt: fresh & renewal DL) */}
-      {hasDeliveryAddress && (
-        <div id="delivery" className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm scroll-mt-24">
-          <div className="flex items-start gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 shadow-sm">
-              <MapPin className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-[13px] font-bold uppercase tracking-wide text-emerald-900">
-                  Delivery Address
-                </h3>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-800">
-                  Required Destination
-                </span>
-              </div>
-              <p className="mt-1.5 text-[14.5px] font-semibold text-slate-900 leading-relaxed">
-                {deliveryAddress}
-              </p>
-              <p className="mt-0.5 text-[12px] text-slate-500">
-                Completed plate numbers, documents, or permits will be dispatched directly to this address.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Vehicle Specifications Card — fully tailored to vehicle services with all 14 vehicle fields */}
-      {isVehicleCentric && (hasVehicleData || vehicle) && (
-        <div id="vehicle-specs" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm scroll-mt-24">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-            <h3 className="text-[13px] font-bold uppercase tracking-wide text-slate-700">
-              Vehicle Specifications
-            </h3>
-            {vPlate ? (
-              <span className="font-mono text-[13px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">
-                {vPlate}
-              </span>
-            ) : (
-              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-                Plate Pending / New Request
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Make & Model</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vMake || "—"} {vModel || ""}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Manufacturing Year</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vYear || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Type</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vType || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">SUV or Saloon Car</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vBodyType || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle Colour</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{vColour || "—"}</span>
-            </div>
-            <div className="col-span-2 sm:col-span-1 lg:col-span-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Chassis / VIN Number</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vChassis || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Former Reg Number</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vFormerReg || "None"}</span>
-            </div>
-            {vehicle?.engine_number && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Engine Number</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{vehicle.engine_number}</span>
-              </div>
-            )}
-            {vehicle?.state && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registration State</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.state}</span>
-              </div>
-            )}
-            {application.use_type && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Use Type</span>
-                <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.use_type}</span>
-              </div>
-            )}
-            {application.is_fancy_plate && application.fancy_plate_number && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fancy Plate Requested</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-bold text-emerald-700">{application.fancy_plate_number}</span>
-              </div>
-            )}
-            {application.previous_owner_details && (
-              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Previous Owner Details</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.previous_owner_details}</span>
-              </div>
-            )}
-            {application.justification && (
-              <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Justification</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.justification}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Dealership Plate — no vehicle at all, own identity fields. Not
-          reusing the vehicle-centric card above (which correctly no-ops
-          here since it's gated on `vehicle`, never populated for this type). */}
-      {application.application_type === "number_plate_dealership" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Dealership</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Dealership name</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.dealership_name || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Registered company</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.is_registered_company ? "Yes" : "No"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
-              <span className="mt-1 block font-mono text-[13.5px] font-bold text-slate-900">{application.nin || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.applicant_email || "—"}</span>
-            </div>
-            {application.residential_address && (
-              <div className="col-span-2 sm:col-span-3">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Address</span>
-                <span className="mt-1 block text-[13.5px] text-slate-700">{application.residential_address}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Roadworthiness Express — bay/slot booking summary. Genuinely new
-          shape (bay location + time slot), not reusing the vehicle-centric
-          card above since RWX's key details are the appointment, not
-          use_type/justification. */}
-      {application.application_type === "roadworthiness_express" && application.rwx_detail && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Booking</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Bay</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.rwx_detail.bay?.name || "—"}</span>
-              <span className="block text-[12px] text-slate-500">{application.rwx_detail.bay?.address}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
-                {application.rwx_detail.booking_date ? new Date(application.rwx_detail.booking_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "—"}
-              </span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Time slot</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.rwx_detail.slot?.label || "—"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle category</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.rwx_detail.vehicle_category?.replace(/_/g, " ")}</span>
-            </div>
-            {vehicle && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{vehicle.make} {vehicle.model} — {vehicle.plate_number}</span>
-              </div>
-            )}
-            {application.rwx_detail.overall_verdict && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Inspection verdict</span>
-                <span className={`mt-1 block text-[13.5px] font-bold capitalize ${application.rwx_detail.overall_verdict === "roadworthy" ? "text-emerald-600" : "text-red-600"}`}>
-                  {application.rwx_detail.overall_verdict.replace(/_/g, " ")}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {application.application_type?.startsWith("vehicle_verification_") && application.verification_detail && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Verification</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Check type</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.verification_detail.check_type?.replace(/_/g, " ")}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.verification_detail.make} {application.verification_detail.model} — {application.verification_detail.plate_number}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Reason</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.verification_detail.reason?.replace(/_/g, " ")}</span>
-            </div>
-            {application.verification_detail.verdict && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Verdict</span>
-                <span className={`mt-1 block text-[13.5px] font-bold capitalize ${["clear", "legitimate_complete"].includes(application.verification_detail.verdict) ? "text-emerald-600" : "text-red-600"}`}>
-                  {application.verification_detail.verdict.replace(/_/g, " ")}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {application.application_type === "physical_condition_inspection" && application.pci_detail && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">Physical Condition Inspection</h3>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Whose vehicle</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.whose_vehicle === "other" ? "Someone else's" : "Mine"}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vehicle</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.make} {application.pci_detail.model} — {application.pci_detail.plate_number}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Category</span>
-              <span className="mt-1 block text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.vehicle_category?.replace(/_/g, " ")}</span>
-            </div>
-            <div className="sm:col-span-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Meeting location</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.pci_detail.location_address}</span>
-            </div>
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Preferred date</span>
-              <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
-                {application.pci_detail.preferred_date ? new Date(application.pci_detail.preferred_date).toLocaleDateString() : "—"}
-                {application.pci_detail.preferred_time ? ` (${application.pci_detail.preferred_time})` : ""}
-              </span>
-            </div>
-
-            {application.pci_detail.confirmed_visit_date && (
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Confirmed visit</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900">
-                  {new Date(application.pci_detail.confirmed_visit_date).toLocaleDateString()}
-                  {application.pci_detail.confirmed_visit_time ? ` (${application.pci_detail.confirmed_visit_time})` : ""}
-                </span>
-              </div>
-            )}
-          </div>
-          {application.pci_detail.verdict && (
-            <div className="mt-3 border-t border-slate-100 pt-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Verdict</span>
-              <p className="mt-1 text-[13.5px] font-bold capitalize text-slate-900">{application.pci_detail.verdict.replace(/_/g, " ")}</p>
-              {application.pci_detail.report_text && <p className="mt-1 text-[12.5px] text-slate-600">{application.pci_detail.report_text}</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Particulars documents — per-item final review, independent of the
-          bundle's own status. Only "agent_completed" items are actionable;
-          approving/rejecting one never touches or blocks its siblings. */}
-      {isVehicleParticulars && (application.items || []).length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-slate-500">
-            Documents in this request ({(application.items || []).length})
-          </h3>
-          <div className="divide-y divide-slate-100">
-            {(application.items || []).map((item) => {
-              const meta = statusMeta(item.status);
-              const finalDoc = (application.documents || []).find((d) => d.doc_type === `${item.document_type}_final`);
-              return (
-                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold capitalize text-slate-900">
-                      {item.document_type?.replace(/_/g, " ")}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate-500">
-                      <span>{koboToNaira(item.price_kobo)}</span>
-                      {item.expiry_date && (
-                        <span>Valid until {new Date(item.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}</span>
-                      )}
-                      {item.status === "rejected" && item.final_review_note && (
-                        <span className="text-red-600">Reason: {item.final_review_note}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-                      {meta.label}
-                    </span>
-                    {finalDoc?.file_url && (
-                      <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(finalDoc.file_url)); }} className={btnGhostLink}>
-                        View <ExternalLink className="h-3.5 w-3.5" />
+          {step.secondary?.length ? (
+            <Card padded={false}>
+              <h2 className="px-4 pb-1 pt-4 text-[15px] font-semibold text-cx-ink">Other actions</h2>
+              <ul className="divide-y divide-cx-line">
+                {step.secondary.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <li key={a.label}>
+                      <button type="button" onClick={a.onClick} className="cx-focus flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left hover:bg-cx-sunken">
+                        <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", a.tone === "red" ? "bg-cx-red-soft text-cx-red" : "bg-cx-sunken text-cx-ink-2")}>
+                          <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className={cx("block text-[15px] font-semibold", a.tone === "red" ? "text-cx-red" : "text-cx-ink")}>{a.label}</span>
+                          {a.description ? <span className="block text-[13px] text-cx-muted">{a.description}</span> : null}
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-cx-muted" aria-hidden />
                       </button>
-                    )}
-                    {item.status === "agent_completed" && (
-                      <button onClick={() => openItemReviewModal(item)} className={btnPrimary} style={{ background: "#7c3aed", padding: "0.5rem 0.9rem" }}>
-                        <ShieldCheck className="h-3.5 w-3.5" /> Final review
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          ) : null}
 
-      {/* Document pickup callout — renewal/reissue/international_permit only
-          surface at this status once the finished document is ready to be
-          collected from the assigned agent's VIO office. */}
-      {["renewal", "reissue", "international_permit"].includes(application.application_type) &&
-        application.status === "awaiting_customer" && (
-        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-              <MapPin className="h-5 w-5 text-indigo-600" />
-            </div>
-            <div>
-              <h3 className="text-[14px] font-bold text-indigo-900">Document ready for pickup</h3>
-              <p className="mt-1 text-[13px] text-indigo-800 leading-relaxed">
-                Collect the finished card from the designated office
-                {application.assigned_agent?.state || application.assigned_agent?.lga
-                  ? ` (${[application.assigned_agent?.state, application.assigned_agent?.lga].filter(Boolean).join(" / ")})`
-                  : ""}
-                .
-              </p>
-            </div>
-          </div>
-          {application.permanent_licence?.document_url && (
-            <button
-              onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(application.permanent_licence.document_url)); }}
-              className={btnSecondary}
+          {DL_TYPES.slice(1).includes(type) && app.status === "awaiting_customer" ? (
+            <Notice
+              title="Document ready for pickup"
+              action={app.permanent_licence?.document_url ? <Button variant="secondary" size="sm" icon={Eye} onClick={() => setPreview(resolveMediaUrl(app.permanent_licence.document_url))}>View the agent's upload</Button> : null}
             >
-              <ImageIcon className="h-3.5 w-3.5" /> View document sent by agent
-            </button>
-          )}
+              Collect the finished card from the agent's office{app.assigned_agent?.lga || app.assigned_agent?.state ? ` (${[app.assigned_agent?.lga, app.assigned_agent?.state].filter(Boolean).join(", ")})` : ""}.
+            </Notice>
+          ) : null}
+
+          <AgentAssignment application={app} onChanged={() => load(true)} />
         </div>
-      )}
 
-      <div className="flex flex-col lg:flex-row items-start gap-8">
-        {/* Sticky Sidebar Navigation */}
-        <aside className="w-full lg:w-56 shrink-0 lg:sticky lg:top-24">
-          <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 text-[13.5px] font-semibold text-slate-600">
-             <a href="#overview" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Overview</a>
-             <a href="#personal" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Applicant Details</a>
-             {hasDeliveryAddress && (
-               <a href="#delivery" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors text-emerald-700">Delivery Address</a>
-             )}
-             {isVehicleCentric && (hasVehicleData || vehicle) && (
-               <a href="#vehicle-specs" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Vehicle Specs</a>
-             )}
-             {isDl && (
-               <>
-                 <a href="#medical" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Medical Info</a>
-                 <a href="#licence" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Licence Details</a>
-                 {(application.temporary_licence || application.permanent_licence) && (
-                   <a href="#licence-issuance" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Licence Issuance</a>
-                 )}
-               </>
-             )}
-             <a href="#documents" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Documents</a>
-             <a href="#processing" className="whitespace-nowrap px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors">Processing</a>
-          </nav>
-        </aside>
-
-        {/* Scrollable Main Content */}
-        <div className="flex-1 min-w-0 space-y-10">
-          
-          {/* Overview */}
-          <section id="overview" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Overview</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 bg-slate-50 rounded-xl p-5 border border-slate-100">
-              <div>
-                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Application Type</span>
-                <span className="mt-1 block text-[13.5px] font-bold text-slate-900 capitalize">{(application.application_type || "fresh").replace(/_/g, " ")}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Service Fee</span>
-                <span className="mt-1 flex items-center gap-1.5 text-[13.5px] font-bold" style={{ color: BRAND }}>
-                  {application.payment_options ? koboToNaira(application.payment_options.amount_kobo) : "₦30,000.00"}
-                  {isPaid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Created At</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-700">
-                  {new Date(application.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              {!isPaid && application.payment_options && (
-                <>
-                  <div>
-                    <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Amount Paid</span>
-                    <span className="mt-1 block text-[13.5px] font-bold text-slate-700">
-                      {koboToNaira(application.payment_options.amount_paid_kobo || 0)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Balance Owed</span>
-                    <span className="mt-1 block text-[13.5px] font-bold text-red-600">
-                      {koboToNaira(application.payment_options.remaining_kobo || 0)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">Payment Due</span>
-                    <span className={`mt-1 flex items-center gap-1.5 text-[13.5px] font-bold ${application.payment_options.is_overdue ? "text-red-600" : "text-slate-700"}`}>
-                      {application.payment_options.is_overdue && <AlertCircle className="h-3.5 w-3.5" />}
-                      {application.payment_options.payment_due_date
-                        ? new Date(application.payment_options.payment_due_date).toLocaleDateString()
-                        : "—"}
-                      {application.payment_options.is_overdue && (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10.5px] font-bold text-red-700">Overdue</span>
-                      )}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-            {!isPaid && application.status === "driving_school_certificate_ready" && application.payment_options && (
-              <p className="mt-3 text-[12.5px] text-slate-500">
-                Certificate verified — this application will automatically route to an agent once the remaining balance is paid in full.
-              </p>
-            )}
-          </section>
-
-          {/* Personal & Origin */}
-          <section id="personal" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Applicant & Contact Details</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-4">
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">First Name</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.first_name || application.applicant_details?.first_name || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Surname</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.last_name || application.applicant_details?.last_name || "—"}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Other Name</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                  {application.middle_name || application.applicant_details?.middle_name || "—"}
-                </span>
-              </div>
-              {vPhone && (
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone Number</span>
-                  <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{vPhone}</span>
-                </div>
-              )}
-              {application.applicant_email && (
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Email</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.applicant_email}</span>
-                </div>
-              )}
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">NIN</span>
-                <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{vNin || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">DOB</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.date_of_birth || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Sex / Gender</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900 capitalize">{application.gender || "—"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA of Residence</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.state_of_residence || "—"} / {application.lga || "—"}</span>
-              </div>
-              {application.state_of_origin && (
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">State / LGA of Origin</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.state_of_origin} / {application.lga_of_origin || "—"}</span>
-                </div>
-              )}
-              {application.nationality && (
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Nationality</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.nationality}</span>
-                </div>
-              )}
-              {application.mothers_maiden_name && (
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Mother's Maiden Name</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.mothers_maiden_name}</span>
-                </div>
-              )}
-              <div className="col-span-2">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Residential Address</span>
-                <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.residential_address || "—"}</span>
-              </div>
-              {hasDeliveryAddress && (
-                <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                    <MapPin className="h-3.5 w-3.5" /> Delivery Address
-                  </span>
-                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{deliveryAddress}</span>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Medical — only for Driver's Licence applications */}
-          {isDl && (
-            <section id="medical" className="scroll-mt-24">
-              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Medical & Physical Characteristics</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Blood Group</span>
-                  <span className="mt-1 block text-[13.5px] font-bold text-red-600">{application.blood_group || "—"}</span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Height</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.height_cm ? `${application.height_cm} cm` : "—"}</span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Vision Acuity</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.vision_acuity_test || "Pending"}</span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Facial Mark</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                    {application.has_facial_mark ? (application.facial_mark_description || "Yes") : "None"}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Disability</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">
-                    {application.has_disability ? (application.disability_description || "Yes") : "None"}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-6">
-                <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-3">Next of Kin</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 bg-slate-50 rounded-xl p-4 border border-slate-100">
-                  <div>
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Name</span>
-                    <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_name || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Relationship</span>
-                    <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_relationship || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Phone</span>
-                    <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.next_of_kin_phone || "—"}</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Licence Details — only for Driver's Licence applications */}
-          {isDl && (
-            <section id="licence" className="scroll-mt-24">
-              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Licence Details</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Licence Class</span>
-                  <span className="mt-1 block text-[13.5px] font-bold text-slate-900">{application.licence_class || "—"}</span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Validity Period</span>
-                  <span className="mt-1 block text-[13.5px] font-semibold text-slate-900">{application.validity_period || "—"}</span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Driving School Cert</span>
-                  <span className="mt-1 block font-mono text-[13.5px] font-semibold text-slate-900">{application.driving_school_certificate_number || "—"}</span>
-                </div>
-                <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Processing State / LGA</span>
-                  <span className="mt-1 flex items-center gap-1 text-[13.5px] font-semibold text-slate-900">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    {application.state_of_residence || "—"} / {application.lga || "—"}
-                  </span>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Licence issuance — temp & permanent card tracking, fresh applications only */}
-          {isDl && (application.temporary_licence || application.permanent_licence) && (
-            <section id="licence-issuance" className="scroll-mt-24">
-              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Licence Issuance</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <StaffLicenceCard title="Temporary licence" licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
-                <StaffLicenceCard title="Permanent licence" licence={application.permanent_licence} onViewDoc={setPreviewDocUrl} />
-              </div>
-            </section>
-          )}
-          {/* Documents */}
-          <section id="documents" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Documents ({uniqueDocuments.length})</h2>
-            {uniqueDocuments.length === 0 ? (
-              <p className="py-3 text-[13px] text-slate-400">Nothing uploaded on this file yet.</p>
-            ) : (
-              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-2">
-                {uniqueDocuments.map((doc, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-4 p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                        <FileText className="h-4.5 w-4.5" />
-                      </div>
-                      <div>
-                        <p className="text-[13.5px] font-bold capitalize text-slate-900">
-                          {doc.doc_type?.replace(/_/g, " ")}
-                        </p>
-                        <p className="text-[11.5px] text-slate-400">
-                          {doc.uploaded_at && new Date(doc.uploaded_at).toLocaleString()}
-                          {doc.status && doc.status !== "pending" && (
-                            <span className={`ml-2 font-semibold ${doc.status === "approved" ? "text-emerald-600" : "text-red-500"}`}>
-                              · {doc.status}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {doc.file_url && (
-                        <button onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(doc.file_url)); }} className={btnGhostLink}>
-                          Preview <ExternalLink className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleReviewDocument(doc.id, "approved")}
-                        disabled={reviewingDocId === doc.id}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors disabled:opacity-50"
-                        title="Approve document"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleReviewDocument(doc.id, "rejected")}
-                        disabled={reviewingDocId === doc.id}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
-                        title="Reject document"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Processing Status */}
-          <section id="processing" className="scroll-mt-24">
-            <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">Processing Status</h2>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Building className="h-4 w-4 text-violet-600" />
-                <h3 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Driving school enrollment</h3>
-              </div>
-              
-              {application.status === "submitted" && application.application_type === "fresh" && (
-                <div className="space-y-2">
-                  <p className="text-[13.5px] leading-relaxed text-slate-600">
-                    Verify the applicant's NIN and biodata against the national database.
-                    {hasMinimumPayment
-                      ? " The customer has met the ₦10,000 minimum deposit, so you can enroll them in driving school using the Enroll button at the top."
-                      : " A minimum payment of ₦10,000 is required before enrolling the customer in driving school."}
-                  </p>
-                  {!hasMinimumPayment && (
-                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-2.5 text-[12.5px] text-amber-800 ring-1 ring-inset ring-amber-200">
-                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-                      <span>Customer has paid {koboToNaira(application.payment_options?.amount_paid_kobo || 0)} of ₦10,000 required minimum.</span>
-                    </div>
-                  )}
-                  {hasMinimumPayment && !isPaid && application.payment_options && (
-                    <div className="flex items-center gap-2 rounded-lg bg-purple-50 p-2.5 text-[12.5px] text-purple-800 ring-1 ring-inset ring-purple-200">
-                      <Building className="h-4 w-4 shrink-0 text-purple-600" />
-                      <span>₦10,000 driving school minimum paid ({koboToNaira(application.payment_options.amount_paid_kobo)}). Remaining balance: {koboToNaira(application.payment_options.remaining_kobo)}.</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {application.status === "submitted" && application.application_type !== "fresh" && (
-                <p className="text-[13.5px] leading-relaxed text-slate-600">
-                  This is a {application.application_type?.replace(/_/g, " ")} application — no driving
-                  school step applies. Verify the applicant's documents, then use the actions at the top
-                  to proceed once payment is confirmed.
-                </p>
-              )}
-
-              {application.status === "staff_review" && application.application_type === "fresh" && !hasDrivingSchoolCertificate && (
-                <div className="space-y-2">
-                  <p className="text-[13.5px] leading-relaxed text-slate-600">
-                    Applicant is verified. {hasMinimumPayment ? "Enroll them in an accredited driving school using the Enroll button at the top to attach the verification slip and start their countdown." : "Awaiting the ₦10,000 minimum deposit before enrollment can proceed."}
-                  </p>
-                  {!hasMinimumPayment && (
-                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-2.5 text-[12.5px] text-amber-800 ring-1 ring-inset ring-amber-200">
-                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-                      <span>Customer has paid {koboToNaira(application.payment_options?.amount_paid_kobo || 0)} of ₦10,000 required minimum.</span>
-                    </div>
-                  )}
-                  {hasMinimumPayment && !isPaid && application.payment_options && (
-                    <div className="flex items-center gap-2 rounded-lg bg-purple-50 p-2.5 text-[12.5px] text-purple-800 ring-1 ring-inset ring-purple-200">
-                      <Building className="h-4 w-4 shrink-0 text-purple-600" />
-                      <span>₦10,000 driving school minimum paid ({koboToNaira(application.payment_options.amount_paid_kobo)}). Remaining balance: {koboToNaira(application.payment_options.remaining_kobo)}.</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {application.status === "staff_review" && application.application_type === "fresh" && hasDrivingSchoolCertificate && (
-                <p className="text-[13.5px] leading-relaxed text-slate-600">
-                  Customer provided this certificate at submission — no enrollment or waiting period
-                  needed. Review it in the <strong>Documents</strong> section below, then use{" "}
-                  <strong>Certificate on file — verify &amp; route</strong> at the top.
-                </p>
-              )}
-
-              {application.status === "staff_review" && application.application_type !== "fresh" && (
-                <p className="text-[13.5px] leading-relaxed text-slate-600">
-                  This is a {application.application_type?.replace(/_/g, " ")} application — no driving
-                  school step applies. Once documents are verified and full payment is received, use{" "}
-                  <strong>Route to {application.lga || "agent"}</strong> at the top to send it to a field agent.
-                </p>
-              )}
-
-              {skipPathCertOnFile && (
-                <div className="rounded-xl border border-slate-200 p-5 bg-slate-50/50">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        Driving school
-                      </span>
-                      <p className="mt-0.5 text-[14px] font-bold text-slate-900">
-                        Certificate provided at submission
-                      </p>
-                      <p className="mt-1 text-[12.5px] text-slate-500">
-                        {application.driving_school?.certificate_received_at
-                          ? `Verified ${new Date(application.driving_school.certificate_received_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}.`
-                          : "Awaiting staff verification — enrollment step skipped."}
-                      </p>
-                    </div>
-                    {application.driving_school?.certificate_url ? (
-                      <button
-                        onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(application.driving_school.certificate_url)); }}
-                        className={btnSecondary}
-                        style={{ padding: "0.4rem 0.75rem" }}
-                      >
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-
-              {(application.status === "driving_school_enrolled" ||
-                application.status === "driving_school_graduation" ||
-                application.status === "driving_school_certificate_ready" ||
-                application.driving_school) &&
-                application.driving_school_enrolled_at && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    {/* Academy card */}
-                    <div className="rounded-xl border border-slate-200 p-5 bg-slate-50/50">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Academy</span>
-                          <p className="mt-0.5 text-[14px] font-bold text-slate-900">
-                            {application.driving_school?.name || "Accredited driving academy"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200/60 pt-4">
-                        <div className="flex items-center gap-2.5">
-                          <ImageIcon className="h-4 w-4 shrink-0 text-slate-400" />
-                          <div>
-                            <p className="text-[12.5px] font-semibold text-slate-800">Verification slip</p>
-                            <p className="text-[11px] text-slate-400">Uploaded at enrollment</p>
-                          </div>
-                        </div>
-                        {verifSlipUrl ? (
-                          <button
-                            onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(verifSlipUrl)); }}
-                            className={btnSecondary}
-                            style={{ padding: "0.4rem 0.75rem" }}
-                          >
-                            <Eye className="h-3.5 w-3.5" /> View
-                          </button>
-                        ) : (
-                          <span className="text-[11.5px] italic text-slate-400">Not attached</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Countdown */}
-                    <div className="rounded-xl border border-slate-200 p-5 bg-slate-50/50">
-                      <div className="mb-4 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" /> 26-day certificate countdown
-                        </span>
-                        <span className={timeLeft.expired ? "text-emerald-600 font-bold" : "text-slate-400 font-bold"}>
-                          {timeLeft.expired ? "Complete" : "In progress"}
-                        </span>
-                      </div>
-
-                      {application.status === "driving_school_graduation" || (timeLeft.expired && application.status === "driving_school_enrolled") ? (
-                        <div className="rounded-lg bg-violet-50 p-4 text-center ring-1 ring-inset ring-violet-200 shadow-sm">
-                          <p className="text-[13.5px] font-bold text-violet-800">🎓 Graduation Stage</p>
-                          <p className="mt-1 text-[12px] text-violet-700">26-day countdown complete. Awaiting the physical certificate from the driving school — upload it using the action button above.</p>
-                        </div>
-                      ) : application.status === "driving_school_certificate_ready" ? (
-                        <div className="rounded-lg bg-emerald-50 p-4 text-center ring-1 ring-inset ring-emerald-200 shadow-sm">
-                          <p className="text-[13.5px] font-bold text-emerald-800">26-day waiting period complete</p>
-                          <p className="mt-1 text-[12px] text-emerald-700">Ready to route to a field agent.</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-4 gap-2 text-center">
-                            {[
-                              ["Days", timeLeft.days],
-                              ["Hrs", timeLeft.hours],
-                              ["Min", timeLeft.minutes],
-                              ["Sec", timeLeft.seconds],
-                            ].map(([lbl, val]) => (
-                              <div key={lbl} className="rounded-xl bg-white border border-slate-200 py-2.5 shadow-sm">
-                                <span className="block font-mono text-[20px] font-bold text-slate-900">{val}</span>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                  {lbl}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          <p className="mt-3 text-center text-[12px] text-slate-500">
-                            Target: <span className="font-mono font-bold text-slate-700">{new Date(application.driving_school_target_date || application.driving_school?.target_date || Date.now()).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</span>
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-                    <p className="text-[13px] text-slate-500">
-                      {application.status === "driving_school_graduation"
-                        ? "🎓 Graduation stage: Upload the driving school certificate using the action button at the top to move this application forward."
-                        : application.status === "driving_school_enrolled"
-                        ? "Next: Upload the graduation certificate using the actions at the top."
-                        : "Next: Route this application to a field agent using the actions at the top."}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {!["submitted", "staff_review", "driving_school_enrolled", "driving_school_graduation", "driving_school_certificate_ready"].includes(application.status) &&
-                !application.driving_school && (
-                  <p className="text-[13px] text-slate-500">
-                    Not applicable — driving school enrollment doesn't apply to this application's current status (
-                    {statusMeta(application.status).label.toLowerCase()}), or it's a non-fresh application type.
-                  </p>
-                )}
-
-              {application.status === "temp_licence_pending_review" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  The assigned agent has issued a temporary licence and it's awaiting your review.
-                  Check the card details in the <strong>Licence Issuance</strong> section above, then
-                  use <strong>Review temporary licence</strong> at the top to approve or reject it.
-                  Approving is what makes it visible to the customer.
-                </p>
-              )}
-              {application.status === "temp_licence_issued" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  Temporary licence approved and visible to the customer. The agent can upload the
-                  permanent card at any point from here.
-                </p>
-              )}
-              {application.status === "agent_completed" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  The assigned agent has uploaded the permanent licence card. Check the card details
-                  in the <strong>Licence Issuance</strong> section above, then use the{" "}
-                  <strong>Final review</strong> button at the top to approve or reject it. Approving
-                  moves this to
-                  <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">awaiting_customer</code>.
-                </p>
-              )}
-              {application.status === "visit_scheduled" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  The field mechanic's link is live — share it over WhatsApp if you haven't already
-                  (visible in the reschedule drawer). Use <strong>Checklist</strong> at the top to watch
-                  items land and confirm completeness once every item is captured.
-                </p>
-              )}
-              {application.status === "awaiting_mechanic_verdict" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  Checklist completeness confirmed — the mechanic's link is now closed. Once the senior
-                  reviewing mechanic gives their verdict over WhatsApp, use{" "}
-                  <strong>Record verdict</strong> at the top to release the report to the customer.
-                </p>
-              )}
-              {application.status === "expired" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-red-700">
-                  This licence's validity period has elapsed. The customer has been prompted to apply
-                  for a renewal — no further staff action needed on this application.
-                </p>
-              )}
-              {application.status === "staff_final_review" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  Final review recorded — this application is finishing its transition to
-                  <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">awaiting_customer</code>.
-                  Refresh to check its latest status.
-                </p>
-              )}
-              {application.status === "awaiting_customer" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-slate-600">
-                  Use <strong>Record dispatch</strong> at the top to log who dispatched it and any
-                  tracking note for the customer, and <strong>Mark as received</strong> once you've
-                  physically received the finished document (from the agent or courier) to close
-                  out this application and notify the customer.
-                  {application.dispatched_at && (
-                    <span className="mt-2 block text-[12.5px] text-slate-500">
-                      Dispatched by <strong className="text-slate-700">{application.dispatched_by || "—"}</strong> on{" "}
-                      {new Date(application.dispatched_at).toLocaleString()}.
-                      {application.tracking_note && <> Note: {application.tracking_note}</>}
-                    </span>
-                  )}
-                </p>
-              )}
-              {application.status === "completed" && (
-                <p className="mt-4 border-t border-slate-100 pt-4 text-[13.5px] leading-relaxed text-emerald-700">
-                  Completed — staff confirmed physical receipt of the licence document and the
-                  customer has been notified.
-                </p>
-              )}
-            </div>
-          </section>
-
-          {/* Direct Agent Chat Panel */}
-          {application.assigned_agent_id && (
-            <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-[14px] font-bold uppercase tracking-wider text-slate-900 mb-4 border-b border-slate-200 pb-2">
-                Assigned Agent Communication
-              </h2>
+        <div className="space-y-4 lg:order-1">
+          <PaymentSection application={app} isPaid={isPaid} />
+          <DrivingSchoolSection application={app} timeLeft={timeLeft} onPreview={setPreview} />
+          <ServiceDetails application={app} vehicle={vehicle} />
+          {type === "vehicle_particulars" ? <ParticularsItems application={app} onPreview={setPreview} onReview={(item) => setAction({ type: "particulars-item-review", item })} /> : null}
+          {isVehicleCentric ? <VehicleSection application={app} vehicle={vehicle} /> : null}
+          <ApplicantSection application={app} isDl={isDl} />
+          {isDl ? <LicenceSection application={app} onPreview={setPreview} /> : null}
+          <DocumentsSection application={app} onPreview={setPreview} onChanged={() => load(true)} />
+          <TimelineSection application={app} />
+          {app.assigned_agent_id ? (
+            <Card>
+              <h2 className="mb-3 text-[16px] font-semibold text-cx-ink">Chat with the agent</h2>
               <AgentChatPanel
                 myRole="support"
-                headerLabel="Chat with Assigned Field Agent"
-                loadThread={() => getSupportAgentChat(application.id)}
-                sendMessage={(body) => sendSupportAgentChatMessage(application.id, { body })}
+                headerLabel="Chat with the assigned agent"
+                loadThread={() => getSupportAgentChat(app.id)}
+                sendMessage={(body) => sendSupportAgentChatMessage(app.id, { body })}
               />
-            </div>
-          )}
+            </Card>
+          ) : null}
         </div>
       </div>
 
-      {/* Action modal */}
-      {modalType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <h3 className="text-[16px] font-bold text-slate-900">
-                {modalType === "approve" && "Approve application"}
-                {modalType === "reject" && "Reject application"}
-                {modalType === "enroll" && "Enroll in driving school"}
-                {modalType === "upload-cert" && "Upload certificate"}
-                {modalType === "confirm-cert" && "Confirm driving school certificate"}
-                {modalType === "review-temp-licence" && "Review temporary licence"}
-                {modalType === "route" && "Route to field agent"}
-                {modalType === "final-review" && "Final review"}
-                {modalType === "push-to-customer" && "Push to customer"}
-                {modalType === "ready-for-pickup" && "Mark ready for pickup"}
-                {modalType === "confirm-receipt" && "Mark as received"}
-                {modalType === "release-particulars" && "Release to agents"}
-                {modalType === "particulars-item-review" && "Final review"}
-                {modalType === "notice" && "Done"}
-              </h3>
-              <button
-                onClick={() => setModalType(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {actionError && (
-              <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-[12.5px] text-red-700 ring-1 ring-inset ring-red-200">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                {actionError}
-              </div>
-            )}
-
-            {modalType === "approve" && (
-              <div className="space-y-3">
-                <p className="text-[12.5px] text-slate-500">
-                  Confirm identity and NIN checks for{" "}
-                  <strong className="text-slate-800">
-                    {`Surname: ${application.last_name || application.applicant_details?.last_name || "—"}, First Name: ${application.first_name || application.applicant_details?.first_name || "—"}`}
-                  </strong>
-                  .
-                </p>
-                <div>
-                  <label className={fieldLabel}>Verification note</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder="e.g. NIN and biodata checked against the national database, all fields match."
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "reject" && (
-              <div className="space-y-3">
-                <p className="text-[12.5px] text-slate-500">The applicant will see this reason and can resubmit.</p>
-                <div>
-                  <label className={fieldLabel}>Reason (required)</label>
-                  <textarea
-                    rows={3}
-                    value={reasonInput}
-                    onChange={(e) => setReasonInput(e.target.value)}
-                    placeholder="e.g. NIN slip is blurry, date of birth doesn't match."
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "enroll" && (
-              <div className="space-y-3.5">
-                <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                  <span>
-                    The graduation target date is calculated automatically — 26 business days from
-                    today, excluding weekends and Nigerian public holidays.
-                  </span>
-                </div>
-                <div>
-                  <label className={fieldLabel}>Verification slip</label>
-                  <UploadField
-                    fileName={verifFileName}
-                    hasValue={!!verifImageInput}
-                    onChange={(file) => {
-                      setVerifFileName(file?.name || "");
-                      readFileAsDataUrl(file, setVerifImageInput);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "upload-cert" && (
-              <div>
-                <label className={fieldLabel}>Graduation certificate</label>
-                <UploadField
-                  fileName={certFileName}
-                  hasValue={!!certUrlInput}
-                  onChange={(file) => {
-                    setCertFileName(file?.name || "");
-                    readFileAsDataUrl(file, setCertUrlInput);
-                  }}
-                />
-              </div>
-            )}
-
-            {modalType === "confirm-cert" && (
-              <div className="space-y-3.5">
-                <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                  <span>
-                    The applicant already attached a driving school certificate at submission —
-                    no enrollment or waiting period needed. Review it in the{" "}
-                    <a href="#documents" onClick={() => setModalType(null)} className="font-semibold underline" style={{ color: BRAND }}>
-                      Documents
-                    </a>{" "}
-                    section, then confirm to route this application straight to an agent in{" "}
-                    <strong className="text-slate-800">{application.lga || "the applicant's LGA"}</strong>.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {modalType === "route" && (
-              <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>
-                  This offers the job to active agents in <strong className="text-slate-800">{application.lga || "this LGA"}</strong>.
-                  {application.application_type === "tinted_permit"
-                    ? " Once one accepts, they'll begin processing the permit."
-                    : application.application_type?.startsWith("number_plate_")
-                    ? " Once one accepts, they'll begin processing the plate."
-                    : " Once one accepts, biometric capture scheduling begins."}
-                </span>
-              </div>
-            )}
-
-            {modalType === "review-temp-licence" && (
-              <div className="space-y-3.5">
-                <p className="text-[12.5px] text-slate-500">
-                  The agent submitted a temporary licence for this applicant. Approving makes it
-                  visible on the customer's dashboard; rejecting sends the application back to the
-                  agent to re-submit.
-                </p>
-                <LicenceSummary licence={application.temporary_licence} onViewDoc={setPreviewDocUrl} />
-                <div>
-                  <label className={fieldLabel}>Decision</label>
-                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder={decisionInput === "rejected" ? "e.g. Licence number doesn't match the applicant's records." : "e.g. Verified against applicant details."}
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "final-review" && application.application_type === "roadworthiness_express" && (
-              <div className="space-y-3.5">
-                <p className="text-[12.5px] text-slate-500">
-                  This is an <strong className="text-slate-800">integrity check</strong> — confirm every
-                  item below was recorded properly with a matching photo, not a re-decision of pass/fail
-                  (the agent's overall verdict is{" "}
-                  <strong className={application.rwx_detail?.overall_verdict === "roadworthy" ? "text-emerald-600" : "text-red-600"}>
-                    {application.rwx_detail?.overall_verdict?.replace(/_/g, " ") || "—"}
-                  </strong>
-                  ). Approving issues a certificate on a roadworthy verdict, or records the fail with a
-                  7-day free re-inspection window. Rejecting sends it back to the agent to redo — use
-                  this only if the submission itself looks wrong (mismatched photos, obviously
-                  incomplete), not because you disagree with the verdict.
-                </p>
-                <div className="space-y-2">
-                  {(application.rwx_checklist_items || []).map((item) => (
-                    <div key={item.item_key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <div>
-                        <p className="text-[12.5px] font-semibold text-slate-800 capitalize">{item.item_key.replace(/_/g, " ")}</p>
-                        {item.notes && <p className="text-[11px] text-slate-500">{item.notes}</p>}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${item.result === "pass" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                          {item.result || "—"}
-                        </span>
-                        {item.evidence_url && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(item.evidence_url)); }}
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
-                          >
-                            <ImageIcon className="h-3 w-3" /> Photo
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <label className={fieldLabel}>Decision</label>
-                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder={decisionInput === "rejected" ? "e.g. Tyre photo doesn't match the vehicle on file." : "e.g. All items verified against the photos."}
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "final-review" && application.application_type?.startsWith("vehicle_verification_") && (
-              <div className="space-y-3.5">
-                <p className="text-[12.5px] text-slate-500">
-                  Confirm the agent's evidence actually supports their verdict before releasing it —
-                  the released verdict is{" "}
-                  <strong className={["clear", "legitimate_complete"].includes(application.verification_detail?.verdict) ? "text-emerald-600" : "text-red-600"}>
-                    {application.verification_detail?.verdict?.replace(/_/g, " ") || "—"}
-                  </strong>
-                  . Approving publishes it (customer gets a shareable verification code and report).
-                  Rejecting sends it back to the agent to redo.
-                </p>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 space-y-1.5 text-[12.5px]">
-                  <p><span className="font-semibold text-slate-500">Vehicle:</span> {application.verification_detail?.make} {application.verification_detail?.model} — {application.verification_detail?.plate_number}</p>
-                  {application.verification_detail?.check_type === "registration_history" ? (
-                    <>
-                      <p><span className="font-semibold text-slate-500">Registered:</span> {application.verification_detail?.is_registered ? "Yes" : "No"}</p>
-                      <p><span className="font-semibold text-slate-500">Reported stolen:</span> {application.verification_detail?.reported_stolen ? "Yes" : "No"}</p>
-                      <p><span className="font-semibold text-slate-500">Outstanding fines:</span> {application.verification_detail?.has_fines ? "Yes" : "No"}</p>
-                      {application.verification_detail?.fine_details && <p><span className="font-semibold text-slate-500">Fine details:</span> {application.verification_detail.fine_details}</p>}
-                    </>
-                  ) : null}
-                  {application.verification_detail?.notes && <p><span className="font-semibold text-slate-500">Agent notes:</span> {application.verification_detail.notes}</p>}
-                </div>
-                {(application.documents || []).filter((d) => d.doc_type === "vv_registry_evidence" || d.doc_type === "vv_customs_evidence" || d.doc_type === "customs_duty_certificate").map((d, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(d.file_url)); }}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-100"
-                  >
-                    <ImageIcon className="h-3 w-3" /> View {d.doc_type.replace(/_/g, " ")}
-                  </button>
-                ))}
-                <div>
-                  <label className={fieldLabel}>Decision</label>
-                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder={decisionInput === "rejected" ? "e.g. Evidence screenshot doesn't match the plate on file." : "e.g. Evidence verified against the recorded verdict."}
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "final-review" && application.application_type === "central_motor_registry" && (
-              <div className="space-y-3.5">
-                <p className="text-[12.5px] text-slate-500">
-                  Confirm the agent's completion document actually shows the vehicle registered on
-                  the ECMR before releasing it. Approving moves the
-                  application to <strong className="text-slate-800">awaiting_customer</strong>.
-                  Rejecting sends it back to the agent to redo.
-                </p>
-                {(application.documents || []).filter((d) => d.doc_type === "central_registry_certificate").map((d, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(d.file_url)); }}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11.5px] font-semibold text-slate-600 hover:bg-slate-100"
-                  >
-                    <ImageIcon className="h-3 w-3" /> View completion document
-                  </button>
-                ))}
-                <div>
-                  <label className={fieldLabel}>Decision</label>
-                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder={decisionInput === "rejected" ? "e.g. Document doesn't clearly show the registry entry." : "e.g. Registry document verified against the vehicle."}
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "final-review" && application.application_type !== "roadworthiness_express" && !application.application_type?.startsWith("vehicle_verification_") && application.application_type !== "central_motor_registry" && (
-              <div className="space-y-3.5">
-                <p className="text-[12.5px] text-slate-500">
-                  Confirm the completed job ({application.application_type === "tinted_permit" ? "the tinted permit" : application.application_type?.startsWith("number_plate_") ? "the number plate" : "the permanent licence card"}) checks out. Approving moves
-                  the application to <strong className="text-slate-800">awaiting_customer</strong> —
-                  from there, use <strong>Mark as received</strong> once the finished document is
-                  physically in hand to close it out and notify the customer. Rejecting sends it
-                  back to the agent.
-                </p>
-                <LicenceSummary licence={application.permanent_licence} onViewDoc={setPreviewDocUrl} />
-                <div>
-                  <label className={fieldLabel}>Decision</label>
-                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder={decisionInput === "rejected" ? "e.g. Card photo is blurry, re-upload needed." : "e.g. Finished card verified against application details."}
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "push-to-customer" && (
-              <div className="space-y-3">
-                <p className="text-[12.5px] text-slate-500">
-                  Record dispatch details for this licence — who dispatched it and any tracking note
-                  for the customer to see.
-                </p>
-                <div>
-                  <label className={fieldLabel}>Dispatched by</label>
-                  <input
-                    value={dispatchedByInput}
-                    onChange={(e) => setDispatchedByInput(e.target.value)}
-                    placeholder="e.g. Ikeja processing desk"
-                    className={inputBase}
-                  />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Tracking note</label>
-                  <textarea
-                    rows={3}
-                    value={trackingNoteInput}
-                    onChange={(e) => setTrackingNoteInput(e.target.value)}
-                    placeholder="e.g. Available for collection at the Ikeja VIO office from Monday."
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "ready-for-pickup" && (
-              <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>
-                  This notifies the customer over SMS and WhatsApp that their physical licence card
-                  is ready for pickup at the assigned agent's VIO office.
-                </span>
-              </div>
-            )}
-
-            {modalType === "confirm-receipt" && (
-              <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>
-                  Confirms you've physically received the finished licence document (from the agent
-                  or courier) and closes out this application. The customer will be notified over
-                  SMS and WhatsApp that it's complete.
-                </span>
-              </div>
-            )}
-
-            {modalType === "release-particulars" && (
-              <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 p-3.5 text-[12.5px] text-slate-600 ring-1 ring-inset ring-slate-200">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>
-                  This offers each document in this bundle to agents eligible for that specific
-                  document type — different documents can go to different agents. Once an agent
-                  accepts an item, they begin working on it independently of the rest of the bundle.
-                </span>
-              </div>
-            )}
-
-            {modalType === "particulars-item-review" && selectedParticularsItem && (
-              <div className="space-y-3.5">
-                <p className="text-[12.5px] text-slate-500">
-                  Confirm the finished{" "}
-                  <strong className="text-slate-800">{selectedParticularsItem.document_type?.replace(/_/g, " ")}</strong>{" "}
-                  checks out. Approving sets its expiry date and counts toward completing this bundle;
-                  it never affects the other documents in this request. Rejecting sends it back to the
-                  same agent to re-upload.
-                </p>
-                {(() => {
-                  const finalDoc = (application.documents || []).find((d) => d.doc_type === `${selectedParticularsItem.document_type}_final`);
-                  return finalDoc?.file_url ? (
-                    <button
-                      onClick={(e) => { e.preventDefault(); setPreviewDocUrl(resolveMediaUrl(finalDoc.file_url)); }}
-                      className={btnSecondary}
-                      style={{ padding: "0.4rem 0.75rem" }}
-                    >
-                      <Eye className="h-3.5 w-3.5" /> View submitted document
-                    </button>
-                  ) : null;
-                })()}
-                <div>
-                  <label className={fieldLabel}>Decision</label>
-                  <DecisionToggle value={decisionInput} onChange={setDecisionInput} />
-                </div>
-                <div>
-                  <label className={fieldLabel}>Note {decisionInput === "rejected" ? "(required)" : "(optional)"}</label>
-                  <textarea
-                    rows={3}
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder={decisionInput === "rejected" ? "e.g. Document is blurry, re-upload needed." : "e.g. Verified against application details."}
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            )}
-
-            {modalType === "notice" && <p className="text-[13px] text-slate-600">{noticeMessage}</p>}
-
-            <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
-              {modalType !== "notice" ? (
-                <>
-                  <button onClick={() => setModalType(null)} disabled={actionLoading} className={btnSecondary}>
-                    Cancel
-                  </button>
-                  <button onClick={handleConfirmAction} disabled={actionLoading} className={btnPrimary} style={{ background: BRAND }}>
-                    {actionLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    {actionLoading ? "Saving…" : "Confirm"}
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setModalType(null)} className={btnPrimary} style={{ background: BRAND }}>
-                  Close
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPciScheduleDrawer && (
-        <PciScheduleDrawer
-          application={application}
-          onClose={() => setShowPciScheduleDrawer(false)}
-          onSuccess={async () => {
-            setShowPciScheduleDrawer(false);
-            await loadDetail(true);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * Staff confirming/rescheduling/reopening a PCI visit — same visual pattern
- * as the customer-facing RwxRescheduleModal (app/dashboard/apply/[id]/
- * page.jsx), but plain date/time controls instead of a bay/slot picker
- * (PCI has no bays), and legal from three different statuses (first
- * schedule, reschedule, reopen) rather than one. Deliberately its own
- * component rather than another modalType branch — this form has more
- * fields than the shared single-note modal above supports.
- */
-function PciScheduleDrawer({ application, onClose, onSuccess }) {
-  const isReschedule = application.status === "visit_scheduled";
-  const isReopen = application.status === "awaiting_mechanic_verdict";
-  const detail = application.pci_detail || {};
-
-  const [confirmedDate, setConfirmedDate] = useState(
-    (detail.confirmed_visit_date || detail.preferred_date || "").slice(0, 10)
-  );
-  const [confirmedTime, setConfirmedTime] = useState(detail.confirmed_visit_time || detail.preferred_time || "");
-  const [regenerateLink, setRegenerateLink] = useState(false);
-  const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!confirmedDate) {
-      setError("Pick a visit date to continue.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    const res = await schedulePciVisit(application.id, {
-      confirmed_date: confirmedDate,
-      confirmed_time: confirmedTime || undefined,
-      regenerate_link: regenerateLink,
-      note: note.trim() || undefined,
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    if (res.data?.mechanic_link_path) {
-      setResult(res.data);
-      return;
-    }
-    onSuccess();
-  };
-
-  // Already a full URL — the backend builds it from FRONTEND_BASE_URL
-  // (app/routers/staff.py), not a path relative to this app's own origin.
-  const linkUrl = result?.mechanic_link_path || null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-[2px]" onClick={result ? undefined : onClose}>
-      <div className="relative flex h-full w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-          <div>
-            <h2 className="text-[16px] font-bold text-[#111111]">
-              {isReopen ? "Reopen for more evidence" : isReschedule ? "Reschedule visit" : "Schedule visit"}
-            </h2>
-            <p className="mt-0.5 text-[12.5px] text-slate-500">
-              Booking #{application.id} — {isReopen ? "clears the completeness flag and re-opens the mechanic's link." : "share the link with your field mechanic over WhatsApp."}
-            </p>
-          </div>
-          <button onClick={result ? onSuccess : onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {result ? (
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-            <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
-              <CheckCircle2 className="h-4.5 w-4.5 shrink-0" /> Visit confirmed. Send this link to the field mechanic over WhatsApp:
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="break-all font-mono text-[12.5px] text-slate-700">{linkUrl}</p>
-              {typeof navigator !== "undefined" && navigator.clipboard && (
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(linkUrl)}
-                  className={`${btnSecondary} mt-3`}
-                >
-                  Copy link
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-            {error && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[13px] text-red-700">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className={fieldLabel}>Visit date</label>
-                <input type="date" value={confirmedDate} onChange={(e) => setConfirmedDate(e.target.value)} className={inputBase} />
-              </div>
-              <div>
-                <label className={fieldLabel}>Visit time (optional)</label>
-                <input type="time" value={confirmedTime} onChange={(e) => setConfirmedTime(e.target.value)} className={inputBase} />
-              </div>
-            </div>
-
-            {!isReopen && (
-              <label className="flex items-center gap-2 text-[12.5px] font-medium text-slate-600">
-                <input type="checkbox" checked={regenerateLink} onChange={(e) => setRegenerateLink(e.target.checked)} className="rounded border-slate-300" />
-                Generate a fresh link {isReschedule ? "(the mechanic's current link stays valid otherwise)" : ""}
-              </label>
-            )}
-
-            <div>
-              <label className={fieldLabel}>Note (optional)</label>
-              <textarea
-                rows={2}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={isReopen ? "e.g. Engine bay photos are too dark, need re-shoots." : "e.g. Customer confirmed this date by phone."}
-                className={inputBase}
-              />
-            </div>
-          </form>
-        )}
-
-        {!result && (
-          <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-            <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
-            <button type="button" onClick={handleSubmit} disabled={submitting} className={btnPrimary} style={{ background: BRAND }}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {submitting ? "Saving…" : isReopen ? "Reopen visit" : isReschedule ? "Confirm new date" : "Confirm & get link"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-const btnGhostLink =
-  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors shrink-0";
-
-function DecisionToggle({ value, onChange }) {
-  return (
-    <div className="flex gap-2">
-      <button
-        type="button"
-        onClick={() => onChange("approved")}
-        className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors ${
-          value === "approved" ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-        }`}
-      >
-        Approve
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("rejected")}
-        className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors ${
-          value === "rejected" ? "border-red-300 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-        }`}
-      >
-        Reject
-      </button>
-    </div>
-  );
-}
-
-function LicenceSummary({ licence, onViewDoc }) {
-  if (!licence) return null;
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-[12.5px]">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Licence number</span>
-          <span className="font-mono font-semibold text-slate-800">{licence.licence_number || "—"}</span>
-        </div>
-        <div>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Expiry date</span>
-          <span className="font-semibold text-slate-800">{licence.expiry_date ? new Date(licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "—"}</span>
-        </div>
-      </div>
-      {licence.document_url && (
-        <button onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(licence.document_url)); }} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
-          <Eye className="h-3.5 w-3.5" /> View submitted card
-        </button>
-      )}
-    </div>
-  );
-}
-
-const LICENCE_REVIEW_TONE = {
-  pending: "bg-amber-50 text-amber-700 ring-amber-200",
-  approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  rejected: "bg-red-50 text-red-700 ring-red-200",
-};
-
-function StaffLicenceCard({ title, licence, onViewDoc }) {
-  if (!licence) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-200 p-4">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</span>
-        <p className="mt-1 text-[13px] text-slate-400">Not issued yet.</p>
-      </div>
-    );
-  }
-  const tone = LICENCE_REVIEW_TONE[licence.review_status] || "bg-slate-100 text-slate-600 ring-slate-200";
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</span>
-        {licence.review_status && (
-          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold capitalize ring-1 ring-inset ${tone}`}>
-            {licence.review_status}
-          </span>
-        )}
-      </div>
-      <p className="mt-1 font-mono text-[14px] font-bold text-slate-900">{licence.licence_number || "—"}</p>
-      <p className="mt-1 text-[12px] text-slate-500">
-        {licence.expiry_date ? `Valid until ${new Date(licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}` : "No expiry date recorded"}
-      </p>
-      {licence.is_expired && <p className="mt-1 text-[11.5px] font-semibold text-red-600">Expired</p>}
-      {licence.document_url && (
-        <button onClick={(e) => { e.preventDefault(); onViewDoc(resolveMediaUrl(licence.document_url)); }} className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold hover:underline" style={{ color: BRAND }}>
-          <Eye className="h-3.5 w-3.5" /> View document
-        </button>
-      )}
-    </div>
-  );
-}
-
-function UploadField({ fileName, hasValue, onChange }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3.5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${hasValue ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"}`}>
-          <ImageIcon className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-[12.5px] font-semibold text-slate-800">
-            {hasValue ? fileName || "File attached" : "Nothing attached yet"}
-          </p>
-          <p className="text-[11px] text-slate-400">{hasValue ? "Ready to submit" : "Required to continue"}</p>
-        </div>
-      </div>
-      <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-[12px] font-semibold text-white hover:bg-slate-700">
-        <Upload className="h-3.5 w-3.5" />
-        {hasValue ? "Replace" : "Upload"}
-        <input type="file" accept="image/*,.pdf" onChange={(e) => onChange(e.target.files?.[0])} className="hidden" />
-      </label>
+      <ActionSheet
+        type={action?.type}
+        item={action?.item}
+        application={app}
+        onClose={() => setAction(null)}
+        onPreview={setPreview}
+        onDone={(title) => {
+          setAction(null);
+          pushToast({ tone: "success", title, body: `Application #${app.id} updated.` });
+          load(true);
+        }}
+      />
+      <PciScheduleSheet
+        open={pciOpen}
+        application={app}
+        onClose={() => setPciOpen(false)}
+        onDone={() => {
+          setPciOpen(false);
+          pushToast({ tone: "success", title: "Visit saved" });
+          load(true);
+        }}
+      />
     </div>
   );
 }
