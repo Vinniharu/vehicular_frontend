@@ -112,7 +112,7 @@ export default function FastTrackPricingCard({ stateId, open, onToggle }) {
                           {r.source === "default" ? <Badge tone="neutral">System default</Badge> : null}
                           {r.source === "inherited" ? <Badge tone="neutral">From general</Badge> : null}
                           {r.source === "state" ? <Badge tone="amber">This state's fee</Badge> : null}
-                          {!r.active ? <Badge tone="neutral">Off</Badge> : null}
+                          {!r.active ? <Badge tone="red">Not offered</Badge> : null}
                         </div>
                       </div>
                       <span className="w-28 shrink-0 text-right text-[15px] font-semibold text-cx-ink">{formatNaira(r.kobo)}</span>
@@ -147,8 +147,14 @@ export default function FastTrackPricingCard({ stateId, open, onToggle }) {
             <Switch
               checked={active}
               onChange={setActive}
-              label="Use this fee"
-              description={active ? "Customers who pick Fast Track pay this fee." : stateId == null ? "Ignored — the system default fee is charged." : "Ignored — the general fee is charged."}
+              label="Offer Fast Track"
+              description={
+                active
+                  ? "Customers can choose Fast Track and pay this fee."
+                  : stateId == null
+                  ? "Off — customers won't see Fast Track for this service (unless a state turns it on)."
+                  : "Off — customers in this state won't see Fast Track for this service."
+              }
             />
           </div>
         </div>

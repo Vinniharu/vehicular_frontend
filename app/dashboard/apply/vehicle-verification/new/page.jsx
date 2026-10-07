@@ -134,12 +134,18 @@ export default function VehicleVerificationNewApplicationPage() {
   useEffect(() => {
     if (form.state_id) {
       getFastTrackPricingPublic("vehicle_verification", form.state_id).then((res) => {
-        if (res.data) setFastTrackInfo(res.data);
+        setFastTrackInfo(res.data || null);
       });
     }
   }, [form.state_id]);
 
-  const fastTrackSurchargeKobo = fastTrackInfo?.price_kobo ?? 1000000; // ₦10,000 only while the live price loads; a ₦0 price stays ₦0
+  // Fast Track is only offered when the backend says so (admin can switch it
+  // off per service/state); a failed lookup hides it rather than guessing a price.
+  const fastTrackAvailable = !!fastTrackInfo && fastTrackInfo.available !== false;
+  const fastTrackSurchargeKobo = fastTrackAvailable ? fastTrackInfo.price_kobo ?? 0 : 0;
+  useEffect(() => {
+    if (!fastTrackAvailable && processingSpeed !== "normal") setProcessingSpeed("normal");
+  }, [fastTrackAvailable, processingSpeed]);
   const totalFeeKobo = priceKobo != null ? (priceKobo + (processingSpeed === "fast_track" ? fastTrackSurchargeKobo : 0)) : null;
 
   const isCustomsDuty = checkType === "customs_duty";
@@ -531,13 +537,15 @@ export default function VehicleVerificationNewApplicationPage() {
             </div>
           </div>
 
-          <ProcessingSpeedSelector
-            value={processingSpeed}
-            onChange={setProcessingSpeed}
-            fastTrackPriceKobo={fastTrackInfo?.price_kobo ?? 1000000}
-            standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
-            fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
-          />
+          {fastTrackAvailable ? (
+            <ProcessingSpeedSelector
+              value={processingSpeed}
+              onChange={setProcessingSpeed}
+              fastTrackPriceKobo={fastTrackSurchargeKobo}
+              standardTurnaround={fastTrackInfo?.standard_turnaround_label ?? "3–5 business days"}
+              fastTrackTurnaround={fastTrackInfo?.turnaround_label ?? "24–48 hours"}
+            />
+          ) : null}
 
           <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-sm font-bold text-cx-ink">Payment</h2>

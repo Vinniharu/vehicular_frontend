@@ -7,7 +7,7 @@ import { koboToNaira } from "@/lib/api";
 export default function ProcessingSpeedSelector({
   value = "normal",
   onChange,
-  fastTrackPriceKobo = 1000000,
+  fastTrackPriceKobo = 0,
   standardTurnaround = "3–5 business days",
   fastTrackTurnaround = "24–48 hours",
   disabled = false,
