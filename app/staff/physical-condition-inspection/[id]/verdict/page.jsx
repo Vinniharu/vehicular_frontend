@@ -2,21 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Loader2, CheckCircle2, AlertTriangle, XOctagon, Plus, X, Send } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XOctagon, Plus, X, Send } from "lucide-react";
 import { getStaffApplication, submitPciVerdict, uploadApplicationFile, resolveMediaUrl } from "@/lib/api";
+import { Button, Card, ErrorState, Field, Input, Notice, PageHeader, StickyActionBar, Textarea } from "@/app/dashboard/_kit";
+import { Spinner } from "@/app/components/portal/ui";
 
-const BRAND = "#28A745";
-
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-[13px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
-const inputBase =
-  "w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-[#28A745] focus:bg-white focus:ring-2 focus:ring-[#28A745]/15";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
 const VERDICTS = [
-  { value: "buy", label: "Buy", hint: "Sound condition — recommend the purchase.", icon: CheckCircle2, cls: "border-emerald-400 bg-emerald-50 text-emerald-700" },
-  { value: "proceed_with_caution", label: "Proceed with caution", hint: "Buyable, but with known issues to weigh.", icon: AlertTriangle, cls: "border-amber-400 bg-amber-50 text-amber-700" },
-  { value: "dont_buy", label: "Don't buy", hint: "Not recommended in its current condition.", icon: XOctagon, cls: "border-red-400 bg-red-50 text-red-700" },
+  { value: "buy", label: "Buy", hint: "Sound condition — recommend the purchase.", icon: CheckCircle2, active: "border-cx-brand bg-cx-brand-soft", iconCls: "text-cx-brand-deep" },
+  { value: "proceed_with_caution", label: "Proceed with caution", hint: "Buyable, but with known issues to weigh.", icon: AlertTriangle, active: "border-cx-amber bg-cx-amber-soft", iconCls: "text-cx-amber" },
+  { value: "dont_buy", label: "Don't buy", hint: "Not recommended in its current condition.", icon: XOctagon, active: "border-cx-red bg-cx-red-soft", iconCls: "text-cx-red" },
 ];
 
 const MAX_REPORT_IMAGES = 6;
@@ -90,19 +86,13 @@ export default function StaffPciVerdictPage() {
     router.push(`/staff/applications/${appId}`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-      </div>
-    );
-  }
+  if (loading) return <Spinner label="Loading inspection…" />;
 
   if (error || !application) {
     return (
-      <div className="mx-auto max-w-2xl py-10 text-center">
-        <p className="text-[13.5px] font-semibold text-red-600">{error || "Application not found."}</p>
-        <Link href="/staff/applications" className="mt-4 inline-flex rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50">Back to applications</Link>
+      <div className="mx-auto max-w-2xl">
+        <PageHeader title="Record verdict" backHref="/staff/applications" backLabel="Back to applications" />
+        <ErrorState title="Application not found" message={error || "This application doesn't exist or you can't see it."} />
       </div>
     );
   }
@@ -111,29 +101,23 @@ export default function StaffPciVerdictPage() {
   const notReady = application.status !== "awaiting_mechanic_verdict";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 pb-16">
-      <Link href={`/staff/physical-condition-inspection/${appId}`} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to checklist
-      </Link>
-
-      <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
-          Record verdict <span className="font-mono text-[15px] text-slate-400">#{appId}</span>
-        </h1>
-        <p className="mt-1.5 text-[13px] text-slate-500">
-          {detail.make} {detail.model} — {detail.plate_number}. Informed by the reviewing mechanic's WhatsApp-relayed call — submitting this releases the report to the customer immediately.
-        </p>
-      </div>
+    <div className="mx-auto max-w-2xl">
+      <PageHeader
+        backHref={`/staff/physical-condition-inspection/${appId}`}
+        backLabel="Back to checklist"
+        title={<>Record verdict <span className="font-mono text-[17px] text-cx-muted">#{appId}</span></>}
+        description={`${detail.make || ""} ${detail.model || ""} — ${detail.plate_number || ""}. Based on the reviewing mechanic's call relayed over WhatsApp. Submitting this releases the report to the customer straight away.`}
+      />
 
       {notReady ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-[13px] font-semibold text-amber-800">
-          This application is at status "{application.status}" — a verdict can only be recorded once staff have confirmed checklist completeness.
-        </div>
+        <Notice tone="amber" title="Not ready for a verdict yet">
+          This application is at status &ldquo;{application.status}&rdquo;. A verdict can only be recorded once staff have confirmed the checklist is complete.
+        </Notice>
       ) : (
-        <>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-            <label className="block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Verdict</label>
-            <div className="space-y-2">
+        <div className="space-y-4">
+          <Card>
+            <h2 className="text-[16px] font-semibold text-cx-ink">Verdict</h2>
+            <div className="mt-3 grid gap-2.5" role="radiogroup" aria-label="Verdict">
               {VERDICTS.map((v) => {
                 const Icon = v.icon;
                 const active = verdict === v.value;
@@ -141,65 +125,93 @@ export default function StaffPciVerdictPage() {
                   <button
                     key={v.value}
                     type="button"
+                    role="radio"
+                    aria-checked={active}
                     onClick={() => setVerdict(v.value)}
-                    className={`flex w-full items-start gap-3 rounded-xl border-2 p-4 text-left transition-all ${active ? v.cls : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                    className={cx(
+                      "cx-focus flex min-h-16 w-full items-start gap-3 rounded-cx-lg border-2 p-4 text-left transition-colors",
+                      active ? v.active : "border-cx-line bg-cx-surface hover:bg-cx-sunken"
+                    )}
                   >
-                    <Icon className="mt-0.5 h-5 w-5 shrink-0" />
-                    <div>
-                      <p className="text-[13.5px] font-bold">{v.label}</p>
-                      <p className="mt-0.5 text-[12px] opacity-80">{v.hint}</p>
-                    </div>
+                    <Icon className={cx("mt-0.5 h-6 w-6 shrink-0", active ? v.iconCls : "text-cx-muted")} aria-hidden />
+                    <span className="min-w-0">
+                      <span className="block text-[16px] font-semibold text-cx-ink">{v.label}</span>
+                      <span className="mt-0.5 block text-sm text-cx-ink-2">{v.hint}</span>
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-2">
-            <label className="block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Written report</label>
-            <textarea
-              rows={6}
-              value={reportText}
-              onChange={(e) => setReportText(e.target.value)}
-              placeholder="Explain the reasoning behind the verdict — what the mechanic found, what to negotiate on, and any risks the buyer should know about. This goes straight into the customer's PDF."
-              className={inputBase}
-            />
-          </div>
+          <Card>
+            <Field label="Written report" required hint="This goes straight into the customer's PDF.">
+              {(p) => (
+                <Textarea
+                  {...p}
+                  rows={6}
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="Explain the reasoning behind the verdict — what the mechanic found, what to negotiate on, and any risks the buyer should know about."
+                />
+              )}
+            </Field>
+          </Card>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-            <label className="block text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Supporting photos (optional, up to {MAX_REPORT_IMAGES})</label>
-            <div className="space-y-2">
+          <Card>
+            <h2 className="text-[16px] font-semibold text-cx-ink">Supporting photos</h2>
+            <p className="mt-0.5 text-[13px] text-cx-muted">Optional, up to {MAX_REPORT_IMAGES}. {images.length} added.</p>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
               {images.map((img, idx) => (
-                <div key={idx} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-                  <img src={resolveMediaUrl(img.image_url)} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
-                  <input
-                    type="text"
-                    value={img.caption}
-                    onChange={(e) => handleCaptionChange(idx, e.target.value)}
-                    placeholder="Caption (optional)"
-                    className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-[#28A745]"
-                  />
-                  <button type="button" onClick={() => handleRemoveImage(idx)} className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-red-500">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+                <li key={idx} className="overflow-hidden rounded-cx border border-cx-line bg-cx-sunken">
+                  <div className="relative aspect-[4/3] w-full">
+                    <img src={resolveMediaUrl(img.image_url)} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      aria-label={`Remove photo ${idx + 1}`}
+                      className="cx-focus absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-cx-surface text-cx-ink-2 shadow-cx hover:text-cx-red"
+                    >
+                      <X className="h-5 w-5" aria-hidden />
+                    </button>
+                  </div>
+                  <div className="p-2.5">
+                    <Input
+                      value={img.caption}
+                      onChange={(e) => handleCaptionChange(idx, e.target.value)}
+                      placeholder="Caption (optional)"
+                      aria-label={`Caption for photo ${idx + 1}`}
+                    />
+                  </div>
+                </li>
               ))}
-            </div>
-            {images.length < MAX_REPORT_IMAGES && (
-              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-[12.5px] font-semibold text-slate-600 hover:border-slate-400">
-                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                {uploading ? "Uploading…" : "Add photo"}
-                <input type="file" accept="image/*" disabled={uploading} onChange={(e) => handleAddImage(e.target.files?.[0])} className="hidden" />
-              </label>
-            )}
-          </div>
+              {images.length < MAX_REPORT_IMAGES ? (
+                <li>
+                  <label
+                    className={cx(
+                      "flex min-h-[76px] h-full cursor-pointer items-center justify-center gap-2 rounded-cx border-2 border-dashed border-cx-line-strong bg-cx-surface px-4 py-3 text-[15px] font-semibold text-cx-ink-2 transition-colors hover:border-cx-brand/60 focus-within:ring-4 focus-within:ring-[color:var(--cx-focus)]",
+                      uploading && "cursor-not-allowed opacity-70"
+                    )}
+                  >
+                    {uploading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <Plus className="h-5 w-5" aria-hidden />}
+                    {uploading ? "Uploading…" : "Add photo"}
+                    <input type="file" accept="image/*" disabled={uploading} onChange={(e) => handleAddImage(e.target.files?.[0])} className="sr-only" />
+                  </label>
+                </li>
+              ) : null}
+            </ul>
+          </Card>
 
-          {submitError && <p className="text-[13px] font-semibold text-red-600">{submitError}</p>}
-          <button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting} className={`${btnPrimary} w-full`} style={{ background: BRAND }}>
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {submitting ? "Releasing…" : "Submit verdict & release report"}
-          </button>
-        </>
+          <StickyActionBar edge>
+            <div className="w-full space-y-2">
+              {submitError ? <Notice tone="red">{submitError}</Notice> : null}
+              {!canSubmit ? <p className="text-[13px] text-cx-muted">Choose a verdict and write the report to submit.</p> : null}
+              <Button size="lg" block icon={Send} loading={submitting} disabled={!canSubmit} onClick={handleSubmit}>
+                {submitting ? "Releasing…" : "Submit verdict and release report"}
+              </Button>
+            </div>
+          </StickyActionBar>
+        </div>
       )}
     </div>
   );

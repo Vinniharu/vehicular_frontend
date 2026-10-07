@@ -284,11 +284,13 @@ export function ErrorState({ title = "This didn't load", message, onRetry }) {
 
 // The primary action of a form or payment screen. On phones it sticks to the
 // bottom, above the tab bar and the home indicator; on desktop it sits inline.
-export function StickyActionBar({ children, className }) {
+// Pass edge on pages without a bottom tab bar (admin and staff portals).
+export function StickyActionBar({ children, className, edge = false }) {
   return (
     <div
       className={cx(
-        "sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 -mx-4 mt-6 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur",
+        edge ? "cx-safe-bottom sticky bottom-0 z-20" : "sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20",
+        " -mx-4 mt-6 border-t border-cx-line bg-cx-surface/95 px-4 py-3 backdrop-blur",
         "md:static md:mx-0 md:mt-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none",
         className
       )}

@@ -1,103 +1,92 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  FileText,
   ChevronRight,
-  UserCheck,
-  Building,
   Truck,
-  Loader2,
   RefreshCw,
-  AlertTriangle,
-  Calendar,
   CheckSquare,
-  ArrowUpRight,
-  BarChart3,
-  TrendingUp,
   ListFilter,
   Timer,
-  Flame,
+  Flag,
   GraduationCap,
+  ClipboardList,
+  Clock,
+  Inbox,
+  Route,
 } from "lucide-react";
 import { getStaffQueue, getStaffCounts } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Notice,
+  PageHeader,
+  SectionTitle,
+  SkeletonList,
+} from "@/app/dashboard/_kit";
+import { StatTile } from "@/app/admin/_kit";
+import { statusMeta } from "@/app/staff/_components/status";
+import { serviceLabel } from "@/app/agent/_components/jobs";
 
-const BRAND = "#28A745";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-const STAFF_STATUS = {
-  submitted: { label: "Awaiting review", tone: "info" },
-  staff_review: { label: "Under verification", tone: "warning" },
-  driving_school_enrolled: { label: "In driving school (Countdown active)", tone: "purple" },
-  driving_school_graduation: { label: "Driving school — Graduated (Awaiting cert)", tone: "purple" },
-  driving_school_certificate_ready: { label: "School complete — Ready to route", tone: "teal" },
-  routed: { label: "Routed to field agent", tone: "success" },
-  agent_assigned: { label: "Agent assigned", tone: "success" },
-  agent_accepted: { label: "Agent en route", tone: "success" },
-  capture_scheduled: { label: "Capture scheduled", tone: "success" },
-  capturing_scheduled: { label: "Capture scheduled", tone: "success" },
-  captured: { label: "Biometrics captured", tone: "teal" },
-  capturing_completed: { label: "Biometrics captured", tone: "teal" },
-  temp_licence_pending_review: { label: "Temp licence — needs review", tone: "warning" },
-  temp_licence_issued: { label: "Temp licence issued", tone: "purple" },
-  agent_completed: { label: "Awaiting final review", tone: "warning" },
-  staff_final_review: { label: "In final review", tone: "warning" },
-  ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
-  awaiting_customer: { label: "Awaiting customer confirmation", tone: "success" },
-  completed: { label: "Completed", tone: "success" },
-  staff_rejected: { label: "Rejected / Flagged", tone: "danger" },
-  needs_correction: { label: "Needs customer correction", tone: "warning" },
-  expired: { label: "Licence expired", tone: "danger" },
-};
-
-const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  danger: "bg-red-50 text-red-700 ring-red-200",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
-};
-
-const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  teal: "bg-teal-500",
-  indigo: "bg-indigo-500",
-  neutral: "bg-slate-400",
-};
-
-function statusMeta(status) {
-  return STAFF_STATUS[status] || {
-    label: (status || "Unknown").replace(/_/g, " "),
-    tone: "neutral",
-  };
+function applicantName(app) {
+  return [app.last_name, app.first_name, app.middle_name].filter(Boolean).join(" ") || app.applicant_name || "—";
 }
 
-function StatusBadge({ status }) {
-  const meta = statusMeta(status);
+function PipelineBar({ label, count, pct, tone = "brand" }) {
+  const bar = { brand: "bg-cx-brand", amber: "bg-cx-amber", neutral: "bg-cx-ink-2" }[tone];
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-      {meta.label}
-    </span>
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <span className="text-sm text-cx-ink-2">{label}</span>
+        <span className="shrink-0 text-sm font-semibold text-cx-ink">
+          {count} <span className="font-normal text-cx-muted">({pct}%)</span>
+        </span>
+      </div>
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-cx-sunken">
+        <div className={cx("h-full rounded-full transition-all duration-500", bar)} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function PriorityLink({ href, icon: Icon, tone = "brand", title, count, body, action }) {
+  const iconCls = {
+    brand: "bg-cx-brand-soft text-cx-brand-deep",
+    amber: "bg-cx-amber-soft text-cx-amber",
+    neutral: "bg-cx-sunken text-cx-ink-2",
+  }[tone];
+  return (
+    <li>
+      <Link
+        href={href}
+        className="cx-focus group flex items-start gap-3 rounded-cx-lg border border-cx-line bg-cx-surface p-4 transition-colors hover:border-cx-brand/50"
+      >
+        <span className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", iconCls)}>
+          <Icon className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-[15px] font-semibold text-cx-ink">{title}</span>
+            <Badge tone={count > 0 ? tone : "neutral"}>{count}</Badge>
+          </span>
+          <span className="mt-0.5 block text-sm text-cx-muted">{body}</span>
+          <span className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-cx-brand-deep">
+            {action}
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </span>
+        </span>
+      </Link>
+    </li>
   );
 }
 
 export default function StaffStatsDashboardPage() {
-  const router = useRouter();
   const [applications, setApplications] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -187,423 +176,222 @@ export default function StaffStatsDashboardPage() {
       .slice(0, 6);
   }, [applications]);
 
-  return (
-    <div className="space-y-6 pb-16">
-      {/* ─── Modern Professional Header Banner ─── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm relative overflow-hidden">
-        <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 mb-3">
-              <BarChart3 className="h-3.5 w-3.5 text-[#28A745]" />
-              Staff overview
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              What needs your attention
-            </h1>
-            <p className="mt-2 text-sm text-slate-600 max-w-2xl leading-relaxed">
-              Every fresh, renewal, reissue, and international permit application currently in your
-              queue, grouped by what's next: review new submissions, enroll in driving school, route
-              to a field agent, sign off on finished jobs, and confirm dispatch details.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-center">
-            <Link
-              href="/staff/countdown"
-              className="inline-flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-200 px-4 py-2.5 text-[13px] font-bold text-rose-700 hover:bg-rose-100 transition-all shadow-sm"
-              title="View SLA Countdown and Breached Applications"
-            >
-              <Timer className="h-4 w-4 text-rose-600" />
-              <span>SLA Countdown / Breached</span>
-            </Link>
-            <Link
-              href="/staff/applications"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all shadow-sm"
-            >
-              <ListFilter className="h-4 w-4" />
-              <span>Open Review Queue</span>
-            </Link>
-            <button
-              type="button"
-              onClick={() => loadData(true)}
-              disabled={refreshing || loading}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-[#28A745]" : "text-slate-500"}`} />
-              <span>{refreshing ? "Syncing…" : "Sync Stats"}</span>
-            </button>
-          </div>
-        </div>
+  const show = (n) => (loading ? "—" : n);
 
-        {/* Metric Counter Cards */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-6 border-t border-slate-100">
-          <Link
-            href="/staff/applications"
-            className="group rounded-xl border border-slate-200 bg-slate-50/60 p-4 hover:border-[#28A745] hover:bg-white transition-all shadow-sm"
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="What needs your attention"
+        description="Every application in your queue, grouped by what happens next."
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={RefreshCw}
+            loading={refreshing}
+            disabled={loading}
+            onClick={() => loadData(true)}
+            className="min-h-11"
           >
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-800">
-              Total Applications
-            </span>
-            <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.all}</span>
-          </Link>
-          <Link
-            href="/staff/applications"
-            className="group rounded-xl border border-sky-200 bg-sky-50/60 p-4 hover:border-sky-400 hover:bg-white transition-all shadow-sm"
-          >
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-sky-700">Awaiting Review</span>
-            <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.submitted}</span>
-          </Link>
-          <Link
-            href="/staff/applications"
-            className="group rounded-xl border border-amber-200 bg-amber-50/60 p-4 hover:border-amber-400 hover:bg-white transition-all shadow-sm"
-          >
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-amber-700">Under Review</span>
-            <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.staff_review}</span>
-          </Link>
-          <Link
-            href="/staff/applications?tab=driving_school"
-            className="group rounded-xl border border-violet-200 bg-violet-50/60 p-4 hover:border-violet-400 hover:bg-white transition-all shadow-sm flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="block text-[11px] font-bold uppercase tracking-wider text-violet-700">Driving School</span>
-                <span className="text-[10px] font-bold text-violet-700 bg-violet-100 px-1.5 py-0.5 rounded">
-                  {counts.driving_school} Total
-                </span>
-              </div>
-              <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.driving_school}</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-violet-100 flex items-center justify-between text-[11px] font-medium text-slate-500">
-              <span className="text-violet-700 font-semibold">{counts.driving_school_countdown} countdown</span>
-              <span>•</span>
-              <span className="text-purple-700 font-semibold">{counts.driving_school_graduation + counts.graduated} graduated</span>
-            </div>
-          </Link>
-          <Link
-            href="/staff/applications?tab=graduated"
-            className="group rounded-xl border border-teal-200 bg-teal-50/60 p-4 hover:border-teal-400 hover:bg-white transition-all shadow-sm flex flex-col justify-between"
-          >
-            <div>
-              <span className="block text-[11px] font-bold uppercase tracking-wider text-teal-700">Ready to Route</span>
-              <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.graduated}</span>
-            </div>
-            <span className="mt-2 pt-2 border-t border-teal-100 block text-[11px] text-teal-700 font-semibold">School complete</span>
-          </Link>
-          <Link
-            href="/staff/applications"
-            className="group rounded-xl border border-red-200 bg-red-50/60 p-4 hover:border-red-400 hover:bg-white transition-all shadow-sm"
-          >
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-red-700">Flagged</span>
-            <span className="mt-1.5 block text-2xl font-bold text-slate-900">{counts.flagged}</span>
-          </Link>
-        </div>
+            {refreshing ? "Syncing…" : "Sync stats"}
+          </Button>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+        <Button href="/staff/applications" icon={ListFilter}>
+          Open review queue
+        </Button>
+        <Button href="/staff/countdown" variant="secondary" icon={Timer}>
+          SLA countdown
+        </Button>
       </div>
 
-      {/* ─── Error Alert ─── */}
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-          <span>{error}</span>
-        </div>
-      )}
+      {error ? (
+        <Notice tone="red" title="Some data didn't load">
+          {error}
+        </Notice>
+      ) : null}
 
-      {/* ─── Workflow Analytics & Actionable Priorities ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Workflow Distribution */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-[#28A745]" />
-                Workflow Pipeline Distribution
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Stage breakdown across active candidate files
-              </p>
-            </div>
-            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-              {counts.all} Total Files
-            </span>
-          </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatTile label="All applications" value={show(counts.all)} icon={ClipboardList} href="/staff/applications" />
+        <StatTile label="Awaiting review" value={show(counts.submitted)} icon={Inbox} tone="amber" href="/staff/applications" />
+        <StatTile label="Under review" value={show(counts.staff_review)} icon={ShieldCheck} tone="amber" href="/staff/applications" />
+        <StatTile
+          label="Driving school"
+          value={show(counts.driving_school)}
+          hint={loading ? undefined : `${counts.driving_school_countdown} in countdown · ${counts.driving_school_graduation + counts.graduated} graduated`}
+          icon={GraduationCap}
+          href="/staff/applications?tab=driving_school"
+        />
+        <StatTile
+          label="Ready to route"
+          value={show(counts.graduated)}
+          hint="School complete"
+          icon={Route}
+          tone="brand"
+          href="/staff/applications?tab=graduated"
+        />
+        <StatTile label="Flagged" value={show(counts.flagged)} icon={Flag} tone="red" href="/staff/applications" />
+      </div>
 
-          <div className="space-y-4 pt-2">
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-sky-500" />
-                  Awaiting Initial Review
-                </span>
-                <span>{counts.submitted} ({counts.pctSubmitted}%)</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-sky-500 rounded-full transition-all duration-500" style={{ width: `${counts.pctSubmitted}%` }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Under Verification / Correction
-                </span>
-                <span>{counts.staff_review} ({counts.pctReview}%)</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${counts.pctReview}%` }} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-3 space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-violet-600" />
-                  <strong className="text-violet-900">Driving School (All Under School)</strong>
-                </span>
-                <span className="font-bold text-violet-900">{counts.driving_school} ({counts.pctDriving}%)</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-violet-600 rounded-full transition-all duration-500" style={{ width: `${counts.pctDriving}%` }} />
-              </div>
-
-              {/* Sub-breakdown separation */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-violet-100 text-xs">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Card>
+          <SectionTitle
+            title="Pipeline"
+            description="Where active files are right now"
+            action={<Badge>{show(counts.all)} total</Badge>}
+          />
+          <div className="space-y-4">
+            <PipelineBar label="Awaiting first review" count={counts.submitted} pct={counts.pctSubmitted} tone="amber" />
+            <PipelineBar label="Under verification" count={counts.staff_review} pct={counts.pctReview} tone="amber" />
+            <div className="space-y-3 rounded-cx border border-cx-line bg-cx-sunken/50 p-3">
+              <PipelineBar label="In driving school" count={counts.driving_school} pct={counts.pctDriving} tone="neutral" />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Link
                   href="/staff/applications?tab=driving_school_countdown"
-                  className="flex items-center justify-between rounded-lg bg-white p-2 border border-violet-200 hover:border-violet-400 hover:shadow-xs transition-all"
+                  className="cx-focus flex min-h-11 items-center justify-between gap-2 rounded-cx-sm border border-cx-line bg-cx-surface px-3 text-sm hover:border-cx-brand/50"
                 >
-                  <span className="flex items-center gap-1.5 text-violet-800 font-medium">
-                    <Clock className="h-3.5 w-3.5 text-violet-500" />
-                    In Countdown:
+                  <span className="flex items-center gap-1.5 text-cx-ink-2">
+                    <Clock className="h-4 w-4 text-cx-muted" aria-hidden />
+                    In countdown
                   </span>
-                  <span className="font-bold text-violet-900">{counts.driving_school_countdown} ({counts.pctDrivingCountdown}%)</span>
+                  <span className="font-semibold text-cx-ink">
+                    {counts.driving_school_countdown} <span className="font-normal text-cx-muted">({counts.pctDrivingCountdown}%)</span>
+                  </span>
                 </Link>
                 <Link
                   href="/staff/applications?tab=driving_school_graduation"
-                  className="flex items-center justify-between rounded-lg bg-white p-2 border border-purple-200 hover:border-purple-400 hover:shadow-xs transition-all"
+                  className="cx-focus flex min-h-11 items-center justify-between gap-2 rounded-cx-sm border border-cx-line bg-cx-surface px-3 text-sm hover:border-cx-brand/50"
                 >
-                  <span className="flex items-center gap-1.5 text-purple-800 font-medium">
-                    <GraduationCap className="h-3.5 w-3.5 text-purple-500" />
-                    Graduated / Awaiting Cert:
+                  <span className="flex items-center gap-1.5 text-cx-ink-2">
+                    <GraduationCap className="h-4 w-4 text-cx-muted" aria-hidden />
+                    Awaiting certificate
                   </span>
-                  <span className="font-bold text-purple-900">{counts.driving_school_graduation} ({counts.pctDrivingGraduation}%)</span>
+                  <span className="font-semibold text-cx-ink">
+                    {counts.driving_school_graduation} <span className="font-normal text-cx-muted">({counts.pctDrivingGraduation}%)</span>
+                  </span>
                 </Link>
               </div>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-teal-500" />
-                  Graduated — Ready for VIO Dispatch
-                </span>
-                <span>{counts.graduated} ({counts.pctGraduated}%)</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${counts.pctGraduated}%` }} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Successfully Routed to Field Agents
-                </span>
-                <span>{counts.routed} ({counts.pctRouted}%)</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${counts.pctRouted}%` }} />
-              </div>
-            </div>
+            <PipelineBar label="School complete, ready to route" count={counts.graduated} pct={counts.pctGraduated} />
+            <PipelineBar label="Routed to field agents" count={counts.routed} pct={counts.pctRouted} />
           </div>
-        </div>
+        </Card>
 
-        {/* Action Required & Priorities */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Immediate Operational Priorities
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Actionable queues requiring staff processing right now
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {counts.driving_school_graduation > 0 && (
-              <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-4 flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-800">
-                    <GraduationCap className="h-4 w-4 text-purple-600" />
-                    Driving School Graduated — Needs Certificate ({counts.driving_school_graduation})
-                  </span>
-                  <p className="text-xs text-purple-700 leading-relaxed">
-                    These candidates have finished their 26-day driving school countdown. Upload their graduation certificates to advance them to routing.
-                  </p>
-                </div>
-                <Link
-                  href="/staff/applications?tab=driving_school_graduation"
-                  className="shrink-0 rounded-lg bg-purple-600 px-3 py-2 text-xs font-bold text-white hover:bg-purple-700 transition-all shadow-sm"
-                >
-                  Upload Cert
-                </Link>
-              </div>
-            )}
-
-            <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800">
-                  <Truck className="h-4 w-4 text-teal-600" />
-                  Ready for VIO Field Dispatch ({counts.graduated})
-                </span>
-                <p className="text-xs text-teal-700 leading-relaxed">
-                  These applicants have completed driving school and uploaded their graduation certificates. They are ready to be dispatched to field officers.
-                </p>
-              </div>
-              <Link
-                href="/staff/applications?tab=graduated"
-                className="shrink-0 rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white hover:bg-teal-700 transition-all shadow-sm"
-              >
-                Route Now
-              </Link>
-            </div>
-
-            <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-4 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-800">
-                  <ShieldCheck className="h-4 w-4 text-sky-600" />
-                  Pending Biodata Review ({counts.submitted})
-                </span>
-                <p className="text-xs text-sky-700 leading-relaxed">
-                  New candidates awaiting initial verification. Check NIN details and driving school eligibility.
-                </p>
-              </div>
-              <Link
-                href="/staff/applications?tab=submitted"
-                className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-800 hover:bg-sky-50 transition-all shadow-sm"
-              >
-                Inspect
-              </Link>
-            </div>
-
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800">
-                  <ShieldCheck className="h-4 w-4 text-amber-600" />
-                  Needs Final Review ({counts.needsFinalReview})
-                </span>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  The assigned agent has finished the job and uploaded proof. Sign off before it moves to the customer.
-                </p>
-              </div>
-              <Link
-                href="/staff/applications?tab=action_needed"
-                className="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-700 transition-all shadow-sm"
-              >
-                Review Now
-              </Link>
-            </div>
-
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                  <Truck className="h-4 w-4 text-emerald-600" />
-                  Needs Dispatch Details ({counts.awaitingCustomer})
-                </span>
-                <p className="text-xs text-emerald-700 leading-relaxed">
-                  Approved and ready — record who dispatched the licence and any tracking note before the customer confirms receipt.
-                </p>
-              </div>
-              <Link
-                href="/staff/applications?tab=dispatch"
-                className="shrink-0 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition-all shadow-sm"
-              >
-                Record Dispatch
-              </Link>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-medium">Flagged for correction or rejection: <strong className="text-red-600">{counts.flagged} files</strong></span>
-            <Link href="/staff/applications" className="font-bold text-[#28A745] hover:underline flex items-center gap-1">
-              <span>View full queue</span>
-              <ChevronRight className="h-3.5 w-3.5" />
+        <Card>
+          <SectionTitle title="Priorities" description="Queues that need staff action now" />
+          <ul className="space-y-2.5">
+            {counts.driving_school_graduation > 0 ? (
+              <PriorityLink
+                href="/staff/applications?tab=driving_school_graduation"
+                icon={GraduationCap}
+                tone="amber"
+                title="Needs school certificate"
+                count={counts.driving_school_graduation}
+                body="Finished the 26-day countdown. Upload the graduation certificate to move them to routing."
+                action="Upload certificate"
+              />
+            ) : null}
+            <PriorityLink
+              href="/staff/applications?tab=graduated"
+              icon={Truck}
+              title="Ready to route"
+              count={counts.graduated}
+              body="Driving school complete with certificate uploaded. Route to a field agent."
+              action="Route now"
+            />
+            <PriorityLink
+              href="/staff/applications?tab=submitted"
+              icon={ShieldCheck}
+              tone="amber"
+              title="New submissions"
+              count={counts.submitted}
+              body="Awaiting first review. Check NIN details and driving school eligibility."
+              action="Inspect"
+            />
+            <PriorityLink
+              href="/staff/applications?tab=action_needed"
+              icon={ShieldCheck}
+              tone="amber"
+              title="Needs final review"
+              count={counts.needsFinalReview}
+              body="The agent finished and uploaded proof. Sign off before it moves to the customer."
+              action="Review now"
+            />
+            <PriorityLink
+              href="/staff/applications?tab=dispatch"
+              icon={Truck}
+              tone="neutral"
+              title="Needs dispatch details"
+              count={counts.awaitingCustomer}
+              body="Record who dispatched the licence and any tracking note before the customer confirms receipt."
+              action="Record dispatch"
+            />
+          </ul>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-cx-line pt-3">
+            <span className="text-sm text-cx-muted">
+              Flagged for correction or rejection: <strong className="font-semibold text-cx-red">{show(counts.flagged)}</strong>
+            </span>
+            <Link
+              href="/staff/applications"
+              className="cx-focus inline-flex min-h-11 items-center gap-1 rounded-cx px-2 text-sm font-semibold text-cx-brand-deep hover:underline"
+            >
+              View full queue
+              <ChevronRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* ─── Recent Applications Requiring Attention ─── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#28A745]" />
-              Recent Submissions Requiring Attention
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Quick access to priority applications awaiting verification or field routing
-            </p>
-          </div>
-          <Link
-            href="/staff/applications"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-white hover:border-slate-300 transition-all self-start sm:self-center"
-          >
-            <span>View All ({counts.all})</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
+      <section>
+        <SectionTitle
+          title="Recent files needing attention"
+          description="Waiting on review, certificates, final sign-off or dispatch"
+          action={
+            <Button href="/staff/applications" variant="ghost" size="sm" className="min-h-11 shrink-0">
+              View all{loading ? "" : ` (${counts.all})`}
+            </Button>
+          }
+        />
         {loading ? (
-          <div className="py-12 text-center space-y-3">
-            <Loader2 className="h-7 w-7 animate-spin text-[#28A745] mx-auto" />
-            <p className="text-xs text-slate-500 font-medium">Loading recent submissions…</p>
-          </div>
+          <SkeletonList rows={3} />
         ) : recentActionApps.length === 0 ? (
-          <div className="py-12 text-center space-y-2">
-            <CheckSquare className="h-9 w-9 text-slate-300 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-900">All Caught Up!</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              There are currently no immediate submissions or graduation files awaiting review.
-            </p>
-          </div>
+          <EmptyState
+            icon={CheckSquare}
+            title="All caught up"
+            description="No new submissions or graduation files are waiting for review."
+          />
         ) : (
-          <div className="divide-y divide-slate-100">
-            {recentActionApps.map((app) => (
-              <div
-                key={app.id}
-                onClick={() => router.push(`/staff/applications/${app.id}`)}
-                className="group cursor-pointer py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/70 -mx-4 px-4 rounded-xl transition-all"
-              >
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-mono font-bold text-xs text-slate-900">#{app.id}</span>
-                    <StatusBadge status={app.status} />
-                    <span className="text-xs text-slate-700 font-medium">
-                      Surname: <strong className="font-bold text-slate-900">{app.last_name || "—"}</strong> • First: <strong className="font-bold text-slate-900">{app.first_name || "—"}</strong>{app.middle_name ? ` • Middle: ${app.middle_name}` : ""}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2.5">
-                    <span className="uppercase tracking-wide text-[10px] font-bold text-slate-400">{app.application_type || "fresh"}</span>
-                    <span>•</span>
-                    <span>LGA: <strong className="text-slate-700">{app.lga || "—"}</strong></span>
-                    <span>•</span>
-                    <span>State: <strong className="text-slate-700">{app.state_of_residence || "—"}</strong></span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 group-hover:border-[#28A745] group-hover:bg-[#28A745] group-hover:text-white transition-all shadow-sm">
-                    <span>Review & Verify</span>
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ul className="space-y-3">
+            {recentActionApps.map((app) => {
+              const meta = statusMeta(app.status);
+              return (
+                <li key={app.id}>
+                  <Link
+                    href={`/staff/applications/${app.id}`}
+                    className="cx-focus group flex items-center gap-3 rounded-cx-lg border border-cx-line bg-cx-surface p-4 shadow-cx transition-colors hover:border-cx-brand/50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="min-w-0 truncate text-sm text-cx-muted">
+                          {serviceLabel(app.application_type || "fresh")} · #{app.id}
+                        </p>
+                        <Badge tone={meta.tone} className="shrink-0">{meta.label}</Badge>
+                      </div>
+                      <p className="mt-1 truncate text-[17px] font-semibold text-cx-ink">{applicantName(app)}</p>
+                      <p className="mt-0.5 text-sm text-cx-muted">
+                        {[app.lga, app.state_of_residence].filter(Boolean).join(" · ") || "No location yet"}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-cx-muted transition-transform group-hover:translate-x-0.5" aria-hidden />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }

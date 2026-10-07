@@ -3,86 +3,81 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ShieldCheck,
-  CheckCircle2,
   AlertCircle,
-  Search,
-  X,
-  Loader2,
-  RefreshCw,
   CheckSquare,
-  ArrowUpRight,
+  ChevronRight,
+  RefreshCw,
+  SlidersHorizontal,
   UserCheck,
-  Timer,
   Zap,
-  GraduationCap,
-  Briefcase,
 } from "lucide-react";
 import { getStaffQueue, staffClaimApplication, getCachedUser, authGetMe, koboToNaira, getStaffCounts } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  Notice,
+  PageHeader,
+  Select,
+  Sheet,
+  SkeletonList,
+} from "@/app/dashboard/_kit";
+import { Switch, Tabs, Toolbar } from "@/app/admin/_kit";
+import { SlaChip } from "@/app/components/portal/ui";
+import { useToast } from "@/app/components/shared/ToastProvider";
+import { statusMeta } from "@/app/staff/_components/status";
+import { serviceLabel } from "@/app/agent/_components/jobs";
 
-const BRAND = "#28A745";
+const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-const STAFF_STATUS = {
-  submitted: { label: "Awaiting review", tone: "info" },
-  staff_review: { label: "Under verification", tone: "warning" },
-  released_to_agents: { label: "Released to agents", tone: "success" },
-  in_progress: { label: "Agents working", tone: "success" },
-  driving_school_enrolled: { label: "In driving school (Countdown active)", tone: "purple" },
-  driving_school_graduation: { label: "Driving school — Graduated (Awaiting cert)", tone: "purple" },
-  driving_school_certificate_ready: { label: "School complete — Ready to route", tone: "teal" },
-  routed: { label: "Routed to field agent", tone: "success" },
-  agent_assigned: { label: "Agent assigned", tone: "success" },
-  agent_accepted: { label: "Agent en route", tone: "success" },
-  temp_licence_pending_review: { label: "Temp licence — needs review", tone: "warning" },
-  temp_licence_issued: { label: "Temp licence issued", tone: "purple" },
-  agent_completed: { label: "Awaiting final review", tone: "teal" },
-  staff_final_review: { label: "In final review", tone: "warning" },
-  ready_for_pickup: { label: "Ready for pickup", tone: "indigo" },
-  awaiting_customer: { label: "Awaiting customer confirmation", tone: "success" },
-  completed: { label: "Completed", tone: "success" },
-  staff_rejected: { label: "Rejected / Flagged", tone: "danger" },
-  needs_correction: { label: "Needs customer correction", tone: "warning" },
-  expired: { label: "Licence expired", tone: "danger" },
-};
+const DRIVING_SCHOOL_FILTERS = ["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready"];
 
-const TONE_CLASSES = {
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  warning: "bg-amber-50 text-amber-700 ring-amber-200",
-  danger: "bg-red-50 text-red-700 ring-red-200",
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  purple: "bg-violet-50 text-violet-700 ring-violet-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200",
-};
-
-const TONE_DOT = {
-  info: "bg-sky-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
-  success: "bg-emerald-500",
-  purple: "bg-violet-500",
-  teal: "bg-teal-500",
-  indigo: "bg-indigo-500",
-  neutral: "bg-slate-400",
-};
-
-function statusMeta(status) {
-  return STAFF_STATUS[status] || {
-    label: (status || "Unknown").replace(/_/g, " "),
-    tone: "neutral",
-  };
+function applicantName(app) {
+  return [app.last_name, app.first_name, app.middle_name].filter(Boolean).join(" ") || app.applicant_name || "—";
 }
 
-function StatusBadge({ status }) {
-  const meta = statusMeta(status);
+function TypeOptions() {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${TONE_CLASSES[meta.tone]}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[meta.tone]}`} />
-      {meta.label}
-    </span>
+    <>
+      <option value="all">All services</option>
+      <option value="fresh">Fresh</option>
+      <option value="renewal">Renewal</option>
+      <option value="reissue">Reissue</option>
+      <option value="international_permit">International permit</option>
+      <option value="tinted_permit">Tinted permit</option>
+      <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
+      <option value="roadworthiness_express">Roadworthiness Express</option>
+      <option value="vehicle_particulars">Vehicle particulars</option>
+      <option value="physical_condition_inspection">Physical condition inspection</option>
+      <option value="number_plate_new">Number plate — new</option>
+      <option value="number_plate_replacement">Number plate — replacement</option>
+      <option value="number_plate_change_of_ownership">Number plate — change of ownership</option>
+      <option value="number_plate_fancy">Number plate — fancy</option>
+      <option value="number_plate_dealership">Number plate — dealership</option>
+    </>
+  );
+}
+
+function PaymentOptions() {
+  return (
+    <>
+      <option value="all">All payments</option>
+      <option value="paid">Paid</option>
+      <option value="unpaid">Unpaid</option>
+      <option value="partial">Partly paid</option>
+    </>
+  );
+}
+
+function SortOptions() {
+  return (
+    <>
+      <option value="updated_at">Recently updated</option>
+      <option value="id">ID number</option>
+      <option value="name">Applicant name</option>
+    </>
   );
 }
 
@@ -101,6 +96,8 @@ function StaffApplicationsQueueInner() {
   const [error, setError] = useState(null);
   const [claimingId, setClaimingId] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => getCachedUser());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const pushToast = useToast();
 
   useEffect(() => {
     const cached = getCachedUser();
@@ -205,9 +202,10 @@ function StaffApplicationsQueueInner() {
     const res = await staffClaimApplication(appId);
     setClaimingId(null);
     if (!res.error) {
+      pushToast({ tone: "success", title: `Claimed #${appId}`, body: "It's now in your queue." });
       await loadData(true);
     } else {
-      setError(res.error);
+      pushToast({ tone: "error", title: "Couldn't claim this application", body: res.error });
     }
   };
 
@@ -280,416 +278,280 @@ function StaffApplicationsQueueInner() {
     };
   }, [applications, stats, currentUser]);
 
+  const scopeTabs = [
+    { id: "mine", label: "Mine", count: counts.mine },
+    { id: "unclaimed", label: "Unclaimed", count: counts.unclaimed },
+    { id: "all", label: "All", count: counts.all },
+  ];
+
+  const activeExtraFilters = [typeFilter !== "all", paymentFilter !== "all", sortBy !== "updated_at", isUrgentOnly].filter(Boolean).length;
+
+  const dsChips = [
+    { id: "driving_school", label: "All driving school", count: counts.driving_school, active: statusFilter === "driving_school" },
+    { id: "driving_school_countdown", label: "In countdown", count: counts.driving_school_countdown, active: statusFilter === "driving_school_countdown" },
+    {
+      id: "driving_school_graduation",
+      label: "Awaiting certificate",
+      count: counts.driving_school_graduation,
+      active: statusFilter === "driving_school_graduation" || statusFilter === "graduation",
+    },
+    { id: "graduated", label: "School complete", count: counts.graduated, active: statusFilter === "graduated" || statusFilter === "driving_school_ready" },
+  ];
+
   return (
-    <div className="space-y-6 pb-16">
-      {/* ─── Header Section ─── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 mb-2">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#28A745]" />
-              Processing & Routing Queue
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Applications Review Queue
-            </h1>
-            <p className="mt-1 text-sm text-slate-600 max-w-2xl">
-              Search, filter, and review all applications (fresh, renewal, reissue, and international permit). Open any candidate file to inspect documents, enroll into accredited driving academies, route graduates to VIO field agents, or complete a final review before dispatch.
-            </p>
-          </div>
-          <button
-            type="button"
+    <div>
+      <PageHeader
+        title="Review queue"
+        description="Open a file to check documents, enrol in driving school, route to an agent or do the final review."
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={RefreshCw}
+            loading={refreshing}
+            disabled={loading}
             onClick={() => loadData(true)}
-            disabled={refreshing || loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm shrink-0 self-start md:self-center"
+            className="min-h-11"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-[#28A745]" : "text-slate-500"}`} />
-            <span>{refreshing ? "Syncing Queue…" : "Refresh Queue"}</span>
-          </button>
+            Refresh
+          </Button>
+        }
+      />
+
+      <Tabs tabs={scopeTabs} value={scope} onChange={setScope} label="Queue" className="mb-4" />
+
+      <Toolbar search={searchQuery} onSearch={setSearchQuery} placeholder="Search ID, name, email, phone, state or LGA">
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Status"
+          className="md:w-64"
+        >
+          <option value="all">
+            All statuses {scope === "mine" ? `(mine: ${counts.mine})` : scope === "unclaimed" ? `(unclaimed: ${counts.unclaimed})` : `(${counts.all})`}
+          </option>
+          <optgroup label="First review">
+            <option value="submitted">Awaiting review ({counts.submitted})</option>
+            <option value="staff_review">Under review ({counts.staff_review})</option>
+          </optgroup>
+          <optgroup label="Driving school">
+            <option value="driving_school">All driving school ({counts.driving_school})</option>
+            <option value="driving_school_countdown">In countdown ({counts.driving_school_countdown})</option>
+            <option value="driving_school_graduation">Awaiting certificate ({counts.driving_school_graduation})</option>
+            <option value="graduated">School complete, ready to route ({counts.graduated})</option>
+          </optgroup>
+          <optgroup label="Field work">
+            <option value="agent_working">Agent working ({counts.agent_working})</option>
+          </optgroup>
+          <optgroup label="Sign-off and dispatch">
+            <option value="action_needed">Needs final review ({counts.action_needed})</option>
+            <option value="dispatch">Needs dispatch ({counts.dispatch})</option>
+            <option value="completed">Completed ({counts.completed})</option>
+            <option value="flagged">Flagged ({counts.flagged})</option>
+          </optgroup>
+        </Select>
+        <Button
+          variant="secondary"
+          icon={SlidersHorizontal}
+          onClick={() => setFiltersOpen(true)}
+          className="min-h-12 md:hidden"
+        >
+          Filters{activeExtraFilters ? ` (${activeExtraFilters})` : ""}
+        </Button>
+      </Toolbar>
+
+      <div className="mb-4 hidden gap-2 md:grid md:grid-cols-2 lg:grid-cols-4">
+        <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Service">
+          <TypeOptions />
+        </Select>
+        <Select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} aria-label="Payment">
+          <PaymentOptions />
+        </Select>
+        <Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort">
+          <SortOptions />
+        </Select>
+        <div className="flex min-h-12 items-center rounded-cx border border-cx-line-strong bg-cx-surface px-3.5">
+          <div className="w-full">
+            <Switch checked={isUrgentOnly} onChange={setIsUrgentOnly} label="Fast Track only" />
+          </div>
         </div>
       </div>
 
-      {/* ─── Search Bar & Filter Controls ─── */}
-      <div className="space-y-3">
-        {/* Scope Selector Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setScope("mine")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all shadow-xs ${
-              scope === "mine"
-                ? "bg-[#28A745] text-white shadow-emerald-500/20"
-                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <UserCheck className="h-4 w-4" />
-            <span>Assigned to Me</span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${scope === "mine" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
-              {counts.mine}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setScope("unclaimed")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all shadow-xs ${
-              scope === "unclaimed"
-                ? "bg-[#28A745] text-white shadow-emerald-500/20"
-                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <ShieldCheck className="h-4 w-4" />
-            <span>Unclaimed Pool</span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${scope === "unclaimed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
-              {counts.unclaimed}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setScope("all")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-bold transition-all shadow-xs ${
-              scope === "all"
-                ? "bg-[#28A745] text-white shadow-emerald-500/20"
-                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <Briefcase className="h-4 w-4" />
-            <span>All Applications</span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${scope === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
-              {counts.all}
-            </span>
-          </button>
-        </div>
-
-        {/* Row 1: Search & Fast Track Toggle */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by ID, candidate name, email, phone, state, or LGA..."
-              className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15 shadow-sm transition-all"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      <Sheet
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        title="Filters"
+        footer={
+          <Button block onClick={() => setFiltersOpen(false)}>
+            Show results
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Service">
+            {(p) => (
+              <Select {...p} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                <TypeOptions />
+              </Select>
             )}
-          </div>
-
-          <label className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold text-amber-950 select-none cursor-pointer bg-amber-50/90 border border-amber-300 px-3.5 py-2.5 rounded-lg hover:bg-amber-100 transition-colors shrink-0 shadow-xs">
-            <input
-              type="checkbox"
-              checked={isUrgentOnly}
-              onChange={(e) => setIsUrgentOnly(e.target.checked)}
-              className="rounded border-amber-400 text-amber-600 focus:ring-amber-500 h-4 w-4"
-            />
-            <Zap className="h-4 w-4 text-amber-600 fill-amber-500" />
-            <span>Fast Track only</span>
-          </label>
+          </Field>
+          <Field label="Payment">
+            {(p) => (
+              <Select {...p} value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
+                <PaymentOptions />
+              </Select>
+            )}
+          </Field>
+          <Field label="Sort by">
+            {(p) => (
+              <Select {...p} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <SortOptions />
+              </Select>
+            )}
+          </Field>
+          <Switch
+            checked={isUrgentOnly}
+            onChange={setIsUrgentOnly}
+            label="Fast Track only"
+            description="Only show applications the customer paid to speed up."
+          />
         </div>
+      </Sheet>
 
-        {/* Row 2: Responsive Filter Dropdowns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {/* Status Types Dropdown */}
-          <div className="w-full">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] font-medium text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-            >
-              <option value="all">
-                All Statuses {scope === "mine" ? `(Assigned to Me: ${counts.mine})` : scope === "unclaimed" ? `(Unclaimed: ${counts.unclaimed})` : `(${counts.all})`}
-              </option>
-              <optgroup label="Initial Verification">
-                <option value="submitted">Awaiting Review ({counts.submitted})</option>
-                <option value="staff_review">Under Review ({counts.staff_review})</option>
-              </optgroup>
-              <optgroup label="Driving School">
-                <option value="driving_school">All Driving School ({counts.driving_school})</option>
-                <option value="driving_school_countdown">↳ In Countdown ({counts.driving_school_countdown})</option>
-                <option value="driving_school_graduation">↳ Graduated / Awaiting Cert ({counts.driving_school_graduation})</option>
-                <option value="graduated">↳ School Complete — Ready to Route ({counts.graduated})</option>
-              </optgroup>
-              <optgroup label="Field Processing">
-                <option value="agent_working">Agent Working / En Route ({counts.agent_working})</option>
-              </optgroup>
-              <optgroup label="Routing & Dispatch">
-                <option value="action_needed">Needs Final Review ({counts.action_needed})</option>
-                <option value="dispatch">Needs Dispatch ({counts.dispatch})</option>
-                <option value="completed">Completed ({counts.completed})</option>
-                <option value="flagged">Flagged ({counts.flagged})</option>
-              </optgroup>
-            </select>
-          </div>
-
-          {/* Service Type Filter */}
-          <div className="w-full">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-            >
-              <option value="all">All Types</option>
-              <option value="fresh">Fresh</option>
-              <option value="renewal">Renewal</option>
-              <option value="reissue">Reissue</option>
-              <option value="international_permit">International Permit</option>
-              <option value="tinted_permit">Tinted Permit</option>
-              <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
-              <option value="roadworthiness_express">Roadworthiness Express</option>
-              <option value="vehicle_particulars">Vehicle Particulars</option>
-              <option value="physical_condition_inspection">Physical Condition Inspection</option>
-              <option value="number_plate_new">Number Plate — New</option>
-              <option value="number_plate_replacement">Number Plate — Replacement</option>
-              <option value="number_plate_change_of_ownership">Number Plate — Change of Ownership</option>
-              <option value="number_plate_fancy">Number Plate — Fancy</option>
-              <option value="number_plate_dealership">Number Plate — Dealership</option>
-            </select>
-          </div>
-
-          {/* Payment Status Filter */}
-          <div className="w-full">
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-            >
-              <option value="all">All Payments</option>
-              <option value="paid">Paid Fee</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="partial">Partially Paid</option>
-            </select>
-          </div>
-
-          {/* Sort By Filter */}
-          <div className="w-full">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[13px] text-slate-700 shadow-sm focus:border-[#28A745] focus:outline-none focus:ring-2 focus:ring-[#28A745]/15"
-            >
-              <option value="updated_at">Recently updated</option>
-              <option value="id">ID number</option>
-              <option value="name">Applicant name</option>
-            </select>
+      {DRIVING_SCHOOL_FILTERS.includes(statusFilter) ? (
+        <div className="mb-4">
+          <p className="mb-2 text-[13px] text-cx-muted">
+            Separate candidates still in the 26-day countdown from those who graduated and need a certificate or are ready to route.
+          </p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Driving school stage">
+            {dsChips.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                aria-pressed={chip.active}
+                onClick={() => setStatusFilter(chip.id)}
+                className={cx(
+                  "cx-focus inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors",
+                  chip.active
+                    ? "bg-cx-brand text-white"
+                    : "border border-cx-line-strong bg-cx-surface text-cx-ink-2 hover:bg-cx-sunken"
+                )}
+              >
+                {chip.label}
+                <span className={chip.active ? "text-white/85" : "text-cx-muted"}>{chip.count}</span>
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      ) : null}
 
-      {/* ─── Driving School Breakdown Sub-Filter Banner ─── */}
-      {["driving_school", "driving_school_countdown", "driving_school_graduation", "graduation", "graduated", "driving_school_ready"].includes(statusFilter) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-violet-50/80 border border-violet-200 p-3.5 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="rounded-lg bg-violet-600 p-2 text-white shadow-xs">
-              <GraduationCap className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-violet-950">Driving School Candidate Breakdown</p>
-              <p className="text-[11.5px] text-violet-700">
-                Quickly separate candidates actively in 26-day countdown vs candidates who graduated and await certification or are ready to route.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("driving_school")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                statusFilter === "driving_school"
-                  ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-800"
-                  : "bg-white text-violet-800 border border-violet-200 hover:bg-violet-100/70"
-              }`}
-            >
-              All Driving School ({counts.driving_school})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("driving_school_countdown")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                statusFilter === "driving_school_countdown"
-                  ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-800"
-                  : "bg-white text-violet-800 border border-violet-200 hover:bg-violet-100/70"
-              }`}
-            >
-              <Timer className="h-3.5 w-3.5" />
-              In Countdown ({counts.driving_school_countdown})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("driving_school_graduation")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                statusFilter === "driving_school_graduation" || statusFilter === "graduation"
-                  ? "bg-purple-700 text-white shadow-sm ring-1 ring-purple-800"
-                  : "bg-white text-purple-800 border border-purple-200 hover:bg-purple-100/70"
-              }`}
-            >
-              <GraduationCap className="h-3.5 w-3.5" />
-              Graduated / Awaiting Cert ({counts.driving_school_graduation})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("graduated")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                statusFilter === "graduated" || statusFilter === "driving_school_ready"
-                  ? "bg-teal-700 text-white shadow-sm ring-1 ring-teal-800"
-                  : "bg-white text-teal-800 border border-teal-200 hover:bg-teal-100/70"
-              }`}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              School Complete ({counts.graduated})
-            </button>
-          </div>
+      {error && applications.length > 0 ? (
+        <div className="mb-4">
+          <Notice tone="red" title="Couldn't refresh the queue">
+            {error}
+          </Notice>
         </div>
-      )}
+      ) : null}
 
-      {/* ─── Error Alert ─── */}
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* ─── Applications List ─── */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#28A745]" />
-            <p className="mt-3 text-sm font-semibold text-slate-800">Loading applications queue…</p>
-            <p className="mt-1 text-xs text-slate-500">Fetching live review statuses, docs, and dispatch states.</p>
-          </div>
-        ) : filteredApps.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <CheckSquare className="mx-auto h-12 w-12 text-slate-300" />
-            <p className="mt-3 text-[15px] font-bold text-slate-800">No applications match this filter</p>
-            <p className="mt-1 text-[13px] text-slate-500">
-              Try choosing another status from the dropdown or resetting your search term.
-            </p>
-          </div>
-        ) : (
-          filteredApps.map((app) => {
+      {loading ? (
+        <SkeletonList rows={4} />
+      ) : error && applications.length === 0 ? (
+        <ErrorState message={error} onRetry={() => loadData()} />
+      ) : filteredApps.length === 0 ? (
+        <EmptyState
+          icon={CheckSquare}
+          title="No applications match"
+          description="Try another status or tab, or clear your search."
+        />
+      ) : (
+        <ul className="space-y-3">
+          {filteredApps.map((app) => {
             const isPaid = (app.payment_status === "success" || app.payment_status === "paid") && (!app.remaining_kobo || app.remaining_kobo <= 0);
             const isUnclaimed = !app.staff_id;
             const isMine = currentUser?.id ? String(app.staff_id) === String(currentUser.id) : (scope === "mine");
+            const meta = statusMeta(app.status);
 
             return (
-              <div
-                key={app.id}
-                onClick={() => router.push(`/staff/applications/${app.id}`)}
-                className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#28A745]/60 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-              >
-                <div className="space-y-2.5">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-mono font-bold text-sm text-slate-900">#{app.id}</span>
-                    <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                      {(app.application_type || "FRESH").replace(/_/g, " ")}
-                    </span>
-                    <StatusBadge status={app.status} />
-                    {isPaid && app.sla && (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold ${
-                        app.sla.is_breached
-                          ? "bg-rose-100 text-rose-700 border border-rose-200 animate-pulse"
-                          : app.sla.is_nearing
-                          ? "bg-amber-100 text-amber-700 border border-amber-200"
-                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      }`}>
-                        <Timer className="h-3 w-3 shrink-0" />
-                        {app.sla.label} ({app.sla.days_elapsed}/{app.sla.days_allocated}d)
-                      </span>
-                    )}
-                    {app.is_urgent && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-800 shadow-xs">
-                        <Zap className="h-3 w-3 text-amber-600 fill-amber-500" /> Fast Track
-                      </span>
-                    )}
-                    {isPaid ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Paid Fee
-                      </span>
-                    ) : app.remaining_kobo > 0 && (
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-bold ${app.is_overdue ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                        {app.is_overdue && <AlertCircle className="h-3 w-3" />}
-                        {koboToNaira(app.remaining_kobo)} owed{app.is_overdue ? " · Overdue" : ""}
-                      </span>
-                    )}
-                    {isUnclaimed ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">
-                        Unclaimed
-                      </span>
-                    ) : isMine ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-[#28A745]/30 bg-[#E9F7EC] px-2 py-0.5 text-[10.5px] font-bold text-[#166B2C]">
-                        <UserCheck className="h-3 w-3" />
-                        Assigned to you
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10.5px] font-bold text-slate-600">
-                        Assigned: Staff #{app.staff_id}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Surname: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.last_name || "—"}</strong></span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">First: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.first_name || "—"}</strong></span>
-                      {app.middle_name && (
-                        <>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Middle: <strong className="text-base font-bold text-slate-900 group-hover:text-[#28A745] transition-colors">{app.middle_name}</strong></span>
-                        </>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
-                      <span>LGA Sector: <strong className="text-slate-700">{app.lga || "—"}</strong></span>
-                      <span>•</span>
-                      <span>State: <strong className="text-slate-700">{app.state_of_residence || "—"}</strong></span>
+              <li key={app.id}>
+                <div
+                  onClick={() => router.push(`/staff/applications/${app.id}`)}
+                  className="cursor-pointer rounded-cx-lg border border-cx-line bg-cx-surface p-4 shadow-cx transition-colors hover:border-cx-brand/50"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm text-cx-muted">
+                      {serviceLabel(app.application_type || "fresh")} · #{app.id}
                     </p>
+                    <Badge tone={meta.tone} className="shrink-0">{meta.label}</Badge>
+                  </div>
+                  <p className="mt-1 break-words text-[17px] font-semibold text-cx-ink">{applicantName(app)}</p>
+                  <p className="mt-0.5 text-sm text-cx-muted">
+                    {[app.lga, app.state_of_residence].filter(Boolean).join(" · ") || "No location yet"}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {isPaid && app.sla ? <SlaChip sla={app.sla} compact /> : null}
+                    {app.is_urgent ? (
+                      <Badge tone="amber">
+                        <Zap className="h-3.5 w-3.5" aria-hidden />
+                        Fast Track
+                      </Badge>
+                    ) : null}
+                    {isPaid ? (
+                      <Badge tone="brand">Paid</Badge>
+                    ) : app.remaining_kobo > 0 ? (
+                      <Badge tone={app.is_overdue ? "red" : "amber"}>
+                        {app.is_overdue ? <AlertCircle className="h-3.5 w-3.5" aria-hidden /> : null}
+                        {koboToNaira(app.remaining_kobo)} owed{app.is_overdue ? " · overdue" : ""}
+                      </Badge>
+                    ) : null}
+                    {isUnclaimed ? (
+                      <Badge tone="amber">Unclaimed</Badge>
+                    ) : isMine ? (
+                      <Badge tone="brand">
+                        <UserCheck className="h-3.5 w-3.5" aria-hidden />
+                        Yours
+                      </Badge>
+                    ) : (
+                      <Badge>Staff #{app.staff_id}</Badge>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-cx-line pt-3">
+                    {isUnclaimed ? (
+                      <Button
+                        size="sm"
+                        icon={UserCheck}
+                        loading={claimingId === app.id}
+                        onClick={(e) => handleClaim(e, app.id)}
+                        className="min-h-11"
+                      >
+                        Claim
+                      </Button>
+                    ) : null}
+                    <Button
+                      href={`/staff/applications/${app.id}`}
+                      variant="secondary"
+                      size="sm"
+                      onClick={(e) => e.stopPropagation()}
+                      className="min-h-11"
+                    >
+                      Open
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    </Button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                  {isUnclaimed && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleClaim(e, app.id)}
-                      disabled={claimingId === app.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#28A745] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#1F8838] transition-all shadow-sm disabled:opacity-60"
-                    >
-                      {claimingId === app.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <UserCheck className="h-4 w-4" />
-                      )}
-                      <span>Claim</span>
-                    </button>
-                  )}
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] font-semibold text-slate-700 group-hover:bg-[#28A745] group-hover:text-white group-hover:border-[#28A745] transition-all shadow-sm">
-                    <span>Review Details & Verify</span>
-                    <ArrowUpRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </div>
+              </li>
             );
-          })
-        )}
-      </div>
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
 export default function StaffApplicationsQueuePage() {
   return (
-    <Suspense fallback={<div className="py-16 text-center text-sm text-slate-400">Loading queue…</div>}>
+    <Suspense fallback={<SkeletonList rows={4} />}>
       <StaffApplicationsQueueInner />
     </Suspense>
   );
