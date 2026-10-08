@@ -157,11 +157,11 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="cx-root min-h-dvh bg-cx-paper text-cx-ink selection:bg-cx-brand/20">
       {/* ── Desktop sidebar ─────────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-cx-line bg-cx-surface md:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-cx-nav md:flex">
         <div className="px-5 pb-4 pt-6">
           <Link href="/" className="cx-focus inline-flex items-center gap-2.5 rounded-cx">
-            <img src="/logo.png" alt="" className="h-8 w-auto object-contain" />
-            <span className="font-display text-xl text-cx-ink">Vehiculars</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-cx-sm bg-white p-1 shadow-cx"><img src="/logo.png" alt="" className="h-full w-full object-contain" /></span>
+            <span className="font-display text-xl text-white">Vehiculars</span>
           </Link>
         </div>
 
@@ -175,7 +175,7 @@ export default function DashboardLayout({ children }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`cx-focus flex min-h-11 items-center gap-3 rounded-cx px-3 text-[15px] transition-colors ${
-                  active ? "bg-cx-brand-soft font-semibold text-cx-brand-deep" : "text-cx-ink-2 hover:bg-cx-sunken"
+                  active ? "bg-white font-semibold text-cx-brand-deep shadow-cx" : "text-cx-nav-muted hover:bg-cx-nav-hover hover:text-white"
                 }`}
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
@@ -185,11 +185,11 @@ export default function DashboardLayout({ children }) {
           })}
         </nav>
 
-        <div className="space-y-0.5 border-t border-cx-line px-3 py-3">
+        <div className="space-y-0.5 border-t border-cx-nav-line px-3 py-3">
           <Link
             href="/dashboard/settings"
             aria-current={pathname.startsWith("/dashboard/settings") ? "page" : undefined}
-            className="cx-focus flex min-h-11 items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-sunken"
+            className="cx-focus flex min-h-11 items-center gap-3 rounded-cx px-3 text-[15px] text-cx-nav-muted hover:bg-cx-nav-hover hover:text-white"
           >
             <Settings className="h-[18px] w-[18px]" aria-hidden />
             Settings
@@ -197,48 +197,48 @@ export default function DashboardLayout({ children }) {
           <button
             type="button"
             onClick={openSupportChat}
-            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-sunken"
+            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-nav-muted hover:bg-cx-nav-hover hover:text-white"
           >
             <LifeBuoy className="h-[18px] w-[18px]" aria-hidden />
             Get help
             {unread > 0 ? (
-              <span className="ml-auto rounded-full bg-cx-brand px-2 py-0.5 text-xs font-semibold text-white">{unread}</span>
+              <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-cx-brand-deep">{unread}</span>
             ) : null}
           </button>
           <button
             type="button"
             onClick={handleLogout}
-            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-ink-2 hover:bg-cx-red-soft hover:text-cx-red"
+            className="cx-focus flex min-h-11 w-full items-center gap-3 rounded-cx px-3 text-[15px] text-cx-nav-muted hover:bg-cx-nav-hover hover:text-white"
           >
             <LogOut className="h-[18px] w-[18px]" aria-hidden />
             Sign out
           </button>
-          <div className="mt-2 flex items-center gap-3 rounded-cx bg-cx-sunken px-3 py-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cx-brand text-sm font-semibold text-white">
+          <div className="mt-2 flex items-center gap-3 rounded-cx bg-cx-nav-deep px-3 py-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-cx-brand-deep">
               {initials}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-cx-ink">{user?.name || "Your account"}</p>
-              <p className="truncate text-[13px] text-cx-muted">{user?.email}</p>
+              <p className="truncate text-sm font-semibold text-white">{user?.name || "Your account"}</p>
+              <p className="truncate text-[13px] text-cx-nav-muted">{user?.email}</p>
             </div>
           </div>
         </div>
       </aside>
 
       {/* ── Mobile top bar ──────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-cx-line bg-cx-surface/95 px-4 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-cx-nav px-4 shadow-cx md:hidden">
         <Link href="/dashboard" className="cx-focus inline-flex items-center gap-2 rounded-cx">
-          <img src="/logo.png" alt="" className="h-7 w-auto object-contain" />
-          <span className="font-display text-lg text-cx-ink">Vehiculars</span>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-cx-sm bg-white p-1"><img src="/logo.png" alt="" className="h-full w-full object-contain" /></span>
+          <span className="font-display text-lg text-white">Vehiculars</span>
         </Link>
         <button
           type="button"
           onClick={openSupportChat}
           aria-label={unread > 0 ? `Get help, ${unread} unread messages` : "Get help"}
-          className="cx-focus relative flex h-11 w-11 items-center justify-center rounded-cx text-cx-ink-2 hover:bg-cx-sunken"
+          className="cx-focus relative flex h-11 w-11 items-center justify-center rounded-cx text-white hover:bg-cx-nav-hover"
         >
           <LifeBuoy className="h-5 w-5" aria-hidden />
-          {unread > 0 ? <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cx-brand ring-2 ring-cx-surface" /> : null}
+          {unread > 0 ? <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-white ring-2 ring-cx-nav" /> : null}
         </button>
       </header>
 
@@ -250,7 +250,7 @@ export default function DashboardLayout({ children }) {
       {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
       <nav
         aria-label="Main"
-        className="cx-safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-cx-line bg-cx-surface/95 backdrop-blur md:hidden"
+        className="cx-safe-bottom fixed inset-x-0 bottom-0 z-40 border-t-2 border-cx-brand/30 bg-cx-surface md:hidden"
       >
         <ul className="grid h-16 grid-cols-5">
           {TABS.map((tab) => {
@@ -267,7 +267,9 @@ export default function DashboardLayout({ children }) {
                   }`}
                 >
                   {active ? <span className="absolute top-0 h-0.5 w-8 rounded-full bg-cx-brand" aria-hidden /> : null}
-                  <Icon className="h-[22px] w-[22px]" aria-hidden />
+                  <span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? "bg-cx-brand-soft" : ""}`}>
+                    <Icon className="h-[22px] w-[22px]" aria-hidden />
+                  </span>
                   {tab.label}
                   {showDot ? <span className="absolute right-[30%] top-2.5 h-2 w-2 rounded-full bg-cx-brand" aria-hidden /> : null}
                 </Link>

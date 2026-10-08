@@ -52,13 +52,13 @@
   /* Customer portal ("cx") palette — clean and light, brand green as the
      only accent. Kept separate from the shared ink/paper tokens so the
      staff/agent/admin portals are unaffected. */
-  --cx-paper: #f6f7f5;
+  --cx-paper: #f1f7f2;
   --cx-surface: #ffffff;
-  --cx-sunken: #eef1ee;
+  --cx-sunken: #e8f1ea;
   --cx-ink: #14201a;
   --cx-ink-2: #3b4741;
   --cx-muted: #5b6660;
-  --cx-line: #e3e7e4;
+  --cx-line: #dce8de;
   --cx-line-strong: #cdd4cf;
   --cx-brand: #28a745;
   --cx-brand-deep: #1f7a35;
@@ -68,6 +68,15 @@
   --cx-red: #b3452f;
   --cx-red-soft: #fbf1ee;
   --cx-focus: rgba(40, 167, 69, 0.35);
+  /* Brand-green navigation (sidebars, phone top bars). White text on
+     --cx-nav is about 5.4:1 contrast. */
+  --cx-nav: #1e7a34;
+  --cx-nav-deep: #186429;
+  --cx-nav-hover: rgba(255, 255, 255, 0.1);
+  --cx-nav-active: #ffffff;
+  --cx-nav-text: #ffffff;
+  --cx-nav-muted: rgba(255, 255, 255, 0.78);
+  --cx-nav-line: rgba(255, 255, 255, 0.16);
 }
 
 @theme inline {
@@ -130,6 +139,12 @@
   --color-cx-amber-soft: var(--cx-amber-soft);
   --color-cx-red: var(--cx-red);
   --color-cx-red-soft: var(--cx-red-soft);
+  --color-cx-nav: var(--cx-nav);
+  --color-cx-nav-deep: var(--cx-nav-deep);
+  --color-cx-nav-hover: var(--cx-nav-hover);
+  --color-cx-nav-text: var(--cx-nav-text);
+  --color-cx-nav-muted: var(--cx-nav-muted);
+  --color-cx-nav-line: var(--cx-nav-line);
   --radius-cx-sm: 10px;
   --radius-cx: 14px;
   --radius-cx-lg: 20px;

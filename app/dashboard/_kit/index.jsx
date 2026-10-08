@@ -173,7 +173,7 @@ export function SectionTitle({ title, action, description }) {
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-[17px] font-semibold text-cx-ink">{title}</h2>
+        <h2 className="text-[17px] font-semibold text-cx-brand-deep">{title}</h2>
         {description ? <p className="mt-0.5 text-sm text-cx-muted">{description}</p> : null}
       </div>
       {action}
@@ -195,7 +195,8 @@ export function PageHeader({ title, description, backHref, backLabel = "Back", a
       ) : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">{title}</h1>
+          <h1 className="font-display text-[26px] leading-tight text-cx-brand-deep sm:text-[30px]">{title}</h1>
+          <span className="mt-2 block h-1 w-10 rounded-full bg-cx-brand" aria-hidden />
           {description ? <p className="mt-1.5 max-w-prose text-[15px] text-cx-muted">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
@@ -206,7 +207,7 @@ export function PageHeader({ title, description, backHref, backLabel = "Back", a
 
 const TONES = {
   neutral: "bg-cx-sunken text-cx-ink-2",
-  brand: "bg-cx-brand-soft text-cx-brand-deep",
+  brand: "bg-cx-brand-soft text-cx-brand-deep ring-1 ring-inset ring-cx-brand/25",
   amber: "bg-cx-amber-soft text-cx-amber",
   red: "bg-cx-red-soft text-cx-red",
 };

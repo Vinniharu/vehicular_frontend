@@ -83,18 +83,23 @@ export function InheritedHint({ children }) {
 /* ── Layout helpers ─────────────────────────────────────────────────── */
 
 export function StatTile({ label, value, hint, icon: Icon, tone = "neutral", href }) {
-  const toneCls = { neutral: "text-cx-muted", brand: "text-cx-brand", amber: "text-cx-amber", red: "text-cx-red" }[tone];
+  const toneCls = { neutral: "text-cx-brand", brand: "text-cx-brand-deep", amber: "text-cx-amber", red: "text-cx-red" }[tone];
+  const toneBg = { neutral: "bg-cx-brand-soft", brand: "bg-cx-brand-soft", amber: "bg-cx-amber-soft", red: "bg-cx-red-soft" }[tone];
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
         <p className="text-[13px] font-medium text-cx-muted">{label}</p>
-        {Icon ? <Icon className={cx("h-5 w-5", toneCls)} aria-hidden /> : null}
+        {Icon ? (
+          <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", toneBg)}>
+            <Icon className={cx("h-5 w-5", toneCls)} aria-hidden />
+          </span>
+        ) : null}
       </div>
       <p className="mt-1.5 truncate text-[22px] font-semibold leading-tight text-cx-ink">{value}</p>
       {hint ? <p className="mt-0.5 truncate text-[13px] text-cx-muted">{hint}</p> : null}
     </>
   );
-  const cls = "block rounded-cx-lg border border-cx-line bg-cx-surface p-4 shadow-cx";
+  const cls = "block rounded-cx-lg border border-cx-line border-l-4 border-l-cx-brand bg-cx-surface p-4 shadow-cx";
   return href ? (
     <a href={href} className={cx(cls, "cx-focus hover:border-cx-brand/50")}>{body}</a>
   ) : (
@@ -131,11 +136,11 @@ export function Tabs({ tabs, value, onChange, label = "Sections", className }) {
             onClick={() => onChange(t.id)}
             className={cx(
               "cx-focus min-h-10 rounded-cx-sm px-4 text-[15px] font-semibold transition-colors",
-              value === t.id ? "bg-cx-surface text-cx-ink shadow-cx" : "text-cx-muted hover:text-cx-ink"
+              value === t.id ? "bg-cx-brand-deep text-white shadow-cx" : "text-cx-ink-2 hover:bg-cx-surface/70 hover:text-cx-brand-deep"
             )}
           >
             {t.label}
-            {t.count !== undefined ? <span className={cx("ml-1.5 text-sm", value === t.id && "text-cx-brand-deep")}>{t.count}</span> : null}
+            {t.count !== undefined ? <span className={cx("ml-1.5 text-sm", value === t.id ? "text-white/85" : "text-cx-muted")}>{t.count}</span> : null}
           </button>
         ))}
       </div>
