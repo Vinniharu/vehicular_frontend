@@ -112,8 +112,12 @@ function plan(app, { isPaid, hasMin, hasCert, open, openPci }) {
   const isPci = type === "physical_condition_inspection";
   const isRwx = type === "roadworthiness_express";
   const area = app.lga || app.state_of_residence || "the applicant's area";
-  const minText = app.payment_options?.minimum_payable_kobo ? `the ${koboToNaira(app.payment_options.minimum_payable_kobo)} minimum deposit` : "the minimum deposit";
-  const needMin = hasMin ? null : `Waiting for ${minText}.`;
+  const po = app.payment_options || {};
+  const needMin = hasMin
+    ? null
+    : po.deposit_shortfall_kobo > 0 && po.required_deposit_kobo
+    ? `Waiting for ${koboToNaira(po.deposit_shortfall_kobo)} more to reach the ${koboToNaira(po.required_deposit_kobo)} deposit. An admin can allow it to proceed.`
+    : "Waiting for the deposit to be paid.";
   const needFull = isPaid ? null : "Waiting for full payment.";
   const reject = { label: "Reject application", description: "The applicant sees your reason and can resubmit", icon: X, tone: "red", onClick: () => open("reject") };
 

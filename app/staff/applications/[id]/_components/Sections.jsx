@@ -36,6 +36,7 @@ export function PaymentSection({ application, isPaid }) {
       <h2 className="flex items-center gap-2 text-[16px] font-semibold text-cx-ink">
         <Wallet className="h-5 w-5 text-cx-muted" aria-hidden /> Payment
         {isPaid ? <Badge tone="brand">Paid in full</Badge> : po ? <Badge tone={po.is_overdue ? "red" : "amber"}>{po.is_overdue ? "Overdue" : "Part paid"}</Badge> : null}
+        {po?.deposit_waived ? <Badge tone="neutral">Deposit waived by admin</Badge> : null}
       </h2>
       <div className="mt-3">
         <InfoGrid>
@@ -44,7 +45,10 @@ export function PaymentSection({ application, isPaid }) {
             <>
               <Info label="Paid" value={koboToNaira(po.amount_paid_kobo || 0)} />
               <Info label="Balance" value={<span className="text-cx-red">{koboToNaira(po.remaining_kobo || 0)}</span>} />
-              {po.minimum_payable_kobo ? <Info label="Minimum deposit" value={koboToNaira(po.minimum_payable_kobo)} /> : null}
+              {po.required_deposit_kobo ? <Info label="Deposit required" value={koboToNaira(po.required_deposit_kobo)} /> : null}
+              {po.deposit_shortfall_kobo > 0 && !po.deposit_waived ? (
+                <Info label="Still needed for deposit" value={<span className="text-cx-amber">{koboToNaira(po.deposit_shortfall_kobo)}</span>} />
+              ) : null}
               <Info label="Payment due" value={date(po.payment_due_date)} />
             </>
           ) : null}

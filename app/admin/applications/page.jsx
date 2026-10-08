@@ -46,6 +46,7 @@ import {
   SkeletonList,
 } from "@/app/dashboard/_kit";
 import { ConfirmSheet, ResponsiveTable, Toolbar } from "../_kit";
+import DepositWaiver from "./DepositWaiver";
 
 // Status → badge tone. The keys also drive the status filter options.
 const STATUS_TONE = {
@@ -673,6 +674,8 @@ export default function AdminApplicationsPage() {
               {selected.is_urgent && <FastTrackBadge />}
               <Badge tone="neutral">Payment: {selected.payment_status || "unpaid"}</Badge>
             </div>
+
+            <DepositWaiver applicationId={selected.id} />
 
             {(selected.payment_status === "success" || selected.payment_status === "paid") && selected.sla && (
               <div

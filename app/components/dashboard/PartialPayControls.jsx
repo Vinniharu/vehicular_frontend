@@ -7,7 +7,7 @@ import { Button, Field, Input } from "@/app/dashboard/_kit";
 
 // Fallback only — the real first-payment minimum is configured per service on
 // the backend and arrives as payment_options.minimum_payable_kobo (the
-// service's initial deposit before anything is paid, 1 kobo afterwards).
+// service's initial deposit before anything is paid, the rest of the deposit if a payment came in short, 1 kobo once the deposit is reached).
 export const MIN_PARTIAL_PAYMENT_KOBO = 1000000;
 
 export function resolveMinimumKobo({ minimumPayableKobo, remainingKobo, amountPaidKobo = 0 }) {
