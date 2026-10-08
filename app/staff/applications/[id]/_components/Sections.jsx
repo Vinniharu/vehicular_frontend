@@ -55,6 +55,9 @@ export function PaymentSection({ application, isPaid }) {
           <Info label="Applied" value={date(application.created_at)} />
         </InfoGrid>
       </div>
+      {!isPaid && po?.deposit_waived ? (
+        <p className="mt-3 text-sm text-cx-muted">An admin let this go ahead without a deposit. You can review and process it, but it only goes to an agent once the customer pays in full.</p>
+      ) : null}
       {!isPaid && application.status === "driving_school_certificate_ready" && po ? (
         <p className="mt-3 text-sm text-cx-muted">Certificate verified — this goes to an agent automatically once the balance is paid.</p>
       ) : null}

@@ -118,7 +118,7 @@ function plan(app, { isPaid, hasMin, hasCert, open, openPci }) {
     : po.deposit_shortfall_kobo > 0 && po.required_deposit_kobo
     ? `Waiting for ${koboToNaira(po.deposit_shortfall_kobo)} more to reach the ${koboToNaira(po.required_deposit_kobo)} deposit. An admin can allow it to proceed.`
     : "Waiting for the deposit to be paid.";
-  const needFull = isPaid ? null : "Waiting for full payment.";
+  const needFull = isPaid ? null : po.deposit_waived ? "Deposit waived by admin, but it needs full payment before it can go to an agent." : "Waiting for full payment.";
   const reject = { label: "Reject application", description: "The applicant sees your reason and can resubmit", icon: X, tone: "red", onClick: () => open("reject") };
 
   const freshFront = () =>
