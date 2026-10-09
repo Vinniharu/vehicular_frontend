@@ -14,6 +14,7 @@ import {
   MapPin,
   Stethoscope,
   Wallet,
+  RefreshCw,
 } from "lucide-react";
 import { koboToNaira, resolveMediaUrl, staffReviewDocument } from "@/lib/api";
 import { Badge, Button, Card, Field, Sheet, Textarea } from "@/app/dashboard/_kit";
@@ -399,7 +400,7 @@ export function DocumentsSection({ application, onPreview, onChanged }) {
 
 /* ── Driving school ─────────────────────────────────────────────────── */
 
-export function DrivingSchoolSection({ application, timeLeft, onPreview }) {
+export function DrivingSchoolSection({ application, timeLeft, onPreview, onReplaceSlip }) {
   const a = application;
   const enrolled = !!a.driving_school_enrolled_at;
   const hasCert = a.documents?.some((d) => d.doc_type === "driving_school_certificate");
@@ -409,6 +410,8 @@ export function DrivingSchoolSection({ application, timeLeft, onPreview }) {
     a.documents?.find((d) => ["driving_school_verification_slip", "driving_school_enrollment_screenshot", "driving_school_screenshot"].includes(d.doc_type))?.file_url;
   if (a.application_type !== "fresh" || (!enrolled && !certOnFile)) return null;
 
+  const canReplaceSlip =
+    !!onReplaceSlip && enrolled && ["driving_school_enrolled", "driving_school_graduation", "driving_school_certificate_ready"].includes(a.status);
   const graduating = a.status === "driving_school_graduation" || (timeLeft.expired && a.status === "driving_school_enrolled");
   const target = a.driving_school_target_date || a.driving_school?.target_date;
 
@@ -430,9 +433,14 @@ export function DrivingSchoolSection({ application, timeLeft, onPreview }) {
           <div className="rounded-cx bg-cx-sunken p-3">
             <p className="text-[13px] text-cx-muted">School</p>
             <p className="text-[15px] font-semibold text-cx-ink">{a.driving_school?.name || "Accredited driving school"}</p>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <p className="text-[13px] text-cx-muted">Verification slip</p>
-              {slip ? <Button variant="ghost" size="sm" icon={Eye} onClick={() => onPreview(resolveMediaUrl(slip))}>View</Button> : <span className="text-[13px] text-cx-muted">Not attached</span>}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+              <p className="whitespace-nowrap text-[13px] text-cx-muted">Verification slip</p>
+              <div className="-mr-2 flex items-center gap-1">
+                {slip ? <Button variant="ghost" size="sm" icon={Eye} onClick={() => onPreview(resolveMediaUrl(slip))}>View</Button> : <span className="text-[13px] text-cx-muted">Not attached</span>}
+                {canReplaceSlip ? (
+                  <Button variant="ghost" size="sm" icon={RefreshCw} onClick={onReplaceSlip}>{slip ? "Replace" : "Attach"}</Button>
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="rounded-cx bg-cx-sunken p-3">

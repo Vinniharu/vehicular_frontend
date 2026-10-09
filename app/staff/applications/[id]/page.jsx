@@ -367,7 +367,7 @@ export default function StaffApplicationPage() {
 
         <div className="space-y-4 lg:order-1">
           <PaymentSection application={app} isPaid={isPaid} />
-          <DrivingSchoolSection application={app} timeLeft={timeLeft} onPreview={setPreview} />
+          <DrivingSchoolSection application={app} timeLeft={timeLeft} onPreview={setPreview} onReplaceSlip={() => setAction({ type: "replace-slip" })} />
           <ServiceDetails application={app} vehicle={vehicle} />
           {type === "vehicle_particulars" ? <ParticularsItems application={app} onPreview={setPreview} onReview={(item) => setAction({ type: "particulars-item-review", item })} /> : null}
           {isVehicleCentric ? <VehicleSection application={app} vehicle={vehicle} /> : null}

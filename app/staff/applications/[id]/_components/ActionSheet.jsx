@@ -17,6 +17,7 @@ import {
   staffReadyForPickup,
   staffRejectApplication,
   staffReleaseParticularsToAgents,
+  staffReplaceDrivingSchoolSlip,
   staffReviewTemporaryLicence,
   staffRouteApplication,
   staffUploadDrivingSchoolCertificate,
@@ -30,6 +31,7 @@ const TITLES = {
   approve: "Approve application",
   reject: "Reject application",
   enroll: "Enroll in driving school",
+  "replace-slip": "Replace verification slip",
   "upload-cert": "Upload driving school certificate",
   "confirm-cert": "Verify certificate and route",
   "review-temp-licence": "Review temporary licence",
@@ -46,6 +48,7 @@ const CONFIRM_LABELS = {
   approve: "Approve",
   reject: "Reject application",
   enroll: "Enroll",
+  "replace-slip": "Replace slip",
   "upload-cert": "Upload certificate",
   "confirm-cert": "Verify and route",
   route: "Route to agents",
@@ -168,7 +171,7 @@ export default function ActionSheet({ type, item, application, onClose, onDone, 
       return false;
     };
     if (type === "reject" && !note.trim()) return setError("Add a reason — the applicant will see it.");
-    if (type === "enroll" && !fileUrl) return setError("Attach the driving school verification slip.");
+    if ((type === "enroll" || type === "replace-slip") && !fileUrl) return setError("Attach the driving school verification slip.");
     if (type === "upload-cert" && !fileUrl) return setError("Attach the graduation certificate.");
     if (type === "review-temp-licence" && needNote("the temporary licence")) return;
     if (type === "final-review" && needNote("this work")) return;
@@ -178,6 +181,7 @@ export default function ActionSheet({ type, item, application, onClose, onDone, 
     if (type === "approve") res = await staffApproveApplication(app.id, { note: note.trim() });
     else if (type === "reject") res = await staffRejectApplication(app.id, { reason: note.trim() });
     else if (type === "enroll") res = await staffEnrollDrivingSchool(app.id, { verification_image_url: fileUrl, screenshot_url: fileUrl, file_url: fileUrl });
+    else if (type === "replace-slip") res = await staffReplaceDrivingSchoolSlip(app.id, { file_url: fileUrl });
     else if (type === "upload-cert") res = await staffUploadDrivingSchoolCertificate(app.id, { certificate_url: fileUrl, screenshot_url: fileUrl, file_url: fileUrl });
     else if (type === "confirm-cert") res = await staffConfirmDrivingSchoolCertificate(app.id);
     else if (type === "review-temp-licence") res = await staffReviewTemporaryLicence(app.id, { decision, note: note.trim() || undefined });
@@ -215,11 +219,12 @@ export default function ActionSheet({ type, item, application, onClose, onDone, 
         {(p) => <Textarea {...p} rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. NIN slip is blurry, date of birth doesn't match." />}
       </Field>
     );
-  } else if (type === "enroll" || type === "upload-cert") {
+  } else if (type === "enroll" || type === "replace-slip" || type === "upload-cert") {
     body = (
       <>
         {type === "enroll" ? <Notice>The graduation date is set automatically: 26 business days from today, skipping weekends and public holidays.</Notice> : null}
-        <Field label={type === "enroll" ? "Verification slip" : "Graduation certificate"} required>
+        {type === "replace-slip" ? <Notice>Upload the correct slip. It replaces the one on file — the enrollment date and countdown stay the same.</Notice> : null}
+        <Field label={type === "upload-cert" ? "Graduation certificate" : type === "replace-slip" ? "Correct verification slip" : "Verification slip"} required>
           <UploadBox value={fileUrl} fileName={fileName} previewSrc={fileUrl ? resolveMediaUrl(fileUrl) : undefined} onUploaded={({ url, fileName: n }) => { setFileUrl(url); setFileName(n); }} onError={setError} />
         </Field>
       </>
