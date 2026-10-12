@@ -21,11 +21,10 @@ import { Button, Card, EmptyState, ErrorState, Field, Notice, PageHeader, Sheet,
 import { useToast } from "@/app/components/shared/ToastProvider";
 import { PARTICULAR_DOC_LABELS, jobStage, serviceLabel } from "./_components/jobs";
 
-const MAX_ACTIVE_JOBS = 10;
 const ACTIVE_STATUSES = ["agent_accepted", "agent_assigned", "in_progress", "in_process", "capture_scheduled", "capturing_scheduled", "captured", "capturing_completed", "needs_correction"];
 
-// Mirrors the backend job cap: jobs the agent still owes work on.
-function countsTowardCap(app) {
+// Mirrors the backend active-job count: jobs the agent still owes work on.
+function isActiveJob(app) {
   return ACTIVE_STATUSES.includes(app?.status) && !hasAgentUploadedAllDocuments(app);
 }
 
@@ -72,8 +71,7 @@ export default function AgentOffersPage() {
     load();
   }, []);
 
-  const active = apps.filter(countsTowardCap).length;
-  const atCap = active >= MAX_ACTIVE_JOBS;
+  const active = apps.filter(isActiveJob).length;
   const todo = apps.filter((a) => jobStage(a).bucket === "todo").length;
 
   const accept = async (offer) => {
@@ -117,9 +115,9 @@ export default function AgentOffersPage() {
           <p className="mt-2 text-2xl font-semibold text-cx-ink">{offers ? todo : "—"}</p>
           <p className="text-[13px] text-cx-muted">Jobs to do</p>
         </Link>
-        <Link href="/agent/applications" className={`cx-focus rounded-cx-lg border p-3 shadow-cx sm:p-4 ${atCap ? "border-cx-red/40 bg-cx-red-soft" : "border-cx-line bg-cx-surface hover:border-cx-brand/50"}`}>
-          <Hourglass className={`h-5 w-5 ${atCap ? "text-cx-red" : "text-cx-muted"}`} aria-hidden />
-          <p className="mt-2 text-2xl font-semibold text-cx-ink">{offers ? `${active}/${MAX_ACTIVE_JOBS}` : "—"}</p>
+        <Link href="/agent/applications" className="cx-focus rounded-cx-lg border border-cx-line bg-cx-surface p-3 shadow-cx hover:border-cx-brand/50 sm:p-4">
+          <Hourglass className="h-5 w-5 text-cx-muted" aria-hidden />
+          <p className="mt-2 text-2xl font-semibold text-cx-ink">{offers ? active : "—"}</p>
           <p className="text-[13px] text-cx-muted">Active jobs</p>
         </Link>
         <Link href="/agent/wallet" className="cx-focus rounded-cx-lg border border-cx-line bg-cx-surface p-3 shadow-cx hover:border-cx-brand/50 sm:p-4">
@@ -133,11 +131,6 @@ export default function AgentOffersPage() {
         {relocation?.relocation_status === "pending" ? (
           <Notice tone="amber" icon={Hourglass} title="Relocation waiting for approval">
             You asked to move to {relocation.pending_vio_office} in {relocation.pending_lga}, {relocation.pending_state}. Offers keep coming from your current area until an admin approves it.
-          </Notice>
-        ) : null}
-        {atCap ? (
-          <Notice tone="red" title={`You have ${active} active jobs`}>
-            The limit is {MAX_ACTIVE_JOBS}. Finish some jobs before accepting new ones.
           </Notice>
         ) : null}
 
@@ -181,8 +174,6 @@ export default function AgentOffersPage() {
                       <Button
                         icon={CheckCircle2}
                         loading={acting === offer.id}
-                        disabled={atCap}
-                        title={atCap ? `You've reached the ${MAX_ACTIVE_JOBS}-job limit` : undefined}
                         onClick={() => accept(offer)}
                       >
                         Accept
