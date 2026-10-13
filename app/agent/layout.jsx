@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ClipboardList, Inbox, LogOut, UserRound, Wallet } from "lucide-react";
+import { ClipboardList, Inbox, LogOut, MessagesSquare, UserRound, Wallet } from "lucide-react";
 import { authGetMe, getCachedUser, getToken, removeToken } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
 import PasswordGate from "@/app/components/portal/PasswordGate";
+import { AgentChatNotificationsProvider, UnreadBubble, useAgentChatUnread } from "./_components/AgentChatNotifications";
 
 const isJobPath = (p) => p.startsWith("/agent/applications") || p.startsWith("/agent/rwx") || p.startsWith("/agent/particulars");
 
 const TABS = [
   { label: "Jobs", long: "My jobs", href: "/agent/applications", icon: ClipboardList, match: isJobPath },
   { label: "Offers", long: "Job offers", href: "/agent", icon: Inbox, match: (p) => p === "/agent" || p.startsWith("/agent/particulars-offers") },
+  { label: "Chats", long: "Chats", href: "/agent/chats", icon: MessagesSquare, match: (p) => p.startsWith("/agent/chats"), badge: "chats" },
   { label: "Wallet", long: "Earnings wallet", href: "/agent/wallet", icon: Wallet, match: (p) => ["/agent/wallet", "/agent/bank-account", "/agent/transfers"].some((x) => p.startsWith(x)) },
   { label: "Account", long: "Account & settings", href: "/agent/settings", icon: UserRound, match: (p) => p.startsWith("/agent/settings") },
 ];
@@ -22,12 +24,24 @@ function initialsOf(name) {
 }
 
 export default function AgentLayout({ children }) {
+  const pathname = usePathname() || "/agent";
+  if (pathname === "/agent/login") return children;
+  return (
+    <AgentChatNotificationsProvider>
+      <AgentShell>{children}</AgentShell>
+    </AgentChatNotificationsProvider>
+  );
+}
+
+function AgentShell({ children }) {
   const router = useRouter();
   const pathname = usePathname() || "/agent";
   const isLoginRoute = pathname === "/agent/login";
   useAutoLogout();
   const [user, setUser] = useState(() => getCachedUser());
   const [loading, setLoading] = useState(true);
+  const { unread } = useAgentChatUnread();
+  const badgeFor = (item) => (item.badge === "chats" ? unread.total : 0);
 
   useEffect(() => {
     // The login page manages its own auth state.
@@ -113,6 +127,7 @@ export default function AgentLayout({ children }) {
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
                 {item.long}
+                <UnreadBubble count={badgeFor(item)} className="ml-auto" />
               </Link>
             );
           })}
@@ -156,7 +171,7 @@ export default function AgentLayout({ children }) {
 
       {/* ── Mobile bottom tab bar ───────────────────────────────────── */}
       <nav aria-label="Main" className="cx-safe-bottom fixed inset-x-0 bottom-0 z-40 border-t-2 border-cx-brand/30 bg-cx-surface md:hidden">
-        <ul className="grid h-16 grid-cols-4">
+        <ul className="grid h-16 grid-cols-5">
           {TABS.map((tab) => {
             const active = tab.match(pathname);
             const Icon = tab.icon;
@@ -170,8 +185,9 @@ export default function AgentLayout({ children }) {
                   }`}
                 >
                   {active ? <span className="absolute top-0 h-0.5 w-8 rounded-full bg-cx-brand" aria-hidden /> : null}
-                  <span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? "bg-cx-brand-soft" : ""}`}>
+                  <span className={`relative flex h-7 w-12 items-center justify-center rounded-full transition-colors ${active ? "bg-cx-brand-soft" : ""}`}>
                     <Icon className="h-[22px] w-[22px]" aria-hidden />
+                    <UnreadBubble count={badgeFor(tab)} className="absolute -right-0.5 -top-1.5 ring-2 ring-cx-surface" />
                   </span>
                   {tab.label}
                 </Link>
