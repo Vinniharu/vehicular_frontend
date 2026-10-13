@@ -54,6 +54,10 @@ function txStatusMeta(status) {
 
 function txLabel(tx) {
   if (tx.source && tx.source.startsWith("referral_reward_app_")) return "Referral Reward";
+  if (tx.source === "link_merge") return "Wallets linked";
+  if (tx.source === "unlink_transfer") return "Wallets unlinked";
+  if (tx.source === "spare_parts_reversal") return "Spare Parts refund";
+  if (tx.platform === "spare_parts") return tx.type === "credit" ? "Spare Parts credit" : "Spare Parts payment";
   return tx.type === "credit" ? "Wallet Deposit" : "Service Payment";
 }
 
@@ -278,6 +282,18 @@ export default function WalletPage() {
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-cx-muted font-semibold text-[13px]">Total Balance</p>
+              {wallet?.linked?.status === "linked" ? (
+                <Link
+                  href="/dashboard/settings"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#28A745]/10 px-3 py-1 text-xs font-bold text-[#28A745]"
+                >
+                  🔗 Linked with Spare Parts · Shared balance
+                </Link>
+              ) : wallet?.linked?.status === "merging" ? (
+                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                  🔗 Linking with Spare Parts…
+                </span>
+              ) : null}
               <div className="mt-2">
                 <h1
                   className="text-4xl lg:text-[46px] tracking-tight text-cx-ink"
@@ -383,6 +399,9 @@ export default function WalletPage() {
                             <div className="min-w-0">
                               <p className="font-bold text-sm text-cx-ink">
                                 {txLabel(tx)}
+                                {tx.platform === "spare_parts" ? (
+                                  <span className="ml-2 align-middle rounded-full bg-cx-sunken px-2 py-0.5 text-[10.5px] font-semibold text-cx-ink-2">Spare Parts</span>
+                                ) : null}
                               </p>
                               <p className="text-[12px] text-cx-muted">{formatDate(tx.created_at)}</p>
                             </div>
@@ -437,6 +456,9 @@ export default function WalletPage() {
                                 </div>
                                 <span className="font-bold text-sm text-cx-ink">
                                   {txLabel(tx)}
+                                  {tx.platform === "spare_parts" ? (
+                                    <span className="ml-2 align-middle rounded-full bg-cx-sunken px-2 py-0.5 text-[10.5px] font-semibold text-cx-ink-2">Spare Parts</span>
+                                  ) : null}
                                 </span>
                               </div>
                             </td>
