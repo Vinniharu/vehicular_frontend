@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import Modal from "@/app/dashboard/_shared/Modal";
 import { colors } from "@/lib/design-tokens";
+import LinkAccountsSection from "./LinkAccountsSection";
 
 const BRAND = colors.primary.DEFAULT;
 
@@ -434,6 +435,9 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Shared wallet with Spare Parts */}
+      <LinkAccountsSection onToast={showToast} />
 
       {/* Contact Support */}
       <div className="bg-white rounded-cx-lg border border-cx-line overflow-hidden">
