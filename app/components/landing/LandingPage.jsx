@@ -9,6 +9,7 @@ import HowItWorks from "./sections/HowItWorks";
 import Services from "./sections/Services";
 import AppShowcases from "./sections/AppShowcases";
 import Lifecycle from "./sections/Lifecycle";
+import SparePartsEarn from "./sections/SparePartsEarn";
 import Faq from "./sections/Faq";
 import FinalCta from "./sections/FinalCta";
 import Footer from "./sections/Footer";
@@ -99,6 +100,7 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
       <Services />
       <AppShowcases />
       <Lifecycle />
+      <SparePartsEarn />
       <TestimonialsLoader />
       <Faq />
       <FinalCta {...authProps} />

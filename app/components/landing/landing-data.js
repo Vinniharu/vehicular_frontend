@@ -42,8 +42,9 @@ export const SERVICE_LINKS = SERVICE_ITEMS.map(({ slug, label }) => ({ slug, lab
 // Only a subset of services have a live in-app showcase configured (see
 // showcase-configs.js) — this asymmetry is real, not a bug. pre_purchase_
 // inspection was dropped (merged into vehicle-verification — no distinct
-// target anymore); spare_parts and driveconnect were removed from the
-// project entirely (driveconnect spun out to its own standalone project).
+// target anymore). Spare parts lives in its own app (spare.vehiculars.com)
+// and is promoted by the SparePartsEarn section instead of a showcase tab;
+// driveconnect spun out to its own standalone project.
 export const SHOWCASE_TABS = [
   { id: "vehicle_particulars", label: "Particulars Renewal" },
   { id: "drivers_licence", label: "Driver's Licence" },
@@ -81,9 +82,9 @@ export const HOW_STEPS = [
   },
 ];
 
-// Stage 03 ("Stay running" — spare parts + find a technician) is dropped:
-// both were removed from the project entirely, so a stage pointing at
-// unreachable pages would be worse than no stage at all.
+// Spare parts and Find a Technician live in the Spare Parts app
+// (spare.vehiculars.com), so they're promoted by the SparePartsEarn section
+// rather than a lifecycle stage linking to pages that don't exist here.
 export const LIFECYCLE_STAGES = [
   {
     stage: "01", icon: ShoppingCart, title: "Buy right",

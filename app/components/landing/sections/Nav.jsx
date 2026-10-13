@@ -57,6 +57,8 @@ export default function Nav({ logoUrl, scrolled, isLoggedIn, dashboardHref, dash
               </div>
             </div>
             <Link href="/pricing" className="transition-colors duration-150 hover:text-white">Pricing</Link>
+            <a href="https://spare.vehiculars.com" className="transition-colors duration-150 hover:text-white">Spare Parts</a>
+            <Link href="/earn" className="transition-colors duration-150 hover:text-white">Earn</Link>
             <a href={howHref} className="transition-colors duration-150 hover:text-white">How it works</a>
             <a href={showcasesHref} className="transition-colors duration-150 hover:text-white">App preview</a>
             <a href="#contact" className="transition-colors duration-150 hover:text-white">Contact</a>
@@ -135,6 +137,8 @@ export default function Nav({ logoUrl, scrolled, isLoggedIn, dashboardHref, dash
             <div className="my-3 h-px" style={{ background: `${GREEN}30` }} />
             {[
               { href: "/pricing", label: "Pricing" },
+              { href: "https://spare.vehiculars.com", label: "Spare Parts" },
+              { href: "/earn", label: "Earn" },
               { href: howHref, label: "How it works" },
               { href: showcasesHref, label: "App preview" },
               { href: "#contact", label: "Contact" },

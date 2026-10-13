@@ -30,6 +30,8 @@ export default function Footer({ redirectTo }) {
               <li><a href={howHref} className="hover:text-white transition-colors duration-150">How it works</a></li>
               <li><a href={showcasesHref} className="hover:text-white transition-colors duration-150">App preview</a></li>
               <li><Link href="/pricing" className="hover:text-white transition-colors duration-150">Pricing</Link></li>
+              <li><a href="https://spare.vehiculars.com" className="hover:text-white transition-colors duration-150">Spare Parts</a></li>
+              <li><Link href="/earn" className="hover:text-white transition-colors duration-150">Earn</Link></li>
               <li><a href="#contact" className="hover:text-white transition-colors duration-150">Contact</a></li>
             </ul>
           </div>
