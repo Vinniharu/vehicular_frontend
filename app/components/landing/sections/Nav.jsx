@@ -114,22 +114,24 @@ export default function Nav({ logoUrl, scrolled, isLoggedIn, dashboardHref, dash
           </nav>
 
           <div className="flex items-center gap-2">
-            {isLoggedIn ? (
-              <MkButton href={dashboardHref} size="sm" className="hidden sm:inline-flex">
-                {dashboardLabel}
-                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-              </MkButton>
-            ) : (
-              <>
-                <MkButton href={loginHref} variant="ghost" size="sm" className="hidden sm:inline-flex">
-                  Sign In
-                </MkButton>
-                <MkButton href={signupHref} size="sm" className="hidden sm:inline-flex">
-                  Get Started
+            <div className="hidden sm:flex items-center gap-2">
+              {isLoggedIn ? (
+                <MkButton href={dashboardHref} size="sm">
+                  {dashboardLabel}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                 </MkButton>
-              </>
-            )}
+              ) : (
+                <>
+                  <MkButton href={loginHref} variant="ghost" size="sm">
+                    Sign In
+                  </MkButton>
+                  <MkButton href={signupHref} size="sm">
+                    Get Started
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+                  </MkButton>
+                </>
+              )}
+            </div>
             <button
               type="button"
               aria-label="Open menu"

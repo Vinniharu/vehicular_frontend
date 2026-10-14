@@ -93,7 +93,7 @@ export function StaggerItem({ as = "div", className, children, ...rest }) {
  */
 export function CountUp({ value, duration = 1.4, className }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "0px 0px -10% 0px" });
+  const inView = useInView(ref, { once: true });
   const reduce = useReducedMotion();
   const str = String(value ?? "");
   const match = str.match(/^(\D*?)(\d[\d,]*\.?\d*)(.*)$/);
