@@ -1,23 +1,19 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import ServiceIcon from "./ServiceIcon";
 import { ServiceStatusPill } from "@/app/services/_status";
-import { INK, GOLD, INK_SOFT } from "@/app/components/landing/theme";
 
 /**
  * Shared "browse services, link out to /services/[slug]" card — used by
- * the services hub grid (variant="hub") and the homepage Services section
- * (variant="landing", with the first two homepage items rendered in the
- * larger dark/gold "featured" treatment). Deliberately does NOT include
- * any motion/animation wrapper — the landing section's whileInView stagger
- * stays in Services.jsx itself, wrapping this component, so this stays
- * framework-agnostic and importable from the server-rendered hub page
- * without pulling framer-motion into that route.
+ * the services hub grid (variant="hub") and the homepage Services bento
+ * (variant="landing", where `featured` items get the wider gradient-border
+ * treatment). Deliberately has no "use client" and no motion/ui imports:
+ * app/services/page.jsx is server-rendered and must not gain a client
+ * bundle by using this. Hover polish is CSS only (mk-lift).
  *
  * app/pricing/page.jsx's ServiceCard is intentionally NOT unified into
  * this component — it's an expand/collapse toggle with an inline
- * calculator, not a link, a genuinely different interaction model. It
- * reuses ServiceIcon instead.
+ * calculator, not a link. It reuses ServiceIcon instead.
  */
 export default function ServiceCard({
   href,
@@ -33,30 +29,44 @@ export default function ServiceCard({
     return (
       <Link
         href={href}
-        className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl transition-transform duration-200 hover:-translate-y-1 ${
-          featured ? "p-6 sm:p-8 min-h-[200px]" : "p-5 sm:p-6"
+        className={`mk-focus mk-lift group relative flex h-full flex-col justify-between overflow-hidden rounded-mk-lg ${
+          featured
+            ? "mk-gradient-border shadow-mk p-6 sm:p-8 min-h-[220px]"
+            : "border border-mk-line bg-mk-surface shadow-mk-sm hover:border-mk-line-strong p-5 sm:p-6 min-h-[180px]"
         }`}
-        style={{ background: featured ? INK : "#ffffff", border: featured ? `1px solid ${GOLD}33` : `1px solid ${INK}14` }}
       >
         {featured && (
-          <div
-            aria-hidden
-            className="absolute -right-20 -top-20 h-40 w-40 rounded-full opacity-25"
-            style={{ background: `radial-gradient(circle, ${GOLD}, transparent 70%)` }}
-          />
+          <>
+            <div aria-hidden className="mk-grid-bg pointer-events-none absolute inset-0 opacity-60" />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full opacity-70 transition-opacity duration-500 group-hover:opacity-100"
+              style={{ background: "radial-gradient(closest-side, rgba(40,167,69,0.16), transparent)" }}
+            />
+          </>
         )}
-        <div>
-          <ServiceIcon icon={icon} tone={featured ? "onDark" : "brand"} />
-          <Heading className="mt-4 font-display text-[18px] font-medium leading-tight" style={{ color: featured ? "#ffffff" : INK }}>
+        <div className="relative">
+          <div className="flex items-start justify-between gap-3">
+            <ServiceIcon icon={icon} tone={featured ? "brandStrong" : "brand"} size={featured ? "lg" : "md"} />
+            <span
+              aria-hidden
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-mk-line text-mk-muted transition-colors duration-300 group-hover:border-cx-brand/30 group-hover:bg-cx-brand-soft group-hover:text-cx-brand-deep"
+            >
+              <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-px group-hover:translate-x-px" />
+            </span>
+          </div>
+          <Heading
+            className={`mt-5 font-semibold tracking-[-0.02em] text-mk-ink leading-tight ${
+              featured ? "text-[20px] sm:text-[22px]" : "text-[16.5px]"
+            }`}
+          >
             {title}
           </Heading>
-          <p className="mt-2 text-[14px] leading-relaxed" style={{ color: featured ? "rgba(255,255,255,0.55)" : INK_SOFT }}>
-            {description}
-          </p>
+          <p className={`mt-2 leading-relaxed text-mk-muted ${featured ? "text-[15px] max-w-sm" : "text-[14px]"}`}>{description}</p>
         </div>
-        <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: featured ? GOLD : "#28A745" }}>
+        <span className="relative mt-5 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-cx-brand-deep">
           View details
-          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
+          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
         </span>
       </Link>
     );
@@ -65,20 +75,19 @@ export default function ServiceCard({
   return (
     <Link
       href={href}
-      className="group flex flex-col justify-between rounded-2xl bg-white p-6 transition-transform duration-200 hover:-translate-y-1"
-      style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
+      className="mk-focus mk-lift group flex flex-col justify-between rounded-mk-lg border border-mk-line bg-mk-surface p-6 shadow-mk-sm hover:border-mk-line-strong"
     >
       <div>
         <div className="flex items-start justify-between gap-2">
           <ServiceIcon icon={icon} tone="brand" />
           <ServiceStatusPill status={status} />
         </div>
-        <Heading className="mt-4 font-display text-[18px] font-medium leading-tight text-[#111111]">{title}</Heading>
-        <p className="mt-2 text-[13.5px] leading-relaxed text-[#111111]/60">{description}</p>
+        <Heading className="mt-5 text-[17px] font-semibold tracking-[-0.02em] leading-tight text-mk-ink">{title}</Heading>
+        <p className="mt-2 text-[14px] leading-relaxed text-mk-muted">{description}</p>
       </div>
-      <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#28A745]">
+      <span className="mt-5 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-cx-brand-deep">
         View details
-        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
+        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
       </span>
     </Link>
   );

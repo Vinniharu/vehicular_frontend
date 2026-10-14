@@ -1,99 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { LIFECYCLE_STAGES } from "../landing-data";
-import { INK, GREEN, GOLD, PAPER, INK_SOFT } from "../theme";
+import { Section, SectionHeading } from "@/app/components/marketing/ui";
+import { EASE, Stagger, StaggerItem } from "@/app/components/marketing/motion";
 
-const gridVariants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08 } },
-};
-const cardVariants = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-};
-
-function LifecycleCard({ stage }) {
+function LifecycleStage({ stage, isLast }) {
   const Icon = stage.icon;
   return (
-    <motion.div
-      variants={cardVariants}
-      className="group relative flex flex-col rounded-2xl bg-white p-6 sm:p-7 transition-transform duration-200 hover:-translate-y-1"
-      style={{ border: `1px solid ${INK}14` }}
-    >
-      <div className="flex items-start justify-between">
-        <span
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors duration-200"
-          style={{ background: `${GREEN}1a`, color: GREEN }}
-        >
+    <div className={`relative flex gap-5 lg:block lg:pb-0 ${isLast ? "pb-0" : "pb-10"}`}>
+      {/* Mobile rail segment */}
+      {!isLast && <span aria-hidden className="absolute left-[21px] top-12 bottom-0 w-px bg-mk-line-strong lg:hidden" />}
+
+      <div className="relative z-10 shrink-0">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-cx-brand/25 bg-mk-surface text-cx-brand-deep shadow-mk-sm">
           <Icon className="h-5 w-5" />
         </span>
-        <span className="font-mono text-[11px] uppercase tracking-widest" style={{ color: GOLD }}>
-          {stage.stage}
-        </span>
       </div>
-      <h3 className="mt-5 font-display text-[22px] font-medium leading-tight" style={{ color: INK }}>
-        {stage.title}
-      </h3>
-      <p className="mt-2 text-[15px] leading-relaxed" style={{ color: INK_SOFT }}>
-        {stage.blurb}
-      </p>
-      {stage.items?.length > 0 && (
-        <ul className="mt-5 space-y-1 border-t pt-4" style={{ borderColor: `${INK}14` }}>
-          {stage.items.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="group/link flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-[14px] font-medium transition-colors duration-150 hover:bg-[#28A745]/5"
-                style={{ color: `${INK}cc` }}
-              >
-                <span>{item.label}</span>
-                <ChevronRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover/link:translate-x-0.5" style={{ color: `${INK}4d` }} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </motion.div>
+
+      <div className="min-w-0 flex-1 lg:mt-7">
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-mk-muted">
+          Stage <span className="text-cx-brand-deep">{stage.stage}</span>
+        </p>
+        <h3 className="mt-2 text-[21px] font-semibold tracking-[-0.025em] leading-tight text-mk-ink">{stage.title}</h3>
+        <p className="mt-2 text-[15px] leading-relaxed text-mk-muted">{stage.blurb}</p>
+        {stage.items?.length > 0 && (
+          <ul className="mt-5 overflow-hidden rounded-mk border border-mk-line bg-mk-surface shadow-mk-sm divide-y divide-mk-line">
+            {stage.items.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className="mk-focus group/link flex min-h-[44px] items-center justify-between gap-2 px-4 py-2.5 text-[14px] font-medium text-mk-ink-2 transition-colors duration-200 hover:bg-cx-brand-soft hover:text-mk-ink"
+                >
+                  <span>{item.label}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-mk-muted transition-transform duration-200 group-hover/link:translate-x-0.5 group-hover/link:text-cx-brand-deep" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function Lifecycle() {
+  const reduce = useReducedMotion();
   return (
-    <section id="lifecycle" className="relative px-4 sm:px-6 md:px-10 py-[64px] sm:py-[80px] lg:py-[96px]" style={{ background: PAPER }}>
-      <div className="mx-auto max-w-6xl">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5 }}
-          className="text-center max-w-2xl mx-auto mb-14"
-        >
-          <p className="font-mono text-[11px] uppercase tracking-widest" style={{ color: GREEN }}>
-            Lifecycle —
-          </p>
-          <h2 className="mt-4 font-display font-medium tracking-[-0.02em] leading-[1.05] text-[clamp(1.75rem,2.4vw+1rem,2.5rem)]" style={{ color: INK }}>
-            With your car from purchase to resale.
-          </h2>
-          <p className="mt-5 text-[16px] leading-[1.7]" style={{ color: INK_SOFT }}>
-            Vehiculars isn't a renewal service. It's the home base for every car you own — every stage, every job, one app.
-          </p>
-        </motion.div>
+    <Section id="lifecycle" tone="light">
+      <SectionHeading
+        align="center"
+        eyebrow="Lifecycle"
+        title="With your car from"
+        accent="purchase to resale."
+        description="Vehiculars isn't a renewal service. It's the home base for every car you own — every stage, every job, one app."
+      />
 
+      <div className="relative mt-14 sm:mt-16">
+        {/* Desktop rail through the stage markers; draws in on view */}
         <motion.div
-          variants={gridVariants}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-80px" }}
-          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-        >
-          {LIFECYCLE_STAGES.map((stage) => (
-            <LifecycleCard key={stage.title} stage={stage} />
+          aria-hidden
+          className="absolute left-0 right-0 top-[22px] hidden h-px origin-left bg-gradient-to-r from-cx-brand/50 via-mk-line-strong to-mk-line lg:block"
+          initial={reduce ? false : { scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
+          viewport={{ once: true, margin: "0px 0px -15% 0px" }}
+          transition={{ duration: 1.2, ease: EASE }}
+        />
+        <Stagger gap={0.1} className="relative grid lg:grid-cols-3 lg:gap-10">
+          {LIFECYCLE_STAGES.map((stage, i) => (
+            <StaggerItem key={stage.title}>
+              <LifecycleStage stage={stage} isLast={i === LIFECYCLE_STAGES.length - 1} />
+            </StaggerItem>
           ))}
-        </motion.div>
+        </Stagger>
       </div>
-    </section>
+    </Section>
   );
 }
