@@ -15,7 +15,6 @@ import FinalCta from "./sections/FinalCta";
 import Footer from "./sections/Footer";
 import StickyMobileCta from "./sections/StickyMobileCta";
 import { TestimonialsLoader } from "./TestimonialsLoader";
-import { GREEN, INK } from "./theme";
 
 // Scoped, minimal — everything else the old monolith's GLOBAL_STYLES block
 // carried (phone-float/slide-cycle/marquee keyframes, .vh-section/.vh-divider/
@@ -27,7 +26,7 @@ import { GREEN, INK } from "./theme";
 // native <details> marker styling the Faq section still relies on.
 const GLOBAL_STYLES = `
   html { scroll-behavior: smooth; }
-  body { background: ${INK}; }
+  body { background: var(--mk-bg); }
   details.vh-faq[open] .vh-faq-icon { transform: rotate(45deg); }
   details.vh-faq summary::-webkit-details-marker { display: none; }
   details.vh-faq summary { list-style: none; }
@@ -90,13 +89,12 @@ export function LandingPage({ logoUrl = "/logo.png" }) {
   const authProps = { isLoggedIn, dashboardHref, dashboardLabel, redirectTo };
 
   return (
-    <div>
+    <div className="mk-root">
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
 
       <Nav logoUrl={logoUrl} scrolled={scrolled} {...authProps} />
       <Hero {...authProps} />
       <HowItWorks />
-      <div className="h-px" style={{ background: `linear-gradient(90deg, transparent, ${GREEN}30, transparent)` }} />
       <Services />
       <AppShowcases />
       <Lifecycle />

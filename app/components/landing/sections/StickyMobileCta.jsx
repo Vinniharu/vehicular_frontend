@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { INK, GREEN, PAPER } from "../theme";
 
 // Mobile-only sticky bottom CTA — a distinct mobile pattern, not just a
 // squished desktop layout. Appears once the hero has scrolled past (its own
@@ -31,14 +30,12 @@ export default function StickyMobileCta({ isLoggedIn, dashboardHref, dashboardLa
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
-          transition={{ type: "tween", duration: 0.25 }}
-          className="md:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3"
-          style={{ background: `linear-gradient(to top, ${INK}f7 60%, transparent)` }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="md:hidden fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-6 bg-gradient-to-t from-white via-white/90 to-transparent"
         >
           <Link
             href={isLoggedIn ? dashboardHref : `/auth/signup?redirect=${encodeURIComponent(redirectTo)}`}
-            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold shadow-lg shadow-black/30"
-            style={{ background: GREEN, color: PAPER }}
+            className="mk-shine mk-focus flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-cx-brand text-[15px] font-semibold text-white shadow-mk-brand active:scale-[0.98] transition-transform"
           >
             {isLoggedIn ? dashboardLabel : "Start application"}
             <ArrowRight className="h-4 w-4" />

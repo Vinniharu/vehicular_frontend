@@ -193,3 +193,191 @@ body {
     font-size: 16px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Public marketing site ("mk") — clean fintech look on the brand green.
+   Reuses the cx palette; adds surfaces, shadows and a few premium helpers.
+   --------------------------------------------------------------------------- */
+:root {
+  --mk-bg: #f7f9f7;
+  --mk-surface: #ffffff;
+  --mk-ink: #0b1210;
+  --mk-ink-2: #34413a;
+  --mk-muted: #5f6b64;
+  --mk-line: #e3ebe5;
+  --mk-line-strong: #d3ddd6;
+  --mk-dark: #0b1210;
+  --mk-dark-card: #13221b;
+  --mk-gold: #c9a227;
+  --mk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mk-shadow-sm: 0 1px 2px rgba(11, 18, 16, 0.04), 0 1px 1px rgba(11, 18, 16, 0.03);
+  --mk-shadow: 0 1px 2px rgba(11, 18, 16, 0.04), 0 8px 24px -12px rgba(11, 18, 16, 0.12);
+  --mk-shadow-lg: 0 2px 4px rgba(11, 18, 16, 0.04), 0 24px 48px -20px rgba(11, 18, 16, 0.22);
+  --mk-shadow-brand: 0 10px 30px -10px rgba(40, 167, 69, 0.55);
+}
+
+@theme inline {
+  --color-mk-bg: var(--mk-bg);
+  --color-mk-surface: var(--mk-surface);
+  --color-mk-ink: var(--mk-ink);
+  --color-mk-ink-2: var(--mk-ink-2);
+  --color-mk-muted: var(--mk-muted);
+  --color-mk-line: var(--mk-line);
+  --color-mk-line-strong: var(--mk-line-strong);
+  --color-mk-dark: var(--mk-dark);
+  --color-mk-dark-card: var(--mk-dark-card);
+  --color-mk-gold: var(--mk-gold);
+  --shadow-mk-sm: var(--mk-shadow-sm);
+  --shadow-mk: var(--mk-shadow);
+  --shadow-mk-lg: var(--mk-shadow-lg);
+  --shadow-mk-brand: var(--mk-shadow-brand);
+  --radius-mk: 16px;
+  --radius-mk-lg: 24px;
+}
+
+.mk-root {
+  background: var(--mk-bg);
+  color: var(--mk-ink);
+}
+.mk-root ::selection {
+  background: rgba(40, 167, 69, 0.18);
+}
+
+/* Faint ledger grid, faded at the edges. */
+.mk-grid-bg {
+  background-image: linear-gradient(rgba(11, 18, 16, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 18, 16, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+}
+.mk-grid-bg-dark {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, #000 25%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, #000 25%, transparent 75%);
+}
+.mk-glow {
+  background: radial-gradient(closest-side, rgba(40, 167, 69, 0.28), rgba(40, 167, 69, 0.08) 55%, transparent);
+  filter: blur(8px);
+}
+
+/* Gradient hairline border for featured cards. */
+.mk-gradient-border {
+  position: relative;
+  background: linear-gradient(var(--mk-surface), var(--mk-surface)) padding-box,
+    linear-gradient(135deg, #28a745, rgba(40, 167, 69, 0.15) 45%, #c9a227) border-box;
+  border: 1px solid transparent;
+}
+
+/* Light sweep across primary buttons on hover. */
+.mk-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.mk-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.32) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--mk-ease);
+}
+.mk-shine:hover::after {
+  transform: translateX(120%);
+}
+
+/* Card hover lift. */
+.mk-lift {
+  transition: transform 0.35s var(--mk-ease), box-shadow 0.35s var(--mk-ease), border-color 0.35s var(--mk-ease);
+}
+@media (hover: hover) {
+  .mk-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--mk-shadow-lg);
+  }
+}
+
+.mk-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.35);
+}
+
+@keyframes mk-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.mk-marquee-track {
+  animation: mk-marquee 40s linear infinite;
+}
+.mk-marquee:hover .mk-marquee-track {
+  animation-play-state: paused;
+}
+@keyframes mk-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.mk-float {
+  animation: mk-float 6s ease-in-out infinite;
+}
+@keyframes mk-pulse-dot {
+  0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.5); }
+  100% { box-shadow: 0 0 0 8px rgba(40, 167, 69, 0); }
+}
+.mk-pulse-dot {
+  animation: mk-pulse-dot 1.8s ease-out infinite;
+}
+@keyframes mk-gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.mk-gradient-pan {
+  background-size: 200% 200%;
+  animation: mk-gradient-pan 14s ease-in-out infinite;
+}
+
+/* Long-form text (privacy, terms). */
+.mk-prose {
+  max-width: 68ch;
+  color: var(--mk-ink-2);
+  font-size: 16px;
+  line-height: 1.75;
+}
+.mk-prose h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--mk-ink);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.mk-prose h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--mk-ink);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.mk-prose p,
+.mk-prose ul,
+.mk-prose ol {
+  margin-bottom: 1rem;
+}
+.mk-prose ul { list-style: disc; padding-left: 1.25rem; }
+.mk-prose ol { list-style: decimal; padding-left: 1.25rem; }
+.mk-prose a { color: var(--cx-brand-deep); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Site-wide reduced motion (the cx-root rule above covers the portals). */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
