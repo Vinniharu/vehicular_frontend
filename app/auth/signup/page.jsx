@@ -3,10 +3,24 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { authRegister, authLogin, authGoogleLogin } from "@/lib/api";
 import { GoogleLogin } from "@react-oauth/google";
 import { safeRedirectPath } from "@/lib/utils/safe-redirect";
+import {
+  AuthHeader,
+  AuthAlert,
+  AuthDivider,
+  AuthFooterNote,
+  AuthLoading,
+  GoogleButtonSlot,
+  authInput,
+  authLabel,
+  authLink,
+  authEyeButton,
+  authPrimaryButton,
+  authSpinner,
+} from "../_components/auth-ui";
 
 function SignupForm() {
   const router = useRouter();
@@ -138,71 +152,51 @@ function SignupForm() {
 
   return (
     <div>
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
-          Create your customer account
-        </h1>
-        <p className="mt-2 text-[14px] leading-relaxed text-white/55">
-          Register to manage driver&apos;s licences, roadworthiness renewals, and compliance nationwide.
-        </p>
-      </div>
+      <AuthHeader
+        title="Create your customer account"
+        description={<>Register to manage driver&apos;s licences, roadworthiness renewals, and compliance nationwide.</>}
+      />
 
       {/* Error Alert */}
       {error && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-start gap-3 text-[13px] leading-relaxed"
-          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}
-        >
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
-          <div className="flex-1">
-            <p className="font-medium">{error}</p>
-            {requestId && (
-              <p className="mt-1 font-mono text-[11px] text-red-300/70">
-                X-Request-ID: {requestId}
-              </p>
-            )}
-          </div>
-        </div>
+        <AuthAlert tone="error">
+          <p className="font-medium">{error}</p>
+          {requestId && (
+            <p className="mt-1 font-mono text-[11px] text-red-700/70">
+              X-Request-ID: {requestId}
+            </p>
+          )}
+        </AuthAlert>
       )}
 
       {/* Success Alert */}
       {successMsg && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-center gap-3 text-[13px] font-medium"
-          style={{ background: "rgba(40, 167, 69,0.12)", border: "1px solid rgba(40, 167, 69,0.3)", color: "#34d399" }}
-        >
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#28A745]" />
+        <AuthAlert tone="success" className="font-medium">
           <span>{successMsg}</span>
-        </div>
+        </AuthAlert>
       )}
 
-      <div className="flex justify-center w-full">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={handleGoogleError}
-          theme="filled_black"
-          shape="rectangular"
-          text="continue_with"
-          size="large"
-          width="320"
-        />
-      </div>
+      <GoogleButtonSlot>
+        {(googleWidth) => (
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme="outline"
+            shape="rectangular"
+            text="continue_with"
+            size="large"
+            width={googleWidth}
+          />
+        )}
+      </GoogleButtonSlot>
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/[0.08]"></div>
-        </div>
-        <div className="relative flex justify-center text-[13px]">
-          <span className="px-3 text-white/50" style={{ background: "#0a0a0a" }}>Or continue with email</span>
-        </div>
-      </div>
+      <AuthDivider label="Or continue with email" />
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end sm:gap-3">
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="firstName">
+            <label className={authLabel} htmlFor="firstName">
               First name *
             </label>
             <input
@@ -213,16 +207,12 @@ function SignupForm() {
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Ada"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={authInput}
             />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="middleName">
-              Middle name <span className="text-white/40 text-[11px] font-normal">(optional)</span>
+            <label className={authLabel} htmlFor="middleName">
+              Middle name <span className="text-mk-muted text-[11.5px] font-normal">(optional)</span>
             </label>
             <input
               id="middleName"
@@ -231,15 +221,11 @@ function SignupForm() {
               value={middleName}
               onChange={(e) => setMiddleName(e.target.value)}
               placeholder="Chidinma"
-              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={authInput}
             />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="lastName">
+            <label className={authLabel} htmlFor="lastName">
               Surname *
             </label>
             <input
@@ -250,18 +236,14 @@ function SignupForm() {
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Obi"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={authInput}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="email">
+            <label className={authLabel} htmlFor="email">
               Email address
             </label>
             <input
@@ -272,15 +254,11 @@ function SignupForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={authInput}
             />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="phone">
+            <label className={authLabel} htmlFor="phone">
               Phone number
             </label>
             <input
@@ -292,18 +270,14 @@ function SignupForm() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="0801 234 5678"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none font-mono transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={`${authInput} font-mono`}
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="referralCode">
-            Referral code <span className="text-white/40 font-normal">(optional)</span>
+          <label className={authLabel} htmlFor="referralCode">
+            Referral code <span className="text-mk-muted font-normal">(optional)</span>
           </label>
           <input
             id="referralCode"
@@ -311,17 +285,13 @@ function SignupForm() {
             value={referralCode}
             onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
             placeholder="e.g. HPG849ND"
-            className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none font-mono uppercase transition-all"
-            style={{
-              background: "rgba(17, 17, 17, 0.6)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-            }}
+            className={`${authInput} font-mono uppercase`}
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="password">
+            <label className={authLabel} htmlFor="password">
               Password
             </label>
             <div className="relative">
@@ -333,23 +303,20 @@ function SignupForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimum 8 characters"
                 required
-                className="w-full rounded-xl pl-4 pr-10 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-                style={{
-                  background: "rgba(17, 17, 17, 0.6)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                }}
+                className={`${authInput} pr-12`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className={authEyeButton}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="confirmPassword">
+            <label className={authLabel} htmlFor="confirmPassword">
               Confirm password
             </label>
             <input
@@ -360,11 +327,7 @@ function SignupForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter password"
               required
-              className="w-full rounded-xl px-4 py-2.5 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={authInput}
             />
           </div>
         </div>
@@ -373,43 +336,40 @@ function SignupForm() {
           <button
             type="submit"
             disabled={loading || successMsg}
-            className="w-full h-12 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.99]"
-            style={{
-              background: loading ? "#28A745/70" : "#28A745",
-              color: "#f0ede6",
-            }}
+            className={authPrimaryButton}
           >
             {loading ? (
               <>
-                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className={authSpinner} />
                 <span>Registering account...</span>
               </>
             ) : (
-              <span>Create account &amp; continue</span>
+              <>
+                <span>Create account &amp; continue</span>
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
+              </>
             )}
           </button>
         </div>
       </form>
 
       {/* Footer Navigation */}
-      <div className="mt-8 pt-6 border-t border-white/[0.08] text-center">
-        <p className="text-[14px] text-white/60">
-          Already have an account?{" "}
-          <Link
-            href={`/auth/login?redirect=${encodeURIComponent(targetRedirect)}`}
-            className="font-semibold text-[#28A745] hover:underline ml-1"
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
+      <AuthFooterNote>
+        Already have an account?{" "}
+        <Link
+          href={`/auth/login?redirect=${encodeURIComponent(targetRedirect)}`}
+          className={`${authLink} ml-1 inline-flex min-h-[44px] items-center`}
+        >
+          Sign in
+        </Link>
+      </AuthFooterNote>
     </div>
   );
 }
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div className="text-center text-white/50 font-mono text-sm py-12">Loading portal...</div>}>
+    <Suspense fallback={<AuthLoading label="Loading portal..." />}>
       <SignupForm />
     </Suspense>
   );

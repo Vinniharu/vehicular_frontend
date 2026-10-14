@@ -17,43 +17,39 @@ import {
   Database,
   Eye,
   Key,
+  ChevronDown,
 } from "lucide-react";
 
 import Nav from "@/app/components/landing/sections/Nav";
 import Footer from "@/app/components/landing/sections/Footer";
-import { GREEN, INK, INK_SOFT, PAPER, GOLD, INK_CARD } from "@/app/components/landing/theme";
+import { GOLD } from "@/app/components/landing/theme";
+import { Container } from "@/app/components/marketing/ui";
+import { Reveal, Stagger, StaggerItem } from "@/app/components/marketing/motion";
 
 const EFFECTIVE_DATE = "12 November 2025";
 const LAST_UPDATED = "16 September 2026";
 
 function PolicySection({ id, number, title, icon: Icon, children }) {
   return (
-    <section
-      id={id}
-      className="scroll-mt-28 py-8 sm:py-10"
-      style={{ borderBottom: "1px solid rgba(17,17,17,0.08)" }}
-    >
-      <div className="flex items-start gap-3.5">
+    <section id={id} className="scroll-mt-24 border-b border-mk-line py-8 last:border-b-0 sm:py-10">
+      <div className="flex items-start gap-3.5 sm:gap-4">
         {Icon && (
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-            style={{ background: "rgba(40, 167, 69, 0.12)", color: GREEN }}
-          >
+          <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cx-brand-soft text-cx-brand-deep ring-1 ring-inset ring-cx-brand/15 sm:flex">
             <Icon className="h-4.5 w-4.5" />
           </div>
         )}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2.5">
             {number && (
-              <span className="font-mono text-[12px] font-semibold tracking-wider text-slate-400">
+              <span className="font-mono text-[12px] font-medium tracking-wider text-cx-brand-deep">
                 {number}
               </span>
             )}
-            <h2 className="font-display text-[20px] sm:text-[22px] font-semibold text-[#111111]">
+            <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-[-0.02em] text-mk-ink text-balance">
               {title}
             </h2>
           </div>
-          <div className="mt-4 space-y-4 text-[14.5px] leading-relaxed text-[#111111]/75">
+          <div className="mt-4 space-y-4 text-[15px] leading-[1.75] text-mk-ink-2">
             {children}
           </div>
         </div>
@@ -123,9 +119,26 @@ export default function PrivacyPolicyPage() {
     { id: "contact-dpo", label: "15. Contact Us & Data Protection Officer" },
   ];
 
+  // Highlight the section currently in view in the desktop contents list.
+  const [activeId, setActiveId] = useState(toc[0].id);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const els = toc.map((t) => document.getElementById(t.id)).filter(Boolean);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActiveId(visible[0].target.id);
+      },
+      { rootMargin: "-96px 0px -65% 0px", threshold: 0 }
+    );
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="min-h-screen">
-      <style dangerouslySetInnerHTML={{ __html: `body { background: ${INK}; }` }} />
+    <div className="mk-root min-h-screen">
+      <style dangerouslySetInnerHTML={{ __html: `body { background: var(--mk-bg); }` }} />
       <Nav
         logoUrl="/logo.png"
         scrolled={scrolled}
@@ -136,125 +149,141 @@ export default function PrivacyPolicyPage() {
       />
 
       {/* Header Banner */}
-      <section className="relative px-5 pb-12 pt-28 md:px-8 overflow-hidden">
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12px] font-semibold backdrop-blur-md" style={{ background: "rgba(40, 167, 69, 0.15)", color: GREEN }}>
-            <ShieldCheck className="h-4 w-4" />
-            <span>NDPA 2023 Compliant &bull; Corporate Affairs Commission Verified</span>
-          </div>
-
-          <h1 className="mt-4 font-display text-[32px] font-medium leading-tight text-white sm:text-[46px]">
-            Privacy Policy & Data Protection Notice
-          </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-relaxed" style={{ color: INK_SOFT }}>
-            This Privacy Policy sets out how <strong className="text-white">Vehiculars Technology Limited</strong> collects,
-            processes, protects, and stores personal data when you use our digital platform, mobile applications,
-            and vehicular documentation services across the Federal Republic of Nigeria.
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12.5px] text-white/60">
-            <span>Incorporated: <strong className="text-white">{EFFECTIVE_DATE}</strong></span>
-            <span>&bull;</span>
-            <span>Last Updated: <strong className="text-white">{LAST_UPDATED}</strong></span>
-            <span>&bull;</span>
-            <span>Regulated by: <strong className="text-white">Nigeria Data Protection Commission (NDPC)</strong></span>
-          </div>
-        </div>
-
-        {/* Official CAC Certificate Credential Card */}
-        <div className="mx-auto mt-10 max-w-4xl">
-          <div
-            className="relative overflow-hidden rounded-2xl p-6 sm:p-8 backdrop-blur-xl transition-all"
-            style={{
-              background: `linear-gradient(135deg, ${INK_CARD} 0%, rgba(19, 34, 27, 0.85) 100%)`,
-              border: "1px solid rgba(40, 167, 69, 0.3)",
-              boxShadow: "0 20px 40px -15px rgba(0, 0, 0, 0.5)",
-            }}
-          >
-            {/* Top Seal Accent */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl"
-                  style={{ background: "rgba(201, 162, 39, 0.15)", color: GOLD }}
-                >
-                  <Building2 className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: GOLD }}>
-                    Federal Republic of Nigeria &bull; CAC Certified
-                  </span>
-                  <h3 className="text-[18px] sm:text-[20px] font-bold tracking-tight text-white">
-                    VEHICULARS TECHNOLOGY LIMITED
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex self-start sm:self-center items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-semibold text-emerald-300 bg-emerald-950/80 border border-emerald-500/30">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                Active & Legally Incorporated
+      <section className="relative overflow-hidden border-b border-mk-line bg-mk-surface">
+        <div aria-hidden className="mk-grid-bg pointer-events-none absolute inset-0" />
+        <div aria-hidden className="mk-glow pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[720px] max-w-[180vw] -translate-x-1/2" />
+        <Container className="relative py-14 sm:py-20">
+          <Stagger animateOnMount className="mx-auto max-w-4xl text-center">
+            <StaggerItem>
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-cx-brand/20 bg-cx-brand-soft px-3.5 py-1.5 text-[12px] font-semibold text-cx-brand-deep">
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span>NDPA 2023 Compliant &bull; Corporate Affairs Commission Verified</span>
               </span>
-            </div>
+            </StaggerItem>
 
-            {/* Corporate Attributes Grid */}
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4 text-[13px]">
-              <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
-                <span className="text-[11px] uppercase tracking-wider text-white/40 block">RC Registration No.</span>
-                <span className="mt-1 font-mono font-bold text-white text-[15px]">8994192</span>
-              </div>
-              <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
-                <span className="text-[11px] uppercase tracking-wider text-white/40 block">Tax ID (TIN)</span>
-                <span className="mt-1 font-mono font-bold text-white text-[15px]">33691933-0001</span>
-              </div>
-              <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
-                <span className="text-[11px] uppercase tracking-wider text-white/40 block">Governing Act</span>
-                <span className="mt-1 font-semibold text-white">CAMA 2020</span>
-              </div>
-              <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/5">
-                <span className="text-[11px] uppercase tracking-wider text-white/40 block">Corporate Structure</span>
-                <span className="mt-1 font-semibold text-white">Private Co. Ltd by Shares</span>
-              </div>
-            </div>
+            <StaggerItem>
+              <h1
+                className="mt-5 font-semibold tracking-[-0.03em] text-mk-ink text-balance"
+                style={{ fontSize: "clamp(1.85rem, 2.4vw + 1rem, 3rem)", lineHeight: 1.08 }}
+              >
+                Privacy Policy &amp;{" "}
+                <span className="font-display font-normal italic text-cx-brand">Data Protection Notice</span>
+              </h1>
+            </StaggerItem>
+            <StaggerItem>
+              <p className="mx-auto mt-4 max-w-2xl text-[16px] sm:text-[17px] leading-relaxed text-mk-muted text-pretty">
+                This Privacy Policy sets out how <strong className="font-semibold text-mk-ink">Vehiculars Technology Limited</strong> collects,
+                processes, protects, and stores personal data when you use our digital platform, mobile applications,
+                and vehicular documentation services across the Federal Republic of Nigeria.
+              </p>
+            </StaggerItem>
 
-            <p className="mt-4 text-[12px] leading-relaxed text-white/50 italic">
-              Certified by the Registrar-General of the Corporate Affairs Commission (CAC) under the Companies and Allied Matters Act 2020 at Abuja, Nigeria, on the 12th day of November 2025.
-            </p>
-          </div>
-        </div>
+            <StaggerItem className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[12.5px] text-mk-muted">
+              <span className="rounded-full border border-mk-line bg-mk-bg px-3 py-1">Incorporated: <strong className="font-semibold text-mk-ink">{EFFECTIVE_DATE}</strong></span>
+              <span className="rounded-full border border-mk-line bg-mk-bg px-3 py-1">Last Updated: <strong className="font-semibold text-mk-ink">{LAST_UPDATED}</strong></span>
+              <span className="rounded-full border border-mk-line bg-mk-bg px-3 py-1">Regulated by: <strong className="font-semibold text-mk-ink">Nigeria Data Protection Commission (NDPC)</strong></span>
+            </StaggerItem>
+          </Stagger>
+
+          {/* Official CAC Certificate Credential Card */}
+          <Reveal delay={0.15} className="mx-auto mt-10 max-w-4xl">
+            <div className="relative overflow-hidden rounded-mk-lg border border-white/10 bg-mk-dark p-5 text-white shadow-mk-lg sm:p-8">
+              <div aria-hidden className="mk-grid-bg-dark pointer-events-none absolute inset-0 opacity-60" />
+              <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,39,0.18),transparent)]" />
+              {/* Top Seal Accent */}
+              <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                    style={{ background: "rgba(201, 162, 39, 0.15)", color: GOLD }}
+                  >
+                    <Building2 className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-mono uppercase tracking-widest" style={{ color: GOLD }}>
+                      Federal Republic of Nigeria &bull; CAC Certified
+                    </span>
+                    <h3 className="text-[17px] sm:text-[20px] font-bold tracking-tight text-white">
+                      VEHICULARS TECHNOLOGY LIMITED
+                    </h3>
+                  </div>
+                </div>
+                <span className="inline-flex self-start sm:self-center items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-semibold text-emerald-300 bg-emerald-950/80 border border-emerald-500/30">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  Active & Legally Incorporated
+                </span>
+              </div>
+
+              {/* Corporate Attributes Grid */}
+              <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 text-[13px]">
+                <div className="min-w-0 rounded-xl bg-white/[0.04] p-3.5 border border-white/[0.07]">
+                  <span className="text-[11px] uppercase tracking-wider text-white/45 block">RC Registration No.</span>
+                  <span className="mt-1 block font-mono font-bold text-white text-[15px]">8994192</span>
+                </div>
+                <div className="min-w-0 rounded-xl bg-white/[0.04] p-3.5 border border-white/[0.07]">
+                  <span className="text-[11px] uppercase tracking-wider text-white/45 block">Tax ID (TIN)</span>
+                  <span className="mt-1 block break-all font-mono font-bold text-white text-[15px]">33691933-0001</span>
+                </div>
+                <div className="min-w-0 rounded-xl bg-white/[0.04] p-3.5 border border-white/[0.07]">
+                  <span className="text-[11px] uppercase tracking-wider text-white/45 block">Governing Act</span>
+                  <span className="mt-1 block font-semibold text-white">CAMA 2020</span>
+                </div>
+                <div className="min-w-0 rounded-xl bg-white/[0.04] p-3.5 border border-white/[0.07]">
+                  <span className="text-[11px] uppercase tracking-wider text-white/45 block">Corporate Structure</span>
+                  <span className="mt-1 block font-semibold text-white">Private Co. Ltd by Shares</span>
+                </div>
+              </div>
+
+              <p className="relative mt-4 text-[12px] leading-relaxed text-white/50 italic">
+                Certified by the Registrar-General of the Corporate Affairs Commission (CAC) under the Companies and Allied Matters Act 2020 at Abuja, Nigeria, on the 12th day of November 2025.
+              </p>
+            </div>
+          </Reveal>
+        </Container>
       </section>
 
       {/* Main Content Body */}
-      <section className="px-5 pb-24 md:px-8" style={{ background: PAPER }}>
-        <div className="mx-auto max-w-6xl pt-12">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
-            
+      <section className="bg-mk-bg py-10 sm:py-16">
+        <Container>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
+
             {/* Table of Contents - Desktop Sticky Sidebar */}
             <aside className="hidden lg:block lg:col-span-4">
-              <div className="sticky top-28 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <FileText className="h-4 w-4" style={{ color: GREEN }} />
-                  <h4 className="text-[13px] font-bold uppercase tracking-wider text-slate-800">
+              <div className="sticky top-24 rounded-mk-lg border border-mk-line bg-mk-surface p-5 shadow-mk-sm">
+                <div className="flex items-center gap-2 border-b border-mk-line pb-3">
+                  <FileText className="h-4 w-4 text-cx-brand" />
+                  <h4 className="font-mono text-[11.5px] font-medium uppercase tracking-[0.16em] text-mk-ink">
                     Policy Contents
                   </h4>
                 </div>
-                <nav className="mt-3 space-y-1 text-[13px]">
-                  {toc.map((item) => (
-                    <a
-                      key={item.id}
-                      href={`#${item.id}`}
-                      className="block rounded-lg px-2.5 py-1.5 font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
-                    >
-                      {item.label}
-                    </a>
-                  ))}
+                <nav className="mt-3 max-h-[calc(100vh-20rem)] space-y-0.5 overflow-y-auto text-[13px]" aria-label="Policy contents">
+                  {toc.map((item) => {
+                    const active = activeId === item.id;
+                    return (
+                      <a
+                        key={item.id}
+                        href={`#${item.id}`}
+                        aria-current={active ? "location" : undefined}
+                        className={`mk-focus relative block rounded-lg py-1.5 pl-3.5 pr-2.5 font-medium transition-colors ${
+                          active ? "bg-cx-brand-soft text-cx-brand-deep" : "text-mk-muted hover:bg-mk-bg hover:text-mk-ink"
+                        }`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`absolute left-1 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-cx-brand transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
+                        />
+                        {item.label}
+                      </a>
+                    );
+                  })}
                 </nav>
 
-                <div className="mt-6 rounded-xl bg-slate-50 p-3.5 border border-slate-200/60 text-[12px] text-slate-600">
-                  <p className="font-semibold text-slate-800">Need immediate help with your data?</p>
+                <div className="mt-5 rounded-mk border border-mk-line bg-mk-bg p-3.5 text-[12.5px] text-mk-muted">
+                  <p className="font-semibold text-mk-ink">Need immediate help with your data?</p>
                   <p className="mt-1">Contact our Data Protection Office directly:</p>
                   <a
                     href="mailto:privacy@vehiculars.com"
-                    className="mt-2 inline-flex items-center gap-1 font-bold underline"
-                    style={{ color: GREEN }}
+                    className="mt-2 inline-flex items-center gap-1 font-bold text-cx-brand-deep underline underline-offset-2"
                   >
                     privacy@vehiculars.com
                   </a>
@@ -263,7 +292,29 @@ export default function PrivacyPolicyPage() {
             </aside>
 
             {/* Policy Clauses Body */}
-            <main className="lg:col-span-8 divide-y divide-slate-200/80">
+            <main className="min-w-0 lg:col-span-8">
+              {/* Contents - mobile / tablet */}
+              <details className="group mb-5 rounded-mk-lg border border-mk-line bg-mk-surface shadow-mk-sm lg:hidden">
+                <summary className="mk-focus flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 rounded-mk-lg px-5 text-[14px] font-semibold text-mk-ink [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-cx-brand" /> Policy Contents
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-mk-muted transition-transform duration-300 group-open:rotate-180" aria-hidden />
+                </summary>
+                <nav className="border-t border-mk-line px-3 py-2 text-[14px]" aria-label="Policy contents">
+                  {toc.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      className="flex min-h-[44px] items-center rounded-lg px-2.5 font-medium text-mk-ink-2 hover:bg-mk-bg hover:text-mk-ink"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </details>
+
+              <div className="rounded-mk-lg border border-mk-line bg-mk-surface px-5 shadow-mk sm:px-8 lg:px-10">
               
               {/* Section 1 */}
               <PolicySection
@@ -283,7 +334,7 @@ export default function PrivacyPolicyPage() {
                 <p>
                   Vehiculars operates digital automotive convenience services, fleet administration systems,
                   and vehicle documentation platforms accessible through our website (
-                  <a href="https://vehiculars.com" className="font-semibold underline" style={{ color: GREEN }}>
+                  <a href="https://vehiculars.com" className="font-semibold text-cx-brand-deep underline underline-offset-2">
                     vehiculars.com
                   </a>
                   ), our web portal, client dashboard, staff/agent execution tools, and iOS/Android mobile applications.
@@ -328,27 +379,27 @@ export default function PrivacyPolicyPage() {
                   and share your personal data where at least one of the following lawful bases applies:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">1. Contractual Necessity</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">1. Contractual Necessity</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Processing is required to fulfill the vehicle documentation, verification, inspection, or delivery services you expressly order from us.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">2. Statutory & Legal Obligations</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">2. Statutory & Legal Obligations</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Compliance with Nigerian road traffic statutes, National Road Traffic Regulations (NRTR), FRSC directives, VIO inspection rules, and tax compliance.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">3. Legitimate Interests</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">3. Legitimate Interests</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Detecting fraud, verifying vehicle ownership authenticity, preventing stolen vehicle documentation, and maintaining enterprise system security.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">4. Explicit Consent</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">4. Explicit Consent</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Provided by you for optional features such as marketing communications, camera access for instant document capture, and mobile push notifications.
                     </p>
                   </div>
@@ -368,53 +419,53 @@ export default function PrivacyPolicyPage() {
                 </p>
                 
                 <div className="space-y-3 pt-2">
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4">
-                    <h4 className="font-semibold text-slate-900">A. Personal Identification & Contact Details</h4>
-                    <p className="mt-1 text-[13.5px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <h4 className="font-semibold text-mk-ink">A. Personal Identification & Contact Details</h4>
+                    <p className="mt-1 text-[13.5px] text-mk-ink-2">
                       Full legal name (first, middle, last), date of birth, gender, marital status, nationality, residential
                       address, Local Government Area (LGA), State of origin and residence, active telephone number, email address,
                       and next of kin / emergency contact details.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4">
-                    <h4 className="font-semibold text-slate-900">B. Government Identifiers & Statutory Records</h4>
-                    <p className="mt-1 text-[13.5px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <h4 className="font-semibold text-mk-ink">B. Government Identifiers & Statutory Records</h4>
+                    <p className="mt-1 text-[13.5px] text-mk-ink-2">
                       National Identification Number (NIN), existing Driver’s Licence Number, Taxpayer Identification Number (TIN)
                       where relevant, International Passport bio-data page (for International Driving Permits), and FRSC learner’s
                       permit references.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4">
-                    <h4 className="font-semibold text-slate-900">C. Biometric Schedule & Physical Attributes</h4>
-                    <p className="mt-1 text-[13.5px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <h4 className="font-semibold text-mk-ink">C. Biometric Schedule & Physical Attributes</h4>
+                    <p className="mt-1 text-[13.5px] text-mk-ink-2">
                       Facial passport photographs, height, blood group, facial marks / disability declarations, and preferred
                       biometric capture appointment centre and time slots.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4">
-                    <h4 className="font-semibold text-slate-900">D. Vehicle Ownership & Technical Specification Data</h4>
-                    <p className="mt-1 text-[13.5px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <h4 className="font-semibold text-mk-ink">D. Vehicle Ownership & Technical Specification Data</h4>
+                    <p className="mt-1 text-[13.5px] text-mk-ink-2">
                       Vehicle Make, Model, Year of Manufacture, Vehicle Identification Number (VIN / Chassis Number), Engine Number,
                       License Plate Number, Vehicle Color, Fuel Type, Body Type, Odometer Mileage, Proof of Ownership Certificate,
                       Customs Duty Papers, and Vehicle Allocation Receipts.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4">
-                    <h4 className="font-semibold text-slate-900">E. Vehicle Inspection & Diagnostic Telemetry</h4>
-                    <p className="mt-1 text-[13.5px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <h4 className="font-semibold text-mk-ink">E. Vehicle Inspection & Diagnostic Telemetry</h4>
+                    <p className="mt-1 text-[13.5px] text-mk-ink-2">
                       Mechanical condition photographs, brake testing records, suspension and tire condition evaluations, engine
                       fault diagnostic logs, chassis integrity ratings, and inspector verdict notes recorded during Physical Condition
                       Inspections (PCI) or Roadworthiness Express bay checks.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-4">
-                    <h4 className="font-semibold text-slate-900">F. Financial & Transaction Logs</h4>
-                    <p className="mt-1 text-[13.5px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <h4 className="font-semibold text-mk-ink">F. Financial & Transaction Logs</h4>
+                    <p className="mt-1 text-[13.5px] text-mk-ink-2">
                       Transaction references, payment method identifiers, wallet credit/debit balances, service invoices, and payout
                       account bank details (for verified field agents). <em>Note: Vehiculars does NOT collect, process, or store full
                       credit or debit card primary account numbers (PAN) or CVVs. All electronic payments are processed through
@@ -449,29 +500,29 @@ export default function PrivacyPolicyPage() {
               >
                 <p>Vehiculars Technology Limited processes your data strictly for legitimate operational purposes:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
-                    <p className="font-semibold text-slate-800 text-[13.5px]">Statutory Document Processing</p>
-                    <p className="mt-1 text-[12.5px] text-slate-600">Filing applications with FRSC, VIO, Police (CMRIS), and Motor Vehicle Administration Agencies.</p>
+                  <div className="rounded-xl bg-mk-bg p-3.5 border border-mk-line">
+                    <p className="font-semibold text-mk-ink text-[13.5px]">Statutory Document Processing</p>
+                    <p className="mt-1 text-[12.5px] text-mk-ink-2">Filing applications with FRSC, VIO, Police (CMRIS), and Motor Vehicle Administration Agencies.</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
-                    <p className="font-semibold text-slate-800 text-[13.5px]">Biometric Capture & Driving School</p>
-                    <p className="mt-1 text-[12.5px] text-slate-600">Enrolling candidates in statutory 26-working-day accredited driving school programs and scheduling capture appointments in your LGA.</p>
+                  <div className="rounded-xl bg-mk-bg p-3.5 border border-mk-line">
+                    <p className="font-semibold text-mk-ink text-[13.5px]">Biometric Capture & Driving School</p>
+                    <p className="mt-1 text-[12.5px] text-mk-ink-2">Enrolling candidates in statutory 26-working-day accredited driving school programs and scheduling capture appointments in your LGA.</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
-                    <p className="font-semibold text-slate-800 text-[13.5px]">Inspection Report Generation</p>
-                    <p className="mt-1 text-[12.5px] text-slate-600">Compiling comprehensive, photo-verified mechanical inspection audit reports for vehicle buyers and fleet owners.</p>
+                  <div className="rounded-xl bg-mk-bg p-3.5 border border-mk-line">
+                    <p className="font-semibold text-mk-ink text-[13.5px]">Inspection Report Generation</p>
+                    <p className="mt-1 text-[12.5px] text-mk-ink-2">Compiling comprehensive, photo-verified mechanical inspection audit reports for vehicle buyers and fleet owners.</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
-                    <p className="font-semibold text-slate-800 text-[13.5px]">Physical Logistics & Dispatch</p>
-                    <p className="mt-1 text-[12.5px] text-slate-600">Assigning vetted dispatch riders to deliver physical driver's licence cards, vehicle stickers, and number plates straight to your doorstep.</p>
+                  <div className="rounded-xl bg-mk-bg p-3.5 border border-mk-line">
+                    <p className="font-semibold text-mk-ink text-[13.5px]">Physical Logistics & Dispatch</p>
+                    <p className="mt-1 text-[12.5px] text-mk-ink-2">Assigning vetted dispatch riders to deliver physical driver's licence cards, vehicle stickers, and number plates straight to your doorstep.</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
-                    <p className="font-semibold text-slate-800 text-[13.5px]">Transactional Alerts & Updates</p>
-                    <p className="mt-1 text-[12.5px] text-slate-600">Sending SMS, email, and push notifications concerning application status, countdown timers, and expiry reminders.</p>
+                  <div className="rounded-xl bg-mk-bg p-3.5 border border-mk-line">
+                    <p className="font-semibold text-mk-ink text-[13.5px]">Transactional Alerts & Updates</p>
+                    <p className="mt-1 text-[12.5px] text-mk-ink-2">Sending SMS, email, and push notifications concerning application status, countdown timers, and expiry reminders.</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/60">
-                    <p className="font-semibold text-slate-800 text-[13.5px]">Fraud Prevention & Audit Security</p>
-                    <p className="mt-1 text-[12.5px] text-slate-600">Verifying document validity, preventing vehicle identity cloning, and preserving tamper-proof audit trails.</p>
+                  <div className="rounded-xl bg-mk-bg p-3.5 border border-mk-line">
+                    <p className="font-semibold text-mk-ink text-[13.5px]">Fraud Prevention & Audit Security</p>
+                    <p className="mt-1 text-[12.5px] text-mk-ink-2">Verifying document validity, preventing vehicle identity cloning, and preserving tamper-proof audit trails.</p>
                   </div>
                 </div>
               </PolicySection>
@@ -488,38 +539,38 @@ export default function PrivacyPolicyPage() {
                   and regulatory data confidentiality duties under NDPA 2023:
                 </p>
 
-                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <div className="overflow-x-auto rounded-xl border border-mk-line bg-white">
                   <table className="w-full text-left text-[13px]">
-                    <thead className="bg-slate-50 text-[11.5px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                    <thead className="bg-mk-bg text-[11.5px] font-bold uppercase tracking-wider text-mk-muted border-b border-mk-line">
                       <tr>
                         <th className="px-4 py-3">Recipient Category</th>
                         <th className="px-4 py-3">Parties Involved</th>
                         <th className="px-4 py-3">Purpose & Transferred Data</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                    <tbody className="divide-y divide-mk-line text-mk-ink-2">
                       <tr>
-                        <td className="px-4 py-3 font-semibold text-slate-900">Government Authorities</td>
+                        <td className="px-4 py-3 font-semibold text-mk-ink">Government Authorities</td>
                         <td className="px-4 py-3">FRSC, VIO, State MVAA, Nigeria Police Force (CMRIS)</td>
                         <td className="px-4 py-3">Filing statutory applications, issuance of driver's licences, roadworthiness certificates, and number plates.</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-3 font-semibold text-slate-900">Accredited Driving Schools</td>
+                        <td className="px-4 py-3 font-semibold text-mk-ink">Accredited Driving Schools</td>
                         <td className="px-4 py-3">FRSC-certified partner driving academies</td>
                         <td className="px-4 py-3">Statutory candidate enrollment (26 working days mandatory period) and certificate issuance for fresh licence applicants.</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-3 font-semibold text-slate-900">Payment Gateway</td>
+                        <td className="px-4 py-3 font-semibold text-mk-ink">Payment Gateway</td>
                         <td className="px-4 py-3">Monnify (TeamApt / Moniepoint MFB)</td>
                         <td className="px-4 py-3">Payment processing, transaction settlements, and customer wallet funding. PCI-DSS compliant.</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-3 font-semibold text-slate-900">Communication Vendors</td>
+                        <td className="px-4 py-3 font-semibold text-mk-ink">Communication Vendors</td>
                         <td className="px-4 py-3">Termii (SMS & OTP), Resend (Transactional Email)</td>
                         <td className="px-4 py-3">Delivering time-sensitive application updates, verification codes, payment receipts, and deadline reminders.</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-3 font-semibold text-slate-900">Vetted Field Agents & Riders</td>
+                        <td className="px-4 py-3 font-semibold text-mk-ink">Vetted Field Agents & Riders</td>
                         <td className="px-4 py-3">Accredited Vehiculars local logistics network</td>
                         <td className="px-4 py-3">Conducting physical vehicle inspections, handling physical submission, and doorstep delivery of completed cards.</td>
                       </tr>
@@ -570,27 +621,27 @@ export default function PrivacyPolicyPage() {
                   to guarantee confidentiality and protect against unauthorized access, loss, or alteration:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">End-to-End Encryption</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">End-to-End Encryption</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       All data in transit is protected using TLS 1.3 encryption. Sensitive database fields, documents, and backups are encrypted at rest using AES-256.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">Role-Based Access Controls (RBAC)</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">Role-Based Access Controls (RBAC)</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Access to candidate documents is restricted exclusively to authorized staff and assigned field agents strictly processing that stage.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">Tamper-Proof Audit Logging</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">Tamper-Proof Audit Logging</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Every administrative view, file download, status transition, or document verification is immutably recorded with actor timestamp and IP.
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <p className="font-bold text-slate-900">Regular Security Audits</p>
-                    <p className="mt-1 text-[13px] text-slate-600">
+                  <div className="rounded-xl border border-mk-line bg-white p-4">
+                    <p className="font-bold text-mk-ink">Regular Security Audits</p>
+                    <p className="mt-1 text-[13px] text-mk-ink-2">
                       Continuous vulnerability scanning, regular penetration testing, and automated disaster-recovery backup redundancies.
                     </p>
                   </div>
@@ -618,16 +669,16 @@ export default function PrivacyPolicyPage() {
                   <li><strong>Right to Object:</strong> You can object at any time to receiving non-essential marketing notifications.</li>
                 </ul>
 
-                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/80 text-[13px] text-slate-700">
-                  <p className="font-semibold text-slate-900">How to exercise your rights:</p>
+                <div className="rounded-xl bg-mk-bg p-4 border border-mk-line text-[13px] text-mk-ink-2">
+                  <p className="font-semibold text-mk-ink">How to exercise your rights:</p>
                   <p className="mt-1">
                     Send a formal request from your registered email address to{" "}
-                    <a href="mailto:privacy@vehiculars.com" className="font-semibold underline" style={{ color: GREEN }}>
+                    <a href="mailto:privacy@vehiculars.com" className="font-semibold text-cx-brand-deep underline underline-offset-2">
                       privacy@vehiculars.com
                     </a>
                     . We will verify your identity and respond comprehensively within <strong>thirty (30) days</strong> at zero charge.
                   </p>
-                  <p className="mt-2 text-[12px] text-slate-500">
+                  <p className="mt-2 text-[12px] text-mk-muted">
                     If you believe your data protection rights have been infringed, you also have the statutory right to lodge a
                     complaint with the <strong>Nigeria Data Protection Commission (NDPC)</strong> at{" "}
                     <a href="https://ndpc.gov.ng" target="_blank" rel="noreferrer" className="underline font-medium">
@@ -724,32 +775,32 @@ export default function PrivacyPolicyPage() {
                   practices, please reach our Data Protection Office:
                 </p>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
+                <div className="rounded-mk-lg border border-mk-line bg-white p-5 sm:p-6 shadow-mk-sm space-y-5">
                   <div className="flex items-start gap-3">
-                    <Building2 className="h-5 w-5 text-slate-600 mt-0.5" />
+                    <Building2 className="h-5 w-5 text-mk-ink-2 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-slate-900">VEHICULARS TECHNOLOGY LIMITED</h4>
-                      <p className="text-[13px] text-slate-500 font-mono">RC No: 8994192 &bull; TIN: 33691933-0001</p>
+                      <h4 className="font-bold text-mk-ink">VEHICULARS TECHNOLOGY LIMITED</h4>
+                      <p className="text-[13px] text-mk-muted font-mono">RC No: 8994192 &bull; TIN: 33691933-0001</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[13.5px]">
-                    <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/60">
-                      <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" style={{ color: GREEN }} /> Lagos Corporate Office
+                    <div className="rounded-xl bg-mk-bg p-4 border border-mk-line">
+                      <p className="font-bold text-mk-ink flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4 text-cx-brand" /> Lagos Corporate Office
                       </p>
-                      <p className="mt-2 text-slate-600 leading-relaxed">
+                      <p className="mt-2 text-mk-ink-2 leading-relaxed">
                         38 Opebi Road, Adebola House<br />
                         Suite 100 (Rear Car Park Wing), Ikeja,<br />
                         Lagos State, Nigeria
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/60">
-                      <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" style={{ color: GREEN }} /> Abuja Liaison Office
+                    <div className="rounded-xl bg-mk-bg p-4 border border-mk-line">
+                      <p className="font-bold text-mk-ink flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4 text-cx-brand" /> Abuja Liaison Office
                       </p>
-                      <p className="mt-2 text-slate-600 leading-relaxed">
+                      <p className="mt-2 text-mk-ink-2 leading-relaxed">
                         No. 50 Ebitu Ukiwe Street,<br />
                         Jabi District,<br />
                         Abuja, FCT, Nigeria
@@ -757,30 +808,31 @@ export default function PrivacyPolicyPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-100 pt-4 flex flex-wrap items-center justify-between gap-4 text-[13px]">
+                  <div className="border-t border-mk-line pt-4 flex flex-wrap items-center justify-between gap-4 text-[13px]">
                     <div>
-                      <span className="text-slate-500 block">Data Protection Officer:</span>
-                      <a href="mailto:privacy@vehiculars.com" className="font-bold text-emerald-700 underline">
+                      <span className="text-mk-muted block">Data Protection Officer:</span>
+                      <a href="mailto:privacy@vehiculars.com" className="font-bold text-cx-brand-deep underline">
                         privacy@vehiculars.com
                       </a>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">General Customer Support:</span>
-                      <a href="mailto:support@vehiculars.com" className="font-bold text-slate-800 underline">
+                      <span className="text-mk-muted block">General Customer Support:</span>
+                      <a href="mailto:support@vehiculars.com" className="font-bold text-mk-ink underline">
                         support@vehiculars.com
                       </a>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Customer Helpline:</span>
-                      <span className="font-bold text-slate-800 font-mono">+234 813 470 5676</span>
+                      <span className="text-mk-muted block">Customer Helpline:</span>
+                      <span className="font-bold text-mk-ink font-mono">+234 813 470 5676</span>
                     </div>
                   </div>
                 </div>
               </PolicySection>
 
+              </div>
             </main>
           </div>
-        </div>
+        </Container>
       </section>
 
       <Footer redirectTo="/privacy-policy" />

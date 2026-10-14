@@ -1,12 +1,27 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, AlertCircle, CheckCircle2, KeyRound, X, Loader2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, X, Loader2, ArrowRight } from "lucide-react";
 import { authLogin, authGetMe, getCachedUser, authForgotPassword, authGoogleLogin } from "@/lib/api";
 import { GoogleLogin } from "@react-oauth/google";
 import { safeRedirectPath } from "@/lib/utils/safe-redirect";
+import {
+  AuthHeader,
+  AuthAlert,
+  AuthDivider,
+  AuthFooterNote,
+  AuthLoading,
+  GoogleButtonSlot,
+  authInput,
+  authLabel,
+  authLink,
+  authEyeButton,
+  authPrimaryButton,
+  authSpinner,
+} from "../_components/auth-ui";
 
 function LoginForm() {
   const router = useRouter();
@@ -171,93 +186,65 @@ function LoginForm() {
 
   return (
     <div>
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
-          Sign in to Vehiculars
-        </h1>
-        <p className="mt-2 text-[14px] leading-relaxed text-white/55">
-          Access your vehicle dashboard, compliance documents, and active renewals.
-        </p>
-      </div>
+      <AuthHeader
+        title="Sign in to Vehiculars"
+        description="Access your vehicle dashboard, compliance documents, and active renewals."
+      />
 
       {/* Session expired notice */}
       {sessionExpired && !error && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-start gap-3 text-[13px] leading-relaxed"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.75)" }}
-        >
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/50" />
+        <AuthAlert tone="info">
           <span>Your session expired after 60 minutes. Please sign in again.</span>
-        </div>
+        </AuthAlert>
       )}
 
       {/* Account deleted notice */}
       {accountDeleted && !error && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-start gap-3 text-[13px] leading-relaxed"
-          style={{ background: "rgba(40,167,69,0.12)", border: "1px solid rgba(40,167,69,0.3)", color: "#34d399" }}
-        >
-          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-[#28A745]" />
+        <AuthAlert tone="success">
           <span>Your account has been deleted successfully.</span>
-        </div>
+        </AuthAlert>
       )}
 
 
       {/* Error Alert */}
       {error && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-start gap-3 text-[13px] leading-relaxed"
-          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}
-        >
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
-          <div className="flex-1">
-            <p className="font-medium">{error}</p>
-            {requestId && (
-              <p className="mt-1 font-mono text-[11px] text-red-300/70">
-                X-Request-ID: {requestId}
-              </p>
-            )}
-          </div>
-        </div>
+        <AuthAlert tone="error">
+          <p className="font-medium">{error}</p>
+          {requestId && (
+            <p className="mt-1 font-mono text-[11px] text-red-700/70">
+              X-Request-ID: {requestId}
+            </p>
+          )}
+        </AuthAlert>
       )}
 
       {/* Success Alert */}
       {successMsg && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-center gap-3 text-[13px] font-medium"
-          style={{ background: "rgba(40, 167, 69,0.12)", border: "1px solid rgba(40, 167, 69,0.3)", color: "#34d399" }}
-        >
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#28A745]" />
+        <AuthAlert tone="success" className="font-medium">
           <span>{successMsg}</span>
-        </div>
+        </AuthAlert>
       )}
 
-      <div className="flex justify-center w-full">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={handleGoogleError}
-          theme="filled_black"
-          shape="rectangular"
-          text="continue_with"
-          size="large"
-          width="320"
-        />
-      </div>
+      <GoogleButtonSlot>
+        {(googleWidth) => (
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme="outline"
+            shape="rectangular"
+            text="continue_with"
+            size="large"
+            width={googleWidth}
+          />
+        )}
+      </GoogleButtonSlot>
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/[0.08]"></div>
-        </div>
-        <div className="relative flex justify-center text-[13px]">
-          <span className="px-3 text-white/50" style={{ background: "#0a0a0a" }}>Or continue with email</span>
-        </div>
-      </div>
+      <AuthDivider label="Or continue with email" />
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="email">
+          <label className={authLabel} htmlFor="email">
             Email address
           </label>
           <input
@@ -268,23 +255,19 @@ function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             required
-            className="w-full rounded-xl px-4 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-            style={{
-              background: "rgba(17, 17, 17, 0.6)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-            }}
+            className={authInput}
           />
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-[13px] font-medium text-white/85" htmlFor="password">
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-[13.5px] font-medium text-mk-ink" htmlFor="password">
               Password
             </label>
             <button
               type="button"
               onClick={() => setShowForgotModal(true)}
-              className="text-[12px] font-medium text-[#28A745] hover:underline"
+              className="mk-focus -my-2 -mr-2 inline-flex min-h-[44px] items-center rounded-lg px-2 text-[13px] font-semibold text-cx-brand-deep hover:underline underline-offset-4"
             >
               Forgot password?
             </button>
@@ -298,16 +281,13 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              className="w-full rounded-xl pl-4 pr-11 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={`${authInput} pr-12`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className={authEyeButton}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -318,64 +298,61 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading || successMsg}
-            className="w-full h-12 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.99]"
-            style={{
-              background: loading ? "#28A745/70" : "#28A745",
-              color: "#f0ede6",
-            }}
+            className={authPrimaryButton}
           >
             {loading ? (
               <>
-                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className={authSpinner} />
                 <span>Verifying credentials...</span>
               </>
             ) : (
-              <span>Sign in</span>
+              <>
+                <span>Sign in</span>
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
+              </>
             )}
           </button>
         </div>
       </form>
 
       {/* Footer Navigation */}
-      <div className="mt-8 pt-6 border-t border-white/[0.08] text-center">
-        <p className="text-[14px] text-white/60">
-          Don&apos;t have an account?{" "}
-          <Link
-            href={`/auth/signup?redirect=${encodeURIComponent(targetRedirect || "/dashboard")}`}
-            className="font-semibold text-[#28A745] hover:underline ml-1"
-          >
-            Create customer account
-          </Link>
-        </p>
-      </div>
+      <AuthFooterNote>
+        Don&apos;t have an account?{" "}
+        <Link
+          href={`/auth/signup?redirect=${encodeURIComponent(targetRedirect || "/dashboard")}`}
+          className={`${authLink} ml-1 inline-flex min-h-[44px] items-center`}
+        >
+          Create customer account
+        </Link>
+      </AuthFooterNote>
 
       {/* ── Forgot Password Modal ── */}
-      {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      {showForgotModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-mk-ink/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div
-            className="w-full max-w-md overflow-hidden rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center space-y-4 relative"
-            style={{
-              background: "#111111",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forgot-title"
+            className="relative w-full max-w-md overflow-hidden rounded-mk-lg border border-mk-line bg-mk-surface p-6 text-center shadow-mk-lg space-y-4 animate-in zoom-in-95 duration-200 sm:p-8"
           >
             <button
               type="button"
               onClick={closeForgotModal}
-              className="absolute right-4 top-4 rounded-lg p-1.5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+              aria-label="Close"
+              className="mk-focus absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-mk-muted transition-colors hover:bg-mk-ink/[0.05] hover:text-mk-ink"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#28A745]/15 text-[#28A745] border border-[#28A745]/30">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cx-brand-soft text-cx-brand ring-1 ring-inset ring-cx-brand/20">
               <KeyRound className="h-7 w-7" />
             </div>
 
             {forgotSent ? (
               <>
                 <div>
-                  <h3 className="text-[18px] font-bold text-white tracking-tight">Check your email</h3>
-                  <p className="mt-2 text-[13.5px] leading-relaxed text-white/70 max-w-sm mx-auto">
+                  <h3 id="forgot-title" className="text-[19px] font-semibold tracking-[-0.02em] text-mk-ink">Check your email</h3>
+                  <p className="mx-auto mt-2 max-w-sm text-[14px] leading-relaxed text-mk-muted">
                     If that email is registered, you will receive password reset instructions shortly.
                   </p>
                 </div>
@@ -383,8 +360,7 @@ function LoginForm() {
                   <button
                     type="button"
                     onClick={closeForgotModal}
-                    className="w-full inline-flex items-center justify-center rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all active:scale-[0.98]"
-                    style={{ background: "#28A745" }}
+                    className={authPrimaryButton}
                   >
                     Close
                   </button>
@@ -393,20 +369,16 @@ function LoginForm() {
             ) : (
               <>
                 <div>
-                  <h3 className="text-[18px] font-bold text-white tracking-tight">Reset your password</h3>
-                  <p className="mt-2 text-[13.5px] leading-relaxed text-white/70 max-w-sm mx-auto">
+                  <h3 id="forgot-title" className="text-[19px] font-semibold tracking-[-0.02em] text-mk-ink">Reset your password</h3>
+                  <p className="mx-auto mt-2 max-w-sm text-[14px] leading-relaxed text-mk-muted">
                     Enter your account email and we'll send you a link to reset your password.
                   </p>
                 </div>
 
                 {forgotError && (
-                  <div
-                    className="rounded-xl p-3 flex items-start gap-2.5 text-left text-[12.5px] leading-relaxed"
-                    style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}
-                  >
-                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                  <AuthAlert tone="error" flush className="text-left text-[13px]">
                     <span>{forgotError}</span>
-                  </div>
+                  </AuthAlert>
                 )}
 
                 <form onSubmit={handleForgotSubmit} className="space-y-3 text-left">
@@ -418,17 +390,12 @@ function LoginForm() {
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="you@example.com"
                     required
-                    className="w-full rounded-xl px-4 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-                    style={{
-                      background: "rgba(255, 255, 255, 0.06)",
-                      border: "1px solid rgba(255, 255, 255, 0.15)",
-                    }}
+                    className={authInput}
                   />
                   <button
                     type="submit"
                     disabled={forgotLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60"
-                    style={{ background: "#28A745" }}
+                    className={authPrimaryButton}
                   >
                     {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {forgotLoading ? "Sending..." : "Send reset link"}
@@ -437,7 +404,8 @@ function LoginForm() {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -445,7 +413,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="text-center text-white/50 font-mono text-sm py-12">Loading portal...</div>}>
+    <Suspense fallback={<AuthLoading label="Loading portal..." />}>
       <LoginForm />
     </Suspense>
   );

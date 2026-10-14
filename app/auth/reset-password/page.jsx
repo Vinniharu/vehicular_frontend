@@ -3,8 +3,20 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Link2Off as LinkIcon } from "lucide-react";
 import { authResetPassword } from "@/lib/api";
+import {
+  AuthHeader,
+  AuthAlert,
+  AuthFooterNote,
+  AuthLoading,
+  authInput,
+  authLabel,
+  authLink,
+  authEyeButton,
+  authPrimaryButton,
+  authSpinner,
+} from "../_components/auth-ui";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -59,18 +71,16 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div>
-        <div className="mb-8">
-          <h1 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
-            Invalid reset link
-          </h1>
-          <p className="mt-2 text-[14px] leading-relaxed text-white/55">
-            This link is invalid or missing its token. Please request a new password reset from the sign-in page.
-          </p>
+        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500 ring-1 ring-inset ring-red-200">
+          <LinkIcon className="h-5 w-5" aria-hidden />
         </div>
+        <AuthHeader
+          title="Invalid reset link"
+          description="This link is invalid or missing its token. Please request a new password reset from the sign-in page."
+        />
         <Link
           href="/auth/login"
-          className="inline-flex items-center justify-center w-full h-12 rounded-xl font-semibold text-[14px] transition-all duration-150 active:scale-[0.99]"
-          style={{ background: "#28A745", color: "#f0ede6" }}
+          className={authPrimaryButton}
         >
           Back to sign in
         </Link>
@@ -80,38 +90,29 @@ function ResetPasswordForm() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-white">
-          Set a new password
-        </h1>
-        <p className="mt-2 text-[14px] leading-relaxed text-white/55">
-          Choose a new password for your Vehiculars account.
-        </p>
+      <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-cx-brand-soft text-cx-brand ring-1 ring-inset ring-cx-brand/20">
+        <KeyRound className="h-5 w-5" aria-hidden />
       </div>
+      <AuthHeader
+        title="Set a new password"
+        description="Choose a new password for your Vehiculars account."
+      />
 
       {error && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-start gap-3 text-[13px] leading-relaxed"
-          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5" }}
-        >
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+        <AuthAlert tone="error">
           <span>{error}</span>
-        </div>
+        </AuthAlert>
       )}
 
       {successMsg && (
-        <div
-          className="mb-6 rounded-xl p-4 flex items-center gap-3 text-[13px] font-medium"
-          style={{ background: "rgba(40, 167, 69,0.12)", border: "1px solid rgba(40, 167, 69,0.3)", color: "#34d399" }}
-        >
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-[#28A745]" />
+        <AuthAlert tone="success" className="font-medium">
           <span>{successMsg}</span>
-        </div>
+        </AuthAlert>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="password">
+          <label className={authLabel} htmlFor="password">
             New password
           </label>
           <div className="relative">
@@ -123,16 +124,13 @@ function ResetPasswordForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 characters"
               required
-              className="w-full rounded-xl pl-4 pr-11 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-              style={{
-                background: "rgba(17, 17, 17, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-              }}
+              className={`${authInput} pr-12`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className={authEyeButton}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -140,7 +138,7 @@ function ResetPasswordForm() {
         </div>
 
         <div>
-          <label className="block text-[13px] font-medium text-white/85 mb-1.5" htmlFor="confirmPassword">
+          <label className={authLabel} htmlFor="confirmPassword">
             Confirm new password
           </label>
           <input
@@ -151,11 +149,7 @@ function ResetPasswordForm() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Re-enter password"
             required
-            className="w-full rounded-xl px-4 py-3 text-base sm:text-[14px] text-white placeholder-white/25 focus:outline-none transition-all"
-            style={{
-              background: "rgba(17, 17, 17, 0.6)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-            }}
+            className={authInput}
           />
         </div>
 
@@ -163,15 +157,11 @@ function ResetPasswordForm() {
           <button
             type="submit"
             disabled={loading || successMsg}
-            className="w-full h-12 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.99]"
-            style={{
-              background: loading ? "#28A745/70" : "#28A745",
-              color: "#f0ede6",
-            }}
+            className={authPrimaryButton}
           >
             {loading ? (
               <>
-                <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className={authSpinner} />
                 <span>Resetting password...</span>
               </>
             ) : (
@@ -181,21 +171,19 @@ function ResetPasswordForm() {
         </div>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-white/[0.08] text-center">
-        <p className="text-[14px] text-white/60">
-          Remembered your password?{" "}
-          <Link href="/auth/login" className="font-semibold text-[#28A745] hover:underline ml-1">
-            Sign in
-          </Link>
-        </p>
-      </div>
+      <AuthFooterNote>
+        Remembered your password?{" "}
+        <Link href="/auth/login" className={`${authLink} ml-1 inline-flex min-h-[44px] items-center`}>
+          Sign in
+        </Link>
+      </AuthFooterNote>
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="text-center text-white/50 font-mono text-sm py-12">Loading...</div>}>
+    <Suspense fallback={<AuthLoading label="Loading..." />}>
       <ResetPasswordForm />
     </Suspense>
   );

@@ -204,8 +204,8 @@ function VoiceNoteRecorder({ existingUrl, onRecorded, disabled }) {
         <div className="mb-2 flex items-center gap-2">
           <audio controls src={playbackUrl} className="h-9 max-w-[220px]" />
           {!disabled && (
-            <button type="button" onClick={reRecord} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-600">
-              <RotateCcw className="h-3 w-3" /> Re-record
+            <button type="button" onClick={reRecord} className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-mk-line-strong bg-white px-3 text-[12px] font-semibold text-mk-ink-2 active:bg-mk-bg">
+              <RotateCcw className="h-3.5 w-3.5" /> Re-record
             </button>
           )}
         </div>
@@ -218,8 +218,8 @@ function VoiceNoteRecorder({ existingUrl, onRecorded, disabled }) {
           onPointerLeave={phase === "recording" ? stopRecording : undefined}
           onPointerCancel={stopRecording}
           style={{ touchAction: "none" }}
-          className={`flex w-full select-none items-center justify-center gap-2 rounded-xl border-2 py-3 text-[13px] font-bold transition-all ${
-            phase === "recording" ? "border-red-500 bg-red-50 text-red-700" : "border-dashed border-slate-300 text-slate-600 active:bg-slate-50"
+          className={`flex min-h-[48px] w-full select-none items-center justify-center gap-2 rounded-xl border-2 py-3 text-[13.5px] font-semibold transition-colors ${
+            phase === "recording" ? "border-red-500 bg-red-50 text-red-700" : "border-dashed border-mk-line-strong text-mk-ink-2 active:bg-mk-bg"
           }`}
         >
           <Mic className={`h-4.5 w-4.5 ${phase === "recording" ? "animate-pulse" : ""}`} />
@@ -234,9 +234,9 @@ function VoiceNoteRecorder({ existingUrl, onRecorded, disabled }) {
 function ReferenceCompare({ reference }) {
   if (!reference?.image_url) return null;
   return (
-    <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+    <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-mk-line bg-mk-bg p-2">
       <img src={resolveMediaUrl(reference.image_url)} alt="Reference" className="h-14 w-14 shrink-0 rounded-md object-cover" />
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[12px] leading-snug text-mk-muted">
         {reference.caption || "Compare against this reference photo."}
       </p>
     </div>
@@ -322,12 +322,12 @@ function ChecklistItemCard({ token, sectionKey, item, existing, reference, linkC
   };
 
   return (
-    <div className={`rounded-2xl border-2 p-4 transition-all ${isComplete ? "border-emerald-300 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
+    <div className={`rounded-mk border p-4 shadow-mk-sm transition-colors sm:p-5 ${isComplete ? "border-cx-brand/40 bg-cx-brand-soft/50" : "border-mk-line bg-mk-surface"}`}>
       <div className="flex items-center gap-2.5">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isComplete ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isComplete ? "bg-cx-brand text-white" : "bg-mk-bg text-mk-ink-2 ring-1 ring-inset ring-mk-line"}`}>
           {isComplete ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
         </div>
-        <p className="text-[14.5px] font-bold text-slate-900">{item.label}</p>
+        <p className="text-[15px] font-semibold tracking-[-0.01em] text-mk-ink">{item.label}</p>
       </div>
 
       <ReferenceCompare reference={reference} />
@@ -340,7 +340,7 @@ function ChecklistItemCard({ token, sectionKey, item, existing, reference, linkC
             disabled={linkClosed}
             onClick={() => handleRating(r.value)}
             className={`rounded-xl border-2 py-3.5 text-[13px] font-bold transition-all disabled:opacity-50 ${
-              rating === r.value ? `${r.cls} shadow-md` : "border-slate-200 bg-white text-slate-600 active:bg-slate-50"
+              rating === r.value ? `${r.cls} shadow-md` : "border-mk-line-strong bg-white text-mk-ink-2 active:bg-mk-bg"
             }`}
           >
             {r.label}
@@ -352,24 +352,24 @@ function ChecklistItemCard({ token, sectionKey, item, existing, reference, linkC
         {evidenceUrl ? (
           <div className="flex items-center gap-2">
             {isVideoUrl(evidenceUrl) ? (
-              <a href={resolveMediaUrl(evidenceUrl)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600">
+              <a href={resolveMediaUrl(evidenceUrl)} target="_blank" rel="noreferrer" className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-mk-line bg-mk-bg px-3 py-2 text-[12px] font-semibold text-mk-ink-2">
                 <Video className="h-4 w-4" /> Video attached
               </a>
             ) : (
               <a href={resolveMediaUrl(evidenceUrl)} target="_blank" rel="noreferrer">
-                <img src={resolveMediaUrl(evidenceUrl)} alt="Evidence" className="h-16 w-16 rounded-lg border border-slate-200 object-cover" />
+                <img src={resolveMediaUrl(evidenceUrl)} alt="Evidence" className="h-16 w-16 rounded-lg border border-mk-line object-cover" />
               </a>
             )}
             {!linkClosed && (
-              <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-600">
-                <RotateCcw className="h-3 w-3" /> Replace
+              <label className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-lg border border-mk-line-strong bg-white px-3 text-[12px] font-semibold text-mk-ink-2 active:bg-mk-bg">
+                <RotateCcw className="h-3.5 w-3.5" /> Replace
                 <input type="file" accept="image/*,video/*" capture="environment" disabled={uploading || linkClosed} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
               </label>
             )}
           </div>
         ) : (
           !linkClosed && (
-            <label className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3.5 text-[13px] font-bold transition-all ${item.requiresEvidence ? "border-slate-300 text-slate-600" : "border-slate-200 text-slate-400"}`}>
+            <label className={`flex min-h-[48px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3.5 text-[13.5px] font-semibold transition-colors active:bg-mk-bg ${item.requiresEvidence ? "border-mk-line-strong text-mk-ink-2" : "border-mk-line text-mk-muted"}`}>
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
               {uploading ? "Uploading…" : item.requiresEvidence ? "Take photo or video" : "Take photo or video (optional)"}
               <input type="file" accept="image/*,video/*" capture="environment" disabled={uploading} onChange={(e) => handleFile(e.target.files?.[0])} className="hidden" />
@@ -387,16 +387,16 @@ function ChecklistItemCard({ token, sectionKey, item, existing, reference, linkC
           onBlur={handleNotesBlur}
           placeholder="Notes (optional — or just use the voice note above)"
           rows={1}
-          className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-[12.5px] text-slate-800 outline-none focus:border-[#28A745]"
+          className="mt-2 min-h-[44px] w-full rounded-lg border border-mk-line-strong bg-white px-3 py-2.5 text-base sm:text-[13px] text-mk-ink outline-none placeholder:text-mk-muted/70 transition-[border-color,box-shadow] focus:border-cx-brand focus:ring-4 focus:ring-cx-brand/15"
         />
       )}
-      {!!notes && linkClosed && <p className="mt-2 text-[12px] text-slate-500">{notes}</p>}
+      {!!notes && linkClosed && <p className="mt-2 text-[12.5px] text-mk-muted">{notes}</p>}
 
       {!rating && (evidenceUrl || voiceNoteUrl) && !linkClosed && (
         <p className="mt-1.5 text-[11.5px] font-semibold text-amber-600">Pick a rating above to save this item.</p>
       )}
       {error && <p className="mt-1.5 text-[11.5px] text-red-600">{error}</p>}
-      {saving && <p className="mt-1.5 text-[11px] text-slate-400">Saving…</p>}
+      {saving && <p className="mt-1.5 text-[11.5px] text-mk-muted">Saving…</p>}
     </div>
   );
 }
@@ -425,19 +425,22 @@ export default function MechanicLinkPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+      <div className="mk-root flex min-h-screen items-center justify-center bg-mk-bg">
+        <Loader2 className="h-8 w-8 animate-spin text-cx-brand" />
       </div>
     );
   }
 
   if (notFound || !checklist) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <XCircle className="mx-auto h-12 w-12 text-slate-300" />
-          <h1 className="mt-3 text-[16px] font-bold text-slate-800">This link isn't valid</h1>
-          <p className="mt-1.5 text-[13px] text-slate-500">Double check the link staff sent you, or ask them to resend it.</p>
+      <div className="mk-root relative flex min-h-screen items-center justify-center overflow-hidden bg-mk-bg px-4">
+        <div aria-hidden className="mk-grid-bg pointer-events-none absolute inset-0" />
+        <div className="relative w-full max-w-sm rounded-mk-lg border border-mk-line bg-mk-surface p-8 text-center shadow-mk-lg">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-mk-bg ring-1 ring-inset ring-mk-line">
+            <XCircle className="h-7 w-7 text-mk-muted" />
+          </div>
+          <h1 className="mt-4 text-[18px] font-semibold tracking-[-0.02em] text-mk-ink">This link isn't valid</h1>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-mk-muted">Double check the link staff sent you, or ask them to resend it.</p>
         </div>
       </div>
     );
@@ -462,10 +465,14 @@ export default function MechanicLinkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-28">
-      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3.5 backdrop-blur">
-        <p className="text-[15px] font-bold text-slate-900">{checklist.make} {checklist.model} — {checklist.plate_number}</p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-slate-500">
+    <div className="mk-root min-h-screen bg-mk-bg pb-28">
+      <div className="sticky top-0 z-20 border-b border-mk-line bg-white/90 py-3.5 backdrop-blur-xl">
+        <div className="mx-auto max-w-2xl px-4">
+        <p className="mb-1 inline-flex items-center gap-1.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.16em] text-cx-brand-deep">
+          <span className="h-1.5 w-1.5 rounded-full bg-cx-brand" aria-hidden /> Vehiculars · Condition inspection
+        </p>
+        <p className="text-[16px] font-semibold tracking-[-0.01em] text-mk-ink">{checklist.make} {checklist.model} — {checklist.plate_number}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-mk-muted">
           {checklist.location_address && (
             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {checklist.location_address}</span>
           )}
@@ -477,24 +484,25 @@ export default function MechanicLinkPage() {
           )}
         </div>
         <div className="mt-2.5 flex items-center gap-2.5">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-mk-line">
             <div className="h-full rounded-full transition-all" style={{ width: `${(completedCount / TOTAL_ITEMS) * 100}%`, background: BRAND }} />
           </div>
-          <span className="shrink-0 text-[12px] font-bold text-slate-600">{completedCount}/{TOTAL_ITEMS}</span>
+          <span className="shrink-0 font-mono text-[12px] font-semibold text-mk-ink-2">{completedCount}/{TOTAL_ITEMS}</span>
+        </div>
         </div>
       </div>
 
       {linkClosed && (
-        <div className="mx-4 mt-3 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-3 text-[12.5px] font-semibold text-slate-600">
+        <div className="mx-4 mt-4 flex items-center gap-2.5 rounded-xl border border-mk-line-strong bg-mk-surface px-3.5 py-3 text-[13px] font-semibold text-mk-ink-2 shadow-mk-sm sm:mx-auto sm:max-w-[calc(42rem-2rem)]">
           <Lock className="h-4 w-4 shrink-0" />
           This inspection has been submitted for review — it's now read-only.
         </div>
       )}
 
-      <div className="space-y-5 px-4 py-5">
+      <div className="mx-auto max-w-2xl space-y-7 px-4 py-5">
         {PCI_SECTIONS.map((section) => (
           <div key={section.key} className="space-y-2.5">
-            <h2 className="text-[12.5px] font-bold uppercase tracking-wide text-slate-500">{section.label}</h2>
+            <h2 className="pt-1 font-mono text-[11.5px] font-medium uppercase tracking-[0.16em] text-cx-brand-deep">{section.label}</h2>
             {section.items.map((item) => (
               <ChecklistItemCard
                 key={item.key}
@@ -512,19 +520,19 @@ export default function MechanicLinkPage() {
       </div>
 
       {!linkClosed && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3.5 backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-mk-line bg-white/90 px-4 pt-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
           <button
             type="button"
             onClick={handleMarkComplete}
             disabled={markingComplete || markedComplete}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14px] font-bold text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-60"
+            className="mk-shine mx-auto flex min-h-[48px] w-full max-w-2xl items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white shadow-mk-brand transition-[transform,opacity] active:scale-[0.98] disabled:opacity-60"
             style={{ background: BRAND }}
           >
             {markingComplete ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <CheckCircle2 className="h-4.5 w-4.5" />}
             {markedComplete ? "Marked as done — staff will review" : markingComplete ? "Saving…" : "Mark inspection as done"}
           </button>
           {completedCount < TOTAL_ITEMS && (
-            <p className="mt-2 text-center text-[11px] text-slate-400">{TOTAL_ITEMS - completedCount} item{TOTAL_ITEMS - completedCount === 1 ? "" : "s"} still need a rating.</p>
+            <p className="mt-2 text-center text-[11.5px] text-mk-muted">{TOTAL_ITEMS - completedCount} item{TOTAL_ITEMS - completedCount === 1 ? "" : "s"} still need a rating.</p>
           )}
         </div>
       )}
