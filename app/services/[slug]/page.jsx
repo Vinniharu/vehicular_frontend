@@ -1,8 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChevronRight, Check } from "lucide-react";
 import { SERVICES, getService } from "../_data";
-import { ServiceCta, ServiceStatusPill } from "../_status";
+import { ServiceCta } from "../_status";
+import { BlockHeading, ChecklistCard, DetailHero, SideCard, SubServiceCard } from "../_detail";
+import ServiceCard from "@/app/components/marketing/ServiceCard";
+import { Container } from "@/app/components/marketing/ui";
+import { Reveal, Stagger, StaggerItem } from "@/app/components/marketing/motion";
 
 export function generateStaticParams() {
   return SERVICES.map((service) => ({ slug: service.slug }));
@@ -18,127 +20,114 @@ export async function generateMetadata({ params }) {
   };
 }
 
+/** Up to 3 other services, same category first. */
+function relatedServices(service) {
+  const others = SERVICES.filter((s) => s.slug !== service.slug);
+  const same = others.filter((s) => s.category && s.category === service.category);
+  const rest = others.filter((s) => !same.includes(s));
+  return [...same, ...rest].slice(0, 3);
+}
+
 export default async function ServicePage({ params }) {
   const { slug } = await params;
   const service = getService(slug);
   if (!service) notFound();
 
   const Icon = service.icon;
+  const related = relatedServices(service);
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="px-5 md:px-8 pt-6">
-        <div className="mx-auto max-w-4xl flex items-center gap-1.5 text-[12.5px] text-[#111111]/50">
-          <Link href="/" className="hover:text-[#111111]">Home</Link>
-          <ChevronRight className="h-3 w-3" />
-          <Link href="/services" className="hover:text-[#111111]">Services</Link>
-          <ChevronRight className="h-3 w-3" />
-          <span className="text-[#111111]/80 font-medium">{service.title}</span>
-        </div>
-      </div>
+      <DetailHero
+        breadcrumb={[{ href: "/", label: "Home" }, { href: "/services", label: "Services" }, { label: service.title }]}
+        icon={Icon}
+        status={service.status}
+        title={service.title}
+        lead={service.tagline}
+      >
+        <ServiceCta status={service.status} />
+        {service.pricingNote && <span className="max-w-md text-[13.5px] leading-relaxed text-mk-muted">{service.pricingNote}</span>}
+      </DetailHero>
 
-      {/* Hero */}
-      <section className="px-5 md:px-8 pt-8 pb-10">
-        <div className="mx-auto max-w-4xl">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-              <Icon className="h-6 w-6" />
-            </span>
-            <ServiceStatusPill status={service.status} />
-          </div>
-          <h1 className="mt-5 font-display text-[30px] sm:text-[38px] font-medium leading-tight text-[#111111]">
-            {service.title}
-          </h1>
-          <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-[#111111]/65">{service.tagline}</p>
-          <p className="mt-4 max-w-2xl text-[14.5px] leading-relaxed text-[#111111]/55">{service.intro}</p>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <ServiceCta status={service.status} />
-            {service.pricingNote && (
-              <span className="text-[13px] text-[#111111]/55">{service.pricingNote}</span>
-            )}
-          </div>
-        </div>
-      </section>
+      <section className="py-12 sm:py-16 lg:py-20">
+        <Container>
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
+            <div className="min-w-0 space-y-14">
+              <Reveal>
+                <p className="max-w-2xl text-[16px] leading-[1.75] text-mk-ink-2 sm:text-[17px]">{service.intro}</p>
+              </Reveal>
 
-      {/* What's included / What you bring */}
-      <section className="px-5 md:px-8 pb-10">
-        <div className="mx-auto max-w-4xl grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <div className="rounded-2xl bg-white p-6" style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}>
-            <h2 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]/50">What's included</h2>
-            <ul className="mt-4 space-y-3">
-              {service.whatsIncluded.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-[14px] leading-relaxed text-[#111111]/75">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#28A745]" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-2xl bg-white p-6" style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}>
-            <h2 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]/50">What you bring</h2>
-            <ul className="mt-4 space-y-3">
-              {service.whatYouBring.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-[14px] leading-relaxed text-[#111111]/75">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#28A745]" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
+              {/* What's included / What you bring */}
+              <ChecklistCard included={service.whatsIncluded} bring={service.whatYouBring} />
 
-      {/* How it works */}
-      <section className="px-5 md:px-8 pb-14">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]/50 mb-5">How it works</h2>
-          <ol className="space-y-4">
-            {service.howItWorks.map((step, i) => (
-              <li key={step.title} className="flex items-start gap-4 rounded-2xl bg-white p-5" style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#28A745]/10 font-mono text-[13px] font-bold text-[#28A745]">
-                  {i + 1}
-                </span>
+              {/* How it works */}
+              <div>
+                <BlockHeading eyebrow="Process" title="How it works" />
+                <Stagger as="ol" gap={0.06} className="space-y-3">
+                  {service.howItWorks.map((step, i) => (
+                    <StaggerItem
+                      as="li"
+                      key={step.title}
+                      className="relative flex items-start gap-4 rounded-mk-lg border border-mk-line bg-mk-surface p-4 shadow-mk-sm sm:p-5"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cx-brand-soft font-mono text-[13px] font-semibold text-cx-brand-deep shadow-[inset_0_0_0_1px_rgba(40,167,69,0.2)]">
+                        {i + 1}
+                      </span>
+                      <div>
+                        <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-mk-ink">{step.title}</h3>
+                        <p className="mt-1 text-[14px] leading-relaxed text-mk-muted">{step.desc}</p>
+                      </div>
+                    </StaggerItem>
+                  ))}
+                </Stagger>
+              </div>
+
+              {/* Child services */}
+              {service.children && service.children.length > 0 && (
                 <div>
-                  <h3 className="text-[14.5px] font-semibold text-[#111111]">{step.title}</h3>
-                  <p className="mt-1 text-[13.5px] leading-relaxed text-[#111111]/60">{step.desc}</p>
+                  <BlockHeading eyebrow="Options" title={`Explore ${service.title}`} />
+                  <Stagger gap={0.05} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {service.children.map((child) => (
+                      <StaggerItem key={child.slug}>
+                        <SubServiceCard
+                          href={`/services/${service.slug}/${child.slug}`}
+                          title={child.title}
+                          blurb={child.blurb}
+                          status={child.status}
+                        />
+                      </StaggerItem>
+                    ))}
+                  </Stagger>
                 </div>
-              </li>
-            ))}
-          </ol>
-        </div>
+              )}
+            </div>
+
+            <SideCard icon={Icon} title={service.title} status={service.status} pricingNote={service.pricingNote} />
+          </div>
+        </Container>
       </section>
 
-      {/* Child services */}
-      {service.children && service.children.length > 0 && (
-        <section className="px-5 md:px-8 pb-20">
-          <div className="mx-auto max-w-4xl">
-            <h2 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]/50 mb-5">
-              Explore {service.title}
-            </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {service.children.map((child) => (
-                <Link
-                  key={child.slug}
-                  href={`/services/${service.slug}/${child.slug}`}
-                  className="group flex flex-col justify-between rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1"
-                  style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-display text-[16px] font-medium leading-tight text-[#111111]">{child.title}</h3>
-                      <ServiceStatusPill status={child.status} />
-                    </div>
-                    <p className="mt-2 text-[13px] leading-relaxed text-[#111111]/60">{child.blurb}</p>
-                  </div>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#28A745]">
-                    Learn more
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
-                  </span>
-                </Link>
+      {/* Related services */}
+      {related.length > 0 && (
+        <section className="border-t border-mk-line bg-mk-surface py-14 sm:py-20">
+          <Container>
+            <BlockHeading eyebrow="Keep going" title="Related services" />
+            <Stagger gap={0.05} className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {related.map((s) => (
+                <StaggerItem key={s.slug} className="flex [&>*]:w-full">
+                  <ServiceCard
+                    href={`/services/${s.slug}`}
+                    title={s.title}
+                    description={s.tagline}
+                    icon={s.icon}
+                    status={s.status}
+                    variant="hub"
+                    headingTag="h3"
+                  />
+                </StaggerItem>
               ))}
-            </div>
-          </div>
+            </Stagger>
+          </Container>
         </section>
       )}
     </div>

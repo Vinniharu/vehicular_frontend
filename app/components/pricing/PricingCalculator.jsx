@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { VEHICLE_CATEGORY_OPTIONS, isCommercialCategory } from "@/lib/constants/vehicleCategories";
-import { GREEN, INK, INK_SOFT, PAPER } from "@/app/components/landing/theme";
 
 function koboToNaira(kobo) {
   if (kobo == null) return null;
@@ -44,13 +43,14 @@ const PARTICULARS_DOC_TYPES = [
 ];
 
 const inputCls =
-  "w-full rounded-xl border bg-white px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-emerald-400";
+  "mk-focus h-11 w-full rounded-xl border border-mk-line-strong bg-mk-surface px-3.5 text-[16px] text-mk-ink shadow-mk-sm outline-none transition-colors hover:border-mk-ink/30 focus:border-cx-brand sm:text-[14px]";
+const labelCls = "mb-1.5 block text-[12.5px] font-semibold text-mk-ink-2";
 
 function PriceLine({ label, value, muted }) {
   return (
-    <div className="flex items-center justify-between py-1.5 text-[13.5px]">
-      <span style={{ color: INK_SOFT }}>{label}</span>
-      <span className="font-semibold" style={{ color: muted ? INK_SOFT : INK }}>
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-mk-line-strong bg-mk-surface px-3.5 py-2.5 text-[13.5px]">
+      <span className="text-mk-muted">{label}</span>
+      <span className={`text-right font-semibold ${value == null ? "" : "font-mono"} ${muted ? "text-mk-muted" : "text-mk-ink"}`}>
         {value == null ? "Contact us for a price" : koboToNaira(value)}
       </span>
     </div>
@@ -59,19 +59,24 @@ function PriceLine({ label, value, muted }) {
 
 function TotalBar({ total, note }) {
   return (
-    <div className="mt-4 flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: PAPER }}>
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: INK_SOFT }}>Estimated total</p>
-        <p className="text-[22px] font-bold" style={{ color: INK }}>{total == null ? "Contact us for a price" : koboToNaira(total)}</p>
-        {note && <p className="mt-1 text-[12px]" style={{ color: INK_SOFT }}>{note}</p>}
+    <div className="mk-gradient-border mt-5 flex flex-col gap-4 rounded-mk p-4 shadow-mk sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="min-w-0" aria-live="polite">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-cx-brand-deep">Estimated total</p>
+        <p
+          className={`mt-1 font-semibold tracking-[-0.02em] text-mk-ink ${
+            total == null ? "text-[18px]" : "font-mono text-[26px] sm:text-[28px]"
+          }`}
+        >
+          {total == null ? "Contact us for a price" : koboToNaira(total)}
+        </p>
+        {note && <p className="mt-1 text-[12.5px] leading-relaxed text-mk-muted">{note}</p>}
       </div>
       <Link
         href="/auth/signup"
-        className="inline-flex items-center justify-center gap-2 rounded-xl text-[13.5px] font-semibold text-white"
-        style={{ background: GREEN, padding: "10px 20px" }}
+        className="mk-focus mk-shine group inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-cx-brand px-6 text-[14px] font-semibold text-white shadow-mk-brand transition-colors hover:bg-cx-brand-deep active:scale-[0.98]"
       >
         Get started
-        <ArrowRight className="h-3.5 w-3.5" />
+        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
       </Link>
     </div>
   );
@@ -80,7 +85,7 @@ function TotalBar({ total, note }) {
 function VehicleCountField({ value, onChange, label = "How many vehicles?", hint }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>
+      <label className={labelCls}>
         {label}
       </label>
       <input
@@ -91,7 +96,7 @@ function VehicleCountField({ value, onChange, label = "How many vehicles?", hint
         className={inputCls}
       />
       {hint && (
-        <p className="mt-1 text-[11.5px]" style={{ color: INK_SOFT }}>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-mk-muted">
           {hint}
         </p>
       )}
@@ -102,7 +107,7 @@ function VehicleCountField({ value, onChange, label = "How many vehicles?", hint
 function CategorySelect({ value, onChange }) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>Vehicle category</label>
+      <label className={labelCls}>Vehicle category</label>
       <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
         <option value="">Select category</option>
         {VEHICLE_CATEGORY_OPTIONS.map((c) => (
@@ -128,7 +133,7 @@ function DriversLicenceCalculator({ feeSchedule }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>Application type</label>
+        <label className={labelCls}>Application type</label>
         <select
           value={variant}
           onChange={(e) => {
@@ -147,15 +152,17 @@ function DriversLicenceCalculator({ feeSchedule }) {
       </div>
       {selected?.hasTier && (
         <div>
-          <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>Validity period</label>
-          <div className="flex gap-2">
+          <p className={labelCls}>Validity period</p>
+          <div className="grid grid-cols-2 gap-1 rounded-xl border border-mk-line bg-mk-surface p-1 shadow-mk-sm" role="group" aria-label="Validity period">
             {DL_TIERS.map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTier(t)}
-                className="flex-1 rounded-xl border py-2.5 text-[13px] font-semibold transition-colors"
-                style={{ borderColor: tier === t ? GREEN : "#e2e8f0", background: tier === t ? "#F0FDF4" : "#fff", color: tier === t ? GREEN : INK }}
+                aria-pressed={tier === t}
+                className={`mk-focus h-11 rounded-lg text-[14px] font-semibold transition-colors ${
+                  tier === t ? "bg-cx-brand-soft text-cx-brand-deep shadow-[inset_0_0_0_1px_rgba(40,167,69,0.35)]" : "text-mk-ink-2 hover:bg-mk-ink/[0.04]"
+                }`}
               >
                 {t}
               </button>
@@ -208,7 +215,7 @@ function NumberPlateCalculator({ feeSchedule, vehicleCategoryPrices = [] }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>Plate type</label>
+        <label className={labelCls}>Plate type</label>
         <select
           value={variant}
           onChange={(e) => {
@@ -273,7 +280,7 @@ function VehicleParticularsCalculator({ vehicleCategoryPrices }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: INK_SOFT }}>Documents to renew</label>
+        <p className={labelCls}>Documents to renew</p>
         <div className="space-y-2">
           {PARTICULARS_DOC_TYPES.map((doc) => {
             const isHackney = doc.value === "hackney_permit";
@@ -282,8 +289,9 @@ function VehicleParticularsCalculator({ vehicleCategoryPrices }) {
             return (
               <label
                 key={doc.value}
-                className="flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5"
-                style={{ borderColor: checked ? GREEN : "#e2e8f0", background: checked ? "#F0FDF4" : "#fff", opacity: disabled ? 0.5 : 1 }}
+                className={`flex min-h-[44px] items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-colors ${
+                  checked ? "border-cx-brand/50 bg-cx-brand-soft" : "border-mk-line bg-mk-surface"
+                } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:border-mk-line-strong"}`}
               >
                 <span className="flex items-center gap-2.5">
                   <input
@@ -291,20 +299,19 @@ function VehicleParticularsCalculator({ vehicleCategoryPrices }) {
                     checked={checked}
                     disabled={disabled}
                     onChange={() => toggleDocType(doc.value)}
-                    className="h-4 w-4"
-                    style={{ accentColor: GREEN }}
+                    className="h-4 w-4 shrink-0 accent-cx-brand"
                   />
-                  <span className="text-[13px] font-semibold" style={{ color: INK }}>
+                  <span className="text-[13.5px] font-semibold text-mk-ink">
                     {doc.label}
                     {isHackney && !hackneyEligible && (
-                      <span className="ml-1.5 text-[11px] font-normal" style={{ color: INK_SOFT }}>
+                      <span className="ml-1.5 text-[11.5px] font-normal text-mk-muted">
                         (commercial vehicles only)
                       </span>
                     )}
                   </span>
                 </span>
                 {category && (
-                  <span className="text-[12.5px] font-semibold" style={{ color: INK_SOFT }}>
+                  <span className={`shrink-0 text-[12.5px] font-semibold text-mk-ink-2 ${priceByDocType[doc.value] == null ? "" : "font-mono"}`}>
                     {priceByDocType[doc.value] == null ? "Contact us" : koboToNaira(priceByDocType[doc.value])}
                   </span>
                 )}

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { SERVICES, getChild } from "../../_data";
-import { ServiceCta, ServiceStatusPill } from "../../_status";
+import { ServiceCta } from "../../_status";
+import { BlockHeading, DetailHero, SideCard, SubServiceCard } from "../../_detail";
+import { Container } from "@/app/components/marketing/ui";
+import { Stagger, StaggerItem } from "@/app/components/marketing/motion";
 
 export function generateStaticParams() {
   const params = [];
@@ -34,80 +37,62 @@ export default async function ServiceChildPage({ params }) {
   const siblings = service.children.filter((c) => c.slug !== child.slug);
   const Icon = service.icon;
 
+  const backLink = (
+    <Link
+      href={`/services/${service.slug}`}
+      className="mk-focus inline-flex h-12 items-center justify-center gap-2 rounded-full border border-mk-line-strong bg-mk-surface px-6 text-[14.5px] font-semibold text-mk-ink shadow-mk-sm transition-[border-color,box-shadow] duration-300 hover:border-mk-ink/30 hover:shadow-mk"
+    >
+      <ArrowLeft className="h-4 w-4" aria-hidden />
+      Back to {service.title}
+    </Link>
+  );
+
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="px-5 md:px-8 pt-6">
-        <div className="mx-auto max-w-3xl flex flex-wrap items-center gap-1.5 text-[12.5px] text-[#111111]/50">
-          <Link href="/" className="hover:text-[#111111]">Home</Link>
-          <ChevronRight className="h-3 w-3" />
-          <Link href="/services" className="hover:text-[#111111]">Services</Link>
-          <ChevronRight className="h-3 w-3" />
-          <Link href={`/services/${service.slug}`} className="hover:text-[#111111]">{service.title}</Link>
-          <ChevronRight className="h-3 w-3" />
-          <span className="text-[#111111]/80 font-medium">{child.title}</span>
-        </div>
-      </div>
+      <DetailHero
+        breadcrumb={[
+          { href: "/", label: "Home" },
+          { href: "/services", label: "Services" },
+          { href: `/services/${service.slug}`, label: service.title },
+          { label: child.title },
+        ]}
+        icon={Icon}
+        status={child.status}
+        title={child.title}
+        lead={child.blurb}
+      >
+        <ServiceCta status={child.status} />
+        {backLink}
+      </DetailHero>
 
-      {/* Hero */}
-      <section className="px-5 md:px-8 pt-8 pb-14">
-        <div className="mx-auto max-w-3xl">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#28A745]/10 text-[#28A745]">
-              <Icon className="h-6 w-6" />
-            </span>
-            <ServiceStatusPill status={child.status} />
-          </div>
-          <h1 className="mt-5 font-display text-[28px] sm:text-[34px] font-medium leading-tight text-[#111111]">
-            {child.title}
-          </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[#111111]/65">{child.blurb}</p>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <ServiceCta status={child.status} />
-            <Link
-              href={`/services/${service.slug}`}
-              className="inline-flex items-center gap-2 rounded-xl text-[14px] font-semibold text-[#111111]"
-              style={{ border: "1px solid rgba(17, 17, 17,0.15)", padding: "11px 24px" }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to {service.title}
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Sibling services */}
-      {siblings.length > 0 && (
-        <section className="px-5 md:px-8 pb-20">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="text-[12px] font-bold uppercase tracking-wide text-[#111111]/50 mb-5">
-              Other {service.title.toLowerCase()}
-            </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {siblings.map((sibling) => (
-                <Link
-                  key={sibling.slug}
-                  href={`/services/${service.slug}/${sibling.slug}`}
-                  className="group flex flex-col justify-between rounded-2xl bg-white p-5 transition-transform duration-200 hover:-translate-y-1"
-                  style={{ border: "1px solid rgba(17, 17, 17,0.08)" }}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-display text-[15.5px] font-medium leading-tight text-[#111111]">{sibling.title}</h3>
-                      <ServiceStatusPill status={sibling.status} />
-                    </div>
-                    <p className="mt-2 text-[13px] leading-relaxed text-[#111111]/60">{sibling.blurb}</p>
-                  </div>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[#28A745]">
-                    Learn more
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1" />
-                  </span>
-                </Link>
-              ))}
+      <section className="py-12 sm:py-16 lg:py-20">
+        <Container>
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
+            <div className="min-w-0">
+              {/* Sibling services */}
+              {siblings.length > 0 && (
+                <div>
+                  <BlockHeading eyebrow={service.title} title={`Other ${service.title.toLowerCase()}`} />
+                  <Stagger gap={0.05} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {siblings.map((sibling) => (
+                      <StaggerItem key={sibling.slug}>
+                        <SubServiceCard
+                          href={`/services/${service.slug}/${sibling.slug}`}
+                          title={sibling.title}
+                          blurb={sibling.blurb}
+                          status={sibling.status}
+                        />
+                      </StaggerItem>
+                    ))}
+                  </Stagger>
+                </div>
+              )}
             </div>
+
+            <SideCard icon={Icon} title={child.title} status={child.status} pricingNote={service.pricingNote} />
           </div>
-        </section>
-      )}
+        </Container>
+      </section>
     </div>
   );
 }
