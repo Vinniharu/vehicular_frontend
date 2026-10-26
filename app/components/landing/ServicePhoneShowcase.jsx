@@ -143,7 +143,7 @@ function ScreenCertificate({ s }) {
       <div className="sps-tr-title" style={{ marginTop: 4 }}>{s.title}</div>
 
       <div className="sps-cert">
-        <div className="sps-cert-ribbon">VERIFIED</div>
+        <div className="sps-cert-ribbon">READY</div>
         <div className="sps-cert-seal">✓</div>
         <div className="sps-cert-title">{s.docTitle}</div>
         <div className="sps-cert-meta">{s.docMeta}</div>

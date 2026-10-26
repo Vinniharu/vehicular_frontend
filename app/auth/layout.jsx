@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import Disclaimer, { DISCLAIMER_TEXT } from "@/app/components/marketing/Disclaimer";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, Shield, Clock, MapPin, Lock } from "lucide-react";
 import { EASE } from "@/app/components/marketing/motion";
 
 const TRUST_POINTS = [
-  { icon: Clock, title: "48-Hour Turnaround", body: "Fast dispatch for fresh and renewal licences." },
-  { icon: MapPin, title: "Nationwide Coverage", body: "All 36 States and the FCT supported." },
-  { icon: Shield, title: "Official VIO Integration", body: "Verified biometrics capture & genuine documentation." },
+  { icon: Clock, title: "Track every step", body: "Live status updates on each application in your dashboard." },
+  { icon: MapPin, title: "Refund if rejected", body: "Full refund to your wallet if the authority rejects it for reasons outside your control." },
+  { icon: Shield, title: "Handled end to end", body: "We book, submit and follow up with the relevant authority for you." },
 ];
 
 /** Soft green light that drifts slowly behind the brand panel (transform only). */
@@ -66,7 +67,7 @@ export default function AuthLayout({ children }) {
           </h2>
 
           <p className="mt-5 text-[15.5px] leading-relaxed text-white/60 text-pretty">
-            Relief from a countdown you didn&apos;t know you were losing. Renewals, roadworthiness inspections, physical condition checks, and VIO compliance — managed from a single secure portal across Nigeria.
+            Relief from a countdown you didn&apos;t know you were losing. Renewals, roadworthiness inspections, physical condition checks, and licences — managed from a single secure portal across Nigeria.
           </p>
 
           <ul className="mt-10 space-y-3">
@@ -84,8 +85,9 @@ export default function AuthLayout({ children }) {
           </ul>
         </motion.div>
 
+        <Disclaimer variant="footer" className="relative z-10 mb-5 max-w-md" />
         <div className="relative z-10 flex items-center justify-between border-t border-white/[0.08] pt-6 font-mono text-[12px] text-white/40">
-          <span>&copy; {new Date().getFullYear()} Vehiculars</span>
+          <span>&copy; {new Date().getFullYear()} Vehiculars Technology Limited · RC 8994192</span>
           <span className="inline-flex items-center gap-1.5">
             <Lock className="h-3 w-3" aria-hidden /> Made in Nigeria
           </span>
@@ -122,13 +124,19 @@ export default function AuthLayout({ children }) {
             </div>
             <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[12.5px] text-mk-muted">
               <Lock className="h-3.5 w-3.5 text-cx-brand" aria-hidden />
-              Your details are encrypted and never sold.
+              Your details are encrypted in transit.
             </p>
+            <nav aria-label="Legal" className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[12.5px] text-mk-muted">
+              <Link href="/terms" className="mk-focus rounded hover:text-mk-ink">Terms of Service</Link>
+              <Link href="/refund-policy" className="mk-focus rounded hover:text-mk-ink">Refund Policy</Link>
+              <Link href="/privacy-policy" className="mk-focus rounded hover:text-mk-ink">Privacy Policy</Link>
+            </nav>
           </motion.div>
         </div>
 
-        <footer className="relative z-10 border-t border-mk-line px-4 py-5 text-center font-mono text-[12px] text-mk-muted lg:hidden">
-          <p>&copy; {new Date().getFullYear()} Vehiculars. Nationwide Compliance.</p>
+        <footer className="relative z-10 space-y-2 border-t border-mk-line px-4 py-5 text-center text-[12px] text-mk-muted lg:hidden">
+          <p className="mx-auto max-w-sm leading-relaxed">{DISCLAIMER_TEXT}</p>
+          <p>&copy; {new Date().getFullYear()} Vehiculars Technology Limited · RC 8994192</p>
         </footer>
       </main>
     </div>

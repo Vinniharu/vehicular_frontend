@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { Plus, MessageCircle } from "lucide-react";
 import { FAQ_ITEMS } from "../landing-data";
 import { Section, SectionHeading, MkButton } from "@/app/components/marketing/ui";
@@ -8,7 +9,7 @@ import { Reveal, Stagger, StaggerItem } from "@/app/components/marketing/motion"
 
 // Grid-rows height animation keeps every answer in the DOM (crawlable,
 // no layout jank); motion-reduce:transition-none flattens it.
-function FaqItem({ q, a, open, onToggle, id }) {
+function FaqItem({ q, a, link, open, onToggle, id }) {
   return (
     <div
       className={`rounded-mk-lg border bg-mk-surface transition-[border-color,box-shadow] duration-300 ${
@@ -44,7 +45,14 @@ function FaqItem({ q, a, open, onToggle, id }) {
         }`}
       >
         <div className="overflow-hidden" aria-hidden={!open}>
-          <p className="px-5 pb-5 sm:px-6 sm:pb-6 max-w-2xl text-[15px] leading-[1.7] text-mk-muted">{a}</p>
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6 max-w-2xl text-[15px] leading-[1.7] text-mk-muted">
+            <p>{a}</p>
+            {link ? (
+              <Link href={link.href} tabIndex={open ? undefined : -1} className="mk-focus mt-2 inline-block rounded font-semibold text-cx-brand-deep underline-offset-4 hover:underline">
+                {link.label}
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -88,6 +96,7 @@ export default function Faq() {
               <FaqItem
                 q={item.q}
                 a={item.a}
+                link={item.link}
                 id={`${baseId}-faq-${i}`}
                 open={openSet.has(i)}
                 onToggle={() => toggle(i)}

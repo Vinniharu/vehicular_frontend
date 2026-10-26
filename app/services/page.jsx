@@ -15,7 +15,7 @@ export default function ServicesHubPage() {
         eyebrow="All services"
         title="Everything your vehicle needs,"
         accent="in one place"
-        description="From your first driver's licence to your vehicle particulars — we handle the FRSC, VIO, and police end of it so you don't have to queue."
+        description="From your first driver's licence to your vehicle particulars — we submit and follow up with the relevant authority on your behalf so you don't have to queue."
       />
 
       <section className="py-14 sm:py-20 lg:py-24">

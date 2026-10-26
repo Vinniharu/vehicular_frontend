@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapPin } from "lucide-react";
+import { Mail, MapPin } from "lucide-react";
 import { Container } from "@/app/components/marketing/ui";
+import Disclaimer from "@/app/components/marketing/Disclaimer";
 import { SERVICE_LINKS } from "../landing-data";
 
 const linkCls = "mk-focus rounded text-[14px] text-white/60 transition-colors duration-200 hover:text-white";
@@ -27,11 +28,16 @@ export default function Footer({ redirectTo }) {
               <span className="text-[17px] font-semibold tracking-[-0.02em]">Vehiculars</span>
             </div>
             <p className="mt-5 max-w-xs text-[14px] leading-relaxed text-white/55">
-              Everything your car needs — handled end-to-end, delivered nationwide. Vehiculars is a startup and subsidiary under MIMHEL ENGINEERING AND CONTRUCTION LTD.
+              Vehicle paperwork, handled for you. We prepare, submit and follow up on your request with the relevant authority on your behalf.
             </p>
-            <span className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-cx-brand/30 bg-cx-brand/10 px-3 py-1 font-mono text-[10.5px] font-medium uppercase tracking-[0.14em] text-[#5fd17a]">
-              A Mimhel Subsidiary
-            </span>
+            <div className="mt-5 space-y-1.5 text-[13px] text-white/60">
+              <p className="font-medium text-white/85">Vehiculars Technology Limited</p>
+              <p className="font-mono text-[12px] tracking-wide text-white/55">CAC RC 8994192</p>
+              <a href="mailto:support@vehiculars.com" className={`${linkCls} inline-flex items-center gap-1.5 text-[13px]`}>
+                <Mail className="h-3.5 w-3.5" aria-hidden />
+                support@vehiculars.com
+              </a>
+            </div>
           </div>
 
           <div className="md:col-span-2">
@@ -60,6 +66,8 @@ export default function Footer({ redirectTo }) {
           <div className="md:col-span-3">
             <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.16em] text-white/40">Account &amp; legal</p>
             <ul className="space-y-3">
+              <li><Link href="/terms" className={linkCls}>Terms of Service</Link></li>
+              <li><Link href="/refund-policy" className={linkCls}>Refund Policy</Link></li>
               <li><Link href="/privacy-policy" className={linkCls}>Privacy Policy</Link></li>
               <li><Link href={`/auth/login?redirect=${encodeURIComponent(redirectTo)}`} className={linkCls}>Sign in</Link></li>
               <li><Link href={`/auth/signup?redirect=${encodeURIComponent(redirectTo)}`} className={linkCls}>Create account</Link></li>
@@ -82,9 +90,11 @@ export default function Footer({ redirectTo }) {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/[0.08] py-8 text-center md:flex-row md:text-left">
+        <Disclaimer variant="footer" className="mt-12 max-w-3xl" />
+
+        <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-white/[0.08] py-8 text-center md:flex-row md:text-left">
           <p className="text-[12.5px] text-white/40">
-            &copy; {new Date().getFullYear()} Vehiculars. All rights reserved. Vehiculars is a subsidiary under MIMHEL ENGINEERING AND CONTRUCTION LTD.
+            &copy; {new Date().getFullYear()} Vehiculars Technology Limited (RC 8994192). All rights reserved.
           </p>
           <p className="inline-flex items-center gap-2 text-[12.5px] text-white/40">
             <span className="h-1.5 w-1.5 rounded-full bg-cx-brand" aria-hidden />

@@ -141,7 +141,7 @@ function ScreenTracking({ active }) {
       <div className="hps-doc-card">
         <div className="hps-check">✓</div>
         <div>
-          <div className="hps-tr-strong">Vehicle Particulars approved</div>
+          <div className="hps-tr-strong">Vehicle Particulars ready</div>
           <div className="hps-tr-soft">Expires Mar 2027</div>
         </div>
       </div>
@@ -355,7 +355,7 @@ export function HeroPhoneShowcase() {
             <div className="hps-fc-row">
               <div className="hps-check sm">✓</div>
               <div>
-                <div className="hps-fc-title">Document approved</div>
+                <div className="hps-fc-title">Document ready</div>
                 <div className="hps-fc-sub">Vehicle Particulars · expires Mar 2027</div>
               </div>
             </div>

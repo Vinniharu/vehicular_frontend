@@ -39,12 +39,12 @@ export const SERVICES = [
     feeScheduleType: "drivers_licence",
     title: "Driver's Licence Services",
     tagline:
-      "Fresh DL, renewal, re-issue, learner's permit, and international permit — all processed nationwide without the FRSC queue.",
+      "Fresh DL, renewal, re-issue, learner's permit, and international permit — all submitted and followed up on your behalf, without the queue.",
     intro:
-      "Whether you're getting your first licence or replacing a lost one, we handle the FRSC and VIO end of it so you only show up for biometrics. Pick the option that fits your situation below.",
+      "Whether you're getting your first licence or replacing a lost one, we prepare and submit your application to the issuing authority on your behalf, so you only show up for biometrics. Pick the option that fits your situation below.",
     whatsIncluded: [
-      "End-to-end FRSC / VIO processing",
-      "Biometric capture slot at the nearest accredited centre",
+      "We submit and follow up with the issuing authority for you",
+      "Biometric capture slot booked at the nearest capture centre",
       "Status updates at every stage in your dashboard",
       "Physical licence delivered to you nationwide",
     ],
@@ -68,7 +68,7 @@ export const SERVICES = [
         status: "live",
         title: "New Driver's Licence (Fresh)",
         blurb:
-          "Getting your first licence? We book your biometric slot at the nearest accredited capture centre, handle FRSC and VIO processing, and deliver the physical licence. Fresh applicants need a theory pass — take it free inside the app.",
+          "Getting your first licence? We book your biometric slot at the nearest capture centre, submit your application to the issuing authority on your behalf, and deliver the physical licence once it's issued. Fresh applicants need a theory pass — take it free inside the app.",
       },
       {
         slug: "renewal",
@@ -82,21 +82,21 @@ export const SERVICES = [
         status: "live",
         title: "Lost / Damaged DL Re-issue",
         blurb:
-          "We handle the affidavit, FRSC application, and biometrics so you walk away with a fresh card without standing in a single queue.",
+          "We help with the affidavit, submit the re-issue application on your behalf and book your biometrics, so you don't stand in a single queue.",
       },
       {
         slug: "learners-permit",
         status: "coming_soon",
         title: "Learner's Permit",
         blurb:
-          "Apply for the official VIO learner's permit so you can practise legally while you prepare for your full DL. This is on our roadmap — not bookable yet.",
+          "Apply for a learner's permit so you can practise legally while you prepare for your full DL. This is on our roadmap — not bookable yet.",
       },
       {
         slug: "international-permit",
         status: "live",
         title: "International Driver's Permit (IDP)",
         blurb:
-          "If you're travelling, hiring a car, or relocating temporarily, the IDP translates your Nigerian DL for use in over 150 countries. We process it via FRSC and deliver it to you.",
+          "If you're travelling, hiring a car, or relocating temporarily, the IDP translates your Nigerian DL for use in over 150 countries. We submit it to the issuing authority on your behalf and deliver it to you.",
       },
     ],
   },
@@ -109,9 +109,9 @@ export const SERVICES = [
     feeScheduleType: "number_plate",
     title: "Number / Dealership Plates",
     tagline:
-      "New plates, replacements, and change of ownership — processed by VIO without the queue.",
+      "New plates, replacements, and change of ownership — submitted to the licensing authority on your behalf, without the queue.",
     intro:
-      "Number plate jobs are routed to our VIO desk so you don't spend a day at the licensing office. Pick the option that matches what you need. For registered dealerships, we can also issue a plate against your company's identity instead of a specific vehicle — no vehicle details required.",
+      "Our team handles the licensing-office side of number plate jobs for you, so you don't spend a day there. Pick the option that matches what you need. For registered dealerships, we can also issue a plate against your company's identity instead of a specific vehicle — no vehicle details required.",
     whatsIncluded: [
       "Plate number",
       "Proof of ownership",
@@ -131,7 +131,7 @@ export const SERVICES = [
     howItWorks: [
       { title: "Choose your plate type", desc: "Standard, replacement, or with change of ownership." },
       { title: "Pay and submit", desc: "Upload vehicle papers and ID." },
-      { title: "We process at VIO", desc: "Allocation and production handled by our team." },
+      { title: "We submit it for you", desc: "We follow up with the licensing authority on allocation and production." },
       { title: "Delivered to you", desc: "Notification sent the moment your plate ships." },
     ],
     children: [
@@ -140,14 +140,14 @@ export const SERVICES = [
         status: "live",
         title: "New Number Plate Registration",
         blurb:
-          "Newly bought or imported vehicle? We allocate and produce your standard plate via VIO, then deliver it to you nationwide.",
+          "Newly bought or imported vehicle? We apply for your standard plate with the licensing authority on your behalf, then deliver it to you.",
       },
       {
         slug: "replacement",
         status: "live",
         title: "Plate Replacement",
         blurb:
-          "If your plates are illegible or one has gone missing, we replace them through VIO so you stay compliant with traffic and law-enforcement checks.",
+          "If your plates are illegible or one has gone missing, we apply for replacements on your behalf so you stay compliant with traffic and law-enforcement checks.",
       },
       {
         slug: "fancy-custom",
@@ -161,7 +161,7 @@ export const SERVICES = [
         status: "live",
         title: "Change of Ownership + New Plate",
         blurb:
-          "Just bought a used vehicle? We handle the ownership transfer at VIO and produce a fresh plate in your name — fully road-legal in your hands.",
+          "Just bought a used vehicle? We handle the ownership-transfer application on your behalf and get a fresh plate issued in your name.",
       },
       {
         slug: "dealership",
@@ -215,7 +215,7 @@ export const SERVICES = [
         status: "live",
         title: "Road Worthiness Certificate",
         blurb:
-          "Required for every commercial and private vehicle. We schedule the inspection and produce the certificate in about five working days. Need it same-day? See Roadworthiness Express.",
+          "Required for every commercial and private vehicle. We schedule the inspection and follow up on the certificate, usually in about five working days. Need it faster? See Roadworthiness Express.",
       },
       {
         slug: "hackney-permit",
@@ -345,18 +345,18 @@ export const SERVICES = [
     applyHref: "/dashboard/apply/requirements?type=roadworthiness_express",
     feeScheduleType: "roadworthiness_express",
     title: "Roadworthiness Express (RWX)",
-    tagline: "Same-day roadworthiness certificate & inspection at a registered Vehiculars bay — for ride-hailing (Uber/Bolt), commercial, and private vehicles.",
+    tagline: "Fast-track roadworthiness inspection at a Vehiculars inspection bay, often same day — for ride-hailing (Uber/Bolt), commercial, and private vehicles.",
     intro:
-      "When you need road worthiness or ride-hailing vehicle inspection fast — fleet renewal, Uber/Bolt onboarding, expired papers, or routine clearance — RWX moves you to the front of the queue and turns it around same-day at our registered inspection bays, rather than standard multi-day processing.",
+      "When you need road worthiness or ride-hailing vehicle inspection fast — fleet renewal, Uber/Bolt onboarding, expired papers, or routine clearance — RWX books you a priority slot at our own inspection bay and aims to turn it around the same day, rather than the standard multi-day wait.",
     whatsIncluded: [
-      "Same-day vehicle inspection at a registered Vehiculars bay",
+      "Fast-track vehicle inspection at a Vehiculars bay, often same day",
       "Roadworthiness certificate (12 months) and ride-hailing compliance",
       "Soft copy uploaded immediately, hard copy delivered",
     ],
     whatYouBring: ["Current vehicle particulars", "Valid ID", "The vehicle (for the inspection slot)"],
     pricingNote: null,
     howItWorks: [
-      { title: "Book the RWX slot", desc: "Pay and pick a same-day window." },
+      { title: "Book the RWX slot", desc: "Pay and pick an available window." },
       { title: "Bring the vehicle in", desc: "Drive to our RWX bay at your booked slot — the inspection is done there." },
       { title: "Inspection + certificate", desc: "Done in one visit — you leave with paperwork." },
     ],
@@ -370,15 +370,15 @@ export const SERVICES = [
     applyHref: "/dashboard/apply/requirements?type=tinted_permit",
     feeScheduleType: "tinted_permit",
     title: "Tinted Glass Permit",
-    tagline: "Police-issued tinted glass permit, processed without the back-and-forth.",
+    tagline: "Tinted glass permit, applied for on your behalf without the back-and-forth.",
     intro:
-      "If your vehicle has factory or aftermarket tinted glass, you need a police permit to avoid stops and fines. We process it with the appropriate police authority and deliver the permit to you.",
-    whatsIncluded: ["Police tinted glass permit", "Soft copy in your dashboard", "Hard copy delivered to your address"],
+      "If your vehicle has factory or aftermarket tinted glass, you need a tinted glass permit to avoid stops and fines. We submit your application to the relevant authority on your behalf and deliver the permit to you once it's issued.",
+    whatsIncluded: ["Tinted glass permit (once issued)", "Soft copy in your dashboard", "Hard copy delivered to your address"],
     whatYouBring: ["Vehicle particulars", "Valid ID (NIN or DL)", "Recent photo of the vehicle showing the tint"],
     pricingNote: null,
     howItWorks: [
       { title: "Submit details", desc: "Vehicle info, ID, and tint photo." },
-      { title: "We process at the police authority", desc: "Application, vetting, and approval." },
+      { title: "We submit it for you", desc: "We file the application and follow up while the authority vets and decides." },
       { title: "Receive your permit", desc: "Soft copy first, hard copy within a few days." },
     ],
     children: null,

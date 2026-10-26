@@ -51,7 +51,7 @@ export default function AppShowcases() {
         eyebrow="App preview"
         title="See how every service flows"
         accent="on your phone."
-        description="From document renewals to full vehicle inspections, track real-time agent updates and verified deliverables right inside your Vehiculars app."
+        description="From document renewals to full vehicle inspections, track real-time agent updates and finished documents right inside your Vehiculars app."
       />
 
       {/* Segmented control; scrolls horizontally on its own on small screens */}
@@ -112,7 +112,7 @@ export default function AppShowcases() {
                   >
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-cx-brand" />
                     <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-mk-ink">{card.title || card.label || "Verified stage"}</p>
+                      <p className="text-[14px] font-semibold text-mk-ink">{card.title || card.label || "Stage"}</p>
                       {card.sub && <p className="mt-0.5 text-[13px] text-mk-muted">{card.sub}</p>}
                     </div>
                   </li>

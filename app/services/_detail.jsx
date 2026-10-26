@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Check, ChevronRight, Receipt } from "lucide-r
 import { Container, Eyebrow } from "@/app/components/marketing/ui";
 import { Reveal } from "@/app/components/marketing/motion";
 import { ServiceCta, ServiceStatusPill } from "./_status";
+import Disclaimer from "@/app/components/marketing/Disclaimer";
 
 // Server-rendered building blocks shared by /services/[slug] and
 // /services/[slug]/[child]. Client primitives (Reveal, Eyebrow) are used only
@@ -143,6 +144,7 @@ export function SideCard({ icon: Icon, title, status, pricingNote, children }) {
         </div>
 
         <ServiceCta status={status} className="mt-5 w-full" />
+        <Disclaimer className="mt-4" />
         {children ? <div className="mt-3">{children}</div> : null}
       </div>
     </Reveal>

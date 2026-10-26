@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useReducedMotion } from "framer-motion";
-import { Star, ShieldCheck, ChevronLeft, ChevronRight, MessageCircle, ZoomIn, X, Quote } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, MessageCircle, ZoomIn, X, Quote } from "lucide-react";
 
 function useVisibleCount() {
   const [n, setN] = useState(1);
@@ -204,10 +204,6 @@ export function TestimonialsCarousel({
                         </span>
                         <span className="truncate text-[13px] font-semibold text-mk-ink">{t.title || "WhatsApp Review"}</span>
                       </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-cx-brand/20 bg-cx-brand-soft px-2 py-0.5 text-[11px] font-medium text-cx-brand-deep">
-                        <ShieldCheck className="h-3 w-3" />
-                        Verified
-                      </span>
                     </div>
 
                     {/* Image showcase */}
@@ -249,12 +245,6 @@ export function TestimonialsCarousel({
                         {t.service_completed && (
                           <span className="inline-block rounded-full border border-cx-brand/20 bg-cx-brand-soft px-2.5 py-1 text-[12px] font-medium text-cx-brand-deep">
                             {t.service_completed}
-                          </span>
-                        )}
-                        {t.verified !== false && (
-                          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[#8a6d12]">
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Verified customer
                           </span>
                         )}
                       </div>

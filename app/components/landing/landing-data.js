@@ -24,8 +24,8 @@ const HOMEPAGE_COPY_BY_SLUG = {
   "vehicle-particulars": { label: "Vehicle particulars", benefit: "Full papers renewed and delivered.", icon: FileText, featured: true },
   "drivers-licence": { label: "Driver's licence", benefit: "Fresh, renew, or reissue — end-to-end.", icon: CreditCard, featured: true },
   "number-plate": { label: "Number plates", benefit: "Order and receive your plate at home.", icon: Hash },
-  "roadworthiness-express": { label: "Roadworthiness express", benefit: "Certified in 48 hours, no queues.", icon: ShieldCheck },
-  "tinted-permit": { label: "Tinted permit", benefit: "Police-approved permit on your phone.", icon: Sun },
+  "roadworthiness-express": { label: "Roadworthiness express", benefit: "Inspection booked for you, no queues.", icon: ShieldCheck },
+  "tinted-permit": { label: "Tinted permit", benefit: "Tinted glass permit, applied for on your behalf.", icon: Sun },
   "vehicle-verification": { label: "Vehicle verification & inspection", benefit: "Confirm papers, ownership, and condition are clean.", icon: BadgeCheck },
   "physical-condition-inspection": { label: "Physical condition inspection", benefit: "A mechanic's full report before you buy.", icon: Wrench },
   "central-motor-registry": { label: "ECMR registration", benefit: "Register on the national motor registry.", icon: Landmark },
@@ -54,14 +54,13 @@ export const SHOWCASE_TABS = [
   { id: "physical_condition_inspection", label: "Condition Inspection" },
 ];
 
-// Single source of truth for the two homepage trust-stat strips (Hero +
-// FinalCta) — previously hardcoded twice with drifting numbers. These are
-// placeholder figures with no real business metrics wired up yet — confirm
-// real numbers with the business before launch.
+// The two homepage stat strips (Hero + FinalCta). Facts only — every item
+// must be checkable on the site itself (ad reviewers reject unbacked
+// numbers), and they render as plain text, never as a count-up from 0.
 export const TRUST_STATS = [
-  ["40,000+", "Drivers served"],
-  ["Nationwide", "Every state"],
-  ["48 hrs", "Avg. turnaround"],
+  [String(SERVICE_ITEMS.length), "Services"],
+  ["Live", "Status tracking"],
+  ["Full", "Refund if rejected"],
 ];
 
 export const HOW_STEPS = [
@@ -95,7 +94,7 @@ export const LIFECYCLE_STAGES = [
   },
   {
     stage: "02", icon: ShieldCheck, title: "Stay legal",
-    blurb: "Every document tracked, renewed before it lapses. No VIO surprises.",
+    blurb: "Every document tracked, renewed before it lapses. No expiry surprises.",
     items: [
       { href: "/services/vehicle-particulars", label: "Vehicle particulars" },
       { href: "/services/roadworthiness-express", label: "Roadworthiness" },
@@ -114,10 +113,10 @@ export const LIFECYCLE_STAGES = [
 
 export const FAQ_ITEMS = [
   { q: "What does Vehiculars actually do?", a: "We handle everything your car needs — renewals, inspections, driver's licence, number plates, tinted permits, and pre-purchase verification. One app, one team, from the day you buy to the day you sell." },
-  { q: "Where do you operate?", a: "Nationwide — every state in Nigeria. Requests are submitted online from anywhere, and physical items (like plates, licences and permits) are delivered back to you." },
-  { q: "How long does a renewal take?", a: "Most vehicle particulars and roadworthiness renewals are completed within 48 hours of submission. Driver's licence depends on biometrics scheduling." },
-  { q: "Is my information safe?", a: "Yes. Documents are handled by vetted agents, encrypted in transit, and never shared with third parties. We're FRSC and NPF compliant." },
+  { q: "Where do you operate?", a: "Requests can be submitted online from anywhere in Nigeria, and physical items (like plates, licences and permits) are delivered back to you. Some services are only available in certain states — the app shows what's available where you are." },
+  { q: "How long does a renewal take?", a: "It depends on the service and on the authority that issues the document. Many vehicle particulars and roadworthiness renewals are done within a few working days; driver's licences depend on biometrics scheduling. Times shown in the app are estimates, not guarantees." },
+  { q: "Is my information safe?", a: "Yes. Documents are handled by vetted agents and encrypted in transit. We only share your details with the authority processing your request and the partners needed to deliver it, as set out in our Privacy Policy.", link: { href: "/privacy-policy", label: "Read our Privacy Policy" } },
   { q: "Can I pay in instalments?", a: "Yes. Easy Installment is available on every service — pay any amount from the minimum deposit today, settle the rest before we deliver." },
-  { q: "What if my application is rejected?", a: "If your application is rejected for reasons outside your control, we refund the full processing fee. You will always know why upfront." },
+  { q: "What if my application is rejected?", a: "If the authority rejects your application for reasons outside your control, or we can't deliver the service, we refund 100% of what you paid for it to your Vehiculars wallet within 5 working days (or to your bank on request). Vehiculars is a private service provider, so the final decision always rests with the issuing authority.", link: { href: "/refund-policy", label: "Read our Refund Policy" } },
   { q: "Do you handle fleets?", a: "Every vehicle you add lives in the same account, and renewals for each one are tracked independently. If you're managing several vehicles and want to talk about it, reach out via the contact details below." },
 ];

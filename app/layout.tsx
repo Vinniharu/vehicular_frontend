@@ -28,11 +28,11 @@ export const metadata: Metadata = {
     default: "Vehiculars | Vehicle Compliance",
     template: "%s | Vehiculars"
   },
-  description: "Keep your vehicle documents valid without queuing at government offices. Submit, pay online, and track document renewals.",
-  keywords: ["vehicle compliance", "driver's licence", "number plates", "vehicle particulars", "nigeria", "VIO", "FRSC", "vehicle inspection"],
+  description: "Keep your vehicle documents valid without the queues. Submit, pay online and track renewals, processed with the relevant authority on your behalf.",
+  keywords: ["vehicle paperwork", "driver's licence", "number plates", "vehicle particulars", "nigeria", "roadworthiness", "vehicle inspection"],
   openGraph: {
     title: "Vehiculars | Vehicle Compliance",
-    description: "Keep your vehicle documents valid without queuing at government offices. Submit, pay online, and track document renewals.",
+    description: "Keep your vehicle documents valid without the queues. Submit, pay online and track renewals, processed with the relevant authority on your behalf.",
     url: "https://vehiculars.com",
     siteName: "Vehiculars",
     locale: "en_NG",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Vehiculars | Vehicle Compliance",
-    description: "Keep your vehicle documents valid without queuing at government offices. Submit, pay online, and track document renewals.",
+    description: "Keep your vehicle documents valid without the queues. Submit, pay online and track renewals, processed with the relevant authority on your behalf.",
   },
   icons: {
     icon: "/icon.png",

@@ -350,6 +350,12 @@ function SignupForm() {
               </>
             )}
           </button>
+          <p className="mt-3 text-center text-[12.5px] leading-relaxed text-mk-muted">
+            By creating an account you agree to our{" "}
+            <Link href="/terms" className="font-medium text-cx-brand-deep hover:underline">Terms of Service</Link>,{" "}
+            <Link href="/refund-policy" className="font-medium text-cx-brand-deep hover:underline">Refund Policy</Link> and{" "}
+            <Link href="/privacy-policy" className="font-medium text-cx-brand-deep hover:underline">Privacy Policy</Link>.
+          </p>
         </div>
       </form>
 

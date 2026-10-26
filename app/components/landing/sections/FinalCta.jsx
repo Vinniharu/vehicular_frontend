@@ -3,7 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { TRUST_STATS } from "../landing-data";
 import { Container, MkButton } from "@/app/components/marketing/ui";
-import { CountUp, Reveal, Stagger, StaggerItem } from "@/app/components/marketing/motion";
+import { Reveal, Stagger, StaggerItem } from "@/app/components/marketing/motion";
 
 export default function FinalCta({ isLoggedIn, dashboardHref, dashboardLabel, redirectTo }) {
   return (
@@ -33,7 +33,7 @@ export default function FinalCta({ isLoggedIn, dashboardHref, dashboardLabel, re
                 </span>
               </StaggerItem>
               <StaggerItem as="p" className="mx-auto mt-6 max-w-lg text-[16px] sm:text-[17px] leading-[1.7] text-white/75">
-                Join thousands of Nigerian car owners who've handed the hassle to us. Get started in under 2 minutes.
+                Hand the queues and paperwork to us. Creating an account takes under 2 minutes.
               </StaggerItem>
               <StaggerItem className="mt-10 flex justify-center">
                 <MkButton
@@ -42,7 +42,7 @@ export default function FinalCta({ isLoggedIn, dashboardHref, dashboardLabel, re
                   size="lg"
                   magnetic
                 >
-                  {isLoggedIn ? dashboardLabel : "Get started — it's free"}
+                  {isLoggedIn ? dashboardLabel : "Create a free account"}
                   <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
                 </MkButton>
               </StaggerItem>
@@ -51,7 +51,7 @@ export default function FinalCta({ isLoggedIn, dashboardHref, dashboardLabel, re
                 {TRUST_STATS.map(([num, label]) => (
                   <div key={num} className="px-2 text-center">
                     <p className="font-mono text-[14px] min-[400px]:text-[16px] sm:text-[24px] font-semibold tracking-[-0.02em] text-white leading-none">
-                      <CountUp value={num} />
+                      {num}
                     </p>
                     <p className="mt-2 text-[10px] sm:text-[11px] uppercase tracking-[0.12em] text-white/60">{label}</p>
                   </div>

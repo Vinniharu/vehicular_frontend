@@ -97,7 +97,9 @@ export function CountUp({ value, duration = 1.4, className }) {
   const reduce = useReducedMotion();
   const str = String(value ?? "");
   const match = str.match(/^(\D*?)(\d[\d,]*\.?\d*)(.*)$/);
-  const [display, setDisplay] = useState(() => (match && !reduce ? `${match[1]}0${match[3]}` : str));
+  // Server HTML and first paint show the real value, so crawlers and no-JS
+  // visitors never see "0"; the count-up only starts once it scrolls into view.
+  const [display, setDisplay] = useState(str);
 
   useEffect(() => {
     if (!match || reduce) {

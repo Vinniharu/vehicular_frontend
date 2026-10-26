@@ -10,6 +10,7 @@ import Footer from "@/app/components/landing/sections/Footer";
 import { SERVICES } from "@/app/services/_data";
 import { ServiceStatusPill } from "@/app/services/_status";
 import ServiceIcon from "@/app/components/marketing/ServiceIcon";
+import Disclaimer from "@/app/components/marketing/Disclaimer";
 import PricingCalculator from "@/app/components/pricing/PricingCalculator";
 import { Container, PageHero } from "@/app/components/marketing/ui";
 import { EASE, Stagger, StaggerItem } from "@/app/components/marketing/motion";
@@ -227,6 +228,7 @@ export default function PricingPage() {
           <p className="mt-2 text-[12px] leading-relaxed text-mk-muted">
             Some services are priced differently in certain states — pick yours to see the exact price.
           </p>
+          <Disclaimer className="mt-4" />
         </div>
       </PageHero>
 
