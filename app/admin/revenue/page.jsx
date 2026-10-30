@@ -47,6 +47,7 @@ import {
   toNaira,
 } from "@/app/admin/_kit";
 import { useToast } from "@/app/components/shared/ToastProvider";
+import ReconciliationPanel from "./_reconciliation";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -84,13 +85,6 @@ const DATE_PRESETS = [
   { id: "all_time", label: "All time", range: () => [null, null] },
 ];
 
-const PAYMENT_STATUS_TONES = {
-  success: "brand",
-  partial: "neutral",
-  pending: "amber",
-  failed: "red",
-};
-
 const CATEGORY_METADATA = {
   driver_licence: { label: "Driver's licence", badge: "DL family" },
   number_plate: { label: "Number plates", badge: "Plates" },
@@ -98,12 +92,54 @@ const CATEGORY_METADATA = {
   inspection_verification: { label: "Inspections & verifications", badge: "Inspections" },
 };
 
-function StatusBadge({ status, fallback = "—" }) {
-  if (!status) return <span className="text-[13px] text-cx-muted">{fallback}</span>;
+// Customer side: what the customer paid, and what backs it.
+const CUSTOMER_STATUS = {
+  success: { label: "Paid", tone: "brand" },
+  partial: { label: "Part-paid", tone: "neutral" },
+  pending: { label: "Awaiting payment", tone: "amber" },
+  failed: { label: "Failed", tone: "red" },
+};
+const CONFIRMATION = {
+  monnify: { label: "Monnify confirmed", tone: "brand" },
+  wallet: { label: "Paid from wallet", tone: "neutral" },
+  manual: { label: "Manual, not Monnify", tone: "amber" },
+  mixed: { label: "Monnify + other", tone: "neutral" },
+  unverified: { label: "Not yet checked", tone: "amber" },
+};
+
+function CustomerPaymentCell({ tx }) {
+  const isPartPaid = tx.status !== "success" && tx.amount_paid_kobo > 0 && tx.amount_paid_kobo < tx.amount_kobo;
+  const st = isPartPaid ? CUSTOMER_STATUS.partial : CUSTOMER_STATUS[tx.status] || { label: tx.status, tone: "neutral" };
+  const conf = CONFIRMATION[tx.confirmation];
   return (
-    <Badge tone={PAYMENT_STATUS_TONES[status] || "neutral"} className="capitalize">
-      {status}
-    </Badge>
+    <div className="flex flex-col items-start gap-1">
+      <Badge tone={st.tone}>{st.label}</Badge>
+      {conf ? <Badge tone={conf.tone}>{conf.label}</Badge> : null}
+    </div>
+  );
+}
+
+// Agent side: the agent's bank payout for this job, a separate event from
+// the customer's payment.
+const PAYOUT = {
+  paid_out: { label: "Paid out", tone: "brand" },
+  payout_pending: { label: "Payout pending", tone: "amber", hint: "Waiting for Monnify to confirm the transfer" },
+  payout_failed: { label: "Payout failed", tone: "red" },
+  no_agent_yet: { label: "No agent yet", tone: "neutral" },
+  no_payout_due: { label: "No payout due", tone: "neutral" },
+  awaiting_payment: { label: "After customer pays", tone: "neutral" },
+};
+
+function AgentPayoutCell({ tx }) {
+  if (tx.application_type === "wallet_deposit" || tx.payout_label === "not_applicable") {
+    return <span className="text-[13px] text-cx-muted">—</span>;
+  }
+  const meta = PAYOUT[tx.payout_label] || { label: tx.agent_transfer_status || "—", tone: "neutral" };
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Badge tone={meta.tone}>{meta.label}</Badge>
+      {meta.hint ? <p className="text-[12px] text-cx-muted">{meta.hint}</p> : null}
+    </div>
   );
 }
 
@@ -132,6 +168,8 @@ export default function AdminRevenuePage() {
   const [pageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [confirmationFilter, setConfirmationFilter] = useState("");
+  const [section, setSection] = useState("transactions");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [activePreset, setActivePreset] = useState("all_time");
@@ -218,6 +256,7 @@ export default function AdminRevenuePage() {
         from_date: targetFrom || undefined,
         to_date: targetTo,
         search: targetSearch || undefined,
+        confirmation: confirmationFilter || undefined,
       });
       if (seq === txnSeqRef.current) {
         if (res.data) {
@@ -278,7 +317,7 @@ export default function AdminRevenuePage() {
     loadOverview(fromDate, effectiveToDate);
     loadTransactions(1, fromDate, effectiveToDate, debouncedSearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, typeFilter, fromDate, toDate, debouncedSearch]);
+  }, [statusFilter, typeFilter, confirmationFilter, fromDate, toDate, debouncedSearch]);
 
   const isInitialMount = useRef(true);
   useEffect(() => {
@@ -536,13 +575,13 @@ export default function AdminRevenuePage() {
     },
     {
       key: "status",
-      header: "Payment / transfer",
-      render: (tx) => (
-        <div className="flex flex-wrap gap-1">
-          <StatusBadge status={tx.status} />
-          <StatusBadge status={tx.agent_transfer_status} fallback="No transfer" />
-        </div>
-      ),
+      header: "Customer payment",
+      render: (tx) => <CustomerPaymentCell tx={tx} />,
+    },
+    {
+      key: "payout",
+      header: "Agent payout",
+      render: (tx) => <AgentPayoutCell tx={tx} />,
     },
     {
       key: "date",
@@ -672,6 +711,20 @@ export default function AdminRevenuePage() {
             <StatTile key={stat.label} label={stat.label} value={statsLoading ? "…" : stat.value} hint={statsLoading ? "Loading" : stat.sub} icon={stat.icon} tone={stat.tone} />
           ))}
         </div>
+        {!statsLoading && overview ? (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-cx-lg border border-cx-line bg-cx-surface px-4 py-3 text-[13px]">
+            <span className="font-medium text-cx-ink">Application payments:</span>
+            <span className="text-cx-brand-deep">{formatNaira(overview.monnify_confirmed_kobo || 0)} confirmed by Monnify</span>
+            <span className="text-cx-ink-2">{formatNaira(overview.wallet_paid_kobo || 0)} from wallets</span>
+            {overview.manual_credits_kobo ? <span className="text-cx-amber">{formatNaira(overview.manual_credits_kobo)} manual (not Monnify)</span> : null}
+            {overview.unverified_kobo ? <span className="text-cx-amber">{formatNaira(overview.unverified_kobo)} not yet checked</span> : null}
+            {overview.open_reconciliation_issues ? (
+              <button type="button" onClick={() => setSection("reconciliation")} className="cx-focus font-medium text-cx-red underline underline-offset-2">
+                {overview.open_reconciliation_issues} reconciliation issue{overview.open_reconciliation_issues === 1 ? "" : "s"} to review
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {!statsLoading && hasFeeBreakdown ? (
           <p className="mt-2 text-[13px] text-cx-muted">
             {formatNaira(overview.gross_collected_kobo)} collected, less {formatNaira(overview.total_monnify_fees_kobo)} Monnify fees
@@ -680,7 +733,22 @@ export default function AdminRevenuePage() {
         ) : null}
       </div>
 
+      <Tabs
+        tabs={[
+          { id: "transactions", label: "Transactions", count: total },
+          { id: "reconciliation", label: "Monnify reconciliation", count: overview?.open_reconciliation_issues || undefined },
+        ]}
+        value={section}
+        onChange={setSection}
+        label="Revenue section"
+      />
+
+      {section === "reconciliation" ? (
+        <ReconciliationPanel onChanged={() => Promise.all([loadOverview(fromDate, effectiveToDate), loadTransactions(page, fromDate, effectiveToDate, debouncedSearch)])} />
+      ) : null}
+
       {/* ─── Transactions ─── */}
+      {section === "transactions" ? (
       <section>
         <SectionTitle title={`Transactions (${total})`} />
         <Toolbar search={searchTerm} onSearch={setSearchTerm} placeholder="Search email, reference or applicant">
@@ -702,6 +770,11 @@ export default function AdminRevenuePage() {
             <option value="vehicle_particulars">Vehicle particulars</option>
             <option value="roadworthiness_express">Roadworthiness express</option>
             <option value="physical_condition_inspection">Physical condition inspection</option>
+          </Select>
+          <Select value={confirmationFilter} onChange={(e) => setConfirmationFilter(e.target.value)} aria-label="Confirmation" className="md:w-56">
+            <option value="">Any confirmation</option>
+            <option value="monnify">Monnify confirmed</option>
+            <option value="manual">Manual (not Monnify)</option>
           </Select>
         </Toolbar>
 
@@ -728,6 +801,7 @@ export default function AdminRevenuePage() {
           </div>
         ) : null}
       </section>
+      ) : null}
 
       {/* ─── Edit one service's net profit ─── */}
       <Sheet
@@ -817,7 +891,7 @@ export default function AdminRevenuePage() {
             )}
           </Field>
 
-          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to use the Monnify or application amount.">
+          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to credit only what Monnify confirms. A typed amount is recorded as a manual credit, not Monnify-confirmed.">
             {(p) => <MoneyInput {...p} value={reconcileAmount} onChange={setReconcileAmount} placeholder="0" invalid={!!reconcileAmountError} />}
           </Field>
 
@@ -831,7 +905,7 @@ export default function AdminRevenuePage() {
             checked={reconcileForce}
             onChange={setReconcileForce}
             label="Force credit (manual settlement)"
-            description="Turn on if you confirmed the payment on the Monnify dashboard or bank account and want to credit the application now, without an automated check."
+            description="Credits the application without Monnify confirming it, e.g. a bank transfer outside Monnify. It is labelled manual on this page and listed under reconciliation."
           />
         </form>
       </Sheet>
