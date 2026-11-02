@@ -57,8 +57,14 @@ function txLabel(tx) {
   if (tx.source === "link_merge") return "Wallets linked";
   if (tx.source === "unlink_transfer") return "Wallets unlinked";
   if (tx.source === "spare_parts_reversal") return "Spare Parts refund";
+  if (tx.source === "admin_deduction") return "Deducted by Vehiculars";
   if (tx.platform === "spare_parts") return tx.type === "credit" ? "Spare Parts credit" : "Spare Parts payment";
   return tx.type === "credit" ? "Wallet Deposit" : "Service Payment";
+}
+
+// The reason an admin gave for a manual deduction; other notes are internal.
+function txNote(tx) {
+  return tx.source === "admin_deduction" && tx.note ? tx.note : null;
 }
 
 export default function WalletPage() {
@@ -218,7 +224,7 @@ export default function WalletPage() {
   const visibleTransactions = transactions.filter((tx) => {
     if (txCutoff && new Date(tx.created_at).getTime() < txCutoff) return false;
     if (!txQ) return true;
-    return [txLabel(tx), tx.reference, tx.source, koboToNaira(tx.amount_kobo)].some((v) => String(v || "").toLowerCase().includes(txQ));
+    return [txLabel(tx), txNote(tx), tx.reference, tx.source, koboToNaira(tx.amount_kobo)].some((v) => String(v || "").toLowerCase().includes(txQ));
   });
 
   return (
@@ -404,6 +410,7 @@ export default function WalletPage() {
                                 ) : null}
                               </p>
                               <p className="text-[12px] text-cx-muted">{formatDate(tx.created_at)}</p>
+                              {txNote(tx) ? <p className="mt-1 whitespace-pre-line text-[12.5px] text-cx-ink-2">{txNote(tx)}</p> : null}
                             </div>
                           </div>
                           <span className={`inline-flex shrink-0 items-center justify-center px-2.5 py-1 rounded-full text-xs font-extrabold ${meta.className}`}>
@@ -454,12 +461,15 @@ export default function WalletPage() {
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cx-sunken text-cx-ink-2 group-hover:bg-white group-hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all border border-transparent group-hover:border-cx-line">
                                   {isCredit ? <ArrowDownRight className="h-4.5 w-4.5" /> : <ArrowUpRight className="h-4.5 w-4.5" />}
                                 </div>
-                                <span className="font-bold text-sm text-cx-ink">
-                                  {txLabel(tx)}
-                                  {tx.platform === "spare_parts" ? (
-                                    <span className="ml-2 align-middle rounded-full bg-cx-sunken px-2 py-0.5 text-[10.5px] font-semibold text-cx-ink-2">Spare Parts</span>
-                                  ) : null}
-                                </span>
+                                <div className="min-w-0">
+                                  <span className="font-bold text-sm text-cx-ink">
+                                    {txLabel(tx)}
+                                    {tx.platform === "spare_parts" ? (
+                                      <span className="ml-2 align-middle rounded-full bg-cx-sunken px-2 py-0.5 text-[10.5px] font-semibold text-cx-ink-2">Spare Parts</span>
+                                    ) : null}
+                                  </span>
+                                  {txNote(tx) ? <p className="mt-0.5 max-w-sm whitespace-pre-line text-[12.5px] text-cx-muted">{txNote(tx)}</p> : null}
+                                </div>
                               </div>
                             </td>
                             <td className="py-4 font-bold text-[14px]">
