@@ -48,7 +48,6 @@ import {
 } from "@/app/admin/_kit";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import ReconciliationPanel from "./_reconciliation";
-import WalletDeductionsPanel from "./_wallet_deductions";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -738,7 +737,6 @@ export default function AdminRevenuePage() {
         tabs={[
           { id: "transactions", label: "Transactions", count: total },
           { id: "reconciliation", label: "Monnify reconciliation", count: overview?.open_reconciliation_issues || undefined },
-          { id: "deductions", label: "Wallet deductions" },
         ]}
         value={section}
         onChange={setSection}
@@ -748,8 +746,6 @@ export default function AdminRevenuePage() {
       {section === "reconciliation" ? (
         <ReconciliationPanel onChanged={() => Promise.all([loadOverview(fromDate, effectiveToDate), loadTransactions(page, fromDate, effectiveToDate, debouncedSearch)])} />
       ) : null}
-
-      {section === "deductions" ? <WalletDeductionsPanel /> : null}
 
       {/* ─── Transactions ─── */}
       {section === "transactions" ? (
