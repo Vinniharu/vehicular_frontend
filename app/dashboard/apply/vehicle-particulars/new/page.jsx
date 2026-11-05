@@ -34,6 +34,7 @@ import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
+import PhoneVerifyField, { PHONE_NOT_VERIFIED_ERROR, usePhoneVerification } from "@/app/dashboard/_shared/PhoneVerifyField";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -293,6 +294,8 @@ export default function VehicleParticularsNewApplicationPage() {
     setAddingVehicle(false);
   };
 
+  const phoneCheck = usePhoneVerification(applicantPhone);
+
   const validateStep = (n) => {
     const errors = {};
     if (n === 1) {
@@ -311,6 +314,7 @@ export default function VehicleParticularsNewApplicationPage() {
       if (!applicantEmail.trim()) errors.applicant_email = "Email is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
       if (!applicantPhone.trim()) errors.applicant_phone = "Phone number is required.";
+      else if (!phoneCheck.verified) errors.applicant_phone = PHONE_NOT_VERIFIED_ERROR;
       if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     return errors;
@@ -701,17 +705,14 @@ export default function VehicleParticularsNewApplicationPage() {
                 />
                 <FieldError message={fieldErrors.applicant_email} />
               </div>
-              <div>
-                <label className={label}>Mobile / Phone Number <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
-                  value={applicantPhone}
-                  onChange={(e) => setApplicantPhone(e.target.value)}
-                  placeholder="08012345678"
-                />
-                <FieldError message={fieldErrors.applicant_phone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={applicantPhone}
+                onChange={setApplicantPhone}
+                verification={phoneCheck}
+                error={fieldErrors.applicant_phone}
+                placeholder="08012345678"
+              />
             </div>
             <div>
               <label className={label}>Delivery Address <span className="text-red-400">*</span></label>

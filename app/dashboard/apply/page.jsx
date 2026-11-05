@@ -52,6 +52,7 @@ import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
 import { isTintedPermit } from "@/lib/utils/application-types";
+import PhoneVerifyField, { PHONE_NOT_VERIFIED_ERROR, usePhoneVerification } from "@/app/dashboard/_shared/PhoneVerifyField";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -473,6 +474,8 @@ export default function ApplyPage() {
   // Mirrors the backend's validators exactly (app/schemas/application.py) so
   // incomplete/invalid data is caught here instead of only surfacing as a
   // 422 after the user reaches the final review step.
+  const phoneCheck = usePhoneVerification(applicantPhone);
+
   const validateStep = (n) => {
     const errors = {};
     if (n === 1) {
@@ -498,6 +501,7 @@ export default function ApplyPage() {
       if (!trimmedEmail) errors.applicantEmail = "Email address is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmedEmail)) errors.applicantEmail = "Enter a valid email address.";
       if (!trimmedPhone) errors.applicantPhone = "Phone number is required.";
+      else if (!phoneCheck.verified) errors.applicantPhone = PHONE_NOT_VERIFIED_ERROR;
 
       if (applicationType === "fresh") {
         const trimmedMaiden = mothersMaidenName.trim();
@@ -873,11 +877,13 @@ export default function ApplyPage() {
                 <input type="email" value={applicantEmail} onChange={(e) => setApplicantEmail(e.target.value)} placeholder="ada@example.com" className={`${inputBase} ${errInputClass(!!fieldErrors.applicantEmail)}`} />
                 <FieldError message={fieldErrors.applicantEmail} />
               </div>
-              <div>
-                <label className={label}>Mobile / Phone number <span className="text-red-400">*</span></label>
-                <input type="tel" value={applicantPhone} onChange={(e) => setApplicantPhone(e.target.value)} placeholder="08012345678" className={`${inputBase} ${errInputClass(!!fieldErrors.applicantPhone)}`} />
-                <FieldError message={fieldErrors.applicantPhone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={applicantPhone}
+                onChange={setApplicantPhone}
+                verification={phoneCheck}
+                error={fieldErrors.applicantPhone}
+              />
             </div>
 
             {applicationType === "fresh" && (

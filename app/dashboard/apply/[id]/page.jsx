@@ -66,6 +66,7 @@ import { btnPrimary, btnSecondary, inputBase, label as fieldLabel } from "@/app/
 import { colors } from "@/lib/design-tokens";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { isTintedPermit } from "@/lib/utils/application-types";
+import TintedPaymentNotice from "@/app/dashboard/_shared/TintedPaymentNotice";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -3424,6 +3425,10 @@ export default function CustomerApplicationDetailsPage() {
           </div>
         </div>
       </div>
+
+      {isTintedPermit(application.application_type) && !application.verification_link && !["agent_completed", "staff_final_review", "awaiting_customer", "completed", "expired", "staff_rejected"].includes(application.status) && (
+        <TintedPaymentNotice />
+      )}
 
       {isTintedPermit(application.application_type) && application.verification_link && (
         <TintedVerificationCheckCard application={application} onViewDoc={setPreviewDocUrl} onUploaded={() => loadData(true)} />

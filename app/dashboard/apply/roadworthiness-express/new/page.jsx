@@ -39,6 +39,7 @@ import PaymentOptions from "@/app/components/dashboard/PaymentOptions";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
+import PhoneVerifyField, { PHONE_NOT_VERIFIED_ERROR, usePhoneVerification } from "@/app/dashboard/_shared/PhoneVerifyField";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -328,6 +329,8 @@ export default function RoadworthinessExpressNewApplicationPage() {
     setAddingVehicle(false);
   };
 
+  const phoneCheck = usePhoneVerification(applicantPhone);
+
   const validateStep = (n) => {
     const errors = {};
     if (n === 1) {
@@ -339,6 +342,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
       if (!applicantEmail.trim()) errors.applicantEmail = "Email address is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicantEmail = "Enter a valid email address.";
       if (!applicantPhone.trim()) errors.applicantPhone = "Mobile number is required.";
+      else if (!phoneCheck.verified) errors.applicantPhone = PHONE_NOT_VERIFIED_ERROR;
       if (!selectedBayId) errors.bay = "Pick a bay to continue.";
       if (!bookingDate) errors.date = "Pick a date.";
       if (!selectedSlotId) errors.slot = "Pick a time slot.";
@@ -771,17 +775,15 @@ export default function RoadworthinessExpressNewApplicationPage() {
                 />
                 <FieldError message={fieldErrors.applicantEmail} />
               </div>
-              <div>
-                <label className={label}>Mobile Number <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicantPhone)}`}
-                  value={applicantPhone}
-                  onChange={(e) => setApplicantPhone(e.target.value)}
-                  placeholder="e.g. 08012345678"
-                />
-                <FieldError message={fieldErrors.applicantPhone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={applicantPhone}
+                onChange={setApplicantPhone}
+                verification={phoneCheck}
+                error={fieldErrors.applicantPhone}
+                label="Mobile number"
+                placeholder="e.g. 08012345678"
+              />
             </div>
           </div>
 

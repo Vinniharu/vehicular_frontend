@@ -34,6 +34,8 @@ import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
+import PhoneVerifyField, { PHONE_NOT_VERIFIED_ERROR, PHONE_NOTE_TINTED, usePhoneVerification } from "@/app/dashboard/_shared/PhoneVerifyField";
+import TintedPaymentNotice from "@/app/dashboard/_shared/TintedPaymentNotice";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -231,6 +233,8 @@ export default function TintedPermitNewApplicationPage() {
     setAddingVehicle(false);
   };
 
+  const phoneCheck = usePhoneVerification(applicantPhone);
+
   const validateStep = (n) => {
     const errors = {};
     if (n === 1) {
@@ -243,6 +247,7 @@ export default function TintedPermitNewApplicationPage() {
       if (!applicantEmail.trim()) errors.applicant_email = "Email address is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantEmail.trim())) errors.applicant_email = "Enter a valid email address.";
       if (!applicantPhone.trim()) errors.applicant_phone = "Phone number is required.";
+      else if (!phoneCheck.verified) errors.applicant_phone = PHONE_NOT_VERIFIED_ERROR;
       const trimmedNin = nin.trim();
       if (!trimmedNin) errors.nin = "NIN is required.";
       else if (!/^\d{11}$/.test(trimmedNin)) errors.nin = "NIN must be exactly 11 digits.";
@@ -543,7 +548,7 @@ export default function TintedPermitNewApplicationPage() {
                 <FieldError message={fieldErrors.last_name} />
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:grid-flow-row-dense">
               <div>
                 <label className={label}>Email address <span className="text-red-400">*</span></label>
                 <input
@@ -555,17 +560,15 @@ export default function TintedPermitNewApplicationPage() {
                 />
                 <FieldError message={fieldErrors.applicant_email} />
               </div>
-              <div>
-                <label className={label}>Mobile / Phone number <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
-                  value={applicantPhone}
-                  onChange={(e) => setApplicantPhone(e.target.value)}
-                  placeholder="08012345678"
-                />
-                <FieldError message={fieldErrors.applicant_phone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={applicantPhone}
+                onChange={setApplicantPhone}
+                verification={phoneCheck}
+                error={fieldErrors.applicant_phone}
+                note={PHONE_NOTE_TINTED}
+                placeholder="08012345678"
+              />
               <div>
                 <label className={label}>NIN <span className="text-red-400">*</span></label>
                 <input
@@ -687,6 +690,7 @@ export default function TintedPermitNewApplicationPage() {
             <p className="mb-4 text-[12px] text-cx-muted">
               Applications require an initial deposit or full payment to begin processing.
             </p>
+            <TintedPaymentNotice className="mb-4" />
             <div className="mb-4 rounded-xl bg-cx-sunken p-3 text-[13px] border border-cx-line space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-cx-muted">{isRenewal ? "Tinted Permit Renewal Fee" : "Tinted Permit Fee"}</span>

@@ -39,6 +39,7 @@ import ProcessingSpeedSelector from "@/app/components/dashboard/ProcessingSpeedS
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
+import PhoneVerifyField, { PHONE_NOT_VERIFIED_ERROR, usePhoneVerification } from "@/app/dashboard/_shared/PhoneVerifyField";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -386,6 +387,8 @@ export default function NumberPlateNewApplicationPage() {
     setAddingVehicle(false);
   };
 
+  const phoneCheck = usePhoneVerification(isDealership ? dealershipForm.applicant_phone : applicantForm.applicant_phone);
+
   const validateStep = (n) => {
     const errors = {};
     // Key-based (not raw step-number) checks — "vehicle" isn't always step
@@ -402,6 +405,7 @@ export default function NumberPlateNewApplicationPage() {
       if (!applicantForm.make.trim()) errors.make = "Vehicle make is required.";
       if (!applicantForm.colour.trim()) errors.colour = "Vehicle colour is required.";
       if (!applicantForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      else if (!phoneCheck.verified) errors.applicant_phone = PHONE_NOT_VERIFIED_ERROR;
       if (!applicantForm.applicant_email?.trim()) errors.applicant_email = "Email is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantForm.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
       const trimmedNin = applicantForm.nin.trim();
@@ -431,6 +435,7 @@ export default function NumberPlateNewApplicationPage() {
       if (!dealershipForm.dealership_name.trim()) errors.dealership_name = "Dealership name is required.";
       if (!dealershipForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!dealershipForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      else if (!phoneCheck.verified) errors.applicant_phone = PHONE_NOT_VERIFIED_ERROR;
       if (!dealershipForm.applicant_email.trim()) errors.applicant_email = "Email is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dealershipForm.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
       const trimmedNin = dealershipForm.nin.trim();
@@ -443,6 +448,7 @@ export default function NumberPlateNewApplicationPage() {
       if (!applicantForm.last_name.trim()) errors.last_name = "Surname is required.";
       if (!applicantForm.residential_address.trim()) errors.residential_address = "Address is required.";
       if (!applicantForm.applicant_phone.trim()) errors.applicant_phone = "Phone number is required.";
+      else if (!phoneCheck.verified) errors.applicant_phone = PHONE_NOT_VERIFIED_ERROR;
       if (!applicantForm.applicant_email?.trim()) errors.applicant_email = "Email is required.";
       else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(applicantForm.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
       const trimmedNin = applicantForm.nin.trim();
@@ -871,17 +877,15 @@ export default function NumberPlateNewApplicationPage() {
             </div>
 
             {/* 9. Phone number */}
-            <div>
-              <label className={label}>Phone number: <span className="text-red-500">*</span></label>
-              <input
-                type="tel"
-                className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
-                value={applicantForm.applicant_phone}
-                onChange={(e) => setApplicantForm((f) => ({ ...f, applicant_phone: e.target.value }))}
-                placeholder="e.g. 08012345678"
-              />
-              <FieldError message={fieldErrors.applicant_phone} />
-            </div>
+            <PhoneVerifyField
+              className="sm:col-span-full"
+              value={applicantForm.applicant_phone}
+              onChange={(v) => setApplicantForm((f) => ({ ...f, applicant_phone: v }))}
+              verification={phoneCheck}
+              error={fieldErrors.applicant_phone}
+              label="Phone number"
+              placeholder="e.g. 08012345678"
+            />
 
             {/* 10. NIN */}
             <div>
@@ -1228,16 +1232,14 @@ export default function NumberPlateNewApplicationPage() {
               <FieldError message={fieldErrors.residential_address} />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className={label}>Phone number <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
-                  value={dealershipForm.applicant_phone}
-                  onChange={(e) => setDealershipForm((f) => ({ ...f, applicant_phone: e.target.value }))}
-                />
-                <FieldError message={fieldErrors.applicant_phone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={dealershipForm.applicant_phone}
+                onChange={(v) => setDealershipForm((f) => ({ ...f, applicant_phone: v }))}
+                verification={phoneCheck}
+                error={fieldErrors.applicant_phone}
+                label="Phone number"
+              />
               <div>
                 <label className={label}>Email <span className="text-red-400">*</span></label>
                 <input
@@ -1334,16 +1336,14 @@ export default function NumberPlateNewApplicationPage() {
                 />
                 <FieldError message={fieldErrors.applicant_email} />
               </div>
-              <div>
-                <label className={label}>Phone number <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
-                  value={applicantForm.applicant_phone}
-                  onChange={(e) => setApplicantForm((f) => ({ ...f, applicant_phone: e.target.value }))}
-                />
-                <FieldError message={fieldErrors.applicant_phone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={applicantForm.applicant_phone}
+                onChange={(v) => setApplicantForm((f) => ({ ...f, applicant_phone: v }))}
+                verification={phoneCheck}
+                error={fieldErrors.applicant_phone}
+                label="Phone number"
+              />
               <div>
                 <label className={label}>NIN <span className="text-red-400">*</span></label>
                 <input

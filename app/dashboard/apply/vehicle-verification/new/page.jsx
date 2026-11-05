@@ -32,6 +32,7 @@ import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
+import PhoneVerifyField, { PHONE_NOT_VERIFIED_ERROR, usePhoneVerification } from "@/app/dashboard/_shared/PhoneVerifyField";
 
 const BRAND = "#28A745";
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -170,6 +171,8 @@ export default function VehicleVerificationNewApplicationPage() {
     setCertificate({ fileName: file.name, url: data.file_url });
   };
 
+  const phoneCheck = usePhoneVerification(form.applicant_phone);
+
   const validateStep1 = () => {
     const errors = {};
     if (!form.first_name?.trim()) errors.first_name = "First name is required.";
@@ -177,6 +180,7 @@ export default function VehicleVerificationNewApplicationPage() {
     if (!form.applicant_email?.trim()) errors.applicant_email = "Email address is required.";
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.applicant_email.trim())) errors.applicant_email = "Enter a valid email address.";
     if (!form.applicant_phone?.trim()) errors.applicant_phone = "Mobile number is required.";
+    else if (!phoneCheck.verified) errors.applicant_phone = PHONE_NOT_VERIFIED_ERROR;
     if (!form.plate_number.trim()) errors.plate_number = "Plate number is required.";
     if (!form.make.trim()) errors.make = "Make is required.";
     if (!form.model.trim()) errors.model = "Model is required.";
@@ -392,18 +396,15 @@ export default function VehicleVerificationNewApplicationPage() {
                 />
                 <FieldError message={fieldErrors.applicant_email} />
               </div>
-              <div>
-                <label className={label}>Mobile Number <span className="text-red-400">*</span></label>
-                <input
-                  type="tel"
-                  className={`${inputBase} ${errInputClass(!!fieldErrors.applicant_phone)}`}
-                  name="applicant_phone"
-                  value={form.applicant_phone || ""}
-                  onChange={handleChange}
-                  placeholder="e.g. 08012345678"
-                />
-                <FieldError message={fieldErrors.applicant_phone} />
-              </div>
+              <PhoneVerifyField
+                className="sm:col-span-full"
+                value={form.applicant_phone}
+                onChange={(v) => setForm((f) => ({ ...f, applicant_phone: v }))}
+                verification={phoneCheck}
+                error={fieldErrors.applicant_phone}
+                label="Mobile number"
+                placeholder="e.g. 08012345678"
+              />
             </div>
           </div>
 

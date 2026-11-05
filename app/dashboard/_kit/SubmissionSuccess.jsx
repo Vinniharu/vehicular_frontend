@@ -9,6 +9,8 @@ import { useToast } from "@/app/components/shared/ToastProvider";
 import PartialPayControls from "@/app/components/dashboard/PartialPayControls";
 import { typeLabel } from "@/app/dashboard/_shared/application-category";
 import { Button, Card, DetailRow, koboToNaira } from "@/app/dashboard/_kit";
+import TintedPaymentNotice from "@/app/dashboard/_shared/TintedPaymentNotice";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 /**
  * Shown after any application form submits. One place for "what happens
@@ -91,6 +93,8 @@ export default function SubmissionSuccess({ application, title = "Application su
           {payment && payment.amount_paid_kobo > 0 ? <DetailRow label="Paid" value={koboToNaira(payment.amount_paid_kobo)} /> : null}
           {payment && remaining > 0 ? <DetailRow label="Balance" value={koboToNaira(remaining)} /> : null}
         </dl>
+
+        {isTintedPermit(application?.application_type) ? <TintedPaymentNotice className="mt-4" /> : null}
 
         {payment && remaining > 0 ? (
           <div className="mt-6">

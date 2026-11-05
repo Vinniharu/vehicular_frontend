@@ -21,6 +21,7 @@ import {
   authPrimaryButton,
   authSpinner,
 } from "../_components/auth-ui";
+import { PHONE_NOTE_GENERAL } from "@/app/dashboard/_shared/PhoneVerifyField";
 
 function SignupForm() {
   const router = useRouter();
@@ -272,6 +273,7 @@ function SignupForm() {
               required
               className={`${authInput} font-mono`}
             />
+            <p className="mt-1.5 text-xs text-mk-muted">{PHONE_NOTE_GENERAL}</p>
           </div>
         </div>
 
