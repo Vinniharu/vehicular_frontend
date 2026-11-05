@@ -17,6 +17,7 @@ import {
   Timer,
   Users,
   Wallet,
+  WalletCards,
 } from "lucide-react";
 import { authGetMe, getCachedUser, getToken, removeToken } from "@/lib/api";
 import { useAutoLogout } from "@/lib/hooks/useAutoLogout";
@@ -41,6 +42,7 @@ const ADMIN_NAV = [
     section: "Finance",
     items: [
       { label: "Revenue", href: "/admin/revenue", icon: Wallet },
+      { label: "Client wallets", href: "/admin/wallets", icon: WalletCards },
       { label: "Disbursements", href: "/admin/disbursements", icon: Send },
       { label: "Pricing", href: "/admin/pricing", icon: Tag },
       { label: "Agent pay", href: "/admin/compensation", icon: HandCoins },
