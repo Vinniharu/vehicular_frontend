@@ -47,6 +47,7 @@ function TypeOptions() {
       <option value="reissue">Reissue</option>
       <option value="international_permit">International permit</option>
       <option value="tinted_permit">Tinted permit</option>
+      <option value="tinted_permit_renewal">Tinted permit renewal</option>
       <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
       <option value="roadworthiness_express">Roadworthiness Express</option>
       <option value="vehicle_particulars">Vehicle particulars</option>

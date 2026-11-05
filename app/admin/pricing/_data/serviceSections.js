@@ -188,6 +188,9 @@ export const SERVICE_SECTIONS = [
     slug: "tinted-permit",
     title: "Tinted Glass Permit",
     subtitle: "One fee for every vehicle",
-    rows: [{ mechanism: "dl", key: "tinted_permit:null", application_type: "tinted_permit", validity_period: null, label: "Amount", amountRequired: true }],
+    rows: [
+      { mechanism: "dl", key: "tinted_permit:null", application_type: "tinted_permit", validity_period: null, label: "New permit", amountRequired: true },
+      { mechanism: "dl", key: "tinted_permit_renewal:null", application_type: "tinted_permit_renewal", validity_period: null, label: "Renewal", amountRequired: true },
+    ],
   },
 ];

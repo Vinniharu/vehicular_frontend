@@ -198,15 +198,15 @@ function ApplicationDetailModal({ appId, onClose }) {
                   <div className="space-y-2">
                     {data.documents.map((doc) => (
                       <div
-                        key={doc.id || doc.document_type}
+                        key={doc.id || doc.doc_type}
                         className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50/50 text-[12.5px]"
                       >
                         <div>
                           <p className="font-semibold text-slate-800 capitalize">
-                            {(doc.document_type || "").replace(/_/g, " ")}
+                            {(doc.doc_type || "").replace(/_/g, " ")}
                           </p>
                           <p className="text-[11px] text-slate-400">
-                            Uploaded {formatDate(doc.created_at)}
+                            Uploaded {formatDate(doc.uploaded_at)}
                           </p>
                         </div>
                         {doc.file_url && (

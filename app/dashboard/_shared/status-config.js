@@ -1,3 +1,5 @@
+import { isTintedPermit } from "@/lib/utils/application-types";
+
 // Single source of truth for DL application status display, replacing the
 // three status maps previously duplicated (and drifted) across
 // dashboard/page.jsx, apply/page.jsx, and apply/[id]/page.jsx.
@@ -168,7 +170,7 @@ export function getStatusDescription(status, applicationType) {
       ? "Verifying background details & assigning driving school."
       : "Verifying your documents and background details.";
   }
-  if (applicationType === "tinted_permit" && TINTED_STATUS_DESCRIPTIONS[status]) {
+  if (isTintedPermit(applicationType) && TINTED_STATUS_DESCRIPTIONS[status]) {
     return TINTED_STATUS_DESCRIPTIONS[status];
   }
   if (isNumberPlateType(applicationType) && NUMBER_PLATE_STATUS_DESCRIPTIONS[status]) {
@@ -236,7 +238,7 @@ const NEXT_STEP_TINTED = {
   awaiting_customer: "Your permit is ready. Our team will confirm once it's with you.",
   completed: "Your permit is ready.",
   needs_correction: "One of your documents needs a re-upload — see below.",
-  expired: "Your permit has expired — please submit a new application.",
+  expired: "Your permit has expired — please renew it to get a new one.",
 };
 
 // number_plate_* shares tinted_permit's exact sequence — same map, plate
@@ -327,7 +329,7 @@ export function getNextStepCopy(application) {
   if (type?.startsWith("vehicle_verification_") || type === "central_motor_registry") {
     return NEXT_STEP_VERIFICATION[status] || "We'll update this as your request moves forward.";
   }
-  const map = type === "tinted_permit"
+  const map = isTintedPermit(type)
     ? NEXT_STEP_TINTED
     : isNumberPlateType(type)
     ? NEXT_STEP_NUMBER_PLATE
@@ -390,7 +392,7 @@ export function getStageProgress(status, applicationType) {
     ? STAGE_ORDER_VERIFICATION
     : applicationType === "vehicle_particulars"
     ? STAGE_ORDER_PARTICULARS
-    : applicationType === "tinted_permit" || isNumberPlateType(applicationType)
+    : isTintedPermit(applicationType) || isNumberPlateType(applicationType)
     ? STAGE_ORDER_TINTED
     : applicationType === "fresh" ? STAGE_ORDER_FRESH : STAGE_ORDER_OTHER;
   const idx = order.indexOf(status);

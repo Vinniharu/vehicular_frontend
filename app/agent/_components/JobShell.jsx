@@ -265,6 +265,7 @@ const DOC_LABELS = {
   proof_of_ownership: "Proof of ownership",
   vehicle_licence: "Vehicle licence",
   tinted_passport_photo: "Applicant photo",
+  expired_tinted_permit: "Expired tint permit",
   vehicle_photo_front: "Vehicle — front",
   vehicle_photo_back: "Vehicle — rear",
   vehicle_photo_side: "Vehicle — side",

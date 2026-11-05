@@ -38,6 +38,7 @@ import AgentApplicationChatSection from "@/app/components/design/AgentApplicatio
 import { AGENT_DELIVERABLE_DOC_TYPES, finishLabel, isDlRenewalFamily, isNumberPlate, isStaffRework } from "./jobs";
 import { Collapsible, Info, InfoGrid, UploadBox } from "./ui";
 import { ActionList, CustomerCard, DocumentsSection, JobHeader, NextStep, StaffNote, VehicleSection, reworkNote } from "./JobShell";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 // Statuses in which the tinted-permit side steps are allowed (mirrors
 // TINTED_WORK_STATUSES in the backend agent router).
@@ -65,7 +66,7 @@ function deliverableNoun(type) {
   if (type === "renewal") return "renewed licence";
   if (type === "reissue") return "replacement licence";
   if (type === "international_permit") return "international permit";
-  if (type === "tinted_permit") return "finished permit";
+  if (isTintedPermit(type)) return "finished permit";
   if (isNumberPlate(type)) return "finished plate";
   return "finished document";
 }
@@ -93,7 +94,7 @@ export default function StandardJob({ application, vehicle, stage, onPreview, re
   const type = application.application_type || "fresh";
   const status = application.status;
   const isFresh = type === "fresh";
-  const isTinted = type === "tinted_permit";
+  const isTinted = isTintedPermit(type);
   const isPlate = isNumberPlate(type);
   const isRenewalFamily = isDlRenewalFamily(type);
   const needsCredentialFields = isFresh || isTinted || isRenewalFamily;

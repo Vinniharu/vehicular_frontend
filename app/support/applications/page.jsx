@@ -174,6 +174,7 @@ export default function SupportApplicationsPage() {
           <option value="reissue">Reissue</option>
           <option value="international_permit">International Permit</option>
           <option value="tinted_permit">Tinted Permit</option>
+          <option value="tinted_permit_renewal">Tinted Permit Renewal</option>
           <option value="central_motor_registry">Electronic Central Motor Registry (eCMR)</option>
           <option value="roadworthiness_express">Roadworthiness Express</option>
           <option value="vehicle_particulars">Vehicle Particulars</option>

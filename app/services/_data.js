@@ -367,14 +367,17 @@ export const SERVICES = [
     icon: Sun,
     category: "Other documents",
     status: "live",
-    applyHref: "/dashboard/apply/requirements?type=tinted_permit",
+    applyHref: "/dashboard/apply/tinted-permit",
     feeScheduleType: "tinted_permit",
     title: "Tinted Glass Permit",
     tagline: "Tinted glass permit, applied for on your behalf without the back-and-forth.",
     intro:
       "If your vehicle has factory or aftermarket tinted glass, you need a tinted glass permit to avoid stops and fines. We submit your application to the relevant authority on your behalf and deliver the permit to you once it's issued.",
     whatsIncluded: ["Tinted glass permit (once issued)", "Soft copy in your dashboard", "Hard copy delivered to your address"],
-    whatYouBring: ["Vehicle particulars", "Valid ID (NIN or DL)", "Recent photo of the vehicle showing the tint"],
+    whatYouBring: [
+      "New permit: your NIN, passport photograph, ownership and vehicle documents, and vehicle photos",
+      "Renewal: your NIN, passport photograph and expired permit",
+    ],
     pricingNote: null,
     howItWorks: [
       { title: "Submit details", desc: "Vehicle info, ID, and tint photo." },

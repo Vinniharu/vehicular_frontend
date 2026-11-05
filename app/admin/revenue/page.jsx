@@ -767,6 +767,8 @@ export default function AdminRevenuePage() {
             <option value="renewal">Renewal DL</option>
             <option value="reissue">Reissue DL</option>
             <option value="number_plate_new">New plate</option>
+            <option value="tinted_permit">Tinted permit</option>
+            <option value="tinted_permit_renewal">Tinted permit renewal</option>
             <option value="vehicle_particulars">Vehicle particulars</option>
             <option value="roadworthiness_express">Roadworthiness express</option>
             <option value="physical_condition_inspection">Physical condition inspection</option>

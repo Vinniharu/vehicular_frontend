@@ -65,6 +65,7 @@ import { getNextStepCopy } from "@/app/dashboard/_shared/status-config";
 import { btnPrimary, btnSecondary, inputBase, label as fieldLabel } from "@/app/dashboard/_shared/ui";
 import { colors } from "@/lib/design-tokens";
 import { goToCheckout } from "@/lib/utils/checkout";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -94,6 +95,10 @@ const REQUIRED_DOCS_BY_TYPE = {
     { value: "vehicle_photo_back", label: "Vehicle photo — back" },
     { value: "vehicle_photo_side", label: "Vehicle photo — side" },
     { value: "vin_sticker_photo", label: "VIN sticker photo" },
+  ],
+  tinted_permit_renewal: [
+    { value: "tinted_passport_photo", label: "Passport photograph" },
+    { value: "expired_tinted_permit", label: "Expired tint permit" },
   ],
   // Fresh registration: exactly a chassis/VIN photo, 3 separate
   // customs-duty page uploads, and proof of ownership (purchase
@@ -541,7 +546,7 @@ function ReapplyModal({ application, onClose, onSuccess }) {
   // tinted_permit never routes here — it has its own TintedPermitReapplyModal
   // — but guard defensively since isFresh/isIdp are both false for it, which
   // would otherwise fall through to the renewal/reissue fields below.
-  const isTinted = application.application_type === "tinted_permit";
+  const isTinted = isTintedPermit(application.application_type);
 
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
@@ -1193,8 +1198,6 @@ function ReapplyModal({ application, onClose, onSuccess }) {
 // backend's DLApplicationReapply schema has no vehicle_id/justification
 // field for this flow — so this stays a small, dedicated modal rather than
 // forking the much larger DL ReapplyModal above.
-const TINTED_DOC_TYPES = REQUIRED_DOCS_BY_TYPE.tinted_permit;
-
 function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
   const [nin, setNin] = useState(application.nin || "");
   const [docs, setDocs] = useState({});
@@ -1280,7 +1283,7 @@ function TintedPermitReapplyModal({ application, onClose, onSuccess }) {
 
           <div className="space-y-3">
             <p className={fieldLabel}>Re-upload document(s)</p>
-            {TINTED_DOC_TYPES.map((d) => (
+            {(REQUIRED_DOCS_BY_TYPE[application.application_type] || []).map((d) => (
               <div key={d.value} className="rounded-xl border border-cx-line p-3.5">
                 <p className="text-[13px] font-semibold text-cx-ink">{d.label}</p>
                 <div className="mt-2">
@@ -2255,7 +2258,7 @@ export default function CustomerApplicationDetailsPage() {
     );
   }
 
-  const isTinted = application.application_type === "tinted_permit";
+  const isTinted = isTintedPermit(application.application_type);
   const isNumberPlate = Boolean(application.application_type?.startsWith("number_plate_"));
   const isVehicleParticulars = application.application_type === "vehicle_particulars";
   const isRwx = application.application_type === "roadworthiness_express";
@@ -2329,7 +2332,7 @@ export default function CustomerApplicationDetailsPage() {
   // final review ("Final review rejected: …"). That's the agent's to fix —
   // resubmitting from here would move the job on and leave the agent unable
   // to submit. Only these types can be flagged back to the customer.
-  const CUSTOMER_FIXABLE_TYPES = ["renewal", "reissue", "international_permit", "tinted_permit", "number_plate_new", "number_plate_replacement", "number_plate_change_of_ownership", "number_plate_fancy", "number_plate_dealership"];
+  const CUSTOMER_FIXABLE_TYPES = ["renewal", "reissue", "international_permit", "tinted_permit", "tinted_permit_renewal", "number_plate_new", "number_plate_replacement", "number_plate_change_of_ownership", "number_plate_fancy", "number_plate_dealership"];
   const isInternalRework = needsCorrection && (
     !CUSTOMER_FIXABLE_TYPES.includes(application.application_type) ||
     (rejectionEvent?.note || "").startsWith("Final review rejected:")
@@ -2401,7 +2404,7 @@ export default function CustomerApplicationDetailsPage() {
               className="text-[24px] tracking-tight text-cx-ink"
               style={{ fontFamily: "var(--font-display-serif)", fontWeight: 500 }}
             >
-              {isTinted ? "Tinted Permit" : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-cx-muted">#{application.id}</span>
+              {isTinted ? (application.application_type === "tinted_permit_renewal" ? "Tinted Permit Renewal" : "Tinted Permit") : isNumberPlate ? "Number Plate" : isVehicleParticulars ? "Vehicle Particulars" : isRwx ? "Roadworthiness Express" : isVehicleVerification ? "Vehicle Verification" : isPci ? "Physical Condition Inspection" : "Driver's licence"} <span className="font-mono text-[15px] text-cx-muted">#{application.id}</span>
             </h1>
             <StatusBadge status={application.status} applicationType={application.application_type} />
             {application.is_urgent && (
@@ -2967,7 +2970,7 @@ export default function CustomerApplicationDetailsPage() {
                   {!isVehicleCentric && application.permanent_licence?.expiry_date
                     ? `It was valid until ${new Date(application.permanent_licence.expiry_date).toLocaleDateString("en-NG", { dateStyle: "medium" })}. `
                     : ""}
-                  {isTinted ? "Submit a new tinted permit application to get a new one." : isNumberPlate ? "Submit a new number plate application to get a new one." : isVehicleParticulars ? "Submit a new renewal request to get updated documents." : isVehicleCentric ? "Start a new application to get an up-to-date one." : "Apply for a renewal to get a new one."}
+                  {isTinted ? "Renew it with just your NIN, a passport photograph and the expired permit." : isNumberPlate ? "Submit a new number plate application to get a new one." : isVehicleParticulars ? "Submit a new renewal request to get updated documents." : isVehicleCentric ? "Start a new application to get an up-to-date one." : "Apply for a renewal to get a new one."}
                 </p>
               </div>
             </div>
@@ -2977,7 +2980,7 @@ export default function CustomerApplicationDetailsPage() {
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)" }}
             >
               <RefreshCw className="h-4 w-4" />
-              {isVehicleCentric ? "Apply again" : "Apply for renewal"}
+              {isTinted ? "Renew permit" : isVehicleCentric ? "Apply again" : "Apply for renewal"}
             </Link>
           </div>
         </div>
@@ -3422,11 +3425,11 @@ export default function CustomerApplicationDetailsPage() {
         </div>
       </div>
 
-      {application.application_type === "tinted_permit" && application.verification_link && (
+      {isTintedPermit(application.application_type) && application.verification_link && (
         <TintedVerificationCheckCard application={application} onViewDoc={setPreviewDocUrl} onUploaded={() => loadData(true)} />
       )}
 
-      {application.application_type === "tinted_permit" && (
+      {isTintedPermit(application.application_type) && (
         <TintedTemporaryPermitsCard application={application} onViewDoc={setPreviewDocUrl} />
       )}
 

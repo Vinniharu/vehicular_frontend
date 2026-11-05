@@ -17,7 +17,7 @@ export const AGENT_APPLICATION_TYPES = [
   { value: "renewal", label: "Renewal" },
   { value: "reissue", label: "Reissue" },
   { value: "international_permit", label: "International Permit" },
-  { value: "tinted_permit", label: "Tinted Permit" },
+  { value: "tinted_permit", label: "Tinted Permit (new and renewal)" },
   { value: "number_plate", label: "Number Plate" },
   { value: "vehicle_licence", label: "Vehicle Particulars — Vehicle Licence" },
   { value: "road_worthiness", label: "Vehicle Particulars — Road Worthiness" },

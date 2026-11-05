@@ -63,7 +63,7 @@ import {
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 const DL_TYPES = ["fresh", "renewal", "reissue", "international_permit"];
-const NO_PICKUP_TYPES = ["tinted_permit", "central_motor_registry", "roadworthiness_express", "vehicle_particulars", "physical_condition_inspection"];
+const NO_PICKUP_TYPES = ["tinted_permit", "tinted_permit_renewal", "central_motor_registry", "roadworthiness_express", "vehicle_particulars", "physical_condition_inspection"];
 
 function useCountdown(application, setApplication) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, expired: false });

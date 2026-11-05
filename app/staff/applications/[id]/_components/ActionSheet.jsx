@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { Badge, Button, Field, Input, Notice, Sheet, Textarea } from "@/app/dashboard/_kit";
 import { UploadBox } from "@/app/components/portal/ui";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
@@ -239,7 +240,7 @@ export default function ActionSheet({ type, item, application, onClose, onDone, 
     body = (
       <p className="text-[15px] text-cx-ink-2">
         The job is offered to active agents in <strong className="text-cx-ink">{area}</strong>.{" "}
-        {appType === "tinted_permit" ? "Once one accepts, they start on the permit." : appType.startsWith("number_plate_") ? "Once one accepts, they start on the plate." : "Once one accepts, biometric capture is scheduled."}
+        {isTintedPermit(appType) ? "Once one accepts, they start on the permit." : appType.startsWith("number_plate_") ? "Once one accepts, they start on the plate." : "Once one accepts, biometric capture is scheduled."}
       </p>
     );
   } else if (type === "review-temp-licence") {
@@ -306,7 +307,7 @@ export default function ActionSheet({ type, item, application, onClose, onDone, 
       </>
     );
   } else if (type === "final-review") {
-    const what = appType === "tinted_permit" ? "the finished permit" : appType.startsWith("number_plate_") ? "the finished plate" : "the licence";
+    const what = isTintedPermit(appType) ? "the finished permit" : appType.startsWith("number_plate_") ? "the finished plate" : "the licence";
     body = (
       <>
         <p className="text-[15px] text-cx-ink-2">Check {what} the agent uploaded. Approving releases it to the customer; rejecting sends it back to the agent.</p>

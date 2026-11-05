@@ -177,14 +177,22 @@ function DriversLicenceCalculator({ feeSchedule }) {
 
 function TintedPermitCalculator({ feeSchedule }) {
   const [vehicleCount, setVehicleCount] = useState(1);
+  const [permitType, setPermitType] = useState("tinted_permit");
   const perVehicle = useMemo(() => {
-    const row = feeSchedule.find((p) => p.application_type === "tinted_permit");
+    const row = feeSchedule.find((p) => p.application_type === permitType);
     return row ? row.amount_kobo : null;
-  }, [feeSchedule]);
+  }, [feeSchedule, permitType]);
   const total = perVehicle != null ? perVehicle * vehicleCount : null;
 
   return (
     <div className="space-y-4">
+      <div>
+        <label className={labelCls}>Application type</label>
+        <select value={permitType} onChange={(e) => setPermitType(e.target.value)} className={inputCls}>
+          <option value="tinted_permit">New permit</option>
+          <option value="tinted_permit_renewal">Renewal</option>
+        </select>
+      </div>
       <PriceLine label="Price per vehicle" value={perVehicle} />
       <VehicleCountField value={vehicleCount} onChange={setVehicleCount} />
       <TotalBar total={total} />

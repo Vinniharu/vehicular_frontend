@@ -13,9 +13,10 @@
 //   - physical_condition_inspection (exact)          -> physical-condition-inspection
 //   - central_motor_registry (exact)                 -> central-motor-registry
 //   - roadworthiness_express (exact)                 -> roadworthiness-express
-//   - tinted_permit (exact)                          -> tinted-permit
+//   - tinted_permit, tinted_permit_renewal           -> tinted-permit
 import { SERVICES, getService } from "@/app/services/_data";
 import { isNumberPlateType } from "@/app/dashboard/_shared/status-config";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 const EXACT_TYPE_TO_SLUG = {
   fresh: "drivers-licence",
@@ -27,6 +28,7 @@ const EXACT_TYPE_TO_SLUG = {
   central_motor_registry: "central-motor-registry",
   roadworthiness_express: "roadworthiness-express",
   tinted_permit: "tinted-permit",
+  tinted_permit_renewal: "tinted-permit",
 };
 
 export function serviceSlugForApplicationType(applicationType) {
@@ -57,6 +59,7 @@ const TYPE_LABELS = {
   reissue: "Driver's licence re-issue",
   international_permit: "International driver's permit",
   tinted_permit: "Tinted permit application",
+  tinted_permit_renewal: "Tinted permit renewal",
   number_plate_new: "New plate",
   number_plate_replacement: "Plate replacement",
   number_plate_change_of_ownership: "Change of ownership",
@@ -114,7 +117,7 @@ const NUMBER_PLATE_QUERY_TYPE = {
 
 export function renewHref(app) {
   const t = app.application_type;
-  if (t === "tinted_permit") return "/dashboard/apply/tinted-permit/new";
+  if (isTintedPermit(t)) return "/dashboard/apply/tinted-permit/new?type=renewal";
   if (isNumberPlateType(t)) return `/dashboard/apply/number-plate/new?type=${NUMBER_PLATE_QUERY_TYPE[t] || "new"}`;
   if (t === "vehicle_particulars") return "/dashboard/apply/vehicle-particulars/new";
   if (t === "physical_condition_inspection") return "/dashboard/apply/physical-condition-inspection/new";

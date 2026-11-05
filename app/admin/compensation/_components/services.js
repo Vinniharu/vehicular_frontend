@@ -33,6 +33,7 @@ export const OTHER_SERVICES = [
   { key: "reissue", label: "Licence replacement" },
   { key: "international_permit", label: "International driving permit" },
   { key: "tinted_permit", label: "Tinted glass permit" },
+  { key: "tinted_permit_renewal", label: "Tinted glass permit renewal" },
   { key: "vehicle_particulars", label: "Vehicle papers (bundle)" },
   { key: "central_motor_registry", label: "Central Motor Registry (ECMR)" },
 ];
@@ -44,6 +45,7 @@ export const DEFAULT_TYPES = [
   { key: "reissue", label: "Licence replacement" },
   { key: "international_permit", label: "International driving permit" },
   { key: "tinted_permit", label: "Tinted glass permit" },
+  { key: "tinted_permit_renewal", label: "Tinted glass permit renewal" },
   { key: "number_plate", label: "Number plates (all types)" },
   { key: "vehicle_particulars", label: "Vehicle papers (bundle)" },
   { key: "vehicle_licence", label: "Vehicle licence" },

@@ -29,6 +29,7 @@ const LICENCE_TYPE_META = {
   reissue: { category: "Driver's licence", label: "Driver's licence (reissue)" },
   international_permit: { category: "Driver's licence", label: "International driving permit" },
   tinted_permit: { category: "Permits", label: "Tinted permit" },
+  tinted_permit_renewal: { category: "Permits", label: "Tinted permit (renewal)" },
   number_plate_new: { category: "Number plates", label: "Number plate (new)" },
   number_plate_replacement: { category: "Number plates", label: "Number plate (replacement)" },
   number_plate_change_of_ownership: { category: "Number plates", label: "Number plate (change of ownership)" },

@@ -6,6 +6,7 @@ import { Search, ArrowRight } from "lucide-react";
 import { SERVICES } from "@/app/services/_data";
 import { getDriverLicenceFeeSchedule, getServicePricing, getParticularsItemPricing } from "@/lib/api";
 import { colors } from "@/lib/design-tokens";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 const BRAND = colors.primary.DEFAULT;
 const INK = colors.ink.DEFAULT;
@@ -53,7 +54,7 @@ export default function ServicesList({ showSearch = true }) {
   // a different service entirely.
   const driversLicenceMinKobo = useMemo(() => {
     if (!feeSchedule || feeSchedule.length === 0) return null;
-    const dlPrices = feeSchedule.filter((p) => p.application_type !== "tinted_permit" && !p.application_type?.startsWith("number_plate_"));
+    const dlPrices = feeSchedule.filter((p) => !isTintedPermit(p.application_type) && !p.application_type?.startsWith("number_plate_"));
     if (dlPrices.length === 0) return null;
     return Math.min(...dlPrices.map((p) => p.amount_kobo));
   }, [feeSchedule]);

@@ -51,6 +51,7 @@ import {
 import { useApplicationDraft } from "@/lib/hooks/useApplicationDraft";
 import { goToCheckout } from "@/lib/utils/checkout";
 import SubmissionSuccess from "@/app/dashboard/_kit/SubmissionSuccess";
+import { isTintedPermit } from "@/lib/utils/application-types";
 
 const BRAND = colors.primary.DEFAULT;
 const BRAND_TINT = "rgba(40, 167, 69,0.08)";
@@ -354,7 +355,7 @@ export default function ApplyPage() {
     Promise.all([authGetMe(), getReferenceStates(), getMyApplications({ sort: "updated_at" }), getWallet()]).then(
       ([meRes, statesRes, appsRes, walletRes]) => {
         if (statesRes.data) setStates(statesRes.data);
-        if (appsRes.data) setExistingApplications(appsRes.data.filter((a) => a.application_type !== "tinted_permit"));
+        if (appsRes.data) setExistingApplications(appsRes.data.filter((a) => !isTintedPermit(a.application_type)));
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
         setLoadingExisting(false);
 

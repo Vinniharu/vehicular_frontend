@@ -3,12 +3,15 @@
 // take. Used by the offers page, the jobs list and the job page so they all
 // say the same thing.
 
+import { isTintedPermit } from "@/lib/utils/application-types";
+
 export const SERVICE_LABELS = {
   fresh: "New driver's licence",
   renewal: "Licence renewal",
   reissue: "Licence replacement",
   international_permit: "International driving permit",
   tinted_permit: "Tinted glass permit",
+  tinted_permit_renewal: "Tinted glass permit (renewal)",
   number_plate_new: "New number plate",
   number_plate_replacement: "Replacement plate",
   number_plate_change_of_ownership: "Change of ownership",
@@ -57,7 +60,7 @@ export function applicantName(app) {
 export const isNumberPlate = (type) => Boolean(type?.startsWith("number_plate_"));
 export const isVerification = (type) => Boolean(type?.startsWith("vehicle_verification_"));
 export const isDlRenewalFamily = (type) => ["renewal", "reissue", "international_permit"].includes(type);
-const CUSTOMER_FIXABLE = (type) => isDlRenewalFamily(type) || type === "tinted_permit" || isNumberPlate(type);
+const CUSTOMER_FIXABLE = (type) => isDlRenewalFamily(type) || isTintedPermit(type) || isNumberPlate(type);
 
 // Document types an agent hands in as the finished work.
 export const AGENT_DELIVERABLE_DOC_TYPES = [
@@ -102,7 +105,7 @@ function finishLabel(type) {
   if (type === "renewal") return "Upload the renewed licence";
   if (type === "reissue") return "Upload the replacement licence";
   if (type === "international_permit") return "Upload the international permit";
-  if (type === "tinted_permit") return "Upload the finished permit";
+  if (isTintedPermit(type)) return "Upload the finished permit";
   if (isNumberPlate(type)) return "Upload a photo of the finished plate";
   if (isVerification(type)) return "Submit the verification result";
   if (type === "central_motor_registry") return "Upload the registry certificate";

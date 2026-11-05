@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
@@ -57,11 +57,21 @@ const DOC_SLOTS = [
   { doc_type: "vin_sticker_photo", title: "VIN Sticker Photo", hint: "Usually on driver-side door jamb or dashboard", image: "/placeholder/vin.jpeg" },
 ];
 
+// A renewal only needs what proves the existing permit and the applicant.
+const RENEWAL_DOC_SLOTS = [
+  { doc_type: "tinted_passport_photo", title: "Passport Photograph", hint: "Clear photo of your face", image: "/placeholder/person.jpeg" },
+  { doc_type: "expired_tinted_permit", title: "Expired Tint Permit", hint: "Photo or scan of your expired tinted permit" },
+];
+
 const STEP_LABELS = ["Vehicle", "Applicant details", "Documents", "Review & submit"];
 
 export default function TintedPermitNewApplicationPage() {
   const pushToast = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isRenewal = searchParams.get("type") === "renewal";
+  const applicationType = isRenewal ? "tinted_permit_renewal" : "tinted_permit";
+  const docSlots = isRenewal ? RENEWAL_DOC_SLOTS : DOC_SLOTS;
   const user = getCachedUser();
 
   const [step, setStep] = useState(1);
@@ -107,7 +117,7 @@ export default function TintedPermitNewApplicationPage() {
   const [payingFromWallet, setPayingFromWallet] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
 
-  const { draftFormData, hydrated, save, clearDraft, markSubmitting, unmarkSubmitting } = useApplicationDraft("tinted_permit");
+  const { draftFormData, hydrated, save, clearDraft, markSubmitting, unmarkSubmitting } = useApplicationDraft(applicationType);
   const [draftApplied, setDraftApplied] = useState(false);
 
   // The permit is charged at the vehicle's state price, so quote that one
@@ -118,7 +128,7 @@ export default function TintedPermitNewApplicationPage() {
     let cancelled = false;
     getDriverLicenceFeeSchedule({ state_id: selectedVehicleStateId }).then((res) => {
       if (cancelled) return;
-      const row = res.data?.prices?.find((p) => p.application_type === "tinted_permit");
+      const row = res.data?.prices?.find((p) => p.application_type === applicationType);
       if (row?.amount_kobo != null) setFeeKobo(row.amount_kobo);
       if (row?.initial_deposit_kobo != null) setMinDepositKobo(row.initial_deposit_kobo);
       if (row?.partial_payment_allowed != null) setPartialAllowed(row.partial_payment_allowed);
@@ -126,7 +136,7 @@ export default function TintedPermitNewApplicationPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedVehicleStateId]);
+  }, [selectedVehicleStateId, applicationType]);
 
     // Restore a saved draft once — after this, local state is the source of
   // truth and further hydration passes would just clobber in-progress edits.
@@ -160,14 +170,14 @@ export default function TintedPermitNewApplicationPage() {
           setAddingVehicle(true);
         }
         if (walletRes.data) setWalletBalance(walletRes.data.balance_kobo || 0);
-        const tintedRow = feeRes.data?.prices?.find((p) => p.application_type === "tinted_permit");
+        const tintedRow = feeRes.data?.prices?.find((p) => p.application_type === applicationType);
         if (tintedRow?.amount_kobo != null) setFeeKobo(tintedRow.amount_kobo);
         if (tintedRow?.initial_deposit_kobo != null) setMinDepositKobo(tintedRow.initial_deposit_kobo);
         if (tintedRow?.partial_payment_allowed != null) setPartialAllowed(tintedRow.partial_payment_allowed);
         setLoadingVehicles(false);
       }
     );
-  }, []);
+  }, [applicationType]);
 
   // Eligibility is per-vehicle — re-fetch whenever the selected vehicle
   // changes, including right after "Add another vehicle" picks a brand-new
@@ -225,7 +235,7 @@ export default function TintedPermitNewApplicationPage() {
     const errors = {};
     if (n === 1) {
       if (!selectedVehicleId) errors.vehicle = "Pick a vehicle, or add one, to continue.";
-      else if (eligibility && !eligibility.eligible) errors.vehicle = "This vehicle isn't eligible for a new tinted permit request right now — see above.";
+      else if (eligibility && !eligibility.eligible) errors.vehicle = "This vehicle isn't eligible for a tinted permit request right now — see above.";
     }
     if (n === 2) {
       if (!firstName.trim()) errors.first_name = "First name is required.";
@@ -239,7 +249,7 @@ export default function TintedPermitNewApplicationPage() {
       if (!deliveryAddress.trim()) errors.deliveryAddress = "Delivery address is required.";
     }
     if (n === 3) {
-      const allDocsUploaded = DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
+      const allDocsUploaded = docSlots.every((slot) => docs[slot.doc_type]?.url);
       if (!allDocsUploaded) errors.documents = "Upload every required document to continue.";
     }
     return errors;
@@ -256,17 +266,6 @@ export default function TintedPermitNewApplicationPage() {
     setStep(nextStep);
     save({ selectedVehicleId, firstName, middleName, lastName, applicantEmail, applicantPhone, nin, justification, deliveryAddress, docs }, STEP_LABELS[nextStep - 1]);
   };
-
-  const canSubmit =
-    selectedVehicleId &&
-    firstName.trim() &&
-    middleName.trim() &&
-    lastName.trim() &&
-    applicantEmail.trim() &&
-    applicantPhone.trim() &&
-    /^\d{11}$/.test(nin) &&
-    deliveryAddress.trim() &&
-    DOC_SLOTS.every((slot) => docs[slot.doc_type]?.url);
 
   const handleSubmit = async (paymentOpts = null) => {
     const allErrors = { ...validateStep(1), ...validateStep(2), ...validateStep(3) };
@@ -291,7 +290,7 @@ export default function TintedPermitNewApplicationPage() {
     const res = await submitDriverLicenceApplication({
       payment_method,
       payment_amount_kobo,
-      application_type: "tinted_permit",
+      application_type: applicationType,
       vehicle_id: selectedVehicleId,
       first_name: firstName.trim(),
       middle_name: middleName.trim(),
@@ -299,9 +298,9 @@ export default function TintedPermitNewApplicationPage() {
       applicant_email: applicantEmail.trim(),
       applicant_phone: applicantPhone.trim(),
       nin,
-      justification: justification || undefined,
+      justification: isRenewal ? undefined : justification || undefined,
       delivery_address: deliveryAddress.trim(),
-      documents: DOC_SLOTS.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
+      documents: docSlots.map((slot) => ({ doc_type: slot.doc_type, file_url: docs[slot.doc_type].url })),
       is_urgent: processingSpeed === "fast_track",
       processing_speed: processingSpeed,
     });
@@ -359,7 +358,7 @@ export default function TintedPermitNewApplicationPage() {
     return (
       <SubmissionSuccess
         application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
-        title="Tinted permit application submitted"
+        title={isRenewal ? "Tinted permit renewal submitted" : "Tinted permit application submitted"}
       />
     );
   }
@@ -371,9 +370,11 @@ export default function TintedPermitNewApplicationPage() {
       </button>
 
       <div>
-        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">Apply for Tinted Permit</h1>
+        <h1 className="font-display text-[26px] leading-tight text-cx-ink sm:text-[30px]">{isRenewal ? "Renew your Tinted Permit" : "Apply for Tinted Permit"}</h1>
         <p className="mt-1.5 text-sm text-cx-muted">
-          Upload the documents and vehicle photos below. We'll process your application end-to-end.
+          {isRenewal
+            ? "You only need your NIN, a passport photograph and your expired permit. We'll process your renewal end-to-end."
+            : "Upload the documents and vehicle photos below. We'll process your application end-to-end."}
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <div className="flex flex-1 items-start gap-2.5 rounded-xl border border-cx-line bg-cx-sunken p-3">
@@ -588,16 +589,18 @@ export default function TintedPermitNewApplicationPage() {
               <p className="mt-1 text-xs text-cx-muted">Physical tinted permit documents will be delivered to this address.</p>
               <FieldError message={fieldErrors.deliveryAddress} />
             </div>
-            <div>
-              <label className={label}>Justification <span className="font-normal text-cx-muted">(optional)</span></label>
-              <textarea
-                className={inputBase}
-                rows={2}
-                value={justification}
-                onChange={(e) => setJustification(e.target.value)}
-                placeholder="Any justification the authority asks for (e.g. medical reason)."
-              />
-            </div>
+            {!isRenewal && (
+              <div>
+                <label className={label}>Justification <span className="font-normal text-cx-muted">(optional)</span></label>
+                <textarea
+                  className={inputBase}
+                  rows={2}
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  placeholder="Any justification the authority asks for (e.g. medical reason)."
+                />
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -605,9 +608,9 @@ export default function TintedPermitNewApplicationPage() {
       {/* Step 3 — Documents & photos */}
       {step === 3 && (
         <section className="rounded-cx-lg border border-cx-line bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-bold text-cx-ink">Documents &amp; photos</h2>
+          <h2 className="mb-3 text-sm font-bold text-cx-ink">{isRenewal ? "Documents" : "Documents & photos"}</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {DOC_SLOTS.map((slot) => (
+            {docSlots.map((slot) => (
               <UploadSlot
                 key={slot.doc_type}
                 slot={slot}
@@ -648,7 +651,7 @@ export default function TintedPermitNewApplicationPage() {
                 <span className="text-cx-muted">Delivery address</span>
                 <span className="font-semibold text-cx-ink text-right max-w-xs">{deliveryAddress || "—"}</span>
               </div>
-              {justification.trim() && (
+              {!isRenewal && justification.trim() && (
                 <div className="py-2.5 text-[13px]">
                   <span className="block text-cx-muted">Justification</span>
                   <span className="mt-1 block text-cx-ink">{justification}</span>
@@ -657,7 +660,7 @@ export default function TintedPermitNewApplicationPage() {
               <div className="flex items-center justify-between py-2.5 text-[13px]">
                 <span className="text-cx-muted">Documents</span>
                 <span className="font-semibold text-cx-ink">
-                  {DOC_SLOTS.filter((s) => docs[s.doc_type]?.url).length} of {DOC_SLOTS.length} uploaded
+                  {docSlots.filter((s) => docs[s.doc_type]?.url).length} of {docSlots.length} uploaded
                 </span>
               </div>
               <div className="flex items-center justify-between py-2.5 text-[13px]">
@@ -686,7 +689,7 @@ export default function TintedPermitNewApplicationPage() {
             </p>
             <div className="mb-4 rounded-xl bg-cx-sunken p-3 text-[13px] border border-cx-line space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-cx-muted">Tinted Permit Fee</span>
+                <span className="text-cx-muted">{isRenewal ? "Tinted Permit Renewal Fee" : "Tinted Permit Fee"}</span>
                 <span className="font-semibold text-cx-ink">{koboToNaira(feeKobo ?? TOTAL_FEE_KOBO)}</span>
               </div>
               {processingSpeed === "fast_track" && (
