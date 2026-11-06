@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Check, ChevronRight, Receipt } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, ChevronRight, Play, Receipt } from "lucide-react";
 import { Container, Eyebrow } from "@/app/components/marketing/ui";
 import { Reveal } from "@/app/components/marketing/motion";
 import { ServiceCta, ServiceStatusPill } from "./_status";
@@ -158,6 +158,47 @@ export function BlockHeading({ eyebrow, title }) {
       {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
       <h2 className="mt-3 text-[22px] font-semibold tracking-[-0.02em] text-mk-ink sm:text-[24px]">{title}</h2>
     </div>
+  );
+}
+
+/**
+ * A YouTube Short playing on the page, with a link out to YouTube. Shorts are
+ * vertical, so the player keeps a 9:16 shape at a limited width.
+ */
+export function ServiceVideo({ video }) {
+  return (
+    <Reveal>
+      <section
+        aria-label={video.title}
+        className="grid grid-cols-1 gap-5 rounded-mk-lg border border-mk-line bg-mk-surface p-5 shadow-mk sm:grid-cols-[230px_minmax(0,1fr)] sm:gap-x-8 sm:p-6"
+      >
+        <div className="sm:col-start-2 sm:row-start-1 sm:self-end">
+          <Eyebrow>Watch</Eyebrow>
+          <h2 className="mt-3 text-[22px] font-semibold tracking-[-0.02em] text-mk-ink sm:text-[24px]">{video.title}</h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-mk-muted">{video.caption}</p>
+        </div>
+        <div className="relative mx-auto aspect-[9/16] w-full max-w-[260px] overflow-hidden rounded-mk bg-mk-ink shadow-mk-sm sm:col-start-1 sm:row-span-2 sm:row-start-1 sm:max-w-none">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${video.id}?rel=0&playsinline=1`}
+            title={video.title}
+            loading="lazy"
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="absolute inset-0 h-full w-full border-0"
+          />
+        </div>
+        <a
+          href={`https://www.youtube.com/shorts/${video.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mk-focus inline-flex min-h-[44px] items-center justify-center gap-2 justify-self-center rounded-full border border-mk-line-strong bg-mk-surface px-5 text-[14px] font-semibold text-mk-ink transition-colors hover:bg-mk-bg sm:col-start-2 sm:row-start-2 sm:self-start sm:justify-self-start"
+        >
+          <Play className="h-4 w-4" aria-hidden />
+          Watch on YouTube
+        </a>
+      </section>
+    </Reveal>
   );
 }
 

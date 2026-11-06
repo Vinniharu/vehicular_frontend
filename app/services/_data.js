@@ -13,6 +13,9 @@
  *                     not purchasable right now
  *   - "dark"         see DARK_SERVICES below — not exported in SERVICES at
  *                     all, so it's genuinely unreachable, not just hidden
+ *
+ * `video` (optional, parent level) is a YouTube video ID with its heading and
+ * caption, shown on the service's page by ServiceVideo in _detail.jsx.
  */
 import {
   CreditCard,
@@ -37,6 +40,11 @@ export const SERVICES = [
     // page for whichever type is chosen, then the wizard itself.
     applyHref: "/dashboard/apply/drivers-licence",
     feeScheduleType: "drivers_licence",
+    video: {
+      id: "-h-keaVU2Vk",
+      title: "Process your driver's licence online",
+      caption: "See how to process your driver's licence with Vehiculars, with no stress and no back and forth.",
+    },
     title: "Driver's Licence Services",
     tagline:
       "Fresh DL, renewal, re-issue, learner's permit, and international permit — all submitted and followed up on your behalf, without the queue.",
@@ -107,6 +115,11 @@ export const SERVICES = [
     status: "live",
     applyHref: "/dashboard/apply/number-plate",
     feeScheduleType: "number_plate",
+    video: {
+      id: "LuIFhJrMaRM",
+      title: "Plate number registration in Nigeria",
+      caption: "See how plate number registration works with Vehiculars.",
+    },
     title: "Number / Dealership Plates",
     tagline:
       "New plates, replacements, and change of ownership — submitted to the licensing authority on your behalf, without the queue.",
@@ -179,6 +192,11 @@ export const SERVICES = [
     status: "live",
     applyHref: "/dashboard/apply/requirements?type=vehicle_particulars",
     feeScheduleType: "vehicle_particulars",
+    video: {
+      id: "FMWSizLqii8",
+      title: "Vehicle particulars processing",
+      caption: "See how vehicle particulars processing works, with easy payment options.",
+    },
     title: "Vehicle Particulars & Renewals",
     tagline:
       "Vehicle licence, road worthiness, hackney permit, third-party insurance, and proof of ownership — renewed without queueing.",
@@ -369,6 +387,11 @@ export const SERVICES = [
     status: "live",
     applyHref: "/dashboard/apply/tinted-permit",
     feeScheduleType: "tinted_permit",
+    video: {
+      id: "qPknBivdIKY",
+      title: "Tinted glass permit processing",
+      caption: "See how tinted glass permit processing works, and what you'll need.",
+    },
     title: "Tinted Glass Permit",
     tagline: "Tinted glass permit, applied for on your behalf without the back-and-forth.",
     intro:

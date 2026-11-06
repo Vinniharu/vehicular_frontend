@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { SERVICES, getService } from "../_data";
 import { ServiceCta } from "../_status";
-import { BlockHeading, ChecklistCard, DetailHero, SideCard, SubServiceCard } from "../_detail";
+import { BlockHeading, ChecklistCard, DetailHero, ServiceVideo, SideCard, SubServiceCard } from "../_detail";
 import ServiceCard from "@/app/components/marketing/ServiceCard";
 import { Container } from "@/app/components/marketing/ui";
 import { Reveal, Stagger, StaggerItem } from "@/app/components/marketing/motion";
@@ -56,6 +56,8 @@ export default async function ServicePage({ params }) {
               <Reveal>
                 <p className="max-w-2xl text-[16px] leading-[1.75] text-mk-ink-2 sm:text-[17px]">{service.intro}</p>
               </Reveal>
+
+              {service.video ? <ServiceVideo video={service.video} /> : null}
 
               {/* What's included / What you bring */}
               <ChecklistCard included={service.whatsIncluded} bring={service.whatYouBring} />
