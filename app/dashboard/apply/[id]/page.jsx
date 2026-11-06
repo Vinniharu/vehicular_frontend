@@ -2303,6 +2303,10 @@ export default function CustomerApplicationDetailsPage() {
   const amountKobo = application.payment_options?.amount_kobo ?? null;
   const amountPaidKobo = application.payment_options?.amount_paid_kobo || 0;
   const remainingKobo = application.payment_options?.remaining_kobo ?? amountKobo ?? 0;
+  // PCI and RWX need the full fee, so the 80% wording doesn't apply to them.
+  const routesBeforeFullPayment = !isRwx && !isPci && !!application.payment_options;
+  const canRoute = !!application.payment_options?.can_route;
+  const routingShortfallKobo = application.payment_options?.routing_shortfall_kobo || 0;
   const partialPaymentAllowed = application.payment_options?.partial_payment_allowed ?? true;
   // The service's own initial deposit (or 1 kobo once something is paid) —
   // not a fixed ₦10,000.
@@ -3233,14 +3237,19 @@ export default function CustomerApplicationDetailsPage() {
                     <>
                       You have made a partial payment of <strong className="font-mono text-emerald-700">{koboToNaira(amountPaidKobo)}</strong>.
                       {" "}Remaining balance owed: <strong className="font-mono text-red-600">{koboToNaira(remainingKobo)}</strong>.
-                      {" "}Pay the balance below to move your application forward.
+                      {" "}
+                      {!routesBeforeFullPayment
+                        ? "Pay the balance below to move your application forward."
+                        : canRoute
+                          ? <>Your application can move forward. Pay the remaining <strong className="font-mono text-cx-ink">{koboToNaira(remainingKobo)}</strong> to receive your documents.</>
+                          : <>Pay at least <strong className="font-mono text-cx-ink">{koboToNaira(routingShortfallKobo)}</strong> more to send your application to an agent.</>}
                     </>
                   ) : (
                     <>
                       Pay <strong className="font-mono text-cx-ink">{koboToNaira(remainingKobo)}</strong> to move this
                       application forward
                       {partialPaymentAllowed
-                        ? ` — pay it all at once, or start with at least ${koboToNaira(minimumPayableKobo)} and pay the rest later.`
+                        ? ` — pay it all at once, or start with at least ${koboToNaira(minimumPayableKobo)} and pay the rest later.${routesBeforeFullPayment ? " An agent can start once 80% is paid." : ""}`
                         : ", in full."}
                     </>
                   )}

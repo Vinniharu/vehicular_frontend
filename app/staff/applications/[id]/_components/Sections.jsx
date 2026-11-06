@@ -37,6 +37,7 @@ export function PaymentSection({ application, isPaid }) {
       <h2 className="flex items-center gap-2 text-[16px] font-semibold text-cx-ink">
         <Wallet className="h-5 w-5 text-cx-muted" aria-hidden /> Payment
         {isPaid ? <Badge tone="brand">Paid in full</Badge> : po ? <Badge tone={po.is_overdue ? "red" : "amber"}>{po.is_overdue ? "Overdue" : "Part paid"}</Badge> : null}
+        {!isPaid && po?.can_route && ["submitted", "staff_review", "driving_school_certificate_ready"].includes(application.status) ? <Badge tone="brand">Ready to route</Badge> : null}
         {po?.deposit_waived ? <Badge tone="neutral">Deposit waived by admin</Badge> : null}
       </h2>
       <div className="mt-3">
@@ -50,6 +51,9 @@ export function PaymentSection({ application, isPaid }) {
               {po.deposit_shortfall_kobo > 0 && !po.deposit_waived ? (
                 <Info label="Still needed for deposit" value={<span className="text-cx-amber">{koboToNaira(po.deposit_shortfall_kobo)}</span>} />
               ) : null}
+              {po.routing_shortfall_kobo > 0 && !po.can_route ? (
+                <Info label="Still needed to route" value={<span className="text-cx-amber">{koboToNaira(po.routing_shortfall_kobo)}</span>} />
+              ) : null}
               <Info label="Payment due" value={date(po.payment_due_date)} />
             </>
           ) : null}
@@ -57,7 +61,7 @@ export function PaymentSection({ application, isPaid }) {
         </InfoGrid>
       </div>
       {!isPaid && po?.deposit_waived ? (
-        <p className="mt-3 text-sm text-cx-muted">An admin let this go ahead without a deposit. You can review and process it, but it only goes to an agent once the customer pays in full.</p>
+        <p className="mt-3 text-sm text-cx-muted">An admin let this go ahead without a deposit. You can review and process it, but it only goes to an agent once the customer has paid 80% of the fee.</p>
       ) : null}
       {!isPaid && application.status === "driving_school_certificate_ready" && po ? (
         <p className="mt-3 text-sm text-cx-muted">Certificate verified — this goes to an agent automatically once the balance is paid.</p>

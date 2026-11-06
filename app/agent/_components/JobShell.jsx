@@ -29,16 +29,12 @@ import { Collapsible, CopyButton, Info, InfoGrid, ProgressSteps, SlaChip, StageP
 
 const cx = (...parts) => parts.filter(Boolean).join(" ");
 
-export function isPaid(app) {
-  return app?.payment_status === "success" || app?.payment_options?.payment_status === "success";
-}
-
 /* ── Header ─────────────────────────────────────────────────────────── */
 
 export function JobHeader({ application, stage, extra }) {
   const pushToast = useToast();
   const [downloading, setDownloading] = useState(false);
-  const showSla = isPaid(application) && !hasAgentUploadedAllDocuments(application);
+  const showSla = !!application.sla && !hasAgentUploadedAllDocuments(application);
 
   const download = async () => {
     setDownloading(true);

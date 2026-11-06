@@ -426,7 +426,7 @@ export default function AdminApplicationsPage() {
       key: "sla",
       header: "SLA / deadline",
       render: (app) =>
-        (app.payment_status === "success" || app.payment_status === "paid") && app.sla ? (
+        app.sla ? (
           <Badge tone={slaTone(app.sla)} className={cx("whitespace-nowrap", app.sla.is_breached && "animate-pulse")}>
             <Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {app.sla.label} ({app.sla.days_elapsed}/{app.sla.days_allocated}d)
@@ -678,7 +678,7 @@ export default function AdminApplicationsPage() {
 
             <DepositWaiver applicationId={selected.id} />
 
-            {(selected.payment_status === "success" || selected.payment_status === "paid") && selected.sla && (
+            {selected.sla && (
               <div
                 className={cx(
                   "rounded-cx-lg border p-4",

@@ -82,7 +82,9 @@ export default function SubmissionSuccess({ application, title = "Application su
             {message ||
               (paidInFull
                 ? "It's fully paid. We'll keep you updated here and by email as it moves along."
-                : "Your deposit is in. Pay the balance when you can; paying in full avoids delays in review.")}
+                : ["physical_condition_inspection", "roadworthiness_express"].includes(application?.application_type)
+                  ? "Your deposit is in. Pay the balance when you can; paying in full avoids delays in review."
+                  : "Your deposit is in. An agent can start once 80% of the fee is paid, and you'll receive your documents once it's fully paid.")}
           </p>
         </div>
 

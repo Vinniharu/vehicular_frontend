@@ -118,7 +118,15 @@ function plan(app, { isPaid, hasMin, hasCert, open, openPci }) {
     : po.deposit_shortfall_kobo > 0 && po.required_deposit_kobo
     ? `Waiting for ${koboToNaira(po.deposit_shortfall_kobo)} more to reach the ${koboToNaira(po.required_deposit_kobo)} deposit. An admin can allow it to proceed.`
     : "Waiting for the deposit to be paid.";
-  const needFull = isPaid ? null : po.deposit_waived ? "Deposit waived by admin, but it needs full payment before it can go to an agent." : "Waiting for full payment.";
+  // The backend decides how much is enough: 80% for most services, the full fee for PCI and RWX.
+  const fullFeeType = isPci || isRwx;
+  const routingGap = fullFeeType
+    ? "Waiting for full payment."
+    : `Waiting for ${koboToNaira(po.routing_shortfall_kobo || 0)} more to reach ${koboToNaira(po.routing_required_kobo || 0)} (80% of the fee).`;
+  const needRouting = isPaid || po.can_route ? null : po.deposit_waived ? `Deposit waived by admin. ${routingGap}` : routingGap;
+  const owedBeforeRelease = isPaid || !po.remaining_kobo
+    ? ""
+    : ` The customer still owes ${koboToNaira(po.remaining_kobo)}, so you can only send it back until that's paid.`;
   const reject = { label: "Reject application", description: "The applicant sees your reason and can resubmit", icon: X, tone: "red", onClick: () => open("reject") };
 
   const freshFront = () =>
@@ -131,19 +139,19 @@ function plan(app, { isPaid, hasMin, hasCert, open, openPci }) {
     return { title: "Check the documents and approve", body: "Check identity, NIN and documents.", primary: { label: "Approve and verify", icon: CheckCircle2, onClick: () => open("approve"), blocked: needMin }, secondary: [reject] };
   }
   if (status === "staff_review") {
-    if (isParticulars) return { title: "Release the documents to agents", primary: { label: "Release to agents", icon: Send, onClick: () => open("release-particulars"), blocked: needFull }, secondary: [reject] };
-    if (isPci) return { title: "Schedule the mechanic's visit", primary: { label: "Schedule visit", icon: Calendar, onClick: openPci, blocked: needFull }, secondary: [reject] };
-    if (type !== "fresh") return { title: `Route to agents in ${area}`, body: "Once documents are verified and payment is complete.", primary: { label: "Route to agents", icon: Send, onClick: () => open("route"), blocked: needFull }, secondary: [reject] };
+    if (isParticulars) return { title: "Release the documents to agents", primary: { label: "Release to agents", icon: Send, onClick: () => open("release-particulars"), blocked: needRouting }, secondary: [reject] };
+    if (isPci) return { title: "Schedule the mechanic's visit", primary: { label: "Schedule visit", icon: Calendar, onClick: openPci, blocked: needRouting }, secondary: [reject] };
+    if (type !== "fresh") return { title: `Route to agents in ${area}`, body: "Once documents are verified and at least 80% of the fee is paid.", primary: { label: "Route to agents", icon: Send, onClick: () => open("route"), blocked: needRouting }, secondary: [reject] };
     return { ...freshFront(), secondary: [reject] };
   }
   if (status === "driving_school_enrolled" || status === "driving_school_graduation") {
     return { title: status === "driving_school_graduation" ? "Upload the driving school certificate" : "In driving school — upload the certificate when it arrives", primary: { label: "Upload certificate", icon: Upload, onClick: () => open("upload-cert") } };
   }
   if (status === "driving_school_certificate_ready") {
-    return { title: `Route to agents in ${area}`, primary: { label: "Route to agents", icon: Send, onClick: () => open("route"), blocked: needFull ? "Waiting for full payment — it routes automatically once paid." : null } };
+    return { title: `Route to agents in ${area}`, primary: { label: "Route to agents", icon: Send, onClick: () => open("route"), blocked: needRouting ? `${needRouting} It routes automatically once paid.` : null } };
   }
   if (status === "temp_licence_pending_review") return { title: "Review the agent's temporary licence", body: "Approving shows it to the customer.", primary: { label: "Review temporary licence", icon: ShieldCheck, onClick: () => open("review-temp-licence") } };
-  if (status === "agent_completed") return { title: "Check the agent's finished work", body: "Approve to release it to the customer, or send it back.", primary: { label: "Start final review", icon: ShieldCheck, onClick: () => open("final-review") } };
+  if (status === "agent_completed") return { title: "Check the agent's finished work", body: `Approve to release it to the customer, or send it back.${owedBeforeRelease}`, primary: { label: "Start final review", icon: ShieldCheck, onClick: () => open("final-review") } };
   if (isPci && status === "visit_scheduled") {
     return {
       title: "The mechanic is working through the checklist",

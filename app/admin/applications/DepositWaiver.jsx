@@ -45,7 +45,7 @@ export default function DepositWaiver({ applicationId, onChanged }) {
       }
       return setError(res.error);
     }
-    pushToast({ tone: "success", title: "Deposit waived", body: `Application #${applicationId} can now be processed. It goes to an agent once paid in full.` });
+    pushToast({ tone: "success", title: "Deposit waived", body: `Application #${applicationId} can now be processed. It goes to an agent once 80% of the fee is paid.` });
     setOpen(false);
     await load();
     onChanged?.();
@@ -70,7 +70,7 @@ export default function DepositWaiver({ applicationId, onChanged }) {
       </p>
       {po.deposit_waived ? (
         <p className="mt-1 text-sm text-cx-muted">
-          Agent assignment waits for full payment ({koboToNaira(Math.max(0, (po.amount_kobo || 0) - (po.amount_paid_kobo || 0)))} still owed).
+          Agent assignment waits until 80% of the fee is paid ({koboToNaira(po.routing_shortfall_kobo || 0)} still needed).
         </p>
       ) : null}
       {!po.has_minimum_payment && !po.deposit_waived ? (
@@ -83,7 +83,7 @@ export default function DepositWaiver({ applicationId, onChanged }) {
         open={open}
         onOpenChange={(o) => !o && !saving && setOpen(false)}
         title="Allow without deposit?"
-        description="Staff can review and process this application with no deposit paid. It won't be sent to an agent until the customer pays in full."
+        description="Staff can review and process this application with no deposit paid. It won't be sent to an agent until the customer has paid 80% of the fee."
         size="sm"
         footer={
           <>
