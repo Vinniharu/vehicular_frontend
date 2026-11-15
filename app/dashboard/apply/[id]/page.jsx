@@ -58,6 +58,7 @@ import { resolveMinimumKobo } from "@/app/components/dashboard/PartialPayControl
 import { renewHref } from "@/app/dashboard/_shared/application-category";
 import DrawerShell from "@/app/dashboard/_kit/DrawerShell";
 import ApplicationChatPanel from "@/app/components/dashboard/ApplicationChatPanel";
+import DeadlineCard from "@/app/dashboard/_shared/DeadlineCard";
 import DocumentPreviewModal from "@/app/components/design/DocumentPreviewModal";
 import StatusBadge from "@/app/dashboard/_shared/StatusBadge";
 import DateOfBirthInput from "@/app/dashboard/_shared/DateOfBirthInput";
@@ -2526,6 +2527,9 @@ export default function CustomerApplicationDetailsPage() {
           </div>
         </div>
       )}
+
+      {/* Target date: the same one staff see */}
+      <DeadlineCard sla={application.sla} />
 
       {/* Payment & Financial Breakdown Summary */}
       {!isFreeRwxRebook && (
