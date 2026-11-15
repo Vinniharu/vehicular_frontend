@@ -285,9 +285,11 @@ function AgentWalletContent() {
                         {formatDate(t.created_at)}
                       </p>
                     </div>
-                    <Badge tone={t.status === "success" ? "brand" : t.status === "failed" ? "red" : "amber"}>
-                      {t.status === "success" ? "Paid" : t.status === "failed" ? "Failed" : "Pending"}
-                    </Badge>
+                    <div className="shrink-0 text-right">
+                      <Badge tone={t.status === "success" ? "brand" : t.failure_code === "bank_rejected" ? "red" : "amber"}>
+                        {payoutLabel(t)}
+                      </Badge>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -318,6 +320,23 @@ function AgentWalletContent() {
       </Sheet>
     </div>
   );
+}
+
+/** A payout's state in the agent's words. */
+function payoutLabel(t) {
+  if (t.status === "success") return "Paid";
+  switch (t.failure_code) {
+    case "bank_rejected":
+      return "Update your bank details";
+    case "held":
+      return "Held 24h after bank change";
+    case "no_bank":
+      return "Add your bank details";
+    case "pending":
+      return "Sent, confirming";
+    default:
+      return "Processing";
+  }
 }
 
 export default function AgentWalletPage() {

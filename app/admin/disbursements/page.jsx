@@ -121,6 +121,21 @@ function TransferStatus({ transfer }) {
   return <Badge className="capitalize">{transfer.status || "—"}</Badge>;
 }
 
+/** Why an unpaid payout hasn't gone through yet, or what to do about an old Monnify one. */
+function PayoutNote({ transfer }) {
+  if (transfer.status === "success") return null;
+  if (transfer.is_old_monnify) {
+    return (
+      <p className="max-w-xs text-[12.5px] leading-snug text-cx-amber">
+        Old Monnify payout. Check Monnify that it didn't go out, then Pay out (sends through Paystack) or mark it paid manually.
+      </p>
+    );
+  }
+  if (!transfer.failure_reason) return null;
+  const urgent = transfer.failure_code === "low_balance" || transfer.failure_code === "otp" || transfer.failure_code === "bank_rejected";
+  return <p className={cx("max-w-xs text-[12.5px] leading-snug", urgent ? "text-cx-red" : "text-cx-muted")}>{transfer.failure_reason}</p>;
+}
+
 function methodText(transfer) {
   if (!transfer.disbursement_method) return null;
   return `${transfer.disbursement_method}${transfer.disbursed_by_admin_name ? ` (${transfer.disbursed_by_admin_name})` : ""}`;
@@ -428,6 +443,7 @@ export default function AdminDisbursementsPage() {
         <div className="space-y-1">
           <TransferStatus transfer={t} />
           {t.status === "success" && methodText(t) ? <p className="text-[13px] capitalize text-cx-muted">{methodText(t)}</p> : null}
+          <PayoutNote transfer={t} />
         </div>
       ),
     },
@@ -576,6 +592,13 @@ export default function AdminDisbursementsPage() {
         <ChevronRight className="h-5 w-5 shrink-0 text-cx-amber" aria-hidden />
       </button>
 
+      {items.some((t) => t.status !== "success" && (t.failure_code === "low_balance" || t.failure_code === "otp")) ? (
+        <Notice tone="red" title="Payouts are on hold on Paystack's side">
+          {items.find((t) => t.status !== "success" && (t.failure_code === "low_balance" || t.failure_code === "otp"))?.failure_reason}{" "}
+          They are retried every 15 minutes, so nothing else is needed once it's fixed.
+        </Notice>
+      ) : null}
+
       {/* ─── Filters ─── */}
       <div>
         <Tabs tabs={statusTabs} value={statusFilter} onChange={handleStatusChange} label="Payout status" className="mb-3" />
@@ -714,6 +737,8 @@ export default function AdminDisbursementsPage() {
               ) : null}
               <DetailRow label="Age" value={formatAge(d.age_hours) || "—"} />
               <DetailRow label="Created" value={formatDate(d.created_at)} />
+              {d.attempt_count ? <DetailRow label="Attempts" value={`${d.attempt_count}${d.last_attempt_at ? `, last ${formatDate(d.last_attempt_at)}` : ""}`} /> : null}
+              {d.status !== "success" && (d.failure_reason || d.is_old_monnify) ? <DetailRow label="Why it's waiting" value={<PayoutNote transfer={d} />} /> : null}
             </dl>
             {d.bank_account ? (
               <Card className="bg-cx-sunken/60">
