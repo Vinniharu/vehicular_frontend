@@ -639,7 +639,7 @@ export default function NumberPlateNewApplicationPage() {
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
-  // "Pay by card" opens Monnify in a new tab — this tab never gets a
+  // "Pay by card" opens the payment provider in a new tab — this tab never gets a
   // callback, so it has to notice payment completion itself once the
   // customer switches back, instead of leaving them stranded on this form.
   useEffect(() => {

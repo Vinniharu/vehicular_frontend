@@ -442,7 +442,7 @@ export default function RoadworthinessExpressNewApplicationPage() {
 
   const isPaid = successApp ? (payOpts?.remaining_kobo ?? payOpts?.amount_kobo ?? 0) <= 0 : false;
 
-  // "Pay by card" opens Monnify in a new tab, same pattern as every other
+  // "Pay by card" opens the payment provider in a new tab, same pattern as every other
   // pay-by-card link in the app — this tab notices completion itself once
   // the customer switches back.
   useEffect(() => {

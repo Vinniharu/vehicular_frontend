@@ -248,12 +248,12 @@ export default function AdminDashboardPage() {
             <SectionTitle title="Revenue" action={<ViewAllLink href="/admin/revenue">Full revenue</ViewAllLink>} />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <StatTile
-                label="Total inflow (Monnify wallet)"
+                label="Total inflow (payment provider)"
                 value={overview ? koboToNaira(overview.gross_payments_kobo) : "—"}
                 hint={
                   overview?.total_monnify_fees_kobo
                     ? `${koboToNaira(overview.gross_collected_kobo)} gross (−${koboToNaira(overview.total_monnify_fees_kobo)} fee)`
-                    : "Net settled in Monnify wallet"
+                    : "Net settled with the payment provider"
                 }
                 icon={TrendingUp}
                 tone="brand"

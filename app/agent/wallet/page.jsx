@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight, Inbox, Landmark, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
-import { getAgentBankAccount, getAgentTransfers, getAgentWallet, koboToNaira, setAgentBankAccount, withdrawAgentWallet } from "@/lib/api";
+import { getAgentBankAccount, getAgentTransfers, getAgentWallet, getPayoutBanks, koboToNaira, setAgentBankAccount, withdrawAgentWallet } from "@/lib/api";
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Notice, PageHeader, Select, Sheet, SkeletonList } from "@/app/dashboard/_kit";
 import { useToast } from "@/app/components/shared/ToastProvider";
 
@@ -65,6 +65,8 @@ function AgentWalletContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  // The provider's own list when it loads; the built-in list until then or if it can't.
+  const [banks, setBanks] = useState(BANKS);
   const [bankCode, setBankCode] = useState(BANKS[0].code);
   const [accountNumber, setAccountNumber] = useState("");
   const [bankError, setBankError] = useState(null);
@@ -86,6 +88,9 @@ function AgentWalletContent() {
 
   useEffect(() => {
     load();
+    getPayoutBanks().then((res) => {
+      if (Array.isArray(res.data?.banks) && res.data.banks.length) setBanks(res.data.banks);
+    });
   }, []);
 
   const saveBank = async (e) => {
@@ -236,7 +241,7 @@ function AgentWalletContent() {
               <Field label="Bank">
                 {(p) => (
                   <Select {...p} value={bankCode} onChange={(e) => setBankCode(e.target.value)}>
-                    {BANKS.map((b) => (
+                    {banks.map((b) => (
                       <option key={b.code} value={b.code}>{b.name}</option>
                     ))}
                   </Select>

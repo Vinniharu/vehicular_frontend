@@ -754,7 +754,7 @@ export default function AdminDisbursementsPage() {
         open={!!cp}
         onOpenChange={(o) => !o && setConfirmPayoutTransfer(null)}
         title={cp ? `Send ${formatNaira(cp.amount_kobo)} to ${cp.agent?.name || "Agent"}?` : "Send payout?"}
-        description="We'll try to pay this through the payment gateway now."
+        description="We'll try to pay this through the payment gateway now. If this payout was first sent through Monnify, check Monnify's dashboard that it didn't go out before sending it again through Paystack."
         confirmLabel="Send payout"
         loading={!!cp && actionLoadingId === cp.id}
         onConfirm={runInitiatePayout}

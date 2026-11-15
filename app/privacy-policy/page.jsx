@@ -469,7 +469,7 @@ export default function PrivacyPolicyPage() {
                       Transaction references, payment method identifiers, wallet credit/debit balances, service invoices, and payout
                       account bank details (for verified field agents). <em>Note: Vehiculars does NOT collect, process, or store full
                       credit or debit card primary account numbers (PAN) or CVVs. All electronic payments are processed through
-                      CBN-licensed, PCI-DSS compliant payment gateways (Monnify / Moniepoint MFB).</em>
+                      CBN-licensed, PCI-DSS compliant payment gateways (Paystack, and Monnify / Moniepoint MFB for earlier payments).</em>
                     </p>
                   </div>
                 </div>
@@ -561,7 +561,7 @@ export default function PrivacyPolicyPage() {
                       </tr>
                       <tr>
                         <td className="px-4 py-3 font-semibold text-mk-ink">Payment Gateway</td>
-                        <td className="px-4 py-3">Monnify (TeamApt / Moniepoint MFB)</td>
+                        <td className="px-4 py-3">Paystack; Monnify (TeamApt / Moniepoint MFB) for earlier payments</td>
                         <td className="px-4 py-3">Payment processing, transaction settlements, and customer wallet funding. PCI-DSS compliant.</td>
                       </tr>
                       <tr>

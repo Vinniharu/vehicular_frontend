@@ -180,7 +180,7 @@ export default function DeleteAccountPage() {
                   <strong>Document Vault:</strong> Digital copies of issued driver’s licences, vehicle licences, and roadworthiness certificates linked to the profile will become inaccessible.
                 </li>
                 <li>
-                  <strong>Dedicated Monnify Virtual Account:</strong> Your assigned Monnify dedicated virtual account will be closed. Any remaining wallet balance is forfeited upon deletion.
+                  <strong>Dedicated Virtual Account:</strong> If you have a dedicated virtual account number, it will be closed. Any remaining wallet balance is forfeited upon deletion.
                 </li>
                 <li>
                   <strong>Referral Code &amp; Rewards:</strong> Your referral link and any unredeemed rewards are permanently erased.

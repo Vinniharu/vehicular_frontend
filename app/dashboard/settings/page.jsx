@@ -569,7 +569,7 @@ export default function SettingsPage() {
         </div>
         <div className="px-6 sm:px-8 py-5 text-sm text-cx-ink-2">
           <p className="leading-relaxed">
-            Deleting your account will permanently deactivate your profile, cancel any ongoing or in-flight applications, close your assigned Monnify dedicated virtual account, and forfeit any remaining wallet balance. This action is irreversible.
+            Deleting your account will permanently deactivate your profile, cancel any ongoing or in-flight applications, close your assigned dedicated virtual account, and forfeit any remaining wallet balance. This action is irreversible.
           </p>
         </div>
       </div>
@@ -613,7 +613,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-start gap-2.5">
               <span className="shrink-0 mt-0.5 text-base leading-none">💳</span>
-              <p><strong>Wallet &amp; Dedicated Account:</strong> Any remaining wallet balance will be forfeited. Your assigned Monnify virtual account number will be closed.</p>
+              <p><strong>Wallet &amp; Dedicated Account:</strong> Any remaining wallet balance will be forfeited. Your assigned virtual account number will be closed.</p>
             </div>
             <div className="flex items-start gap-2.5">
               <span className="shrink-0 mt-0.5 text-base leading-none">🎁</span>
