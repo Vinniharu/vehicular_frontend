@@ -893,7 +893,7 @@ export default function AdminRevenuePage() {
             )}
           </Field>
 
-          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to credit only what the payment provider confirms. A typed amount is recorded as a manual credit, not Monnify-confirmed.">
+          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to credit only what the payment provider confirms. A typed amount is recorded as a manual credit, not provider-confirmed.">
             {(p) => <MoneyInput {...p} value={reconcileAmount} onChange={setReconcileAmount} placeholder="0" invalid={!!reconcileAmountError} />}
           </Field>
 
