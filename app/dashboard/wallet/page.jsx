@@ -6,15 +6,11 @@ import {
   Plus,
   ArrowDownRight,
   ArrowUpRight,
-  Copy,
-  Check,
   CheckCircle2,
-  Building2,
   AlertCircle,
   RefreshCw,
   History,
   X,
-  Lock,
   Landmark,
   ArrowRight,
   Loader2,
@@ -23,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { getWallet, depositIntoWalletInitialize, verifyWalletDeposit, getWalletTransactions, activateWallet } from "@/lib/api";
+import { getWallet, depositIntoWalletInitialize, verifyWalletDeposit, getWalletTransactions } from "@/lib/api";
 import { btnPrimary, btnSecondary, inputBase, fieldLabel } from "@/app/dashboard/_shared/ui";
 import Modal from "@/app/dashboard/_shared/Modal";
 import { colors } from "@/lib/design-tokens";
@@ -78,7 +74,6 @@ export default function WalletPage() {
   const [txPeriod, setTxPeriod] = useState("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [depositAmountNaira, setDepositAmountNaira] = useState("30000");
@@ -87,12 +82,6 @@ export default function WalletPage() {
 
   const [notice, setNotice] = useState(null); // { type: "error"|"success", message }
   const [checkingRef, setCheckingRef] = useState(null);
-
-  const [isBvnModalOpen, setIsBvnModalOpen] = useState(false);
-  const [idType, setIdType] = useState("bvn");
-  const [bvnInput, setBvnInput] = useState("");
-  const [provisioning, setProvisioning] = useState(false);
-  const [bvnError, setBvnError] = useState(null);
 
   const loadData = async () => {
     const [wRes, tRes] = await Promise.all([getWallet(), getWalletTransactions()]);
@@ -168,13 +157,6 @@ export default function WalletPage() {
     await loadData();
   };
 
-  const handleCopyAccount = (accountNumber) => {
-    if (!accountNumber) return;
-    navigator.clipboard.writeText(accountNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2200);
-  };
-
   const handleInitializeDeposit = async (e) => {
     e.preventDefault();
     setDepositError(null);
@@ -195,33 +177,7 @@ export default function WalletPage() {
     }
   };
 
-  const handleProvisionVirtualAccount = async (e) => {
-    e.preventDefault();
-    setBvnError(null);
-    if (bvnInput.trim().length !== 11) {
-      setBvnError(`Enter a valid 11-digit ${idType.toUpperCase()}.`);
-      return;
-    }
-    setProvisioning(true);
-    const res = await activateWallet(
-      idType === "bvn" ? { bvn: bvnInput.trim() } : { nin: bvnInput.trim() }
-    );
-    setProvisioning(false);
-    if (res.error) {
-      setBvnError(res.error);
-    } else {
-      if (res.data) setWallet(res.data);
-      setIsBvnModalOpen(false);
-      setBvnInput("");
-    }
-  };
-
   const balance = wallet?.balance_kobo || 0;
-  const dva = wallet?.virtual_account || null;
-  // False once payments move to Paystack: wallets are funded through Deposit Funds, and an
-  // old account number is only shown so customers know it's being retired.
-  const accountNumbersEnabled = wallet?.account_numbers_enabled !== false;
-
   const txQ = txQuery.trim().toLowerCase();
   const txCutoff = txPeriod === "all" ? 0 : Date.now() - Number(txPeriod) * 24 * 60 * 60 * 1000;
   const visibleTransactions = transactions.filter((tx) => {
@@ -314,14 +270,6 @@ export default function WalletPage() {
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              {!dva && accountNumbersEnabled && (
-                <button type="button" onClick={() => setIsBvnModalOpen(true)} className="flex items-center gap-2 bg-white text-cx-ink border border-cx-line shadow-sm rounded-full px-5 py-2.5 text-sm font-bold hover:bg-cx-sunken transition-colors">
-                  Setup Account
-                  <div className="bg-cx-sunken text-cx-ink-2 rounded-full p-0.5">
-                    <Plus className="h-3 w-3" />
-                  </div>
-                </button>
-              )}
               {SANDBOX_DEPOSIT_ENABLED && (
                 <button type="button" onClick={() => setIsDepositModalOpen(true)} className="flex items-center gap-2 bg-[#28A745] text-white rounded-full px-6 py-2.5 text-sm font-bold shadow-sm hover:bg-[#0c855e] transition-colors">
                   Deposit Funds
@@ -332,35 +280,6 @@ export default function WalletPage() {
               )}
             </div>
           </div>
-
-          {/* Reserved account details — send transfers here to fund the wallet */}
-          {dva && (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-cx-lg border border-cx-line bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-              <div className="flex min-w-0 items-center gap-3.5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#28A745]">
-                  <Building2 className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-cx-muted">Your dedicated account</p>
-                  <p className="mt-0.5 font-mono text-[16px] font-bold text-cx-ink">{dva.account_number}</p>
-                  <p className="text-[12.5px] text-cx-muted break-words">{dva.bank_name} · {dva.account_name}</p>
-                  {!accountNumbersEnabled ? (
-                    <p className="mt-1.5 text-[12.5px] font-medium text-amber-700">
-                      This account number is being retired. Please use Deposit Funds instead. Transfers already sent to it are still credited.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleCopyAccount(dva.account_number)}
-                className="inline-flex items-center gap-2 rounded-xl border border-cx-line bg-white px-4 py-2.5 text-[13px] font-semibold text-cx-ink-2 hover:bg-cx-sunken transition-all"
-              >
-                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                {copied ? "Copied" : "Copy number"}
-              </button>
-            </div>
-          )}
 
           {/* Transactions Table Card */}
           <div className="bg-white rounded-[24px] border border-cx-line shadow-[0_2px_12px_rgba(0,0,0,0.02)] p-2 sm:p-7 overflow-hidden">
@@ -566,76 +485,6 @@ export default function WalletPage() {
           </div>
       </Modal>
 
-      {/* BVN / dedicated account modal */}
-      <Modal open={isBvnModalOpen} onOpenChange={setIsBvnModalOpen} title="Set up dedicated account">
-          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-cx-lg border border-cx-line bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-cx-line px-5 py-4">
-              <h3 className="text-[15px] font-bold text-cx-ink">Set up dedicated account</h3>
-              <button onClick={() => setIsBvnModalOpen(false)} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken">
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleProvisionVirtualAccount} className="space-y-4 p-5">
-              <p className="text-[12.5px] text-cx-muted">
-                Your BVN or NIN verifies your identity and generates a permanent account number in your name.
-              </p>
-
-              {bvnError && (
-                <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2.5 text-[12.5px] text-red-700 ring-1 ring-inset ring-red-200">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  {bvnError}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1 rounded-lg bg-cx-sunken p-1 w-fit">
-                {["bvn", "nin"].map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setIdType(t)}
-                    className="rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold transition-all"
-                    style={{
-                      background: idType === t ? "#fff" : "transparent",
-                      color: idType === t ? "#0f172a" : "#64748b",
-                      boxShadow: idType === t ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                    }}
-                  >
-                    {t.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className={fieldLabel}>{idType.toUpperCase()} (11 digits)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={11}
-                  required
-                  value={bvnInput}
-                  onChange={(e) => setBvnInput(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 22233344455"
-                  className={`${inputBase} font-mono`}
-                />
-                <p className="mt-1.5 flex items-center gap-1 text-xs text-cx-muted">
-                  <Lock className="h-3 w-3" />
-                  Used only to generate your account — never shared or displayed elsewhere.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:justify-end">
-                <button type="button" onClick={() => setIsBvnModalOpen(false)} className={`${btnSecondary} w-full sm:w-auto`}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={provisioning} className={`${btnPrimary} w-full sm:w-auto`} style={{ background: BRAND }}>
-                  {provisioning && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {provisioning ? "Setting up…" : "Set up account"}
-                </button>
-              </div>
-            </form>
-          </div>
-      </Modal>
     </div>
   );
 }
