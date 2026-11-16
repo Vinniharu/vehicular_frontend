@@ -373,6 +373,8 @@ export default function ApplyPage() {
           // when there's no prior application. NIN never prefills: the
           // applications list endpoint redacts it (NDPA), so it starts blank.
           const latestApp = (appsRes.data && appsRes.data[0]) || {};
+          const pick = (appVal, fallback = "") =>
+            appVal !== undefined && appVal !== null && appVal !== "" ? appVal : fallback;
           const fallbackFn = meRes.data.first_name || (meRes.data.name || "").split(" ")[0] || "";
           const fallbackMn = meRes.data.middle_name || "";
           const fallbackLn = meRes.data.last_name || ((meRes.data.name || "").split(" ").length > 1 ? (meRes.data.name || "").split(" ").slice(1).join(" ") : "");
@@ -687,7 +689,7 @@ export default function ApplyPage() {
   if (successApp) {
     return (
       <SubmissionSuccess
-        application={{ ...successApp, payment_options: payOpts ?? successApp.payment_options }}
+        application={successApp}
         title="Application submitted"
       />
     );
