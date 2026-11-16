@@ -100,10 +100,10 @@ const CUSTOMER_STATUS = {
   failed: { label: "Failed", tone: "red" },
 };
 const CONFIRMATION = {
-  monnify: { label: "Monnify confirmed", tone: "brand" },
+  monnify: { label: "Provider confirmed", tone: "brand" },
   wallet: { label: "Paid from wallet", tone: "neutral" },
-  manual: { label: "Manual, not Monnify", tone: "amber" },
-  mixed: { label: "Monnify + other", tone: "neutral" },
+  manual: { label: "Manual, not provider-confirmed", tone: "amber" },
+  mixed: { label: "Provider + other", tone: "neutral" },
   unverified: { label: "Not yet checked", tone: "amber" },
 };
 
@@ -123,7 +123,7 @@ function CustomerPaymentCell({ tx }) {
 // the customer's payment.
 const PAYOUT = {
   paid_out: { label: "Paid out", tone: "brand" },
-  payout_pending: { label: "Payout pending", tone: "amber", hint: "Waiting for Monnify to confirm the transfer" },
+  payout_pending: { label: "Payout pending", tone: "amber", hint: "Waiting for the payment provider to confirm the transfer" },
   payout_failed: { label: "Payout failed", tone: "red" },
   no_agent_yet: { label: "No agent yet", tone: "neutral" },
   no_payout_due: { label: "No payout due", tone: "neutral" },
@@ -465,7 +465,7 @@ export default function AdminRevenuePage() {
     {
       label: "Total inflow",
       value: overview ? formatNaira(overview.gross_payments_kobo) : "—",
-      sub: hasFeeBreakdown ? "Net of Monnify fees" : "Net settled in Monnify wallet",
+      sub: hasFeeBreakdown ? "Net of payment provider fees" : "Net settled with the payment provider",
       icon: TrendingUp,
       tone: "neutral",
     },
@@ -714,9 +714,9 @@ export default function AdminRevenuePage() {
         {!statsLoading && overview ? (
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-cx-lg border border-cx-line bg-cx-surface px-4 py-3 text-[13px]">
             <span className="font-medium text-cx-ink">Application payments:</span>
-            <span className="text-cx-brand-deep">{formatNaira(overview.monnify_confirmed_kobo || 0)} confirmed by Monnify</span>
+            <span className="text-cx-brand-deep">{formatNaira(overview.monnify_confirmed_kobo || 0)} confirmed by the payment provider</span>
             <span className="text-cx-ink-2">{formatNaira(overview.wallet_paid_kobo || 0)} from wallets</span>
-            {overview.manual_credits_kobo ? <span className="text-cx-amber">{formatNaira(overview.manual_credits_kobo)} manual (not Monnify)</span> : null}
+            {overview.manual_credits_kobo ? <span className="text-cx-amber">{formatNaira(overview.manual_credits_kobo)} manual (not provider-confirmed)</span> : null}
             {overview.unverified_kobo ? <span className="text-cx-amber">{formatNaira(overview.unverified_kobo)} not yet checked</span> : null}
             {overview.open_reconciliation_issues ? (
               <button type="button" onClick={() => setSection("reconciliation")} className="cx-focus font-medium text-cx-red underline underline-offset-2">
@@ -727,7 +727,7 @@ export default function AdminRevenuePage() {
         ) : null}
         {!statsLoading && hasFeeBreakdown ? (
           <p className="mt-2 text-[13px] text-cx-muted">
-            {formatNaira(overview.gross_collected_kobo)} collected, less {formatNaira(overview.total_monnify_fees_kobo)} Monnify fees
+            {formatNaira(overview.gross_collected_kobo)} collected, less {formatNaira(overview.total_monnify_fees_kobo)} payment provider fees
             {overview.wallet_deposits_kobo ? `. Includes ${formatNaira(overview.wallet_deposits_kobo)} in wallet deposits.` : "."}
           </p>
         ) : null}
@@ -736,7 +736,7 @@ export default function AdminRevenuePage() {
       <Tabs
         tabs={[
           { id: "transactions", label: "Transactions", count: total },
-          { id: "reconciliation", label: "Monnify reconciliation", count: overview?.open_reconciliation_issues || undefined },
+          { id: "reconciliation", label: "Payment reconciliation", count: overview?.open_reconciliation_issues || undefined },
         ]}
         value={section}
         onChange={setSection}
@@ -775,8 +775,8 @@ export default function AdminRevenuePage() {
           </Select>
           <Select value={confirmationFilter} onChange={(e) => setConfirmationFilter(e.target.value)} aria-label="Confirmation" className="md:w-56">
             <option value="">Any confirmation</option>
-            <option value="monnify">Monnify confirmed</option>
-            <option value="manual">Manual (not Monnify)</option>
+            <option value="monnify">Provider confirmed</option>
+            <option value="manual">Manual (not provider-confirmed)</option>
           </Select>
         </Toolbar>
 
@@ -844,7 +844,7 @@ export default function AdminRevenuePage() {
         open={showReconcileModal}
         onOpenChange={(o) => !isReconciling && setShowReconcileModal(o)}
         title="Reconcile a customer payment"
-        description="Look a payment up on Monnify, or record one that's missing."
+        description="Look a payment up with the payment provider (Paystack or Monnify), or record one that's missing."
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowReconcileModal(false)} disabled={isReconciling}>
@@ -881,7 +881,7 @@ export default function AdminRevenuePage() {
             </Notice>
           ) : null}
 
-          <Field label="Customer email or payment reference" required hint="Any Monnify or Vehiculars reference works. We'll search Monnify and link it to the application.">
+          <Field label="Customer email or payment reference" required hint="Any Paystack, Monnify or Vehiculars reference works. We'll search the payment provider and link it to the application.">
             {(p) => (
               <Input
                 {...p}
@@ -893,7 +893,7 @@ export default function AdminRevenuePage() {
             )}
           </Field>
 
-          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to credit only what Monnify confirms. A typed amount is recorded as a manual credit, not Monnify-confirmed.">
+          <Field label="Amount" optional error={reconcileAmountError} hint="Leave empty to credit only what the payment provider confirms. A typed amount is recorded as a manual credit, not provider-confirmed.">
             {(p) => <MoneyInput {...p} value={reconcileAmount} onChange={setReconcileAmount} placeholder="0" invalid={!!reconcileAmountError} />}
           </Field>
 
@@ -907,7 +907,7 @@ export default function AdminRevenuePage() {
             checked={reconcileForce}
             onChange={setReconcileForce}
             label="Force credit (manual settlement)"
-            description="Credits the application without Monnify confirming it, e.g. a bank transfer outside Monnify. It is labelled manual on this page and listed under reconciliation."
+            description="Credits the application without the payment provider confirming it, e.g. a bank transfer outside Paystack or Monnify. It is labelled manual on this page and listed under reconciliation."
           />
         </form>
       </Sheet>

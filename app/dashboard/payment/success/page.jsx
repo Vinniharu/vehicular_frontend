@@ -8,7 +8,7 @@ import { clearCheckoutBaseline, readCheckoutBaseline } from "@/lib/utils/checkou
 import { typeLabel } from "@/app/dashboard/_shared/application-category";
 import { Button, Card, DetailRow, koboToNaira } from "@/app/dashboard/_kit";
 
-// Monnify brings the customer back here after checkout. The outcome is only
+// The payment provider (Paystack, or Monnify for older checkouts) brings the customer back here after checkout. The outcome is only
 // ever taken from the backend — never assumed — and nothing (reference,
 // amount, application) is invented when the callback doesn't carry it.
 
@@ -125,7 +125,7 @@ function PaymentReturn() {
     paid: `Your ${service} is fully paid and moving to processing.`,
     partial: `Your deposit for ${service} is in. Pay the remaining ${options ? koboToNaira(options.remaining_kobo) : "balance"} to avoid delays in review and delivery.`,
     failed: "No money was taken. You can try again by card, or pay from your wallet.",
-    pending: "Monnify hasn't confirmed this payment yet. If you've just paid, it usually takes under a minute.",
+    pending: "The payment provider hasn't confirmed this payment yet. If you've just paid, it usually takes under a minute.",
   }[outcome];
 
   return (

@@ -125,7 +125,7 @@ export default function WalletPage() {
           } else if (outcome === "failed") {
             setNotice({ type: "failed", message: "This deposit didn't go through. No funds were added." });
           } else {
-            setNotice({ type: "pending", message: "Still waiting on confirmation from Monnify — use \"Check status\" on this transaction shortly." });
+            setNotice({ type: "pending", message: "Still waiting on confirmation from the payment provider — use \"Check status\" on this transaction shortly." });
           }
           loadData();
           router.replace(pathname, { scroll: false });
@@ -163,7 +163,7 @@ export default function WalletPage() {
     } else if (outcome === "failed") {
       setNotice({ type: "failed", message: "This deposit didn't go through. No funds were added." });
     } else {
-      setNotice({ type: "pending", message: "Still pending — Monnify hasn't confirmed this one yet. Try again shortly." });
+      setNotice({ type: "pending", message: "Still pending — the payment provider hasn't confirmed this one yet. Try again shortly." });
     }
     await loadData();
   };
@@ -218,6 +218,9 @@ export default function WalletPage() {
 
   const balance = wallet?.balance_kobo || 0;
   const dva = wallet?.virtual_account || null;
+  // False once payments move to Paystack: wallets are funded through Deposit Funds, and an
+  // old account number is only shown so customers know it's being retired.
+  const accountNumbersEnabled = wallet?.account_numbers_enabled !== false;
 
   const txQ = txQuery.trim().toLowerCase();
   const txCutoff = txPeriod === "all" ? 0 : Date.now() - Number(txPeriod) * 24 * 60 * 60 * 1000;
@@ -311,7 +314,7 @@ export default function WalletPage() {
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              {!dva && (
+              {!dva && accountNumbersEnabled && (
                 <button type="button" onClick={() => setIsBvnModalOpen(true)} className="flex items-center gap-2 bg-white text-cx-ink border border-cx-line shadow-sm rounded-full px-5 py-2.5 text-sm font-bold hover:bg-cx-sunken transition-colors">
                   Setup Account
                   <div className="bg-cx-sunken text-cx-ink-2 rounded-full p-0.5">
@@ -341,6 +344,11 @@ export default function WalletPage() {
                   <p className="text-xs font-semibold text-cx-muted">Your dedicated account</p>
                   <p className="mt-0.5 font-mono text-[16px] font-bold text-cx-ink">{dva.account_number}</p>
                   <p className="text-[12.5px] text-cx-muted break-words">{dva.bank_name} · {dva.account_name}</p>
+                  {!accountNumbersEnabled ? (
+                    <p className="mt-1.5 text-[12.5px] font-medium text-amber-700">
+                      This account number is being retired. Please use Deposit Funds instead. Transfers already sent to it are still credited.
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <button

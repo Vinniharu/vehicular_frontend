@@ -15,20 +15,23 @@ import { useToast } from "@/app/components/shared/ToastProvider";
 
 // What each discrepancy means, in plain words, and whether "Apply" can fix it.
 export const DISCREPANCY_KINDS = {
-  missing_credit: { label: "Paid on Monnify, missing here", tone: "red", canApply: true },
-  amount_mismatch: { label: "Amount differs from Monnify", tone: "red" },
-  reversal: { label: "Reversed on Monnify", tone: "amber", canApply: true },
+  missing_credit: { label: "Paid on provider, missing here", tone: "red", canApply: true },
+  amount_mismatch: { label: "Amount differs from provider", tone: "red" },
+  reversal: { label: "Reversed on provider", tone: "amber", canApply: true },
   reversal_shortfall: { label: "Reversal not fully recovered", tone: "red" },
   excess_unallocated: { label: "Extra money held for review", tone: "amber" },
-  unconfirmed_credit: { label: "Credited here, not paid on Monnify", tone: "red" },
-  manual_credit: { label: "Manual credit (not Monnify)", tone: "neutral" },
-  unmatched: { label: "Monnify payment with no customer", tone: "amber" },
+  unconfirmed_credit: { label: "Credited here, not paid on provider", tone: "red" },
+  manual_credit: { label: "Manual credit (not provider-confirmed)", tone: "neutral" },
+  unmatched: { label: "Provider payment with no customer", tone: "amber" },
 };
 
 function formatDate(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
+
+
+const providerName = (run) => (run?.provider === "paystack" ? "Paystack" : "Monnify");
 
 export default function ReconciliationPanel({ onChanged }) {
   const pushToast = useToast();
@@ -75,9 +78,9 @@ export default function ReconciliationPanel({ onChanged }) {
     const run = res.data?.summary?.last_run;
     pushToast({
       tone: res.data?.status === "completed" ? "success" : "red",
-      title: res.data?.status === "completed" ? "Checked against Monnify" : "Check didn't finish",
+      title: res.data?.status === "completed" ? `Checked against ${providerName(run)}` : "Check didn't finish",
       body: run
-        ? `${run.monnify_count} Monnify transactions, ${run.matched_count} matched, ${run.discrepancy_count} to review.`
+        ? `${run.monnify_count} ${providerName(run)} transactions, ${run.matched_count} matched, ${run.discrepancy_count} to review.`
         : res.data?.error || undefined,
     });
     await load();
@@ -92,7 +95,7 @@ export default function ReconciliationPanel({ onChanged }) {
       pushToast({ tone: "red", title: "Couldn't apply", body: String(res.error) });
       return;
     }
-    pushToast({ tone: "success", title: "Applied", body: "Monnify confirmed it and the records are updated." });
+    pushToast({ tone: "success", title: "Applied", body: "The payment provider confirmed it and the records are updated." });
     await load();
     onChanged?.();
   };
@@ -142,7 +145,7 @@ export default function ReconciliationPanel({ onChanged }) {
     },
     {
       key: "amounts",
-      header: "Monnify / ours",
+      header: "Provider / ours",
       render: (d) => (
         <div className="text-[14px]">
           <p>{d.amount_monnify_kobo != null ? formatNaira(d.amount_monnify_kobo) : "—"}</p>
@@ -185,19 +188,19 @@ export default function ReconciliationPanel({ onChanged }) {
   return (
     <section className="space-y-4">
       <SectionTitle
-        title="Monnify reconciliation"
-        description="Our records checked against Monnify's own transaction list. Nothing counts as paid unless Monnify confirms it."
+        title="Payment reconciliation"
+        description="Our records checked against Paystack's and Monnify's own transaction lists. Nothing counts as paid unless the payment provider confirms it."
       />
 
       {error ? <Notice tone="amber" title="Couldn't load everything">{String(error)}</Notice> : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Monnify received" value={run ? formatNaira(run.monnify_total_kobo) : "—"} hint={run ? "Last completed check" : "No check yet"} icon={Scale} />
+        <StatTile label={run ? `${providerName(run)} received` : "Provider received"} value={run ? formatNaira(run.monnify_total_kobo) : "—"} hint={run ? "Last completed check" : "No check yet"} icon={Scale} />
         <StatTile label="Credited by us" value={run ? formatNaira(run.ours_total_kobo) : "—"} hint="Same transactions" icon={CheckCircle2} tone="brand" />
         <StatTile
           label="Difference"
           value={difference == null ? "—" : formatNaira(Math.abs(difference))}
-          hint={difference == null ? "—" : difference === 0 ? "Tallies with Monnify" : difference > 0 ? "Monnify has more" : "We credited more"}
+          hint={difference == null ? "—" : difference === 0 ? "Tallies with the provider" : difference > 0 ? "Provider has more" : "We credited more"}
           icon={Scale}
           tone={difference ? "red" : "brand"}
         />
@@ -250,7 +253,7 @@ export default function ReconciliationPanel({ onChanged }) {
       {loading ? (
         <SkeletonList rows={3} />
       ) : (
-        <ResponsiveTable columns={columns} rows={items} rowKey={(d) => d.id} empty="Nothing to review. Our records match Monnify." />
+        <ResponsiveTable columns={columns} rows={items} rowKey={(d) => d.id} empty="Nothing to review. Our records match the payment provider." />
       )}
       {!loading && total > items.length ? <p className="text-[13px] text-cx-muted">Showing {items.length} of {total}.</p> : null}
 
@@ -271,7 +274,7 @@ export default function ReconciliationPanel({ onChanged }) {
           </>
         }
       >
-        <Field label="What was done" optional hint="For example: refunded to the customer's bank, or confirmed with Monnify support.">
+        <Field label="What was done" optional hint="For example: refunded to the customer's bank, or confirmed with Paystack or Monnify support.">
           {(p) => <Input {...p} value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} />}
         </Field>
       </Sheet>
