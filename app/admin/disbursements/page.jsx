@@ -19,6 +19,7 @@ import {
   Wallet,
 } from "lucide-react";
 import {
+  adminGetPayoutReserve,
   adminGetDisbursements,
   adminGetDisbursementStats,
   adminInitiateDisbursement,
@@ -141,12 +142,46 @@ function methodText(transfer) {
   return `${transfer.disbursement_method}${transfer.disbursed_by_admin_name ? ` (${transfer.disbursed_by_admin_name})` : ""}`;
 }
 
+/** What the Paystack balance must keep for agents and customers, and what's safe to withdraw. */
+function PayoutMoney({ reserve }) {
+  if (!reserve) return null;
+  const known = reserve.balance_kobo !== null && reserve.balance_kobo !== undefined;
+  const owedAgents = (reserve.agents_owed_kobo || 0) + (reserve.agents_coming_kobo || 0);
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h2 className="text-[16px] font-bold text-cx-ink">Payout money</h2>
+        <p className="text-[13px] text-cx-muted">
+          Agents are paid from the Paystack balance. Only withdraw up to &quot;Safe to withdraw&quot;. Manual payouts must be
+          on in Paystack (Preferences shows &quot;Settled to Balance&quot;), or collections leave for your bank every working day.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile label="Paystack balance" value={known ? formatNaira(reserve.balance_kobo) : "Unknown"} hint={known ? "Available for transfers" : "Couldn't reach Paystack"} icon={Wallet} />
+        <StatTile label="Owed to agents" value={formatNaira(owedAgents)} hint={`${formatNaira(reserve.agents_owed_kobo || 0)} earned · ${formatNaira(reserve.agents_coming_kobo || 0)} for paid jobs not yet taken`} icon={Send} tone={reserve.short_for_agents ? "red" : undefined} />
+        <StatTile label="Customer wallets" value={formatNaira(reserve.customer_wallets_kobo || 0)} hint={`Plus ${formatNaira(reserve.buffer_kobo || 0)} safety buffer`} icon={Wallet} />
+        <StatTile label="Safe to withdraw" value={known ? formatNaira(reserve.safe_to_withdraw_kobo || 0) : "—"} hint="Balance minus everything above" icon={CheckCircle2} tone="brand" />
+      </div>
+      {reserve.short_for_agents ? (
+        <Notice tone="red" title="Don't withdraw: the balance can't cover agent payouts">
+          The Paystack balance is {formatNaira(reserve.short_kobo || 0)} short of what agents are owed. Top it up, or wait for collections to settle to the balance.
+        </Notice>
+      ) : null}
+    </Card>
+  );
+}
+
 export default function AdminDisbursementsPage() {
   const pushToast = useToast();
 
   // Stats
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [reserve, setReserve] = useState(null);
+  const fetchReserve = async () => {
+    const res = await adminGetPayoutReserve();
+    if (res.data) setReserve(res.data);
+  };
 
   // List
   const [items, setItems] = useState([]);
@@ -235,6 +270,7 @@ export default function AdminDisbursementsPage() {
   // Initial load
   useEffect(() => {
     fetchStats();
+    fetchReserve();
   }, []);
 
   // Reload table on filter / page change
@@ -532,6 +568,7 @@ export default function AdminDisbursementsPage() {
             loading={loading || statsLoading}
             onClick={() => {
               fetchStats();
+              fetchReserve();
               fetchDisbursements();
             }}
           >
@@ -569,6 +606,8 @@ export default function AdminDisbursementsPage() {
           tone="red"
         />
       </div>
+
+      <PayoutMoney reserve={reserve} />
 
       {/* Overdue callout — tapping filters the list */}
       <button

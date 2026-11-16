@@ -7,6 +7,10 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle2,
+  Copy,
+  Check,
+  Building2,
+  Lock,
   AlertCircle,
   RefreshCw,
   History,
@@ -19,7 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { getWallet, depositIntoWalletInitialize, verifyWalletDeposit, getWalletTransactions } from "@/lib/api";
+import { getWallet, depositIntoWalletInitialize, verifyWalletDeposit, getWalletTransactions, activateWallet, getPayoutBanks } from "@/lib/api";
 import { btnPrimary, btnSecondary, inputBase, fieldLabel } from "@/app/dashboard/_shared/ui";
 import Modal from "@/app/dashboard/_shared/Modal";
 import { colors } from "@/lib/design-tokens";
@@ -81,6 +85,16 @@ export default function WalletPage() {
   const [depositError, setDepositError] = useState(null);
 
   const [notice, setNotice] = useState(null); // { type: "error"|"success", message }
+  const [copied, setCopied] = useState(false);
+
+  // BVN step for the account number, only when Paystack asks for it
+  const [isBvnOpen, setIsBvnOpen] = useState(false);
+  const [banks, setBanks] = useState([]);
+  const [bvn, setBvn] = useState("");
+  const [bankCode, setBankCode] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [bvnSubmitting, setBvnSubmitting] = useState(false);
+  const [bvnError, setBvnError] = useState(null);
   const [checkingRef, setCheckingRef] = useState(null);
 
   const loadData = async () => {
@@ -157,6 +171,38 @@ export default function WalletPage() {
     await loadData();
   };
 
+  const handleCopyAccount = (accountNumber) => {
+    if (!accountNumber) return;
+    navigator.clipboard.writeText(accountNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
+  };
+
+  const openBvn = async () => {
+    setBvnError(null);
+    setIsBvnOpen(true);
+    if (!banks.length) {
+      const res = await getPayoutBanks();
+      if (res.data?.banks) setBanks(res.data.banks);
+    }
+  };
+
+  const handleSubmitBvn = async (e) => {
+    e.preventDefault();
+    setBvnError(null);
+    if (bvn.length !== 11) return setBvnError("Enter your 11-digit BVN.");
+    if (!bankCode) return setBvnError("Choose your bank.");
+    if (bankAccount.length !== 10) return setBvnError("Enter your 10-digit account number.");
+    setBvnSubmitting(true);
+    const res = await activateWallet({ bvn, bank_code: bankCode, account_number: bankAccount });
+    setBvnSubmitting(false);
+    if (res.error) return setBvnError(res.error);
+    if (res.data) setWallet(res.data);
+    setIsBvnOpen(false);
+    setBvn("");
+    setNotice({ type: "pending", message: "Thanks. We're confirming your details; your account number will appear here shortly." });
+  };
+
   const handleInitializeDeposit = async (e) => {
     e.preventDefault();
     setDepositError(null);
@@ -178,6 +224,9 @@ export default function WalletPage() {
   };
 
   const balance = wallet?.balance_kobo || 0;
+  // The customer's own Paystack account number, in their name.
+  const dva = wallet?.virtual_account || null;
+  const dvaStatus = wallet?.dva_status || null;
   const txQ = txQuery.trim().toLowerCase();
   const txCutoff = txPeriod === "all" ? 0 : Date.now() - Number(txPeriod) * 24 * 60 * 60 * 1000;
   const visibleTransactions = transactions.filter((tx) => {
@@ -280,6 +329,41 @@ export default function WalletPage() {
               )}
             </div>
           </div>
+
+          {/* Personal account number: transfers to it top up the wallet */}
+          {dva ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-cx-lg border border-cx-line bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[#28A745]">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-cx-muted">Your account number</p>
+                  <p className="mt-0.5 font-mono text-[16px] font-bold text-cx-ink">{dva.account_number}</p>
+                  <p className="text-[12.5px] text-cx-muted break-words">{dva.bank_name} · {dva.account_name}</p>
+                  <p className="mt-1 text-[12.5px] text-cx-ink-2">Transfer to this account from any bank app to top up your wallet.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopyAccount(dva.account_number)}
+                className="inline-flex items-center gap-2 rounded-xl border border-cx-line bg-white px-4 py-2.5 text-[13px] font-semibold text-cx-ink-2 hover:bg-cx-sunken transition-all"
+              >
+                {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy number"}
+              </button>
+            </div>
+          ) : dvaStatus === "needs_bvn" ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-cx-lg border border-amber-200 bg-amber-50/60 p-5">
+              <div className="min-w-0">
+                <p className="text-[14px] font-bold text-cx-ink">Get your own account number</p>
+                <p className="mt-0.5 text-[12.5px] text-cx-ink-2">Our payment partner needs your BVN to open a bank account in your name for topping up your wallet.</p>
+              </div>
+              <button type="button" onClick={openBvn} className={btnSecondary}>Add BVN</button>
+            </div>
+          ) : dvaStatus === "pending" ? (
+            <p className="text-[12.5px] text-cx-muted">Your personal account number for wallet top-ups is being set up and will appear here shortly.</p>
+          ) : null}
 
           {/* Transactions Table Card */}
           <div className="bg-white rounded-[24px] border border-cx-line shadow-[0_2px_12px_rgba(0,0,0,0.02)] p-2 sm:p-7 overflow-hidden">
@@ -485,6 +569,57 @@ export default function WalletPage() {
           </div>
       </Modal>
 
+
+      {/* BVN step for the account number */}
+      <Modal open={isBvnOpen} onOpenChange={setIsBvnOpen} title="Get your account number">
+          <div className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-y-auto rounded-cx-lg border border-cx-line bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-cx-line px-5 py-4">
+              <h3 className="text-[15px] font-bold text-cx-ink">Get your account number</h3>
+              <button onClick={() => setIsBvnOpen(false)} className="rounded-lg p-1.5 text-cx-muted hover:bg-cx-sunken">
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitBvn} className="space-y-4 p-5">
+              <p className="text-[12.5px] text-cx-muted">
+                Our payment partner, Paystack, confirms your BVN against a bank account in your name, then opens your Vehiculars account number.
+              </p>
+              {bvnError && (
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2.5 text-[12.5px] text-red-700 ring-1 ring-inset ring-red-200">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  {bvnError}
+                </div>
+              )}
+              <div>
+                <label className={fieldLabel}>BVN (11 digits)</label>
+                <input type="text" inputMode="numeric" maxLength={11} required value={bvn}
+                  onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))} className={`${inputBase} font-mono`} />
+              </div>
+              <div>
+                <label className={fieldLabel}>Your bank</label>
+                <select required value={bankCode} onChange={(e) => setBankCode(e.target.value)} className={inputBase}>
+                  <option value="">Choose your bank</option>
+                  {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={fieldLabel}>Account number (10 digits)</label>
+                <input type="text" inputMode="numeric" maxLength={10} required value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value.replace(/\D/g, ""))} className={`${inputBase} font-mono`} />
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-cx-muted">
+                  <Lock className="h-3 w-3" />
+                  Sent only to Paystack to confirm it's you. We don't store it.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2.5 pt-1 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => setIsBvnOpen(false)} className={`${btnSecondary} w-full sm:w-auto`}>Cancel</button>
+                <button type="submit" disabled={bvnSubmitting} className={`${btnPrimary} w-full sm:w-auto`} style={{ background: BRAND }}>
+                  {bvnSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {bvnSubmitting ? "Sending…" : "Continue"}
+                </button>
+              </div>
+            </form>
+          </div>
+      </Modal>
     </div>
   );
 }

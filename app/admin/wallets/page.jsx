@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Coins, MinusCircle, Users, Wallet } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Coins, MinusCircle, Users, Wallet } from "lucide-react";
 import {
   adminGetClientWalletSummary,
   adminGetClientWalletTransactions,
   adminListClientWallets,
   adminListWalletDeductions,
+  getDedicatedAccountsSummary,
 } from "@/lib/api";
 import { Badge, Button, Notice, PageHeader, Select, Sheet, SkeletonList } from "@/app/dashboard/_kit";
 import { ResponsiveTable, StatTile, Tabs, Toolbar, formatNaira } from "@/app/admin/_kit";
@@ -48,9 +49,44 @@ function Pager({ page, totalPages, onPage }) {
   );
 }
 
+const PAUSED_TEXT = {
+  limit: "Paystack's account limit is reached. Email support@paystack.com to raise it, then set DVA_ACCOUNT_LIMIT on the server to the new limit.",
+  unavailable: "Paystack refused to open accounts: dedicated accounts aren't switched on for this Paystack account yet. Ask support@paystack.com to enable them.",
+};
+
+/** Customers' own Paystack account numbers: how many are open against the limit, and what's waiting. */
+function AccountNumbersPanel({ data }) {
+  if (!data) return null;
+  if (!data.enabled) {
+    return (
+      <Notice tone="neutral" icon={Building2} title="Customer account numbers are switched off">
+        Set DVA_ENABLED=true on the server once Paystack has switched on dedicated accounts.
+      </Notice>
+    );
+  }
+  const s = data.by_status || {};
+  const waiting = (s.queued || 0) + (s.limit_reached || 0);
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Account numbers open" value={`${data.accounts_in_use} / ${data.account_limit}`} hint={`Paystack limit · ${data.reserved_for_new} kept for new sign-ups`} icon={Building2} tone="brand" />
+        <StatTile label="Waiting for an account" value={String(waiting)} hint="Most recent customers first" icon={Users} />
+        <StatTile label="Need a BVN" value={String((s.needs_bvn || 0) + (s.bvn_pending || 0))} hint={`${s.bvn_pending || 0} being checked by Paystack`} icon={Users} tone="amber" />
+        <StatTile label="Couldn't be opened" value={String(s.failed || 0)} hint="See the customer's page for why" icon={MinusCircle} tone="amber" />
+      </div>
+      {data.paused ? (
+        <Notice tone="red" title="Opening account numbers is paused">
+          {PAUSED_TEXT[data.paused] || data.paused}
+        </Notice>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ClientWalletsPage() {
   const [section, setSection] = useState("clients");
   const [summary, setSummary] = useState(null);
+  const [accounts, setAccounts] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [search, setSearch] = useState("");
@@ -72,8 +108,9 @@ export default function ClientWalletsPage() {
   const [deducting, setDeducting] = useState(null);
 
   const loadSummary = useCallback(async () => {
-    const res = await adminGetClientWalletSummary();
+    const [res, acc] = await Promise.all([adminGetClientWalletSummary(), getDedicatedAccountsSummary()]);
     if (res.data) setSummary(res.data);
+    if (acc.data) setAccounts(acc.data);
   }, []);
 
   const loadClients = useCallback(async () => {
@@ -211,6 +248,10 @@ export default function ClientWalletsPage() {
         <StatTile label="Clients with a balance" value={summary ? String(summary.clients_with_balance) : "—"} hint="Above ₦0" icon={Coins} tone="brand" />
         <StatTile label="Total clients" value={summary ? String(summary.total_clients) : "—"} hint="All customer accounts" icon={Users} />
         <StatTile label="Total deducted" value={summary ? formatNaira(summary.total_deducted_kobo) : "—"} hint={summary ? `${summary.deduction_count} ${summary.deduction_count === 1 ? "deduction" : "deductions"} by admins` : "—"} icon={MinusCircle} tone="amber" />
+      </div>
+
+      <div className="mb-5">
+        <AccountNumbersPanel data={accounts} />
       </div>
 
       <Tabs

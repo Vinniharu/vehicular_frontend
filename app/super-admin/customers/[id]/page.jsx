@@ -31,7 +31,70 @@ import {
   superAdminGetCustomerOverview,
   getSupportApplication,
   koboToNaira,
+  getCustomerDedicatedAccount,
+  createCustomerDedicatedAccount,
 } from "@/lib/api";
+
+const ACCOUNT_STATUS_TEXT = {
+  queued: "Waiting in the queue (most recent customers first).",
+  limit_reached: "Waiting: Paystack's account limit is reached.",
+  needs_bvn: "Paystack needs this customer's BVN; they're asked on their wallet page.",
+  bvn_pending: "Paystack is checking the customer's BVN.",
+  failed: "Couldn't be opened.",
+};
+
+/** The customer's own Paystack account number, or where it stands. */
+function AccountNumber({ customerId }) {
+  const [info, setInfo] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getCustomerDedicatedAccount(customerId).then((res) => res.data && setInfo(res.data));
+  }, [customerId]);
+
+  const createNow = async () => {
+    setBusy(true);
+    setError(null);
+    const res = await createCustomerDedicatedAccount(customerId);
+    setBusy(false);
+    if (res.error) setError(res.error);
+    const fresh = await getCustomerDedicatedAccount(customerId);
+    if (fresh.data) setInfo(fresh.data);
+  };
+
+  if (!info) return null;
+  if (info.account) {
+    return (
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Account number</p>
+        <p className="mt-0.5 font-mono text-[15px] font-bold text-slate-900">{info.account.account_number}</p>
+        <p className="text-[11.5px] text-slate-500">{info.account.bank_name} · {info.account.account_name}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3 border-t border-slate-100 pt-3">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Account number</p>
+      <p className="mt-0.5 text-[12px] text-slate-600">
+        {ACCOUNT_STATUS_TEXT[info.status] || "Not requested yet."}
+        {info.last_error && info.status === "failed" ? ` ${info.last_error}` : ""}
+      </p>
+      {error ? <p className="mt-1 text-[12px] text-red-600">{error}</p> : null}
+      {info.status !== "needs_bvn" && info.status !== "bvn_pending" ? (
+        <button
+          type="button"
+          onClick={createNow}
+          disabled={busy}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          Create account number now
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 const PAYMENT_STATUS_STYLES = {
   success: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -401,6 +464,7 @@ export default function SuperAdminCustomerOverviewPage() {
               {koboToNaira(data.wallet_balance_kobo || 0)}
             </p>
             <p className="text-[11.5px] text-slate-400 mt-1">Available customer funds</p>
+            <AccountNumber customerId={customerId} />
           </div>
         </div>
       </div>
