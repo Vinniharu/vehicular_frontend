@@ -325,6 +325,7 @@ function AgentWalletContent() {
 /** A payout's state in the agent's words. */
 function payoutLabel(t) {
   if (t.status === "success") return "Paid";
+  if (t.legacy) return "Handled by Vehiculars";
   switch (t.failure_code) {
     case "bank_rejected":
       return "Update your bank details";

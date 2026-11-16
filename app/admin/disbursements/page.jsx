@@ -98,6 +98,9 @@ function TransferStatus({ transfer }) {
       </Badge>
     );
   }
+  if (transfer.legacy) {
+    return <Badge>Old · frozen</Badge>;
+  }
   if (transfer.status === "pending") {
     return transfer.is_overdue ? (
       <Badge tone="amber">
@@ -125,10 +128,10 @@ function TransferStatus({ transfer }) {
 /** Why an unpaid payout hasn't gone through yet, or what to do about an old Monnify one. */
 function PayoutNote({ transfer }) {
   if (transfer.status === "success") return null;
-  if (transfer.is_old_monnify) {
+  if (transfer.legacy) {
     return (
-      <p className="max-w-xs text-[12.5px] leading-snug text-cx-amber">
-        Old Monnify payout. Check Monnify that it didn't go out, then Pay out (sends through Paystack) or mark it paid manually.
+      <p className="max-w-xs text-[12.5px] leading-snug text-cx-muted">
+        From before automatic payouts. Handled outside the system and never sent automatically. Mark it paid manually if you want it closed here.
       </p>
     );
   }
@@ -158,7 +161,7 @@ function PayoutMoney({ reserve }) {
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Paystack balance" value={known ? formatNaira(reserve.balance_kobo) : "Unknown"} hint={known ? "Available for transfers" : "Couldn't reach Paystack"} icon={Wallet} />
-        <StatTile label="Owed to agents" value={formatNaira(owedAgents)} hint={`${formatNaira(reserve.agents_owed_kobo || 0)} earned · ${formatNaira(reserve.agents_coming_kobo || 0)} for paid jobs not yet taken`} icon={Send} tone={reserve.short_for_agents ? "red" : undefined} />
+        <StatTile label="Owed to agents" value={formatNaira(owedAgents)} hint={`${formatNaira(reserve.agents_owed_kobo || 0)} earned · ${formatNaira(reserve.agents_coming_kobo || 0)} for paid jobs not yet taken${reserve.old_payouts_frozen_kobo ? ` · old payouts (${formatNaira(reserve.old_payouts_frozen_kobo)}) not counted` : ""}`} icon={Send} tone={reserve.short_for_agents ? "red" : undefined} />
         <StatTile label="Customer wallets" value={formatNaira(reserve.customer_wallets_kobo || 0)} hint={`Plus ${formatNaira(reserve.buffer_kobo || 0)} safety buffer`} icon={Wallet} />
         <StatTile label="Safe to withdraw" value={known ? formatNaira(reserve.safe_to_withdraw_kobo || 0) : "—"} hint="Balance minus everything above" icon={CheckCircle2} tone="brand" />
       </div>
@@ -192,6 +195,7 @@ export default function AdminDisbursementsPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters
+  const [era, setEra] = useState("current"); // current: from when automatic payouts started; old: frozen ones
   const [statusFilter, setStatusFilter] = useState("all"); // all, pending, overdue, success, failed
   const [methodFilter, setMethodFilter] = useState("all"); // all, automatic, manual
   const [searchTerm, setSearchTerm] = useState("");
@@ -237,6 +241,7 @@ export default function AdminDisbursementsPage() {
   const fetchDisbursements = async () => {
     setLoading(true);
     const params = {
+      era,
       page,
       page_size: pageSize,
       search: searchQuery || undefined,
@@ -276,7 +281,7 @@ export default function AdminDisbursementsPage() {
   // Reload table on filter / page change
   useEffect(() => {
     fetchDisbursements();
-  }, [page, statusFilter, methodFilter, searchQuery, fromDate, toDate]);
+  }, [era, page, statusFilter, methodFilter, searchQuery, fromDate, toDate]);
 
   // Handle Search submit
   const handleSearchSubmit = (e) => {
@@ -533,9 +538,11 @@ export default function AdminDisbursementsPage() {
         <div className="flex flex-wrap justify-end gap-2" onClick={(e) => e.stopPropagation()}>
           {t.status !== "success" ? (
             <>
-              <Button size="sm" icon={Send} onClick={() => handleInitiatePayout(t)} loading={actionLoadingId === t.id} disabled={actionLoadingId === t.id}>
-                Pay out
-              </Button>
+              {t.legacy ? null : (
+                <Button size="sm" icon={Send} onClick={() => handleInitiatePayout(t)} loading={actionLoadingId === t.id} disabled={actionLoadingId === t.id}>
+                  Pay out
+                </Button>
+              )}
               <Button size="sm" variant="secondary" icon={UploadCloud} onClick={() => handleOpenManualModal(t)} disabled={actionLoadingId === t.id}>
                 Paid manually
               </Button>
@@ -638,6 +645,26 @@ export default function AdminDisbursementsPage() {
         </Notice>
       ) : null}
 
+      {/* ─── Payouts from today vs old frozen ones ─── */}
+      <Tabs
+        tabs={[
+          { id: "current", label: "From today" },
+          { id: "old", label: "Old payouts", count: stats?.old_count || 0 },
+        ]}
+        value={era}
+        onChange={(v) => {
+          setEra(v);
+          setPage(1);
+        }}
+        label="Which payouts"
+      />
+      {era === "old" ? (
+        <Notice tone="neutral" title={`Old payouts: ${formatNaira(stats?.old_amount_kobo || 0)} still marked unpaid`}>
+          These are from before automatic Paystack payouts and were handled outside the system. They are frozen: nothing
+          sends them. Use &quot;Paid manually&quot; on any you want closed here.
+        </Notice>
+      ) : null}
+
       {/* ─── Filters ─── */}
       <div>
         <Tabs tabs={statusTabs} value={statusFilter} onChange={handleStatusChange} label="Payout status" className="mb-3" />
@@ -727,9 +754,11 @@ export default function AdminDisbursementsPage() {
                 <Button variant="secondary" icon={UploadCloud} onClick={() => handleOpenManualModal(d)} disabled={actionLoadingId === d.id}>
                   Paid manually
                 </Button>
-                <Button block icon={Send} onClick={() => handleInitiatePayout(d)} loading={actionLoadingId === d.id}>
-                  Pay out
-                </Button>
+                {d.legacy ? null : (
+                  <Button block icon={Send} onClick={() => handleInitiatePayout(d)} loading={actionLoadingId === d.id}>
+                    Pay out
+                  </Button>
+                )}
               </>
             ) : d.receipt_url ? (
               <Button block variant="secondary" icon={FileText} onClick={() => setViewingReceiptUrl(d.receipt_url)}>
@@ -777,7 +806,7 @@ export default function AdminDisbursementsPage() {
               <DetailRow label="Age" value={formatAge(d.age_hours) || "—"} />
               <DetailRow label="Created" value={formatDate(d.created_at)} />
               {d.attempt_count ? <DetailRow label="Attempts" value={`${d.attempt_count}${d.last_attempt_at ? `, last ${formatDate(d.last_attempt_at)}` : ""}`} /> : null}
-              {d.status !== "success" && (d.failure_reason || d.is_old_monnify) ? <DetailRow label="Why it's waiting" value={<PayoutNote transfer={d} />} /> : null}
+              {d.status !== "success" && (d.failure_reason || d.legacy) ? <DetailRow label="Why it's waiting" value={<PayoutNote transfer={d} />} /> : null}
             </dl>
             {d.bank_account ? (
               <Card className="bg-cx-sunken/60">
