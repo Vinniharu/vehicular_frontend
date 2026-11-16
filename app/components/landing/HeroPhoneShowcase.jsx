@@ -179,9 +179,9 @@ function ScreenWallet({ active }) {
       <div className="hps-wal-eyebrow">Wallet balance</div>
       <div className="hps-wal-bal">₦{n.toLocaleString()}</div>
       <div className="hps-wal-card">
-        <div className="hps-tr-soft">Dedicated account</div>
-        <div className="hps-tr-strong">0123 456 789</div>
-        <div className="hps-tr-soft">Wema Bank · Vehiculars / Demo User</div>
+        <div className="hps-tr-soft">Add money</div>
+        <div className="hps-tr-strong">Card or bank transfer</div>
+        <div className="hps-tr-soft">Secure checkout · credited instantly</div>
       </div>
       <div className="hps-section-h">Recent activity</div>
       <div className="hps-tx">
