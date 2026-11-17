@@ -31,6 +31,7 @@ import {
   adminBulkDeleteApplications,
   sendAdminFastTrackRequest,
 } from "@/lib/api";
+import { DocumentsAccepted, WaitingForAgentBadge } from "@/app/dashboard/_shared/WaitingForAgent";
 import { useToast } from "@/app/components/shared/ToastProvider";
 import {
   Badge,
@@ -160,6 +161,7 @@ export default function AdminApplicationsPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
+  const [waitingOnly, setWaitingOnly] = useState(false);
   const [sendingFastTrack, setSendingFastTrack] = useState(false);
 
   const [selected, setSelected] = useState(null);
@@ -264,6 +266,7 @@ export default function AdminApplicationsPage() {
       payment_status: paymentStatusFilter || undefined,
       sort: sortBy,
       is_urgent_only: isUrgentOnly ? true : undefined,
+      waiting_for_agent: waitingOnly ? true : undefined,
       search: isSearching ? debouncedSearch : undefined,
     });
     if (res.error) {
@@ -280,7 +283,7 @@ export default function AdminApplicationsPage() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, typeFilter, paymentStatusFilter, sortBy, isUrgentOnly, debouncedSearch]);
+  }, [page, statusFilter, typeFilter, paymentStatusFilter, sortBy, isUrgentOnly, waitingOnly, debouncedSearch]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -419,6 +422,7 @@ export default function AdminApplicationsPage() {
         <div className="flex flex-wrap items-center gap-1.5">
           <StatusBadge status={app.status} />
           {app.is_urgent && <FastTrackBadge />}
+          <WaitingForAgentBadge app={app} />
         </div>
       ),
     },
@@ -439,7 +443,12 @@ export default function AdminApplicationsPage() {
     {
       key: "assigned",
       header: "Assigned to",
-      render: (app) => <AssignmentPill assigned_staff={app.assigned_staff} assigned_agent={app.assigned_agent} />,
+      render: (app) => (
+        <div className="space-y-1">
+          <AssignmentPill assigned_staff={app.assigned_staff} assigned_agent={app.assigned_agent} />
+          <DocumentsAccepted app={app} />
+        </div>
+      ),
     },
     {
       key: "updated_at",
@@ -505,6 +514,15 @@ export default function AdminApplicationsPage() {
             />
             <Zap className="h-4 w-4 text-cx-amber" aria-hidden />
             <span className="whitespace-nowrap">Fast Track only</span>
+          </label>
+          <label className="flex min-h-12 cursor-pointer select-none items-center gap-2.5 rounded-cx border border-cx-line-strong bg-cx-surface px-3.5 text-[15px] font-medium text-cx-ink hover:bg-cx-sunken">
+            <input
+              type="checkbox"
+              checked={waitingOnly}
+              onChange={(e) => { setWaitingOnly(e.target.checked); setPage(1); }}
+              className="h-5 w-5 accent-cx-brand"
+            />
+            <span className="whitespace-nowrap">Waiting for an agent</span>
           </label>
         </Toolbar>
         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-4">

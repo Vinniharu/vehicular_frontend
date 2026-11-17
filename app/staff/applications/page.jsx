@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { getStaffQueue, staffClaimApplication, getCachedUser, authGetMe, koboToNaira, getStaffCounts } from "@/lib/api";
+import { DocumentsAccepted, WaitingForAgentBadge } from "@/app/dashboard/_shared/WaitingForAgent";
 import {
   Badge,
   Button,
@@ -135,6 +136,7 @@ function StaffApplicationsQueueInner() {
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [sortBy, setSortBy] = useState("updated_at");
   const [isUrgentOnly, setIsUrgentOnly] = useState(false);
+  const [waitingOnly, setWaitingOnly] = useState(false);
 
   const loadData = async (
     isRefresh = false,
@@ -213,6 +215,7 @@ function StaffApplicationsQueueInner() {
   // Filtered list based on search, scope, and status
   const filteredApps = useMemo(() => {
     return applications.filter((app) => {
+      if (waitingOnly && !app.waiting_for_agent) return false;
       const q = searchQuery.toLowerCase().trim();
       const matchSearch =
         !q ||
@@ -250,7 +253,7 @@ function StaffApplicationsQueueInner() {
       if (statusFilter === "flagged") return ["staff_rejected", "needs_correction"].includes(app.status);
       return app.status === statusFilter;
     });
-  }, [applications, scope, statusFilter, searchQuery, currentUser, typeFilter]);
+  }, [applications, scope, statusFilter, searchQuery, currentUser, typeFilter, waitingOnly]);
 
   // Counts for tabs and dropdowns
   const counts = useMemo(() => {
@@ -376,6 +379,11 @@ function StaffApplicationsQueueInner() {
             <Switch checked={isUrgentOnly} onChange={setIsUrgentOnly} label="Fast Track only" />
           </div>
         </div>
+        <div className="flex min-h-12 items-center rounded-cx border border-cx-line-strong bg-cx-surface px-3.5">
+          <div className="w-full">
+            <Switch checked={waitingOnly} onChange={setWaitingOnly} label="Waiting for an agent" />
+          </div>
+        </div>
       </div>
 
       <Sheet
@@ -415,6 +423,12 @@ function StaffApplicationsQueueInner() {
             onChange={setIsUrgentOnly}
             label="Fast Track only"
             description="Only show applications the customer paid to speed up."
+          />
+          <Switch
+            checked={waitingOnly}
+            onChange={setWaitingOnly}
+            label="Waiting for an agent"
+            description="Released to agents, but nobody has accepted yet."
           />
         </div>
       </Sheet>
@@ -491,6 +505,8 @@ function StaffApplicationsQueueInner() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {isPaid && app.sla ? <SlaChip sla={app.sla} compact /> : null}
+                    <WaitingForAgentBadge app={app} />
+                    <DocumentsAccepted app={app} />
                     {app.is_urgent ? (
                       <Badge tone="amber">
                         <Zap className="h-3.5 w-3.5" aria-hidden />
