@@ -17,9 +17,13 @@ import {
   ChevronRight,
   X,
   Wallet,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import {
   adminGetPayoutReserve,
+  adminGetPayoutPause,
+  adminSetPayoutPause,
   adminGetDisbursements,
   adminGetDisbursementStats,
   adminInitiateDisbursement,
@@ -100,6 +104,14 @@ function TransferStatus({ transfer }) {
   }
   if (transfer.legacy) {
     return <Badge>Old · frozen</Badge>;
+  }
+  if (transfer.failure_code === "paused") {
+    return (
+      <Badge tone="amber">
+        <PauseCircle className="h-3.5 w-3.5" aria-hidden />
+        Paused
+      </Badge>
+    );
   }
   if (transfer.status === "pending") {
     return transfer.is_overdue ? (
@@ -182,8 +194,38 @@ export default function AdminDisbursementsPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [reserve, setReserve] = useState(null);
   const fetchReserve = async () => {
-    const res = await adminGetPayoutReserve();
+    const [res, pauseRes] = await Promise.all([adminGetPayoutReserve(), adminGetPayoutPause()]);
     if (res.data) setReserve(res.data);
+    if (pauseRes.data) setPause(pauseRes.data);
+  };
+
+  // Pause / resume automatic payouts
+  const [pause, setPause] = useState(null);
+  const [pauseConfirm, setPauseConfirm] = useState(null); // "pause" | "resume" | null
+  const [pauseSaving, setPauseSaving] = useState(false);
+  const applyPause = async () => {
+    const wantPaused = pauseConfirm === "pause";
+    setPauseSaving(true);
+    const res = await adminSetPayoutPause(wantPaused);
+    setPauseSaving(false);
+    setPauseConfirm(null);
+    if (res.error) {
+      pushToast({ tone: "error", title: "Couldn't change payouts", body: res.error });
+      return;
+    }
+    setPause(res.data);
+    pushToast({
+      tone: "success",
+      title: wantPaused ? "Automatic payouts paused" : "Payouts resumed",
+      body: wantPaused ? "Agents are still credited; nothing is sent until you resume." : "Waiting payouts are being sent now.",
+    });
+    if (!wantPaused) {
+      setTimeout(() => {
+        fetchStats();
+        fetchReserve();
+        fetchDisbursements();
+      }, 4000);
+    }
   };
 
   // List
@@ -538,7 +580,7 @@ export default function AdminDisbursementsPage() {
         <div className="flex flex-wrap justify-end gap-2" onClick={(e) => e.stopPropagation()}>
           {t.status !== "success" ? (
             <>
-              {t.legacy ? null : (
+              {t.legacy || pause?.paused ? null : (
                 <Button size="sm" icon={Send} onClick={() => handleInitiatePayout(t)} loading={actionLoadingId === t.id} disabled={actionLoadingId === t.id}>
                   Pay out
                 </Button>
@@ -569,19 +611,64 @@ export default function AdminDisbursementsPage() {
         title="Agent payouts"
         description="Watch automatic payouts, deal with delayed ones and record payouts you made by bank transfer."
         actions={
-          <Button
-            variant="secondary"
-            icon={RefreshCw}
-            loading={loading || statsLoading}
-            onClick={() => {
-              fetchStats();
-              fetchReserve();
-              fetchDisbursements();
-            }}
-          >
-            Refresh
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {pause ? (
+              pause.paused ? (
+                <Button icon={PlayCircle} onClick={() => setPauseConfirm("resume")}>
+                  Resume payouts
+                </Button>
+              ) : (
+                <Button variant="danger" icon={PauseCircle} onClick={() => setPauseConfirm("pause")}>
+                  Pause automatic payouts
+                </Button>
+              )
+            ) : null}
+            <Button
+              variant="secondary"
+              icon={RefreshCw}
+              loading={loading || statsLoading}
+              onClick={() => {
+                fetchStats();
+                fetchReserve();
+                fetchDisbursements();
+              }}
+            >
+              Refresh
+            </Button>
+          </div>
         }
+      />
+
+      {pause?.paused ? (
+        <Notice
+          tone="red"
+          title="Automatic payouts are paused"
+          action={
+            <Button size="sm" icon={PlayCircle} onClick={() => setPauseConfirm("resume")}>
+              Resume payouts
+            </Button>
+          }
+        >
+          Paused{pause.paused_at ? ` since ${new Date(pause.paused_at).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}` : ""}
+          {pause.paused_by_name ? ` by ${pause.paused_by_name}` : ""}. {pause.waiting_count} payout
+          {pause.waiting_count === 1 ? "" : "s"} ({formatNaira(pause.waiting_amount_kobo || 0)}) waiting. Agents are still
+          credited when they accept jobs; nothing is sent until you resume.
+        </Notice>
+      ) : null}
+
+      <ConfirmSheet
+        open={!!pauseConfirm}
+        onOpenChange={(o) => !o && setPauseConfirm(null)}
+        title={pauseConfirm === "pause" ? "Pause automatic payouts?" : "Resume payouts?"}
+        description={
+          pauseConfirm === "pause"
+            ? "Agents will still be credited when they accept jobs, but no payouts will be sent until you resume."
+            : `${pause?.waiting_count || 0} waiting payout${pause?.waiting_count === 1 ? "" : "s"} (${formatNaira(pause?.waiting_amount_kobo || 0)}) will be sent now.`
+        }
+        confirmLabel={pauseConfirm === "pause" ? "Pause payouts" : "Resume and send"}
+        tone={pauseConfirm === "pause" ? "danger" : "primary"}
+        loading={pauseSaving}
+        onConfirm={applyPause}
       />
 
       {/* ─── Summary ─── */}
@@ -754,7 +841,7 @@ export default function AdminDisbursementsPage() {
                 <Button variant="secondary" icon={UploadCloud} onClick={() => handleOpenManualModal(d)} disabled={actionLoadingId === d.id}>
                   Paid manually
                 </Button>
-                {d.legacy ? null : (
+                {d.legacy || pause?.paused ? null : (
                   <Button block icon={Send} onClick={() => handleInitiatePayout(d)} loading={actionLoadingId === d.id}>
                     Pay out
                   </Button>
